@@ -3,6 +3,7 @@ import { signOkxRequest, type OkxCredentials } from "./auth";
 
 const OKX_ORIGIN = "https://web3.okx.com";
 const PRODUCT_SEARCH_PATH = "/api/v6/defi/product/search";
+const PRODUCT_DETAIL_PATH = "/api/v6/defi/product/detail";
 
 const NumericStringSchema = z.union([z.string(), z.number()]).transform(String);
 
@@ -15,6 +16,36 @@ export const RawProductSchema = z
     tvl: z.string(),
     productGroup: z.string().min(1),
     chainIndex: NumericStringSchema,
+  })
+  .passthrough();
+
+const TokenPrecisionSchema = z.union([
+  z.number().int().nonnegative(),
+  z.string().regex(/^\d+$/).transform(Number),
+]);
+
+export const RawProductDetailSchema = z
+  .object({
+    investmentId: NumericStringSchema,
+    investmentName: z.string().min(1),
+    platformName: z.string().min(1),
+    chainIndex: NumericStringSchema,
+    rate: z.string(),
+    tvl: z.string(),
+    isInvestable: z.boolean(),
+    utilizationRate: z.string(),
+    underlyingToken: z
+      .array(
+        z
+          .object({
+            tokenSymbol: z.string().min(1),
+            tokenAddress: z.string().min(1),
+            chainIndex: NumericStringSchema,
+            tokenPrecision: TokenPrecisionSchema,
+          })
+          .passthrough(),
+      )
+      .min(1),
   })
   .passthrough();
 
@@ -34,6 +65,7 @@ const ProductSearchQuerySchema = z
   .strict();
 
 export type RawProduct = z.infer<typeof RawProductSchema>;
+export type RawProductDetail = z.infer<typeof RawProductDetailSchema>;
 export type ProductSearchQuery = z.input<typeof ProductSearchQuerySchema>;
 
 interface OkxClientOptions {
@@ -108,6 +140,41 @@ export function createOkxClient(options: OkxClientOptions) {
         });
       }
       return data.data.list;
+    },
+
+    async getProductDetail(investmentId: string): Promise<RawProductDetail> {
+      if (!/^\d+$/.test(investmentId)) {
+        throw new OkxApiError("INVALID_INVESTMENT_ID", "Invalid OKX investment ID");
+      }
+      const path = `${PRODUCT_DETAIL_PATH}?investmentId=${encodeURIComponent(investmentId)}`;
+      const timestamp = now().toISOString();
+      const response = await fetchImpl(`${OKX_ORIGIN}${path}`, {
+        method: "GET",
+        headers: signOkxRequest({
+          ...options.credentials,
+          timestamp,
+          method: "GET",
+          path,
+        }),
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        throw new OkxApiError(
+          `HTTP_${response.status}`,
+          `OKX request failed with HTTP ${response.status}`,
+        );
+      }
+      const envelope = readEnvelope(await response.json());
+      if (envelope.code !== "0") {
+        throw new OkxApiError(envelope.code, envelope.msg || "OKX request failed");
+      }
+      const detail = RawProductDetailSchema.safeParse(envelope.data);
+      if (!detail.success) {
+        throw new OkxApiError("INVALID_PRODUCT_DETAIL", "Invalid OKX product detail", {
+          cause: detail.error,
+        });
+      }
+      return detail.data;
     },
   };
 }

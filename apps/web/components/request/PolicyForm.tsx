@@ -27,12 +27,12 @@ function percentToBps(value: string): number | null {
   return Number.isSafeInteger(bps) && bps <= 10_000 ? bps : null;
 }
 
-function formatUsdc(atomic: string | null): string {
+function formatPrincipal(atomic: string | null): string {
   if (!atomic) return "—";
   return `${(Number(atomic) / 1_000_000).toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })} USDC`;
+  })} USDG`;
 }
 
 export function PolicyForm() {
@@ -145,7 +145,7 @@ export function PolicyForm() {
               value={principal}
               onChange={(event) => setPrincipal(event.target.value)}
             />
-            <span>USDC</span>
+            <span>USDG</span>
           </div>
         </div>
         <div className="field">
@@ -192,8 +192,8 @@ export function PolicyForm() {
       ) : null}
 
       <PolicySummary
-        principal={formatUsdc(values.principalAtomic)}
-        exposure={`${formatUsdc(exposureAtomic)} max`}
+        principal={formatPrincipal(values.principalAtomic)}
+        exposure={`${formatPrincipal(exposureAtomic)} max`}
         minimumTvl={`$${Number(minimumTvl).toLocaleString("en-US")}`}
         minimumApy={`${minimumApy}%`}
       />

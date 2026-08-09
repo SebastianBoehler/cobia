@@ -85,4 +85,23 @@ describe("deterministic solver", () => {
       solver.solve({ policy, snapshot: frozen, nowSec }),
     ).resolves.toBeDefined();
   });
+
+  it("derives the cash candidate from the snapshot asset", async () => {
+    const solver = createDeterministicSolver({
+      solverId: "determinist-labs",
+      account: solverAccount,
+    });
+    const usdgSnapshot = {
+      ...snapshot,
+      asset: { ...snapshot.asset, symbol: "USDG" },
+      candidates: [
+        { ...snapshot.candidates[0], id: "cash:usdg" },
+        snapshot.candidates[1],
+      ],
+    };
+
+    const bundle = await solver.solve({ policy, snapshot: usdgSnapshot, nowSec });
+
+    expect(bundle.allocations[0]).toEqual({ candidateId: "cash:usdg", bps: 6_000 });
+  });
 });

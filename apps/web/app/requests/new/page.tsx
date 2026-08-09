@@ -30,8 +30,8 @@ export default function NewRequestPage() {
         </section>
         <section className="request-page__workspace" aria-labelledby="request-form-title">
           <div className="workspace-heading">
-            <div><p className="eyebrow">Intent</p><h2 id="request-form-title">Find a USDC route</h2></div>
-            <span className="asset-badge"><i>$</i> USDC · X Layer</span>
+            <div><p className="eyebrow">Intent</p><h2 id="request-form-title">Find a USDG route</h2></div>
+            <span className="asset-badge"><i>$</i> USDG · X Layer</span>
           </div>
           <PolicyForm />
         </section>

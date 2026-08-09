@@ -49,6 +49,13 @@ async function solve(
 ): Promise<DecisionBundle> {
   const { policy, snapshot } = input;
   const candidate = selectCandidate(input);
+  const cashCandidates = snapshot.candidates.filter(
+    (item) => item.kind === "cash",
+  );
+  if (cashCandidates.length !== 1) {
+    throw new Error("Snapshot must contain exactly one cash candidate");
+  }
+  const cashCandidateId = cashCandidates[0].id;
   const exposureBps = candidate ? policy.maxProtocolExposureBps : 0;
   const cashBps = 10_000 - exposureBps;
   const amountAtomic = (
@@ -66,10 +73,10 @@ async function solve(
       snapshotHash: commitment(snapshot),
       allocations: candidate
         ? [
-            { candidateId: "cash:usdc", bps: cashBps },
+            { candidateId: cashCandidateId, bps: cashBps },
             { candidateId: candidate.id, bps: exposureBps },
           ]
-        : [{ candidateId: "cash:usdc", bps: 10_000 }],
+        : [{ candidateId: cashCandidateId, bps: 10_000 }],
       evidence: [],
       riskFlags: [],
       expectedNetApyBps: candidate

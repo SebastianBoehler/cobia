@@ -35,8 +35,8 @@ describe("PolicyForm", () => {
     render(<PolicyForm />);
     fillRequiredFields();
 
-    expect(screen.getByText("25,000.00 USDC")).toBeVisible();
-    expect(screen.getByText("10,000.00 USDC max")).toBeVisible();
+    expect(screen.getByText("25,000.00 USDG")).toBeVisible();
+    expect(screen.getByText("10,000.00 USDG max")).toBeVisible();
     expect(screen.getByText("No bridges")).toBeVisible();
     expect(screen.getByText("Principal stays in your wallet")).toBeVisible();
     expect(screen.getByRole("button", { name: "Open quote market" })).toBeEnabled();

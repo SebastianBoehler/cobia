@@ -120,4 +120,46 @@ describe("OKX DeFi client", () => {
       }),
     ).rejects.toThrow("Invalid OKX product response");
   });
+
+  it("signs the product-detail query path and parses execution metadata", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      Response.json({
+        code: "0",
+        msg: "",
+        data: {
+          investmentId: 9001,
+          investmentName: "USDG",
+          platformName: "Aave V3",
+          chainIndex: "196",
+          rate: "0.0642",
+          tvl: "500000000.25",
+          isInvestable: true,
+          utilizationRate: "0.72",
+          underlyingToken: [
+            {
+              tokenSymbol: "USDG",
+              tokenAddress: "0x1111111111111111111111111111111111111111",
+              chainIndex: "196",
+              tokenPrecision: 6,
+            },
+          ],
+        },
+      }),
+    );
+    const client = createOkxClient({
+      credentials,
+      fetchImpl,
+      now: () => new Date("2026-08-10T10:00:00.000Z"),
+    });
+
+    await expect(client.getProductDetail("9001")).resolves.toMatchObject({
+      investmentId: "9001",
+      investmentName: "USDG",
+      isInvestable: true,
+    });
+    expect(fetchImpl.mock.calls[0][0]).toBe(
+      "https://web3.okx.com/api/v6/defi/product/detail?investmentId=9001",
+    );
+    expect(fetchImpl.mock.calls[0][1]?.method).toBe("GET");
+  });
 });
