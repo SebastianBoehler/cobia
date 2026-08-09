@@ -1,3 +1,11 @@
 packages:
   - apps/*
   - packages/*
+
+allowBuilds:
+  esbuild: true
+  unrs-resolver: true
+
+overrides:
+  baseline-browser-mapping: 2.11.12
+  electron-to-chromium: 1.5.402

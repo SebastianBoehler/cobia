@@ -48,7 +48,7 @@ Expected: `apps/web/app/page.tsx` exists and `git status --short` contains only 
 {
   "name": "cobia",
   "private": true,
-  "packageManager": "pnpm@10.30.2",
+  "packageManager": "pnpm@11.20.0",
   "engines": { "node": ">=22" },
   "scripts": {
     "lint": "pnpm -r lint",
@@ -57,7 +57,7 @@ Expected: `apps/web/app/page.tsx` exists and `git status --short` contains only 
     "e2e:testnet": "tsx scripts/e2e-testnet.ts",
     "verify:deployment": "tsx scripts/verify-deployment.ts"
   },
-  "devDependencies": { "tsx": "4.20.6", "typescript": "5.9.3" }
+  "devDependencies": { "tsx": "4.23.11", "typescript": "6.0.3" }
 }
 ```
 
