@@ -6,15 +6,14 @@ import {
   type StablecoinPolicy,
 } from "@cobia/domain";
 import { createDeterministicSolver, type Solver } from "@cobia/solvers";
+import { keccak256, toHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { describe, expect, it } from "vitest";
 import { USDG_ADDRESS } from "../chain/xlayer";
 import { runQuoteMarket } from "./run-market";
 
 const nowSec = 1_900_000_000;
-const account = privateKeyToAccount(
-  "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-);
+const account = privateKeyToAccount(keccak256(toHex("cobia-market-test-signer")));
 
 function fixtures(): { policy: StablecoinPolicy; snapshot: MarketSnapshot } {
   const requestId = crypto.randomUUID();

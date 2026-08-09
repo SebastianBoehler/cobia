@@ -5,6 +5,7 @@ import {
   type StablecoinPolicy,
 } from "@cobia/domain";
 import { createDeterministicSolver } from "@cobia/solvers";
+import { keccak256, toHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { USDG_ADDRESS } from "../chain/xlayer";
@@ -15,9 +16,7 @@ import { cobiaQuotes, cobiaRequests } from "./schema";
 const databaseUrl = process.env.DATABASE_URL;
 const database = databaseUrl ? createDatabase(databaseUrl) : undefined;
 const repository = database ? createRequestRepository(database.db) : undefined;
-const solverAccount = privateKeyToAccount(
-  "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-);
+const solverAccount = privateKeyToAccount(keccak256(toHex("cobia-db-test-signer")));
 const nowSec = Date.parse("2026-08-09T10:01:00.000Z") / 1_000;
 
 function fixtures() {

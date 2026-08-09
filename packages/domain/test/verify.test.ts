@@ -1,3 +1,4 @@
+import { keccak256, toHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { describe, expect, it } from "vitest";
 import {
@@ -9,9 +10,7 @@ import {
   type StablecoinPolicy,
 } from "../src/index";
 
-const account = privateKeyToAccount(
-  "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-);
+const account = privateKeyToAccount(keccak256(toHex("cobia-domain-test-signer")));
 const requestId = "550e8400-e29b-41d4-a716-446655440000";
 const asset = "0x2222222222222222222222222222222222222222";
 const hash = `0x${"ab".repeat(32)}` as const;

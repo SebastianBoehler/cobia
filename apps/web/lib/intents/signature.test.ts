@@ -1,3 +1,4 @@
+import { keccak256, toHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { describe, expect, it } from "vitest";
 import { USDG_ADDRESS } from "../chain/xlayer";
@@ -7,9 +8,7 @@ import {
   verifyQuoteSelectionSignature,
 } from "./signature";
 
-const account = privateKeyToAccount(
-  "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-);
+const account = privateKeyToAccount(keccak256(toHex("cobia-intent-test-signer")));
 
 const policy = {
   version: 1 as const,

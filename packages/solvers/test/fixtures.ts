@@ -3,11 +3,10 @@ import {
   type MarketSnapshot,
   type StablecoinPolicy,
 } from "@cobia/domain";
+import { keccak256, toHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
-export const solverAccount = privateKeyToAccount(
-  "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-);
+export const solverAccount = privateKeyToAccount(keccak256(toHex("cobia-solver-test-signer")));
 
 export const policy: StablecoinPolicy = {
   version: 1,

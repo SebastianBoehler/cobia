@@ -1,12 +1,11 @@
 import { commitment, verifyBundle } from "@cobia/domain";
+import { keccak256, toHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { describe, expect, it, vi } from "vitest";
 import { createResearchSolver } from "../src/research";
 import { nowSec, policy, snapshot } from "./fixtures";
 
-const account = privateKeyToAccount(
-  "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-);
+const account = privateKeyToAccount(keccak256(toHex("cobia-research-test-signer")));
 
 function response(body: object): Response {
   return Response.json({
