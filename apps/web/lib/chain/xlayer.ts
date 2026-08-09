@@ -14,6 +14,8 @@ export const USDG_ADDRESS: Address =
   "0x4ae46a509F6b1D9056937BA4500cb143933D2dc8";
 export const USDG_A_TOKEN: Address =
   "0x228765a3C18065C923F23a0CCb6c7cEFB3eA2223";
+export const USDC_ADDRESS: Address =
+  "0xA8CE8aee21bC2A48a5EF670afCc9274C7bbbC035";
 
 export const xLayer = defineChain({
   id: 196,
@@ -34,7 +36,9 @@ export interface SnapshotBlockReader {
   getLatestBlock(): Promise<SnapshotBlock>;
 }
 
-export function createXLayerBlockReader(rpcUrl = xLayer.rpcUrls.default.http[0]): SnapshotBlockReader {
+export function createXLayerBlockReader(
+  rpcUrl: string = xLayer.rpcUrls.default.http[0],
+): SnapshotBlockReader {
   const client = createPublicClient({ chain: xLayer, transport: http(rpcUrl) });
   return {
     async getLatestBlock() {

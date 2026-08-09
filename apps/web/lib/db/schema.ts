@@ -47,7 +47,6 @@ export const cobiaRequests = pgTable(
   (table) => [
     uniqueIndex("cobia_requests_policy_hash_idx").on(table.policyHash),
     uniqueIndex("cobia_requests_payment_receipt_idx").on(table.paymentReceiptHash),
-    index("cobia_requests_owner_idx").on(table.id),
   ],
 );
 

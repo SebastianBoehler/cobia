@@ -2,12 +2,19 @@
 
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PolicyForm } from "./PolicyForm";
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+});
+
+beforeEach(() => {
+  Object.defineProperty(window, "ethereum", {
+    configurable: true,
+    value: { request: vi.fn().mockResolvedValue(`0x${"ab".repeat(65)}`) },
+  });
 });
 
 function fillRequiredFields(): void {
@@ -75,10 +82,13 @@ describe("PolicyForm", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     const [, init] = fetchMock.mock.calls[0];
     expect(JSON.parse(String(init.body))).toMatchObject({
-      owner: "0x1111111111111111111111111111111111111111",
-      principalAtomic: "25000000000",
-      maxProtocolExposureBps: 4_000,
-      noBridges: true,
+      ownerSignature: `0x${"ab".repeat(65)}`,
+      policy: {
+        owner: "0x1111111111111111111111111111111111111111",
+        principalAtomic: "25000000000",
+        maxProtocolExposureBps: 4_000,
+        noBridges: true,
+      },
     });
   });
 });

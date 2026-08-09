@@ -107,6 +107,41 @@ export function createRequestRepository(db: CobiaDatabase) {
       );
     },
 
+    async finishMarket(
+      requestId: string,
+      state: "quotes_ready" | "partial" | "failed",
+    ): Promise<void> {
+      requireUpdated(
+        await db
+          .update(cobiaRequests)
+          .set({ state, updatedAt: new Date() })
+          .where(
+            and(
+              eq(cobiaRequests.id, requestId),
+              inArray(cobiaRequests.state, ["collecting", "verifying"]),
+            ),
+          )
+          .returning({ id: cobiaRequests.id }),
+        "Request market is not active",
+      );
+    },
+
+    async failRequest(requestId: string): Promise<void> {
+      requireUpdated(
+        await db
+          .update(cobiaRequests)
+          .set({ state: "failed", updatedAt: new Date() })
+          .where(
+            and(
+              eq(cobiaRequests.id, requestId),
+              inArray(cobiaRequests.state, ["open", "collecting", "verifying"]),
+            ),
+          )
+          .returning({ id: cobiaRequests.id }),
+        "Request cannot transition to failed",
+      );
+    },
+
     async getPublicRequest(requestId: string) {
       const request = await db.query.cobiaRequests.findFirst({
         where: eq(cobiaRequests.id, requestId),
@@ -178,6 +213,38 @@ export function createRequestRepository(db: CobiaDatabase) {
           .returning({ id: cobiaRequests.id }),
         "Reveal requires a paid request",
       );
+    },
+
+    async getPaidBundle(requestId: string, quoteId: string) {
+      const request = await db.query.cobiaRequests.findFirst({
+        where: and(
+          eq(cobiaRequests.id, requestId),
+          eq(cobiaRequests.selectedQuoteId, quoteId),
+          inArray(cobiaRequests.state, ["paid", "revealed"]),
+        ),
+      });
+      if (!request) throw new Error("Bundle requires the paid selected quote");
+      const quote = await db.query.cobiaQuotes.findFirst({
+        where: and(eq(cobiaQuotes.requestId, requestId), eq(cobiaQuotes.id, quoteId)),
+      });
+      if (!quote) throw new Error("Selected quote bundle is unavailable");
+      return DecisionBundleSchema.parse(quote.privateBundle);
+    },
+
+    async getSelectedBundleForPayment(requestId: string, quoteId: string) {
+      const request = await db.query.cobiaRequests.findFirst({
+        where: and(
+          eq(cobiaRequests.id, requestId),
+          eq(cobiaRequests.selectedQuoteId, quoteId),
+          inArray(cobiaRequests.state, ["selected", "payment_pending"]),
+        ),
+      });
+      if (!request) throw new Error("Payment requires the selected quote");
+      const quote = await db.query.cobiaQuotes.findFirst({
+        where: and(eq(cobiaQuotes.requestId, requestId), eq(cobiaQuotes.id, quoteId)),
+      });
+      if (!quote) throw new Error("Selected quote bundle is unavailable");
+      return DecisionBundleSchema.parse(quote.privateBundle);
     },
   };
 }

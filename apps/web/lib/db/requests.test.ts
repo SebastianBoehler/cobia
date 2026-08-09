@@ -25,7 +25,7 @@ function fixtures() {
   const policy: StablecoinPolicy = {
     version: 1,
     requestId,
-    owner: "0x1111111111111111111111111111111111111111",
+    owner: solverAccount.address,
     executionChainId: 196,
     asset: USDG_ADDRESS,
     principalAtomic: "25000000000",
@@ -113,11 +113,17 @@ describeWithDatabase("request repository", () => {
     await repository.selectQuote(first.policy.requestId, first.quote.quoteId, nowSec);
     await repository.selectQuote(second.policy.requestId, second.quote.quoteId, nowSec);
 
+    await expect(
+      repository.getPaidBundle(first.policy.requestId, first.quote.quoteId),
+    ).rejects.toThrow("paid selected quote");
     await expect(repository.markRevealed(first.policy.requestId)).rejects.toThrow("paid request");
     await repository.recordPayment(first.policy.requestId, `0x${"cd".repeat(32)}`);
     await expect(
       repository.recordPayment(second.policy.requestId, `0x${"cd".repeat(32)}`),
     ).rejects.toThrow();
+    expect(await repository.getPaidBundle(first.policy.requestId, first.quote.quoteId)).toEqual(
+      first.bundle,
+    );
     await repository.markRevealed(first.policy.requestId);
     expect((await repository.getPublicRequest(first.policy.requestId))?.state).toBe("revealed");
   });

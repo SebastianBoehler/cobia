@@ -1,14 +1,20 @@
 "use client";
 
 import { ArrowRight, ChevronDown, CircleCheck, LoaderCircle } from "lucide-react";
+import { commitment, StablecoinPolicySchema } from "@cobia/domain";
 import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
 import { isAddress } from "viem";
+import { USDG_ADDRESS } from "../../lib/chain/xlayer";
 import { PolicySummary } from "./PolicySummary";
 
 interface CreatedRequest {
   requestId: string;
   policyHash: string;
+}
+
+interface InjectedProvider {
+  request(input: { method: string; params?: unknown[] }): Promise<unknown>;
 }
 
 function decimalToAtomic(value: string, decimals: number): string | null {
@@ -74,19 +80,31 @@ export function PolicyForm() {
     setPending(true);
     setError(undefined);
     try {
+      const provider = (window as typeof window & { ethereum?: InjectedProvider }).ethereum;
+      if (!provider) throw new Error("Connect an EVM wallet to sign this intent.");
+      const policy = StablecoinPolicySchema.parse({
+        version: 1,
+        requestId: crypto.randomUUID(),
+        owner,
+        executionChainId: 196,
+        asset: USDG_ADDRESS,
+        principalAtomic: values.principalAtomic,
+        maxProtocolExposureBps: values.exposureBps,
+        minTvlUsdE6: values.minTvlUsdE6,
+        minNetApyBps: values.minNetApyBps,
+        maxSnapshotAgeSec: 300,
+        deadline: Math.floor(Date.now() / 1_000) + 1_800,
+        noBridges: true,
+      });
+      const ownerSignature = await provider.request({
+        method: "personal_sign",
+        params: [commitment(policy), policy.owner],
+      });
+      if (typeof ownerSignature !== "string") throw new Error("Wallet returned an invalid signature.");
       const response = await fetch("/api/requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          owner,
-          principalAtomic: values.principalAtomic,
-          maxProtocolExposureBps: values.exposureBps,
-          minTvlUsdE6: values.minTvlUsdE6,
-          minNetApyBps: values.minNetApyBps,
-          maxSnapshotAgeSec: 300,
-          deadline: Math.floor(Date.now() / 1_000) + 1_800,
-          noBridges: true,
-        }),
+        body: JSON.stringify({ policy, ownerSignature }),
       });
       const payload = (await response.json()) as Partial<CreatedRequest> & {
         message?: string;

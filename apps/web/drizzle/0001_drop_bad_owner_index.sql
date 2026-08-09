@@ -1,0 +1,1 @@
+DROP INDEX "cobia_requests_owner_idx";
