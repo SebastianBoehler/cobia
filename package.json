@@ -7,6 +7,7 @@
   },
   "scripts": {
     "dev": "pnpm --filter @cobia/web dev",
+    "env:dev": "node apps/web/scripts/seed-dev-env.mjs",
     "build": "pnpm -r --if-present build",
     "lint": "pnpm -r --if-present lint",
     "typecheck": "pnpm -r --if-present typecheck",

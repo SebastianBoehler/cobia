@@ -71,8 +71,8 @@ packages:
 
 `.env.example` must list `DATABASE_URL`, `OKX_API_KEY`, `OKX_SECRET_KEY`,
 `OKX_PASSPHRASE`, `MPPX_SECRET_KEY`, `OPENAI_API_KEY`, `COBIA_TREASURY`,
-`DETERMINISTIC_SOLVER_RECIPIENT`, `AI_SOLVER_RECIPIENT`, `XLAYER_RPC_URL`, and
-`XLAYER_TESTNET_RPC_URL`, plus `PAYMENT_CHAIN_ID` and `PAYMENT_ASSET`. Add `.env`,
+`XLAYER_RPC_URL`, and `XLAYER_TESTNET_RPC_URL`, plus `PAYMENT_CHAIN_ID` and
+`PAYMENT_ASSET`. Add `.env`,
 `.env.local`, deployment keystores, and
 Foundry broadcast secrets to `.gitignore`.
 

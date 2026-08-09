@@ -11,11 +11,17 @@ Requirements: Node.js 22+, pnpm 11.20.0, and PostgreSQL 16+.
 
 ```bash
 pnpm install
-cp .env.example apps/web/.env.local
+pnpm env:dev
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE \
   pnpm --filter @cobia/web db:migrate
 pnpm --filter @cobia/web dev
 ```
+
+`pnpm env:dev` creates an ignored, owner-readable `apps/web/.env.local` with
+fresh signing wallets for both solvers, a separate recoverable dev treasury,
+an MPP secret, and X Layer testnet payment defaults. It never overwrites an
+existing env file or prints private keys. Fill in the blank OKX and OpenAI
+credentials before exercising their live paths.
 
 Open <http://localhost:3000>. The MCP endpoint is
 <http://localhost:3000/mcp>.
