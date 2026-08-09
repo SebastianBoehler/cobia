@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cobia web
 
-## Getting Started
+Cobia is a constrained DeFi quote market for X Layer. A wallet signs a USDG
+policy, deterministic and research solvers compete over the same block-bounded
+snapshot, and the verifier publishes only sanitized quotes. The selected private
+bundle is revealed after an OKX MPP/x402 payment to the winning solver.
 
-First, run the development server:
+## Local run
+
+Requirements: Node.js 22+, pnpm 11.20.0, and PostgreSQL 16+.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+cp .env.example apps/web/.env.local
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE \
+  pnpm --filter @cobia/web db:migrate
+pnpm --filter @cobia/web dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open <http://localhost:3000>. The MCP endpoint is
+<http://localhost:3000/mcp>.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Every variable in `.env.example` is required for the corresponding live path.
+The app returns an explicit error when PostgreSQL, OKX, OpenAI, solver signing,
+or payment configuration is unavailable; it does not substitute sample data.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Network boundary
 
-## Learn More
+- Yield research reads live USDG/Aave V3 data on X Layer chain `196` through
+  the signed OKX API and verifies the snapshot against the configured RPC.
+- Winner payment accepts chain `196` or X Layer testnet `1952`. Set
+  `PAYMENT_ASSET` to the actual payment-token address on the selected chain.
+- The MVP does not move the user's USDG principal and does not claim a testnet
+  Aave deployment. A full testnet payment check requires funded Agentic Wallet,
+  OKX MPP credentials, treasury/solver addresses, and a deployed payment asset.
 
-To learn more about Next.js, take a look at the following resources:
+## Verification
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+pnpm test
+pnpm typecheck
+pnpm lint
+pnpm build
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Database integration tests run when `DATABASE_URL` is present:
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE \
+  pnpm --filter @cobia/web exec vitest run lib/db/requests.test.ts
+```
