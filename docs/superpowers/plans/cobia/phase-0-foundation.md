@@ -110,7 +110,7 @@ it("signs timestamp + method + path + body", () => {
     timestamp: "2026-08-10T10:00:00.000Z",
     method: "POST",
     path: "/api/v6/defi/product/search",
-    body: '{"tokenKeywordList":["USDC"],"chainIndex":"196"}',
+    body: '{"tokenKeywordList":["USDG"],"chainIndex":"196"}',
     secret: "secret",
     key: "key",
     passphrase: "pass"
@@ -135,7 +135,7 @@ business codes and non-2xx HTTP responses with typed errors.
 - [ ] **Step 4: Execute the live product gate**
 
 ```bash
-pnpm tsx scripts/verify-okx-live.ts --chain 196 --token USDC --protocol "Aave V3"
+pnpm tsx scripts/verify-okx-live.ts --chain 196 --token USDG --protocol "Aave V3"
 ```
 
 Expected: prints at least one real investment ID, APY, TVL, and retrieval time.

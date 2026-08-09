@@ -119,7 +119,7 @@ Copy leads with the user's outcome and uses short concrete sentences.
 
 Use:
 
-- `Find the best net yield for 25,000 USDC.`
+- `Find the best net yield for 25,000 USDG.`
 - `4 solvers submitted. 3 routes passed.`
 - `Pay 0.10 USDC to reveal this route.`
 - `Route rejected: bridge forbidden.`
@@ -201,7 +201,7 @@ sheet clearly separates:
 - `Solver research: 0.10 USDC`
 - `Solver receives: 0.09 USDC`
 - `Cobia receives: 0.01 USDC`
-- `Principal affected: 0 USDC`
+- `Principal affected: 0 USDG`
 
 After x402 settlement, Cobia records the receipt, releases the complete bundle,
 and checks that its hash matches the pre-payment commitment. Losing solvers are
@@ -278,4 +278,3 @@ The visual implementation is accepted when:
 5. Payment, commitment match, simulation, and execution have distinct receipts.
 6. The complete flow works at 390 x 844 and 1440 x 900.
 7. No screen resembles a generic chatbot or portfolio dashboard.
-

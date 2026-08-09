@@ -10,6 +10,11 @@ and receives the committed executable bundle. A constrained executor performs
 the selected action. The public brand is **Cobia**; `solver market` is a product
 category, not part of the name.
 
+The market borrows its separation of intent, solver, order service, verification,
+and fulfilment from LI.FI Intents and OIF. V1 is a request-triggered sealed
+research auction, not LI.FI's standing-quote marketplace, and does not claim OIF
+or ERC-7683 compliance. See `docs/architecture/intent-compatibility.md`.
+
 ## Hackathon outcome
 
 By August 21, 2026, the demo must show one uninterrupted real-data flow:
@@ -133,6 +138,9 @@ call primitive.
 - OKX `@okxweb3/mpp` charge middleware paying the selected solver with a 10%
   Cobia platform split.
 - Viem clients for X Layer reads, writes, and receipt tracking.
+- A stateless MCP 2.0 endpoint for market discovery, unsigned intent preparation,
+  signed-intent submission, and public lifecycle tracking. User signing stays
+  outside the hosted server.
 
 The app fails visibly if credentials, live products, settlement, solver output,
 chain receipts, or contract configuration are unavailable. It never substitutes
@@ -195,3 +203,6 @@ sample results.
 - Agentic Wallet buyer flow: <https://web3.okx.com/onchainos/dev-docs/payments/payment-use-buyer>
 - DeFi product search: <https://web3.okx.com/onchainos/dev-docs/wallet/defi-product-search>
 - X Layer developer documentation: <https://web3.okx.com/onchainos/dev-docs/xlayer/developer>
+- LI.FI Intent marketplace: <https://docs.li.fi/lifi-intents/introduction>
+- LI.FI Intents MCP server: <https://docs.li.fi/lifi-intents/mcp-server/overview>
+- Open Intents Framework: <https://docs.openintents.xyz/>

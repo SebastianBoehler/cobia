@@ -56,7 +56,7 @@ and commit the complete snapshot.
 - [ ] **Step 4: Run a live assertion**
 
 ```bash
-pnpm tsx scripts/verify-okx-live.ts --snapshot --chain 196 --token USDC
+pnpm tsx scripts/verify-okx-live.ts --snapshot --chain 196 --token USDG
 ```
 
 Expected: valid `MarketSnapshot`, cash candidate, at least one Aave candidate,
