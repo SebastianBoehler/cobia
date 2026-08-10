@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: light;
   --paper: oklch(98.9% 0.004 145);
   --surface: oklch(100% 0 0);
   --ink: oklch(20% 0.018 165);
@@ -13,6 +14,40 @@
   --verified: oklch(50% 0.13 160);
   --rejected: oklch(57% 0.19 28);
   --shadow: 0 24px 80px oklch(20% 0.02 165 / 0.08);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: oklch(17% 0.012 165);
+  --surface: oklch(21.5% 0.014 165);
+  --ink: oklch(94% 0.008 150);
+  --muted: oklch(70% 0.014 155);
+  --line: oklch(30% 0.014 160);
+  --line-strong: oklch(42% 0.018 160);
+  --cobalt: oklch(68% 0.2 269);
+  --cobalt-dark: oklch(73% 0.18 269);
+  --cobalt-wash: oklch(27% 0.055 269);
+  --verified: oklch(70% 0.12 160);
+  --rejected: oklch(70% 0.16 28);
+  --shadow: 0 24px 80px oklch(5% 0.02 165 / 0.35);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --paper: oklch(17% 0.012 165);
+    --surface: oklch(21.5% 0.014 165);
+    --ink: oklch(94% 0.008 150);
+    --muted: oklch(70% 0.014 155);
+    --line: oklch(30% 0.014 160);
+    --line-strong: oklch(42% 0.018 160);
+    --cobalt: oklch(68% 0.2 269);
+    --cobalt-dark: oklch(73% 0.18 269);
+    --cobalt-wash: oklch(27% 0.055 269);
+    --verified: oklch(70% 0.12 160);
+    --rejected: oklch(70% 0.16 28);
+    --shadow: 0 24px 80px oklch(5% 0.02 165 / 0.35);
+  }
 }
 
 @theme inline {
@@ -59,12 +94,22 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .network-label { align-items: center; border-left: 1px solid var(--line); display: inline-flex; gap: 7px; padding-left: 28px; }
 .network-label svg { color: var(--verified); }
 .app-header__action { justify-self: end; }
+.app-header__actions { align-items: center; display: flex; gap: 10px; justify-self: end; }
 .wallet-control { justify-self: end; position: relative; }
 .wallet-menu { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); display: grid; min-width: 210px; overflow: hidden; position: absolute; right: 0; top: calc(100% + 10px); z-index: 40; }
 .wallet-menu button { background: transparent; border: 0; color: var(--ink); cursor: pointer; padding: 13px 15px; text-align: left; }
 .wallet-menu button + button { border-top: 1px solid var(--line); }
 .wallet-menu button:hover { background: var(--paper); }
 .wallet-error { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; color: var(--rejected); font-size: 11px; margin: 0; padding: 10px 12px; position: absolute; right: 0; top: calc(100% + 10px); white-space: nowrap; }
+.theme-toggle { display: grid; place-items: center; width: 42px; height: 42px; padding: 0; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: var(--surface); cursor: pointer; }
+.theme-toggle:hover { border-color: var(--line-strong); }
+.theme-toggle__moon { display: none; }
+[data-theme="dark"] .theme-toggle__sun { display: none; }
+[data-theme="dark"] .theme-toggle__moon { display: block; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .theme-toggle__sun { display: none; }
+  :root:not([data-theme]) .theme-toggle__moon { display: block; }
+}
 
 .button {
   align-items: center;
