@@ -1,8 +1,8 @@
 import { commitment, type StablecoinPolicy } from "@cobia/domain";
 import { isAddressEqual, recoverMessageAddress, type Hex } from "viem";
-import { quoteSelectionCommitment } from "./commitments";
+import { quoteSelectionCommitment, routeAccessCommitment } from "./commitments";
 
-export { quoteSelectionCommitment } from "./commitments";
+export { quoteSelectionCommitment, routeAccessCommitment } from "./commitments";
 
 export async function verifyPolicyOwnerSignature(
   policy: StablecoinPolicy,
@@ -29,5 +29,20 @@ export async function verifyQuoteSelectionSignature(
   });
   if (!isAddressEqual(signer, owner)) {
     throw new Error("Quote selection signature does not match owner");
+  }
+}
+
+export async function verifyRouteAccessSignature(
+  buyer: `0x${string}`,
+  routeId: string,
+  timestamp: number,
+  signature: Hex,
+): Promise<void> {
+  const signer = await recoverMessageAddress({
+    message: { raw: routeAccessCommitment(routeId, buyer, timestamp) },
+    signature,
+  });
+  if (!isAddressEqual(signer, buyer)) {
+    throw new Error("Route access signature does not match buyer");
   }
 }

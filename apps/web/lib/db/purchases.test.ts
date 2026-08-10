@@ -15,7 +15,9 @@ import { createDatabase } from "./client";
 import { createPurchaseRepository } from "./purchases";
 import { cobiaActivityEvents, cobiaRequests, cobiaRoutePurchases } from "./schema";
 
-const database = process.env.DATABASE_URL ? createDatabase(process.env.DATABASE_URL) : undefined;
+const database = process.env.TEST_DATABASE_URL
+  ? createDatabase(process.env.TEST_DATABASE_URL)
+  : undefined;
 const purchases = database ? createPurchaseRepository(database.db) : undefined;
 const activity = database ? createActivityRepository(database.db) : undefined;
 const account = privateKeyToAccount(keccak256(toHex("cobia-purchase-test-signer")));

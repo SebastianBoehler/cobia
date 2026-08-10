@@ -15,8 +15,8 @@ export default function Home() {
               State your constraints. Independent solvers compete. Cobia verifies every proposal and you pay only the winner.
             </p>
             <div className="home-hero__actions">
-              <Link className="button button--primary" href="/requests/new">
-                Open quote market <ArrowRight aria-hidden="true" size={17} />
+              <Link className="button button--primary" href="/markets">
+                Explore Earn markets <ArrowRight aria-hidden="true" size={17} />
               </Link>
               <a className="text-link" href="#mechanism">See the mechanism</a>
             </div>

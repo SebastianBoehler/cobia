@@ -4,8 +4,10 @@ import { describe, expect, it } from "vitest";
 import { USDG_ADDRESS } from "../chain/xlayer";
 import {
   quoteSelectionCommitment,
+  routeAccessCommitment,
   verifyPolicyOwnerSignature,
   verifyQuoteSelectionSignature,
+  verifyRouteAccessSignature,
 } from "./signature";
 
 const account = privateKeyToAccount(keccak256(toHex("cobia-intent-test-signer")));
@@ -46,5 +48,19 @@ describe("policy owner signature", () => {
     await expect(
       verifyQuoteSelectionSignature(policy.owner, crypto.randomUUID(), quoteId, signature),
     ).rejects.toThrow("does not match owner");
+  });
+
+  it("verifies route access as the raw commitment signed by the buyer", async () => {
+    const routeId = `0x${"cd".repeat(32)}`;
+    const timestamp = 1_786_391_000;
+    const signature = await account.signMessage({
+      message: { raw: routeAccessCommitment(routeId, account.address, timestamp) },
+    });
+    await expect(
+      verifyRouteAccessSignature(account.address, routeId, timestamp, signature),
+    ).resolves.toBeUndefined();
+    await expect(
+      verifyRouteAccessSignature(account.address, routeId, timestamp + 1, signature),
+    ).rejects.toThrow("does not match buyer");
   });
 });

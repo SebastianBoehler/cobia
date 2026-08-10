@@ -3,10 +3,12 @@
 import type { MarketSnapshot, RouteQuote, StablecoinPolicy } from "@cobia/domain";
 import { Check, CircleAlert, LoaderCircle, LockKeyhole, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { isAddressEqual } from "viem";
 import { quoteSelectionCommitment } from "../../lib/intents/commitments";
 import { authorizePayment } from "../../lib/payments/eip3009";
 import { useWallet } from "../wallet/WalletProvider";
+import { PurchasedRouteView, type PurchasedRoute } from "../routes/PurchasedRouteView";
 import styles from "./CompetitionView.module.css";
 
 interface PublicRequest {
@@ -15,6 +17,7 @@ interface PublicRequest {
   policy: StablecoinPolicy;
   snapshot: MarketSnapshot | null;
   selectedQuoteId: string | null;
+  purchasedRouteId: string | null;
   quotes: RouteQuote[];
 }
 
@@ -34,6 +37,7 @@ export function CompetitionView({ requestId }: { requestId: string }) {
   const [pendingQuote, setPendingQuote] = useState<string>();
   const [error, setError] = useState<string>();
   const [revealed, setRevealed] = useState(false);
+  const [purchasedRoute, setPurchasedRoute] = useState<PurchasedRoute>();
 
   const load = useCallback(async () => {
     const response = await fetch(`/api/requests/${requestId}`, { cache: "no-store" });
@@ -106,6 +110,8 @@ export function CompetitionView({ requestId }: { requestId: string }) {
       }
       const body = await response.json();
       if (!response.ok) throw new Error(jsonMessage(body, "Paid reveal failed."));
+      if (!body.route) throw new Error("Payment settled but the purchased route was not returned.");
+      setPurchasedRoute(body.route as PurchasedRoute);
       setRevealed(true);
       await load();
     } catch (cause) {
@@ -124,7 +130,7 @@ export function CompetitionView({ requestId }: { requestId: string }) {
     <main className={styles.shell}>
       <header className={styles.intro}>
         <h1>Solver competition</h1>
-        <p>Both solvers received the same X Layer block-bounded snapshot. Only verified summaries are public.</p>
+        <p>Every solver received the same X Layer block-bounded snapshot. Only verified summaries are public.</p>
         <div className={styles.facts}>
           <span>Intent {shortHash(requestId)}</span>
           <span><ShieldCheck size={15} /> {market.state.replaceAll("_", " ")}</span>
@@ -146,7 +152,7 @@ export function CompetitionView({ requestId }: { requestId: string }) {
                 </div>
                 <span className={quote.verification.executable ? styles.verified : styles.rejected}>
                   {quote.verification.executable ? <Check size={14} /> : <CircleAlert size={14} />}
-                  {quote.verification.executable ? "Executable" : "Rejected"}
+                  {quote.verification.executable ? "Policy valid" : "Policy rejected"}
                 </span>
               </div>
               <dl className={styles.metrics}>
@@ -160,7 +166,11 @@ export function CompetitionView({ requestId }: { requestId: string }) {
               {quote.verification.errorCodes.length > 0 ? (
                 <ul className={styles.errors}>{quote.verification.errorCodes.map((code) => <li key={code}>{code}</li>)}</ul>
               ) : null}
-              {selected ? (
+              {selected && market.purchasedRouteId ? (
+                <Link className="button button--primary" href={`/routes/${market.purchasedRouteId}`}>
+                  View purchased route
+                </Link>
+              ) : selected ? (
                 <button className="button button--primary" onClick={() => reveal(quote.quoteId)} disabled={Boolean(pendingQuote) || revealed}>
                   {pendingQuote === quote.quoteId ? <LoaderCircle className="spin" size={16} /> : null}
                   {revealed ? "Route revealed" : "Pay winner & reveal"}
@@ -175,7 +185,7 @@ export function CompetitionView({ requestId }: { requestId: string }) {
           );
         })}
       </section>
-
+      {purchasedRoute ? <PurchasedRouteView route={purchasedRoute} /> : null}
     </main>
   );
 }

@@ -3,6 +3,9 @@ import { createDeterministicSolver, createResearchSolver } from "@cobia/solvers"
 import { privateKeyToAccount } from "viem/accounts";
 import { createXLayerBlockReader } from "../chain/xlayer";
 import { createDatabase } from "../db/client";
+import { createActivityRepository } from "../db/activity";
+import { createPurchaseRepository } from "../db/purchases";
+import { createMarketRepository } from "../db/markets";
 import { createRequestRepository } from "../db/requests";
 import { readDatabaseUrl, readMarketConfig, readOkxCredentials } from "../env";
 import { createOkxClient } from "../okx/client";
@@ -10,11 +13,35 @@ import { captureSnapshot } from "../orchestrator/capture-snapshot";
 import { runQuoteMarket } from "../orchestrator/run-market";
 
 let repository: ReturnType<typeof createRequestRepository> | undefined;
+let activityRepository: ReturnType<typeof createActivityRepository> | undefined;
+let purchaseRepository: ReturnType<typeof createPurchaseRepository> | undefined;
+let database: ReturnType<typeof createDatabase> | undefined;
+let marketRepository: ReturnType<typeof createMarketRepository> | undefined;
+
+function getDatabase() {
+  database ??= createDatabase(readDatabaseUrl());
+  return database.db;
+}
 
 export function getRequestRepository() {
   if (repository) return repository;
-  repository = createRequestRepository(createDatabase(readDatabaseUrl()).db);
+  repository = createRequestRepository(getDatabase());
   return repository;
+}
+
+export function getActivityRepository() {
+  activityRepository ??= createActivityRepository(getDatabase());
+  return activityRepository;
+}
+
+export function getPurchaseRepository() {
+  purchaseRepository ??= createPurchaseRepository(getDatabase());
+  return purchaseRepository;
+}
+
+export function getMarketRepository() {
+  marketRepository ??= createMarketRepository(getDatabase());
+  return marketRepository;
 }
 
 export async function openQuoteMarket(policy: StablecoinPolicy) {

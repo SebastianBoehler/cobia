@@ -3,7 +3,11 @@ import { NextResponse } from "next/server";
 import type { Address, Hash } from "viem";
 import { buildWinnerCharge, readPaymentConfig } from "@/lib/payments/config";
 import { createPaymentServer } from "@/lib/payments/server";
-import { getRequestRepository } from "@/lib/runtime/market";
+import {
+  getActivityRepository,
+  getPurchaseRepository,
+  getRequestRepository,
+} from "@/lib/runtime/market";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,15 +39,43 @@ export async function POST(
     }))(request);
     if (result.status === 402) return result.challenge;
 
-    const paidResponse = result.withReceipt(NextResponse.json({
+    const purchasedAt = new Date();
+    const routeId = quoteId;
+    const route = {
+      id: routeId,
       requestId: id,
       quoteId,
+      buyer: publicRequest.policy.owner,
+      chainId: publicRequest.policy.executionChainId,
       bundle,
-    }));
+      policy: publicRequest.policy,
+      purchasedAt: purchasedAt.toISOString(),
+    };
+    const paidResponse = result.withReceipt(NextResponse.json({ routeId, route }));
     const receipt = paidResponse.headers.get("payment-receipt");
     if (!receipt) throw new Error("Payment settled without a receipt header");
     const receiptHash = commitment({ receipt });
     await requests.recordPayment(id, receiptHash);
+    await getPurchaseRepository().recordRoutePurchase({
+      id: routeId,
+      requestId: id,
+      quoteId,
+      buyer: publicRequest.policy.owner,
+      chainId: publicRequest.policy.executionChainId,
+      bundle,
+      receiptHash,
+      purchasedAt,
+    });
+    await getActivityRepository().appendActivity({
+      id: crypto.randomUUID(),
+      wallet: publicRequest.policy.owner,
+      chainId: publicRequest.policy.executionChainId,
+      kind: "route_revealed",
+      status: "confirmed",
+      routeId,
+      detail: { quoteId, receiptHash, paymentChainId: config.PAYMENT_CHAIN_ID },
+      occurredAt: purchasedAt,
+    });
     await requests.markRevealed(id);
     paidResponse.headers.set("X-Cobia-Receipt-Hash", receiptHash);
     return paidResponse;

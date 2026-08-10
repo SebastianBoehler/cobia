@@ -50,6 +50,7 @@ const market = {
   },
   snapshot: null,
   selectedQuoteId: null,
+  purchasedRouteId: null,
   quotes: [{
     version: 1,
     quoteId,
@@ -164,8 +165,35 @@ describe("CompetitionView", () => {
           result: ["0x0f", "USD₮0", "1", 1952n, paymentAsset, `0x${"00".repeat(32)}`, []],
         }),
       }))
-      .mockResolvedValueOnce(Response.json({ requestId, quoteId, bundle: { actions: [] } }))
-      .mockResolvedValueOnce(Response.json({ ...selectedMarket, state: "revealed" }));
+      .mockResolvedValueOnce(Response.json({
+        routeId: quoteId,
+        route: {
+          id: quoteId,
+          requestId,
+          quoteId,
+          buyer: owner,
+          chainId: 196,
+          receiptHash: `0x${"44".repeat(32)}`,
+          purchasedAt: "2026-08-10T19:00:00.000Z",
+          policy: market.policy,
+          bundle: {
+            version: 1,
+            requestId,
+            solverId: "determinist",
+            solverAddress: owner,
+            policyHash: `0x${"11".repeat(32)}`,
+            snapshotHash: `0x${"22".repeat(32)}`,
+            allocations: [{ candidateId: "cash:usdg", bps: 10_000 }],
+            evidence: [],
+            riskFlags: [],
+            expectedNetApyBps: 0,
+            action: { kind: "hold", amountAtomic: "25000000000" },
+            validUntil: 2_000_000_000,
+            signature: `0x${"33".repeat(65)}`,
+          },
+        },
+      }))
+      .mockResolvedValueOnce(Response.json({ ...selectedMarket, state: "revealed", purchasedRouteId: quoteId }));
     vi.stubGlobal("fetch", fetchMock);
 
     render(<WalletProvider><WalletButton /><CompetitionView requestId={requestId} /></WalletProvider>);
@@ -188,6 +216,10 @@ describe("CompetitionView", () => {
     expect(credential.payload.authorization.splits).toEqual([
       expect.objectContaining({ value: "10000", to: treasury }),
     ]);
-    expect(await screen.findByRole("button", { name: "Route revealed" })).toBeDisabled();
+    expect(await screen.findByRole("link", { name: "View purchased route" })).toHaveAttribute(
+      "href",
+      `/routes/${quoteId}`,
+    );
+    expect(screen.getByRole("heading", { name: "Your purchased route" })).toBeVisible();
   });
 });

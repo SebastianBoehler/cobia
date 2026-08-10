@@ -157,6 +157,7 @@ export function createRequestRepository(db: CobiaDatabase) {
         policy: StablecoinPolicySchema.parse(request.policy),
         snapshot: request.snapshot ? MarketSnapshotSchema.parse(request.snapshot) : null,
         selectedQuoteId: request.selectedQuoteId,
+        purchasedRouteId: request.state === "revealed" ? request.selectedQuoteId : null,
         quotes: storedQuotes.map(({ publicQuote }) => RouteQuoteSchema.parse(publicQuote)),
       };
     },

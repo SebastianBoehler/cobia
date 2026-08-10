@@ -12,6 +12,7 @@ export interface RoutePurchaseInput {
   chainId: number;
   receiptHash: string;
   bundle: DecisionBundle;
+  purchasedAt?: Date;
 }
 
 function normalizeAddress(address: string): string {
@@ -26,9 +27,14 @@ export function createPurchaseRepository(db: CobiaDatabase) {
         throw new Error("Route purchase commitment mismatch");
       }
       await db.insert(cobiaRoutePurchases).values({
-        ...input,
+        id: input.id,
+        requestId: input.requestId,
+        quoteId: input.quoteId,
         buyer: normalizeAddress(input.buyer),
+        chainId: input.chainId,
+        receiptHash: input.receiptHash,
         bundle,
+        purchasedAt: input.purchasedAt,
       }).onConflictDoNothing({ target: cobiaRoutePurchases.id });
 
       const stored = await db.query.cobiaRoutePurchases.findFirst({

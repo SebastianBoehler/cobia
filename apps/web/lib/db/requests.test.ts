@@ -13,7 +13,7 @@ import { createDatabase } from "./client";
 import { createRequestRepository } from "./requests";
 import { cobiaQuotes, cobiaRequests } from "./schema";
 
-const databaseUrl = process.env.DATABASE_URL;
+const databaseUrl = process.env.TEST_DATABASE_URL;
 const database = databaseUrl ? createDatabase(databaseUrl) : undefined;
 const repository = database ? createRequestRepository(database.db) : undefined;
 const solverAccount = privateKeyToAccount(keccak256(toHex("cobia-db-test-signer")));
