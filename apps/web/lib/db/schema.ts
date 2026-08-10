@@ -8,6 +8,7 @@ import type {
 import {
   boolean,
   index,
+  integer,
   jsonb,
   pgEnum,
   pgTable,
@@ -70,6 +71,49 @@ export const cobiaQuotes = pgTable(
   ],
 );
 
-export const cobiaSchema = { cobiaRequests, cobiaQuotes, requestState };
+export const cobiaRoutePurchases = pgTable(
+  "cobia_route_purchases",
+  {
+    id: text("id").primaryKey(),
+    requestId: uuid("request_id")
+      .notNull()
+      .references(() => cobiaRequests.id, { onDelete: "cascade" }),
+    quoteId: text("quote_id").notNull(),
+    buyer: text("buyer").notNull(),
+    chainId: integer("chain_id").notNull(),
+    receiptHash: text("receipt_hash").notNull(),
+    bundle: jsonb("bundle").$type<DecisionBundle>().notNull(),
+    purchasedAt: timestamp("purchased_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("cobia_route_purchases_quote_idx").on(table.quoteId),
+    uniqueIndex("cobia_route_purchases_receipt_idx").on(table.receiptHash),
+    index("cobia_route_purchases_buyer_idx").on(table.buyer, table.chainId),
+  ],
+);
+
+export const cobiaActivityEvents = pgTable(
+  "cobia_activity_events",
+  {
+    id: uuid("id").primaryKey(),
+    wallet: text("wallet").notNull(),
+    chainId: integer("chain_id").notNull(),
+    kind: text("kind").notNull(),
+    status: text("status").notNull(),
+    routeId: text("route_id"),
+    transactionHash: text("transaction_hash"),
+    detail: jsonb("detail").$type<Record<string, unknown>>().notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [index("cobia_activity_events_wallet_idx").on(table.wallet, table.chainId, table.occurredAt)],
+);
+
+export const cobiaSchema = {
+  cobiaRequests,
+  cobiaQuotes,
+  cobiaRoutePurchases,
+  cobiaActivityEvents,
+  requestState,
+};
 
 export type CobiaRequestState = (typeof requestState.enumValues)[number];
