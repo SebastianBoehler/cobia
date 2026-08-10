@@ -14,7 +14,7 @@ export const RawProductSchema = z
     platformName: z.string().min(1),
     rate: z.string(),
     tvl: z.string(),
-    productGroup: z.string().min(1),
+    productGroup: z.string().min(1).nullish(),
     chainIndex: NumericStringSchema,
   })
   .passthrough();
@@ -40,8 +40,8 @@ export const RawProductDetailSchema = z
           .object({
             tokenSymbol: z.string().min(1),
             tokenAddress: z.string().min(1),
-            chainIndex: NumericStringSchema,
-            tokenPrecision: TokenPrecisionSchema,
+            chainIndex: NumericStringSchema.optional(),
+            tokenPrecision: TokenPrecisionSchema.optional(),
           })
           .passthrough(),
       )

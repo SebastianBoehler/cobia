@@ -3,11 +3,13 @@ import {
   type MarketCandidate,
   type MarketSnapshot,
 } from "@cobia/domain";
-import { isAddress, type Address } from "viem";
+import { isAddress, isAddressEqual, type Address } from "viem";
 import type { RawProductDetail } from "./client";
 
 interface NormalizeAaveOptions {
   expectedSymbol: string;
+  expectedAddress: Address;
+  expectedDecimals: number;
   poolAddress: Address;
   retrievedAt: string;
 }
@@ -17,6 +19,10 @@ type AaveCandidate = Extract<MarketCandidate, { kind: "aave-v3" }>;
 export interface NormalizedAaveProduct {
   asset: MarketSnapshot["asset"];
   candidate: AaveCandidate;
+}
+
+export function isAaveV3Platform(value: string): boolean {
+  return /^aave v3(?:\s*\/\s*main market)?$/i.test(value.trim());
 }
 
 export function decimalToScaledInteger(value: string, scale: number): bigint {
@@ -48,13 +54,22 @@ export function normalizeAaveProduct(
   }
 
   const token = detail.underlyingToken[0];
-  if (token.chainIndex !== "196" || token.tokenSymbol !== options.expectedSymbol) {
+  if (token.chainIndex !== undefined && token.chainIndex !== "196") {
+    throw new Error("Product token is not on X Layer");
+  }
+  if (token.tokenSymbol !== options.expectedSymbol) {
     throw new Error("Product does not contain the expected asset");
   }
   if (!isAddress(token.tokenAddress)) throw new Error("Invalid underlying token address");
+  if (!isAddressEqual(token.tokenAddress, options.expectedAddress)) {
+    throw new Error("Product does not contain the expected asset address");
+  }
   if (!isAddress(options.poolAddress)) throw new Error("Invalid Aave pool address");
-  if (!Number.isInteger(token.tokenPrecision) || token.tokenPrecision < 0 || token.tokenPrecision > 36) {
-    throw new Error("Invalid underlying token precision");
+  if (!Number.isInteger(options.expectedDecimals) || options.expectedDecimals < 0 || options.expectedDecimals > 36) {
+    throw new Error("Invalid expected token precision");
+  }
+  if (token.tokenPrecision !== undefined && token.tokenPrecision !== options.expectedDecimals) {
+    throw new Error("Product token precision does not match registry");
   }
   if (Number.isNaN(Date.parse(options.retrievedAt))) {
     throw new Error("Invalid retrieval timestamp");
@@ -71,7 +86,7 @@ export function normalizeAaveProduct(
     asset: {
       address: token.tokenAddress,
       symbol: token.tokenSymbol,
-      decimals: token.tokenPrecision,
+      decimals: options.expectedDecimals,
     },
     candidate: AaveCandidateSchema.parse({
       id: `aave-v3:${detail.investmentId}`,

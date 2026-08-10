@@ -1,6 +1,7 @@
 import type { StablecoinPolicy } from "@cobia/domain";
 import { describe, expect, it, vi } from "vitest";
 import type { OkxClient, RawProductDetail } from "../okx/client";
+import { USDT_ADDRESS } from "../chain/supported-assets";
 import { AAVE_V3_POOL, USDG_ADDRESS } from "../chain/xlayer";
 import { captureSnapshot } from "./capture-snapshot";
 
@@ -99,9 +100,8 @@ describe("captureSnapshot", () => {
     });
     expect(deps.okx.searchProducts).toHaveBeenCalledWith({
       tokenKeywordList: ["USDG"],
-      platformKeywordList: ["AAVE V3"],
+      platformKeywordList: ["Aave"],
       chainIndex: "196",
-      productGroup: "LENDING",
       pageNum: 1,
     });
     expect(Object.isFrozen((await captureSnapshot(policy, dependencies())).candidates)).toBe(true);
@@ -111,6 +111,38 @@ describe("captureSnapshot", () => {
     await expect(captureSnapshot(policy, dependencies(1_006n))).rejects.toThrow(
       "more than five blocks",
     );
+  });
+
+  it("queries and freezes the market for the asset selected in the policy", async () => {
+    const deps = dependencies();
+    vi.mocked(deps.okx.searchProducts).mockResolvedValue([{
+      investmentId: "33905",
+      name: "USDT",
+      platformName: "Aave V3 / Main Market",
+      rate: "0.00240",
+      tvl: "54291656.04063",
+      productGroup: null,
+      chainIndex: "196",
+    }]);
+    vi.mocked(deps.okx.getProductDetail).mockResolvedValue({
+      ...detail,
+      investmentId: "33905",
+      investmentName: "USDT",
+      rate: "0.00240",
+      tvl: "54291656.04063",
+      underlyingToken: [{ tokenSymbol: "USDT", tokenAddress: USDT_ADDRESS }],
+    });
+
+    const result = await captureSnapshot({ ...policy, asset: USDT_ADDRESS }, deps);
+
+    expect(result.asset).toEqual({ address: USDT_ADDRESS, symbol: "USDT", decimals: 6 });
+    expect(result.candidates[1]).toMatchObject({ investmentId: "33905", apyBps: 24 });
+    expect(deps.okx.searchProducts).toHaveBeenCalledWith({
+      tokenKeywordList: ["USDT"],
+      platformKeywordList: ["Aave"],
+      chainIndex: "196",
+      pageNum: 1,
+    });
   });
 
   it("rejects a product whose underlying token differs from policy", async () => {
@@ -123,7 +155,7 @@ describe("captureSnapshot", () => {
     });
 
     await expect(captureSnapshot(policy, deps)).rejects.toThrow(
-      "does not match policy asset",
+      "expected asset address",
     );
   });
 });

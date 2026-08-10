@@ -14,7 +14,6 @@ export default function NewRequestPage() {
       <AppHeader />
       <main className="request-page">
         <section className="request-page__intro">
-          <p className="eyebrow">New allocation request</p>
           <h1>Set the bounds.<br />Let solvers compete.</h1>
           <p className="request-page__lede">
             Ask for net yield without choosing a protocol. Every executable field is recomputed before a route can win.
@@ -30,8 +29,8 @@ export default function NewRequestPage() {
         </section>
         <section className="request-page__workspace" aria-labelledby="request-form-title">
           <div className="workspace-heading">
-            <div><p className="eyebrow">Intent</p><h2 id="request-form-title">Find a USDG route</h2></div>
-            <span className="asset-badge"><i>$</i> USDG · X Layer</span>
+            <h2 id="request-form-title">Earn yield</h2>
+            <span className="asset-badge"><i>$</i> USDG / USDt0 · X Layer</span>
           </div>
           <PolicyForm />
         </section>

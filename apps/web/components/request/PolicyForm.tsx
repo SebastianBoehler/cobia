@@ -4,17 +4,15 @@ import { ArrowRight, ChevronDown, CircleCheck, LoaderCircle } from "lucide-react
 import { commitment, StablecoinPolicySchema } from "@cobia/domain";
 import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
-import { isAddress } from "viem";
-import { USDG_ADDRESS } from "../../lib/chain/xlayer";
+import { getAddress } from "viem";
+import { SUPPORTED_ASSETS } from "../../lib/chain/supported-assets";
+import { shortAddress } from "../../lib/wallet/eip1193";
+import { useWallet } from "../wallet/WalletProvider";
 import { PolicySummary } from "./PolicySummary";
 
 interface CreatedRequest {
   requestId: string;
   policyHash: string;
-}
-
-interface InjectedProvider {
-  request(input: { method: string; params?: unknown[] }): Promise<unknown>;
 }
 
 function decimalToAtomic(value: string, decimals: number): string | null {
@@ -33,25 +31,27 @@ function percentToBps(value: string): number | null {
   return Number.isSafeInteger(bps) && bps <= 10_000 ? bps : null;
 }
 
-function formatPrincipal(atomic: string | null): string {
+function formatPrincipal(atomic: string | null, symbol: string): string {
   if (!atomic) return "—";
   return `${(Number(atomic) / 1_000_000).toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })} USDG`;
+  })} ${symbol}`;
 }
 
 export function PolicyForm() {
-  const [owner, setOwner] = useState("");
+  const wallet = useWallet();
+  const [assetAddress, setAssetAddress] = useState(SUPPORTED_ASSETS[0].address);
   const [principal, setPrincipal] = useState("25000");
   const [exposure, setExposure] = useState("40");
-  const [minimumTvl, setMinimumTvl] = useState("250000000");
-  const [minimumApy, setMinimumApy] = useState("2.00");
+  const [minimumTvl, setMinimumTvl] = useState("500000");
+  const [minimumApy, setMinimumApy] = useState("0.05");
   const [acknowledged, setAcknowledged] = useState(false);
   const [advanced, setAdvanced] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   const [created, setCreated] = useState<CreatedRequest>();
+  const asset = SUPPORTED_ASSETS.find((item) => item.address === assetAddress) ?? SUPPORTED_ASSETS[0];
 
   const values = useMemo(() => {
     const principalAtomic = decimalToAtomic(principal, 6);
@@ -61,9 +61,8 @@ export function PolicyForm() {
     return { principalAtomic, exposureBps, minTvlUsdE6, minNetApyBps };
   }, [exposure, minimumApy, minimumTvl, principal]);
 
-  const ownerValid = isAddress(owner);
   const valid =
-    ownerValid &&
+    wallet.account !== null &&
     values.principalAtomic !== null &&
     values.exposureBps !== null &&
     values.exposureBps > 0 &&
@@ -80,23 +79,25 @@ export function PolicyForm() {
     setPending(true);
     setError(undefined);
     try {
-      const provider = (window as typeof window & { ethereum?: InjectedProvider }).ethereum;
-      if (!provider) throw new Error("Connect an EVM wallet to sign this intent.");
+      if (!wallet.account) throw new Error("Connect an EVM wallet to sign this intent.");
+      await wallet.switchToXLayer();
       const policy = StablecoinPolicySchema.parse({
         version: 1,
         requestId: crypto.randomUUID(),
-        owner,
+        owner: wallet.account,
         executionChainId: 196,
-        asset: USDG_ADDRESS,
+        asset: asset.address,
         principalAtomic: values.principalAtomic,
         maxProtocolExposureBps: values.exposureBps,
         minTvlUsdE6: values.minTvlUsdE6,
         minNetApyBps: values.minNetApyBps,
         maxSnapshotAgeSec: 300,
+        // This runs only after submit; the signed policy needs a fresh wall-clock deadline.
+        // eslint-disable-next-line react-hooks/purity
         deadline: Math.floor(Date.now() / 1_000) + 1_800,
         noBridges: true,
       });
-      const ownerSignature = await provider.request({
+      const ownerSignature = await wallet.request({
         method: "personal_sign",
         params: [commitment(policy), policy.owner],
       });
@@ -125,7 +126,6 @@ export function PolicyForm() {
       <section className="request-created" aria-live="polite">
         <CircleCheck aria-hidden="true" size={26} />
         <div>
-          <p className="eyebrow">Request accepted</p>
           <h2>Quote market opened</h2>
           <p>Solvers can now compete. Your principal has not moved.</p>
         </div>
@@ -139,21 +139,18 @@ export function PolicyForm() {
 
   return (
     <form className="policy-form" onSubmit={submit} noValidate>
-      <div className="field">
-        <label htmlFor="owner">Wallet address</label>
-        <input
-          id="owner"
-          name="owner"
-          value={owner}
-          onChange={(event) => setOwner(event.target.value)}
-          placeholder="0x…"
-          autoComplete="off"
-          spellCheck={false}
-        />
-        {owner && !ownerValid ? <p className="field-error">Enter a valid EVM address.</p> : null}
+      <div className="wallet-identity">
+        <span>Wallet</span>
+        <strong>{wallet.account ? shortAddress(getAddress(wallet.account)) : "Connect wallet above"}</strong>
       </div>
 
       <div className="field-grid">
+        <div className="field">
+          <label htmlFor="asset">Asset</label>
+          <select id="asset" value={asset.address} onChange={(event) => setAssetAddress(getAddress(event.target.value))}>
+            {SUPPORTED_ASSETS.map((item) => <option value={item.address} key={item.address}>{item.displaySymbol}</option>)}
+          </select>
+        </div>
         <div className="field">
           <label htmlFor="principal">Amount</label>
           <div className="input-affix">
@@ -163,19 +160,7 @@ export function PolicyForm() {
               value={principal}
               onChange={(event) => setPrincipal(event.target.value)}
             />
-            <span>USDG</span>
-          </div>
-        </div>
-        <div className="field">
-          <label htmlFor="exposure">Protocol exposure</label>
-          <div className="input-affix">
-            <input
-              id="exposure"
-              inputMode="decimal"
-              value={exposure}
-              onChange={(event) => setExposure(event.target.value)}
-            />
-            <span>% max</span>
+            <span>{asset.displaySymbol}</span>
           </div>
         </div>
       </div>
@@ -186,12 +171,24 @@ export function PolicyForm() {
         aria-expanded={advanced}
         onClick={() => setAdvanced((value) => !value)}
       >
-        Set verifier limits
+        Advanced settings
         <ChevronDown aria-hidden="true" className={advanced ? "is-open" : ""} size={17} />
       </button>
 
       {advanced ? (
         <div className="field-grid limits-panel">
+          <div className="field field--wide">
+            <label htmlFor="exposure">Protocol exposure</label>
+            <div className="input-affix">
+              <input
+                id="exposure"
+                inputMode="decimal"
+                value={exposure}
+                onChange={(event) => setExposure(event.target.value)}
+              />
+              <span>% max</span>
+            </div>
+          </div>
           <div className="field">
             <label htmlFor="tvl">Minimum protocol TVL</label>
             <div className="input-affix">
@@ -210,8 +207,8 @@ export function PolicyForm() {
       ) : null}
 
       <PolicySummary
-        principal={formatPrincipal(values.principalAtomic)}
-        exposure={`${formatPrincipal(exposureAtomic)} max`}
+        principal={formatPrincipal(values.principalAtomic, asset.displaySymbol)}
+        exposure={`${formatPrincipal(exposureAtomic, asset.displaySymbol)} max`}
         minimumTvl={`$${Number(minimumTvl).toLocaleString("en-US")}`}
         minimumApy={`${minimumApy}%`}
       />
@@ -233,7 +230,7 @@ export function PolicyForm() {
         {pending ? "Opening market…" : "Open quote market"}
         {!pending ? <ArrowRight aria-hidden="true" size={17} /> : null}
       </button>
-      <p className="payment-note">Free to request. Pay 0.10 USDC only after choosing a verified quote.</p>
+      <p className="payment-note">Free request · 0.10 reveal · 0.09 winner · 0.01 Cobia</p>
     </form>
   );
 }

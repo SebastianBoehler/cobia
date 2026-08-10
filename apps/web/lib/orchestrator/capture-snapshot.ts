@@ -8,8 +8,9 @@ import {
   AAVE_V3_POOL,
   type SnapshotBlockReader,
 } from "../chain/xlayer";
+import { supportedAsset } from "../chain/supported-assets";
 import type { OkxClient } from "../okx/client";
-import { normalizeAaveProduct } from "../okx/normalize";
+import { isAaveV3Platform, normalizeAaveProduct } from "../okx/normalize";
 
 interface SnapshotDependencies {
   okx: Pick<OkxClient, "searchProducts" | "getProductDetail">;
@@ -30,11 +31,11 @@ export async function captureSnapshot(
 ): Promise<MarketSnapshot> {
   const startedAt = await dependencies.blocks.getLatestBlock();
   const capturedAt = (dependencies.now ?? (() => new Date()))().toISOString();
+  const selectedAsset = supportedAsset(policy.asset);
   const products = await dependencies.okx.searchProducts({
-    tokenKeywordList: ["USDG"],
-    platformKeywordList: ["AAVE V3"],
+    tokenKeywordList: [selectedAsset.symbol],
+    platformKeywordList: ["Aave"],
     chainIndex: "196",
-    productGroup: "LENDING",
     pageNum: 1,
   });
   const investmentIds = [
@@ -43,20 +44,22 @@ export async function captureSnapshot(
         .filter(
           (product) =>
             product.chainIndex === "196" &&
-            product.platformName === "Aave V3" &&
-            product.name === "USDG",
+            isAaveV3Platform(product.platformName) &&
+            product.name === selectedAsset.symbol,
         )
         .map((product) => product.investmentId),
     ),
   ].sort();
   if (investmentIds.length === 0) {
-    throw new Error("OKX returned no Aave V3 USDG product on X Layer");
+    throw new Error(`OKX returned no Aave V3 ${selectedAsset.symbol} product on X Layer`);
   }
 
   const normalized = await Promise.all(
     investmentIds.map(async (investmentId) =>
       normalizeAaveProduct(await dependencies.okx.getProductDetail(investmentId), {
-        expectedSymbol: "USDG",
+        expectedSymbol: selectedAsset.symbol,
+        expectedAddress: selectedAsset.address,
+        expectedDecimals: selectedAsset.decimals,
         poolAddress: AAVE_V3_POOL,
         retrievedAt: capturedAt,
       }),

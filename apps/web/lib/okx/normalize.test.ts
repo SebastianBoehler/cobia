@@ -60,6 +60,8 @@ describe("Aave product normalization", () => {
     expect(
       normalizeAaveProduct(detail, {
         expectedSymbol: "USDG",
+        expectedAddress: "0x1111111111111111111111111111111111111111",
+        expectedDecimals: 6,
         poolAddress,
         retrievedAt,
       }),
@@ -86,6 +88,8 @@ describe("Aave product normalization", () => {
     expect(() =>
       normalizeAaveProduct(input, {
         expectedSymbol: "USDG",
+        expectedAddress: "0x1111111111111111111111111111111111111111",
+        expectedDecimals: 6,
         poolAddress,
         retrievedAt,
       }),

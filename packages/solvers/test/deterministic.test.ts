@@ -104,4 +104,19 @@ describe("deterministic solver", () => {
 
     expect(bundle.allocations[0]).toEqual({ candidateId: "cash:usdg", bps: 6_000 });
   });
+
+  it("produces an integer expiry from a live millisecond timestamp", async () => {
+    const solver = createDeterministicSolver({
+      solverId: "determinist-labs",
+      account: solverAccount,
+    });
+    const liveSnapshot = {
+      ...snapshot,
+      capturedAt: snapshot.capturedAt.replace(".000Z", ".648Z"),
+    };
+
+    const bundle = await solver.solve({ policy, snapshot: liveSnapshot, nowSec });
+
+    expect(Number.isSafeInteger(bundle.validUntil)).toBe(true);
+  });
 });

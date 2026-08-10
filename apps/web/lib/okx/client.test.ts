@@ -43,10 +43,10 @@ describe("OKX DeFi client", () => {
               {
                 investmentId: 9001,
                 name: "USDC",
-                platformName: "Aave V3",
+                platformName: "Aave V3 / Main Market",
                 rate: "0.0642",
                 tvl: "500000000",
-                productGroup: "LENDING",
+                productGroup: null,
                 chainIndex: "196",
               },
             ],
@@ -72,7 +72,7 @@ describe("OKX DeFi client", () => {
     ).resolves.toEqual([
       expect.objectContaining({
         investmentId: "9001",
-        platformName: "Aave V3",
+        platformName: "Aave V3 / Main Market",
         chainIndex: "196",
       }),
     ]);
@@ -139,8 +139,7 @@ describe("OKX DeFi client", () => {
             {
               tokenSymbol: "USDG",
               tokenAddress: "0x1111111111111111111111111111111111111111",
-              chainIndex: "196",
-              tokenPrecision: 6,
+              isBaseToken: false,
             },
           ],
         },

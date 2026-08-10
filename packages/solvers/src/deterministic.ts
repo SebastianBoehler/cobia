@@ -36,7 +36,7 @@ function selectCandidate(input: SolverInput): AaveCandidate | undefined {
 }
 
 function snapshotExpiry(input: SolverInput): number {
-  const capturedAtSec = Date.parse(input.snapshot.capturedAt) / 1_000;
+  const capturedAtSec = Math.floor(Date.parse(input.snapshot.capturedAt) / 1_000);
   return Math.min(
     input.policy.deadline,
     capturedAtSec + input.policy.maxSnapshotAgeSec,
