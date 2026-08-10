@@ -155,6 +155,15 @@ describe("CompetitionView", () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(Response.json(selectedMarket))
       .mockResolvedValueOnce(new Response(null, { status: 402, headers: { "WWW-Authenticate": challenge } }))
+      .mockResolvedValueOnce(Response.json({
+        jsonrpc: "2.0",
+        id: 1,
+        result: encodeFunctionResult({
+          abi: eip5267Abi,
+          functionName: "eip712Domain",
+          result: ["0x0f", "USD₮0", "1", 1952n, paymentAsset, `0x${"00".repeat(32)}`, []],
+        }),
+      }))
       .mockResolvedValueOnce(Response.json({ requestId, quoteId, bundle: { actions: [] } }))
       .mockResolvedValueOnce(Response.json({ ...selectedMarket, state: "revealed" }));
     vi.stubGlobal("fetch", fetchMock);
@@ -166,11 +175,11 @@ describe("CompetitionView", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Pay winner & reveal" }));
 
     await waitFor(() => expect(request).toHaveBeenCalledWith(expect.objectContaining({ method: "eth_signTypedData_v4" })));
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
-    expect(fetchMock.mock.calls[2][1]?.headers).toEqual(expect.objectContaining({
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(5));
+    expect(fetchMock.mock.calls[3][1]?.headers).toEqual(expect.objectContaining({
       Authorization: expect.stringMatching(/^Payment /),
     }));
-    const authorization = String((fetchMock.mock.calls[2][1]?.headers as Record<string, string>).Authorization);
+    const authorization = String((fetchMock.mock.calls[3][1]?.headers as Record<string, string>).Authorization);
     const credential = Credential.deserialize<{
       type: "transaction";
       authorization: { value: string; splits: Array<{ value: string; to: string }> };

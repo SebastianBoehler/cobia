@@ -50,16 +50,42 @@ interface WalletAccess {
   switchChain(chainId: XLayerChainId): Promise<void>;
 }
 
+export interface PaymentChainReader {
+  request(chainId: XLayerChainId, input: Eip1193Request): Promise<unknown>;
+}
+
+const PAYMENT_RPC_URLS: Record<XLayerChainId, string> = {
+  196: "https://rpc.xlayer.tech",
+  1952: "https://testrpc.xlayer.tech/terigon",
+};
+
+const publicChainReader: PaymentChainReader = {
+  async request(chainId, input) {
+    const response = await fetch(PAYMENT_RPC_URLS[chainId], {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, ...input }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    const body = await response.json() as { result?: unknown; error?: { message?: string } };
+    if (!response.ok || body.error || !("result" in body)) {
+      throw new Error(body.error?.message ?? "X Layer RPC could not read the payment token.");
+    }
+    return body.result;
+  },
+};
+
 function randomNonce(): Hex {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   return `0x${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
 }
 
-async function tokenDomain(wallet: WalletAccess, currency: Address, chainId: XLayerChainId) {
-  const result = await wallet.request({
+async function tokenDomain(reader: PaymentChainReader, currency: Address, chainId: XLayerChainId) {
+  const input = {
     method: "eth_call",
     params: [{ to: currency, data: DOMAIN_CALL }, "latest"],
-  });
+  } as const;
+  const result = await reader.request(chainId, input);
   if (typeof result !== "string" || !isHex(result)) {
     throw new Error("The payment token did not return EIP-712 domain metadata.");
   }
@@ -101,7 +127,11 @@ async function signAuthorization(
   return { ...message, signature };
 }
 
-export async function authorizePayment(response: Response, wallet: WalletAccess): Promise<string> {
+export async function authorizePayment(
+  response: Response,
+  wallet: WalletAccess,
+  reader: PaymentChainReader = publicChainReader,
+): Promise<string> {
   const challenge = Challenge.fromResponse(response);
   if (challenge.method !== "evm" || challenge.intent !== "charge") {
     throw new Error("Cobia received an unsupported payment challenge.");
@@ -116,7 +146,7 @@ export async function authorizePayment(response: Response, wallet: WalletAccess)
   if (recipientAmount <= 0n) throw new Error("The payment split consumes the full charge.");
 
   await wallet.switchChain(chainId);
-  const domain = await tokenDomain(wallet, currency, chainId);
+  const domain = await tokenDomain(reader, currency, chainId);
   const now = Math.floor(Date.now() / 1_000);
   const validAfter = Math.max(0, now - 60).toString();
   const challengeExpiry = challenge.expires ? Math.floor(Date.parse(challenge.expires) / 1_000) : now + 600;
