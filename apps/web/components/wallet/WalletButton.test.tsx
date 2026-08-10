@@ -1,0 +1,58 @@
+// @vitest-environment jsdom
+
+import "@testing-library/jest-dom/vitest";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Eip1193Provider, Eip6963ProviderDetail } from "../../lib/wallet/eip1193";
+import { AppHeader } from "../layout/AppHeader";
+import { WalletProvider } from "./WalletProvider";
+
+afterEach(cleanup);
+
+describe("AppHeader wallet control", () => {
+  it("offers wallet connection instead of a duplicate market link", () => {
+    render(<AppHeader />);
+
+    expect(screen.getByRole("button", { name: "Connect wallet" })).toBeVisible();
+    expect(screen.queryByRole("link", { name: "Open market" })).not.toBeInTheDocument();
+  });
+
+  it("connects an announced provider and follows account changes", async () => {
+    const listeners = new Map<string, (value: unknown) => void>();
+    const provider: Eip1193Provider = {
+      request: vi.fn(async ({ method }) => {
+        if (method === "eth_requestAccounts") return ["0x1111111111111111111111111111111111111111"];
+        if (method === "eth_chainId") return "0xc4";
+        throw new Error(`Unexpected method ${method}`);
+      }),
+      on: (event, listener) => listeners.set(event, listener),
+      removeListener: (event) => listeners.delete(event),
+    };
+    const detail: Eip6963ProviderDetail = {
+      info: { uuid: "phantom", name: "Phantom", icon: "data:image/svg+xml,<svg/>", rdns: "app.phantom" },
+      provider,
+    };
+    render(<WalletProvider><AppHeader /></WalletProvider>);
+
+    act(() => window.dispatchEvent(new CustomEvent("eip6963:announceProvider", { detail })));
+    fireEvent.click(screen.getByRole("button", { name: "Connect wallet" }));
+
+    expect(await screen.findByRole("button", { name: /Phantom · 0x1111…1111/ })).toBeVisible();
+    await waitFor(() => expect(listeners.has("accountsChanged")).toBe(true));
+    act(() => listeners.get("accountsChanged")?.(["0x2222222222222222222222222222222222222222"]));
+    expect(await screen.findByRole("button", { name: /Phantom · 0x2222…2222/ })).toBeVisible();
+  });
+
+  it("surfaces a rejected wallet connection", async () => {
+    const detail: Eip6963ProviderDetail = {
+      info: { uuid: "okx", name: "OKX Wallet", icon: "data:image/svg+xml,<svg/>", rdns: "com.okex.wallet" },
+      provider: { request: vi.fn().mockRejectedValue(new Error("Connection rejected")) },
+    };
+    render(<WalletProvider><AppHeader /></WalletProvider>);
+
+    act(() => window.dispatchEvent(new CustomEvent("eip6963:announceProvider", { detail })));
+    fireEvent.click(screen.getByRole("button", { name: "Connect wallet" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Connection rejected");
+  });
+});

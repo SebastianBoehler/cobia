@@ -1,14 +1,36 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { Challenge, Credential } from "@okxweb3/mpp";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { encodeFunctionResult } from "viem";
+import type { Eip6963ProviderDetail } from "../../lib/wallet/eip1193";
 import { quoteSelectionCommitment } from "../../lib/intents/commitments";
+import { WalletButton } from "../wallet/WalletButton";
+import { WalletProvider } from "../wallet/WalletProvider";
 import { CompetitionView } from "./CompetitionView";
 
 const requestId = "550e8400-e29b-41d4-a716-446655440000";
 const quoteId = `0x${"ab".repeat(32)}`;
 const owner = "0x1111111111111111111111111111111111111111";
+const paymentAsset = "0x9e29b3aada05bf2d2c827af80bd28dc0b9b4fb0c";
+const treasury = "0x3333333333333333333333333333333333333333";
+const eip5267Abi = [{
+  type: "function",
+  name: "eip712Domain",
+  stateMutability: "view",
+  inputs: [],
+  outputs: [
+    { name: "fields", type: "bytes1" },
+    { name: "name", type: "string" },
+    { name: "version", type: "string" },
+    { name: "chainId", type: "uint256" },
+    { name: "verifyingContract", type: "address" },
+    { name: "salt", type: "bytes32" },
+    { name: "extensions", type: "uint256[]" },
+  ],
+}] as const;
 const market = {
   requestId,
   state: "quotes_ready",
@@ -50,15 +72,26 @@ afterEach(() => {
 
 describe("CompetitionView", () => {
   it("requires the owner wallet signature before selecting a quote", async () => {
-    const request = vi.fn().mockResolvedValue(`0x${"cd".repeat(65)}`);
-    Object.defineProperty(window, "ethereum", { configurable: true, value: { request } });
+    const request = vi.fn(async ({ method }: { method: string }) => {
+      if (method === "eth_requestAccounts") return [owner];
+      if (method === "eth_chainId") return "0xc4";
+      if (method === "personal_sign") return `0x${"cd".repeat(65)}`;
+      throw new Error(`Unexpected wallet method ${method}`);
+    });
+    const detail: Eip6963ProviderDetail = {
+      info: { uuid: "phantom", name: "Phantom", icon: "data:image/svg+xml,<svg/>", rdns: "app.phantom" },
+      provider: { request },
+    };
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(Response.json(market))
       .mockResolvedValueOnce(Response.json({ state: "selected" }))
       .mockResolvedValueOnce(Response.json({ ...market, state: "selected", selectedQuoteId: quoteId }));
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<CompetitionView requestId={requestId} />);
+    render(<WalletProvider><WalletButton /><CompetitionView requestId={requestId} /></WalletProvider>);
+    act(() => window.dispatchEvent(new CustomEvent("eip6963:announceProvider", { detail })));
+    fireEvent.click(screen.getByRole("button", { name: "Connect wallet" }));
+    await screen.findByRole("button", { name: /Phantom · 0x1111…1111/ });
     fireEvent.click(await screen.findByRole("button", { name: "Select quote" }));
 
     await waitFor(() => expect(request).toHaveBeenCalledWith({
@@ -70,5 +103,82 @@ describe("CompetitionView", () => {
       quoteId,
       ownerSignature: `0x${"cd".repeat(65)}`,
     });
+  });
+
+  it("identifies Cobia-operated solvers and the complete reveal split", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(market)));
+
+    render(<CompetitionView requestId={requestId} />);
+
+    expect(await screen.findByText("Operated by Cobia")).toBeVisible();
+    expect(screen.getByText("0.09 to solver")).toBeVisible();
+    expect(screen.getByText("0.01 to Cobia")).toBeVisible();
+  });
+
+  it("signs an EIP-3009 payment and automatically replays the reveal", async () => {
+    const signature = `0x${"ef".repeat(65)}`;
+    const request = vi.fn(async ({ method }: { method: string }) => {
+      if (method === "eth_requestAccounts") return [owner];
+      if (method === "eth_chainId") return "0xc4";
+      if (method === "wallet_switchEthereumChain") return null;
+      if (method === "eth_call") {
+        return encodeFunctionResult({
+          abi: eip5267Abi,
+          functionName: "eip712Domain",
+          result: ["0x0f", "USD₮0", "1", 1952n, paymentAsset, `0x${"00".repeat(32)}`, []],
+        });
+      }
+      if (method === "eth_signTypedData_v4") return signature;
+      throw new Error(`Unexpected wallet method ${method}`);
+    });
+    const detail: Eip6963ProviderDetail = {
+      info: { uuid: "phantom", name: "Phantom", icon: "data:image/svg+xml,<svg/>", rdns: "app.phantom" },
+      provider: { request },
+    };
+    const selectedMarket = { ...market, state: "selected", selectedQuoteId: quoteId };
+    const challenge = Challenge.serialize({
+      id: "challenge-1",
+      realm: "localhost:3000",
+      method: "evm",
+      intent: "charge",
+      request: {
+        amount: "100000",
+        currency: paymentAsset,
+        recipient: owner,
+        methodDetails: {
+          chainId: 1952,
+          feePayer: true,
+          splits: [{ amount: "10000", recipient: treasury, memo: "cobia-platform" }],
+        },
+      },
+    });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(Response.json(selectedMarket))
+      .mockResolvedValueOnce(new Response(null, { status: 402, headers: { "WWW-Authenticate": challenge } }))
+      .mockResolvedValueOnce(Response.json({ requestId, quoteId, bundle: { actions: [] } }))
+      .mockResolvedValueOnce(Response.json({ ...selectedMarket, state: "revealed" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<WalletProvider><WalletButton /><CompetitionView requestId={requestId} /></WalletProvider>);
+    act(() => window.dispatchEvent(new CustomEvent("eip6963:announceProvider", { detail })));
+    fireEvent.click(screen.getByRole("button", { name: "Connect wallet" }));
+    await screen.findByRole("button", { name: /Phantom · 0x1111…1111/ });
+    fireEvent.click(await screen.findByRole("button", { name: "Pay winner & reveal" }));
+
+    await waitFor(() => expect(request).toHaveBeenCalledWith(expect.objectContaining({ method: "eth_signTypedData_v4" })));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
+    expect(fetchMock.mock.calls[2][1]?.headers).toEqual(expect.objectContaining({
+      Authorization: expect.stringMatching(/^Payment /),
+    }));
+    const authorization = String((fetchMock.mock.calls[2][1]?.headers as Record<string, string>).Authorization);
+    const credential = Credential.deserialize<{
+      type: "transaction";
+      authorization: { value: string; splits: Array<{ value: string; to: string }> };
+    }>(authorization);
+    expect(credential.payload.authorization.value).toBe("90000");
+    expect(credential.payload.authorization.splits).toEqual([
+      expect.objectContaining({ value: "10000", to: treasury }),
+    ]);
+    expect(await screen.findByRole("button", { name: "Route revealed" })).toBeDisabled();
   });
 });

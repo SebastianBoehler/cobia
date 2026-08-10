@@ -1,6 +1,7 @@
 import { CircleDot } from "lucide-react";
 import Link from "next/link";
 import { CobiaLogo } from "../brand/CobiaLogo";
+import { WalletButton } from "../wallet/WalletButton";
 
 export function AppHeader() {
   return (
@@ -13,9 +14,7 @@ export function AppHeader() {
           <CircleDot aria-hidden="true" size={14} /> X Layer · build mode
         </span>
       </nav>
-      <Link className="button button--quiet app-header__action" href="/requests/new">
-        Open market
-      </Link>
+      <WalletButton />
     </header>
   );
 }
