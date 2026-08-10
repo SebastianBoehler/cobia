@@ -10,7 +10,6 @@ export default function Home() {
       <main>
         <section className="home-hero">
           <div className="home-hero__copy">
-            <p className="eyebrow">Solver market for X Layer</p>
             <h1>Yield routes, priced by a market.</h1>
             <p className="home-hero__intro">
               State your constraints. Independent solvers compete. Cobia verifies every proposal and you pay only the winner.
@@ -31,7 +30,6 @@ export default function Home() {
 
         <section className="mechanism" id="mechanism">
           <header className="section-heading">
-            <p className="eyebrow">The market</p>
             <h2>Research is private. Verification is public.</h2>
           </header>
           <ol className="mechanism__steps">
@@ -39,12 +37,11 @@ export default function Home() {
             <li><span>02</span><h3>Compete</h3><p>Solvers submit signed route bundles against one immutable snapshot.</p></li>
             <li><span>03</span><h3>Verify</h3><p>Code recomputes APY, checks constraints, and rejects unsafe actions.</p></li>
             <li><span>04</span><h3>Choose</h3><p>Compare sanitized quotes without exposing the winning route.</p></li>
-            <li><span>05</span><h3>Pay + reveal</h3><p>Pay 0.10 USDC via x402. The committed bundle is revealed and rechecked.</p></li>
+            <li><span>05</span><h3>Pay + reveal</h3><p>Pay 0.10 stablecoin via x402. The committed bundle is revealed and rechecked.</p></li>
           </ol>
         </section>
 
         <section className="closing-cta">
-          <p className="eyebrow">One request · many solvers · one verified route</p>
           <h2>Set the bounds.<br />Let the market work.</h2>
           <Link className="button button--paper" href="/requests/new">
             Create request <ArrowRight aria-hidden="true" size={17} />

@@ -93,7 +93,7 @@ icon in addition to color.
 - Geist Mono: hashes, addresses, blocks, amounts, rates, fees, and countdowns.
 - Tabular numerals are required for every changing metric.
 - Sentence case is the default. Uppercase is limited to the wordmark and small
-  data eyebrows.
+  compact data labels.
 - The editorial serif from the exploratory mockup is excluded.
 
 ### Space and shape
@@ -121,7 +121,7 @@ Use:
 
 - `Find the best net yield for 25,000 USDG.`
 - `4 solvers submitted. 3 routes passed.`
-- `Pay 0.10 USDC to reveal this route.`
+- `Pay 0.10 stablecoin to reveal this route.`
 - `Route rejected: bridge forbidden.`
 - `Your principal remains in your wallet.`
 
@@ -198,7 +198,7 @@ the only primary action is `Select quote`.
 After selection, the chosen reveal endpoint returns HTTP 402. The confirmation
 sheet clearly separates:
 
-- `Solver research: 0.10 USDC`
+- `Solver research: 0.10 stablecoin`
 - `Solver receives: 0.09 USDC`
 - `Cobia receives: 0.01 USDC`
 - `Principal affected: 0 USDG`

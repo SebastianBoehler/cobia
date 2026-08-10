@@ -16,3 +16,5 @@ contracts/keystores/
 *.pem
 *.key
 .DS_Store
+.playwright-cli/
+output/playwright/

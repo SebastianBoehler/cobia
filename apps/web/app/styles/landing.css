@@ -46,7 +46,6 @@
 .mechanism__steps p { color: var(--muted); font-size: 14px; line-height: 1.55; margin: 0; }
 
 .closing-cta { background: var(--cobalt); color: white; padding: 100px clamp(24px, 8vw, 140px) 110px; }
-.closing-cta .eyebrow { color: oklch(89% 0.08 269); }
 .closing-cta h2 { font-size: clamp(54px, 7vw, 108px); font-weight: 590; letter-spacing: -.07em; line-height: .92; margin: 30px 0 50px; }
 
 @media (max-width: 1050px) {
