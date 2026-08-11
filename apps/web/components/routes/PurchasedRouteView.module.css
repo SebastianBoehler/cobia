@@ -92,6 +92,50 @@
 .nextStep strong { display: block; }
 .nextStep p { margin: 4px 0 0; color: var(--muted); line-height: 1.55; }
 
+.execution {
+  display: grid;
+  gap: 14px;
+  margin: 22px 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--cobalt-wash);
+}
+
+.executionHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+}
+
+.executionHeader > svg { flex: 0 0 auto; color: var(--cobalt); }
+.executionHeader > div { flex: 1; }
+.executionHeader strong { display: block; }
+.executionHeader p { margin: 3px 0 0; color: var(--muted); }
+.executionHeader > span { color: var(--muted); font: .72rem var(--font-geist-mono); }
+
+.executionSteps {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.executionSteps li {
+  display: flex;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 11px;
+  background: var(--paper);
+}
+
+.executionSteps li > span { color: var(--cobalt); font: 600 .7rem var(--font-geist-mono); }
+.executionSteps strong, .executionSteps small { display: block; }
+.executionSteps small { margin-top: 3px; color: var(--muted); }
+.executionBoundary { margin: 0; color: var(--muted); font-size: .82rem; line-height: 1.45; }
+.executionError { display: flex; gap: 7px; margin: 0; color: var(--danger); }
+
 .receipt {
   flex-wrap: wrap;
   gap: 9px 18px;

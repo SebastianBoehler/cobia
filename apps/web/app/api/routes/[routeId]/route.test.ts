@@ -14,8 +14,10 @@ const attacker = privateKeyToAccount(keccak256(toHex("cobia-route-access-attacke
 const state = vi.hoisted(() => ({
   purchase: undefined as Record<string, unknown> | undefined,
   publicRequest: undefined as Record<string, unknown> | undefined,
+  rehearsal: undefined as Record<string, unknown> | undefined,
   purchaseCalls: 0,
   requestCalls: 0,
+  rehearsalCalls: 0,
 }));
 
 vi.mock("@/lib/runtime/market", () => ({
@@ -36,6 +38,16 @@ vi.mock("@/lib/runtime/market", () => ({
       return state.publicRequest;
     },
   }),
+  getRehearsalRepository: () => ({
+    findPassed: async () => {
+      state.rehearsalCalls += 1;
+      return state.rehearsal;
+    },
+  }),
+}));
+
+vi.mock("@/lib/payments/config", () => ({
+  readPaymentTermsConfig: () => ({ PAYMENT_REALM: "localhost:3000" }),
 }));
 
 vi.mock("@/lib/intents/signature", async () =>
@@ -104,8 +116,10 @@ describe("purchased route access", () => {
       internalSecret: "must-not-leak",
     };
     state.publicRequest = { policy: fixture.policy, snapshot: fixture.snapshot };
+    state.rehearsal = undefined;
     state.purchaseCalls = 0;
     state.requestCalls = 0;
+    state.rehearsalCalls = 0;
   });
 
   afterEach(() => vi.useRealTimers());
@@ -134,6 +148,11 @@ describe("purchased route access", () => {
       bundle: routeFixture.bundle,
     };
     state.publicRequest = { policy, snapshot: routeFixture.snapshot };
+    state.rehearsal = {
+      id: "34aa3307-a77b-47c5-a140-ae3d07503dca",
+      state: "passed",
+      trace: { mode: "xlayer-mainnet-fork", result: { status: "success" } },
+    };
 
     const response = await access({ routeId: routeFixture.quote.quoteId });
     const body = await response.json();
@@ -143,8 +162,15 @@ describe("purchased route access", () => {
       policy: { version: 2, requestId: policy.requestId },
       snapshot: { version: 2, requestId: policy.requestId },
       bundle: { version: 2, requestId: policy.requestId },
+      rehearsalRealm: "localhost:3000",
+      rehearsal: {
+        id: "34aa3307-a77b-47c5-a140-ae3d07503dca",
+        state: "passed",
+        trace: { mode: "xlayer-mainnet-fork" },
+      },
     });
     expect(body.snapshot).toStrictEqual(routeFixture.snapshot);
+    expect(state.rehearsalCalls).toBe(1);
   });
 
   it("fails closed when the purchased snapshot no longer matches its commitment", async () => {

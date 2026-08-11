@@ -22,6 +22,8 @@ describe("PurchasedRouteView V2", () => {
       policy: StablecoinPolicyV2Schema.parse(fixture.policy),
       snapshot: fixture.snapshot,
       bundle: fixture.bundle,
+      rehearsalRealm: "localhost:3000",
+      rehearsal: null,
     };
 
     render(<PurchasedRouteView route={route} />);

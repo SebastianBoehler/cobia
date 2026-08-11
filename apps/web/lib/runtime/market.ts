@@ -18,6 +18,7 @@ import { createPurchaseRepository } from "../db/purchases";
 import { createMarketRepository } from "../db/markets";
 import { createPaymentRepository } from "../db/payments";
 import { createRequestRepository } from "../db/requests";
+import { createRehearsalRepository } from "../db/rehearsals";
 import {
   readAgenticSolverConfig,
   readDatabaseUrl,
@@ -39,6 +40,7 @@ let purchaseRepository: ReturnType<typeof createPurchaseRepository> | undefined;
 let database: ReturnType<typeof createDatabase> | undefined;
 let marketRepository: ReturnType<typeof createMarketRepository> | undefined;
 let paymentRepository: ReturnType<typeof createPaymentRepository> | undefined;
+let rehearsalRepository: ReturnType<typeof createRehearsalRepository> | undefined;
 
 function getDatabase() {
   database ??= createDatabase(readDatabaseUrl());
@@ -69,6 +71,11 @@ export function getMarketRepository() {
 export function getPaymentRepository() {
   paymentRepository ??= createPaymentRepository(getDatabase());
   return paymentRepository;
+}
+
+export function getRehearsalRepository() {
+  rehearsalRepository ??= createRehearsalRepository(getDatabase());
+  return rehearsalRepository;
 }
 
 async function openQuoteMarketV1(policy: StablecoinPolicy) {

@@ -81,7 +81,8 @@ describe("PurchasedRouteView", () => {
     expect(screen.getByText("0.09% expected net APY")).toBeVisible();
     expect(screen.getByText("Principal unmoved")).toBeVisible();
     expect(screen.getByText("What happens next?")).toBeVisible();
-    expect(screen.getByText(/no safe in-app execution action yet/i)).toBeVisible();
+    expect(screen.getByText(/legacy quote is inspectable but has no executable route plan/i))
+      .toBeVisible();
   });
 
   it("assigns an odd-principal remainder to the displayed cash amount", () => {

@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { isAddress, type Hex } from "viem";
 import { validatePurchasedRouteIntegrity } from "@/lib/db/purchased-route-artifact";
 import { verifyRouteAccessSignature } from "@/lib/intents/signature";
-import { getPurchaseRepository, getRequestRepository } from "@/lib/runtime/market";
+import { readPaymentTermsConfig } from "@/lib/payments/config";
+import {
+  getPurchaseRepository,
+  getRehearsalRepository,
+  getRequestRepository,
+} from "@/lib/runtime/market";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -68,12 +73,23 @@ export async function GET(
     }
     const publicRequest = await getRequestRepository().getPublicRequest(purchase.requestId);
     if (!publicRequest) throw new Error("Purchased quote request is unavailable");
-    return json(validatePurchasedRouteIntegrity({
+    const artifact = validatePurchasedRouteIntegrity({
       purchase,
       policyInput: publicRequest.policy,
       snapshotInput: publicRequest.snapshot,
       expected: { routeId, buyer },
-    }));
+    });
+    if (artifact.bundle.version !== 2) return json(artifact);
+    const passed = await getRehearsalRepository().findPassed(routeId, routeId);
+    return json({
+      ...artifact,
+      rehearsalRealm: readPaymentTermsConfig().PAYMENT_REALM,
+      rehearsal: passed?.trace ? {
+        id: passed.id,
+        state: "passed" as const,
+        trace: passed.trace,
+      } : null,
+    });
   } catch {
     return json({
       code: "ROUTE_READ_FAILED",

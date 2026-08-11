@@ -6,6 +6,7 @@ import type {
   StablecoinPolicy,
   StablecoinPolicyV2,
 } from "@cobia/domain";
+import type { ExecutionRehearsalTrace } from "../../lib/execution-v2/rehearsal-trace";
 
 interface PurchasedRouteBase {
   id: string;
@@ -28,6 +29,12 @@ export interface PurchasedRouteV2 extends PurchasedRouteBase {
   policy: StablecoinPolicyV2;
   snapshot: RouteSnapshotV2;
   bundle: RouteBundleV2;
+  rehearsalRealm: string;
+  rehearsal: {
+    id: string;
+    state: "passed";
+    trace: ExecutionRehearsalTrace;
+  } | null;
 }
 
 export type PurchasedRoute = PurchasedRouteV1 | PurchasedRouteV2;
