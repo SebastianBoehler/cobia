@@ -31,6 +31,11 @@ DATABASE_URL=postgresql://cobia:cobia@127.0.0.1:5432/cobia
 # Deterministic solver: ${wallets.deterministic.address}
 DETERMINISTIC_SOLVER_PRIVATE_KEY=${wallets.deterministic.privateKey}
 
+# Agentic solver: ${wallets.agentic.address}
+AI_SOLVER_PRIVATE_KEY=${wallets.agentic.privateKey}
+OPENAI_API_KEY=
+OPENAI_SOLVER_MODEL=
+
 # Seller payment state and the recoverable 10% protocol treasury.
 MPPX_SECRET_KEY=${mppSecret}
 COBIA_TREASURY=${wallets.treasury.address}
@@ -65,6 +70,7 @@ async function migrateExistingEnv() {
 if (!await migrateExistingEnv()) {
   const wallets = {
     deterministic: createWallet(),
+    agentic: createWallet(),
     treasury: createWallet(),
   };
   const mppSecret = randomBytes(32).toString("hex");
@@ -77,6 +83,7 @@ if (!await migrateExistingEnv()) {
   }
   console.log(`Created ${envPath}`);
   console.log(`Deterministic solver: ${wallets.deterministic.address}`);
+  console.log(`Agentic solver:       ${wallets.agentic.address}`);
   console.log(`Dev treasury:         ${wallets.treasury.address}`);
   console.log("Private keys were written only to the ignored env file.");
 }

@@ -27,24 +27,20 @@ export interface RouteSolverInputV2 {
   snapshot: RouteSnapshotV2;
   nowSec: number;
 }
-
 export interface RouteBuilderOptionsV2 {
   solverId: string;
   solverAddress: Address;
   expectedAdapterRegistryHash: Hash;
 }
-
 export type UnsignedRouteBundleV2 = Omit<
   ReturnType<typeof RouteBundleV2Schema.parse>,
   "signature"
 >;
-
 export interface DeterministicRouteSolverOptionsV2 {
   solverId: string;
   account: LocalAccount;
   expectedAdapterRegistryHash: Hash;
 }
-
 export interface RouteSolverV2 {
   id: string;
   address: Address;
@@ -55,6 +51,14 @@ interface Candidate {
   id: string;
   economics: RouteEconomicsV2;
   plan: RoutePlanV2;
+}
+
+export interface RouteCandidateSummaryV2 {
+  id: string;
+  estimatedPreGasApyBps: number;
+  retainedAtomic: string;
+  deployedAtomic: string;
+  actions: readonly RoutePlanV2["legs"][number]["actions"][number]["kind"][];
 }
 
 function noActionPlan(policy: StablecoinPolicyV2): RoutePlanV2 {
@@ -87,14 +91,14 @@ function validUntil(input: RouteSolverInputV2): number {
   );
 }
 
-function selectCandidate(
+function routeCandidates(
   policy: StablecoinPolicyV2,
   snapshot: RouteSnapshotV2,
-): Candidate {
+): Candidate[] {
   const principal = BigInt(policy.principalAtomic);
   const deployed = principal * BigInt(policy.protocolExposureBps) / BPS_SCALE;
   const retained = principal - deployed;
-  if (deployed === 0n) return noActionCandidate(policy);
+  if (deployed === 0n) return [];
   const candidates: Candidate[] = [];
   const addCandidate = (id: string, plan: RoutePlanV2) => {
     candidates.push({
@@ -192,14 +196,13 @@ function selectCandidate(
     if (economicsOrder !== 0) return economicsOrder;
     return left.id.localeCompare(right.id);
   });
-  const best = candidates[0];
-  return best?.economics.positiveGain ? best : noActionCandidate(policy);
+  return candidates.filter(({ economics }) =>
+    economics.positiveGain &&
+    economics.estimatedPreGasApyBps >= policy.minPreGasApyBps
+  );
 }
 
-export function buildDeterministicRouteBundleV2(
-  rawInput: RouteSolverInputV2,
-  options: RouteBuilderOptionsV2,
-): UnsignedRouteBundleV2 {
+function parseRouteInput(rawInput: RouteSolverInputV2) {
   const policy = StablecoinPolicyV2Schema.parse(rawInput.policy);
   const snapshot = RouteSnapshotV2Schema.parse(rawInput.snapshot);
   const input = { ...rawInput, policy, snapshot };
@@ -211,11 +214,15 @@ export function buildDeterministicRouteBundleV2(
   }
   const expiry = validUntil(input);
   if (expiry <= rawInput.nowSec) throw new Error("Routing snapshot is expired");
-  const candidate = selectCandidate(policy, snapshot);
-  const apy = candidate.economics.estimatedPreGasApyBps;
-  const meetsNetFloor = candidate.economics.positiveGain &&
-    apy >= policy.minPreGasApyBps;
+  return { input, policy, snapshot, expiry };
+}
 
+function buildRouteBundleForCandidateV2(
+  rawInput: RouteSolverInputV2,
+  options: RouteBuilderOptionsV2,
+  candidate: Candidate,
+): UnsignedRouteBundleV2 {
+  const { policy, snapshot, expiry } = parseRouteInput(rawInput);
   const bundle = UnsignedRouteBundleV2Schema.parse({
     version: 2,
     requestId: policy.requestId,
@@ -223,10 +230,10 @@ export function buildDeterministicRouteBundleV2(
     solverAddress: options.solverAddress,
     policyHash: commitment(policy),
     snapshotHash: commitment(snapshot),
-    routePlan: meetsNetFloor ? candidate.plan : noActionPlan(policy),
+    routePlan: candidate.plan,
     evidence: [],
     riskFlags: [],
-    estimatedPreGasApyBps: meetsNetFloor ? apy : 0,
+    estimatedPreGasApyBps: candidate.economics.estimatedPreGasApyBps,
     validUntil: expiry,
   });
   const authorization = assessRouteAuthorizationV2(policy, snapshot, bundle, {
@@ -238,6 +245,41 @@ export function buildDeterministicRouteBundleV2(
     );
   }
   return bundle;
+}
+
+export function listRouteCandidateSummariesV2(
+  rawInput: RouteSolverInputV2,
+): readonly RouteCandidateSummaryV2[] {
+  const { policy, snapshot } = parseRouteInput(rawInput);
+  return Object.freeze(routeCandidates(policy, snapshot).map(({ id, economics, plan }) =>
+    Object.freeze({
+      id,
+      estimatedPreGasApyBps: economics.estimatedPreGasApyBps,
+      retainedAtomic: plan.retainedAtomic,
+      deployedAtomic: plan.legs[0]!.inputAtomic,
+      actions: Object.freeze(plan.legs[0]!.actions.map(({ kind }) => kind)),
+    })
+  ));
+}
+
+export function buildSelectedRouteBundleV2(
+  rawInput: RouteSolverInputV2,
+  options: RouteBuilderOptionsV2,
+  candidateId: string,
+): UnsignedRouteBundleV2 {
+  const { policy, snapshot } = parseRouteInput(rawInput);
+  const candidate = routeCandidates(policy, snapshot).find(({ id }) => id === candidateId);
+  if (!candidate) throw new Error("Advisor selected an unknown route candidate");
+  return buildRouteBundleForCandidateV2(rawInput, options, candidate);
+}
+
+export function buildDeterministicRouteBundleV2(
+  rawInput: RouteSolverInputV2,
+  options: RouteBuilderOptionsV2,
+): UnsignedRouteBundleV2 {
+  const { policy, snapshot } = parseRouteInput(rawInput);
+  const candidate = routeCandidates(policy, snapshot)[0] ?? noActionCandidate(policy);
+  return buildRouteBundleForCandidateV2(rawInput, options, candidate);
 }
 
 export function createDeterministicRouteSolverV2(

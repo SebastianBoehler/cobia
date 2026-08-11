@@ -6,6 +6,7 @@ import {
   type StablecoinPolicyV2,
 } from "@cobia/domain";
 import {
+  createAgenticRouteSolverV2,
   createDeterministicRouteSolverV2,
   createDeterministicSolver,
 } from "@cobia/solvers";
@@ -17,7 +18,13 @@ import { createPurchaseRepository } from "../db/purchases";
 import { createMarketRepository } from "../db/markets";
 import { createPaymentRepository } from "../db/payments";
 import { createRequestRepository } from "../db/requests";
-import { readDatabaseUrl, readMarketConfig, readOkxCredentials } from "../env";
+import {
+  readAgenticSolverConfig,
+  readDatabaseUrl,
+  readMarketConfig,
+  readOkxCredentials,
+} from "../env";
+import { createOpenAiRouteAdvisor } from "../agentic/openai-route-advisor";
 import { createOkxClient } from "../okx/client";
 import { registryHash } from "../adapters/registry";
 import { captureRouteSnapshotV2 } from "../orchestrator/capture-route-snapshot-v2";
@@ -99,20 +106,30 @@ async function openQuoteMarketV1(policy: StablecoinPolicy) {
 
 async function openQuoteMarketV2(policy: StablecoinPolicyV2) {
   const config = readMarketConfig();
+  const agenticConfig = readAgenticSolverConfig();
   const requests = getRequestRepository();
   const snapshotDependencies = createLiveRouteSnapshotDependencies(
     config.XLAYER_RPC_URL,
   );
-  const solver = createDeterministicRouteSolverV2({
+  const deterministicSolver = createDeterministicRouteSolverV2({
     solverId: "deterministic-v2",
     account: privateKeyToAccount(config.DETERMINISTIC_SOLVER_PRIVATE_KEY),
     expectedAdapterRegistryHash: registryHash,
+  });
+  const agenticSolver = createAgenticRouteSolverV2({
+    solverId: "agentic-v2",
+    account: privateKeyToAccount(agenticConfig.AI_SOLVER_PRIVATE_KEY),
+    expectedAdapterRegistryHash: registryHash,
+    advisor: createOpenAiRouteAdvisor({
+      apiKey: agenticConfig.OPENAI_API_KEY,
+      model: agenticConfig.OPENAI_SOLVER_MODEL,
+    }),
   });
   await requests.createRequest(policy);
   try {
     return await runRouteMarketV2(policy, {
       captureSnapshot: (input) => captureRouteSnapshotV2(input, snapshotDependencies),
-      solvers: [solver],
+      solvers: [deterministicSolver, agenticSolver],
       saveSnapshot: (snapshot) => requests.saveSnapshot(policy.requestId, snapshot),
       saveQuote: (bundle, verdict, quote) =>
         requests.saveQuote(policy.requestId, bundle, verdict, quote),

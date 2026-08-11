@@ -30,6 +30,13 @@ const MarketEnvSchema = z.object({
   XLAYER_RPC_URL: z.string().url().default("https://rpc.xlayer.tech"),
 });
 
+const AgenticSolverEnvSchema = z.object({
+  OPENAI_API_KEY: z.string().min(1),
+  OPENAI_SOLVER_MODEL: z.string().min(1),
+  AI_SOLVER_PRIVATE_KEY: z.string().regex(/^0x[0-9a-fA-F]{64}$/)
+    .transform((value) => value as Hex),
+});
+
 export function readDatabaseUrl(
   source: Record<string, string | undefined> = process.env,
 ): string {
@@ -45,6 +52,17 @@ export function readMarketConfig(
   if (!parsed.success) {
     const invalid = parsed.error.issues.map((issue) => issue.path.join(".")).join(", ");
     throw new Error(`Missing or invalid market configuration: ${invalid}`);
+  }
+  return parsed.data;
+}
+
+export function readAgenticSolverConfig(
+  source: Record<string, string | undefined> = process.env,
+) {
+  const parsed = AgenticSolverEnvSchema.safeParse(source);
+  if (!parsed.success) {
+    const invalid = parsed.error.issues.map((issue) => issue.path.join(".")).join(", ");
+    throw new Error(`Missing or invalid agentic solver configuration: ${invalid}`);
   }
   return parsed.data;
 }
