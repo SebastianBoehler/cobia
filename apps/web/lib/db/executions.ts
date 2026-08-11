@@ -277,6 +277,18 @@ export function createExecutionRepository(db: CobiaDatabase) {
       return { ...attempt, steps };
     },
 
+    async getByRoute(routeId: string) {
+      const attempt = await db.query.cobiaExecutionAttempts.findFirst({
+        where: eq(cobiaExecutionAttempts.routeId, routeId.toLowerCase()),
+      });
+      if (!attempt) return null;
+      const steps = await db.query.cobiaExecutionSteps.findMany({
+        where: eq(cobiaExecutionSteps.attemptId, attempt.id),
+        orderBy: [asc(cobiaExecutionSteps.ordinal)],
+      });
+      return { ...attempt, steps };
+    },
+
     findRecoverable(buyer: string) {
       return db.query.cobiaExecutionAttempts.findMany({
         where: and(

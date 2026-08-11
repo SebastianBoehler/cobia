@@ -150,7 +150,9 @@ export async function resolveGuidedStepV2(input: GuidedSessionInputV2 & {
   transactionHash: Hash;
   waitForReceiptPoll?: ReceiptPollWaitV2;
 }): Promise<SubmittedResumeResultV2> {
-  const context = parseExecutionContextV2(input);
+  // A transaction submitted while authorized must remain resolvable after the
+  // quote deadline. Freshness is enforced before preparation and broadcast.
+  const context = parseExecutionContextV2({ ...input, nowSec: 0 });
   const submitted = Object.freeze({
     label: input.prepared.transaction.label,
     hash: input.transactionHash,

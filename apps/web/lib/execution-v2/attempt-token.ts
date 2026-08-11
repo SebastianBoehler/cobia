@@ -9,6 +9,12 @@ const AttemptTokenPayloadSchema = z.object({
 }).strict();
 
 export type AttemptTokenPayload = z.infer<typeof AttemptTokenPayloadSchema>;
+export type AttemptTokenContext = Pick<AttemptTokenPayload, "attemptId" | "buyer">;
+
+const AttemptTokenContextSchema = AttemptTokenPayloadSchema.pick({
+  attemptId: true,
+  buyer: true,
+});
 
 function keyBytes(secret: string) {
   const bytes = new TextEncoder().encode(secret);
@@ -58,7 +64,7 @@ export async function issueAttemptToken(
 
 export async function verifyAttemptToken(
   token: string,
-  expectedValue: AttemptTokenPayload,
+  expectedValue: AttemptTokenContext,
   secret: string,
   nowSec: number,
 ): Promise<AttemptTokenPayload> {
@@ -75,11 +81,10 @@ export async function verifyAttemptToken(
     throw new Error("Attempt token payload is invalid");
   }
   const payload = AttemptTokenPayloadSchema.parse(decoded);
-  const expected = AttemptTokenPayloadSchema.parse(expectedValue);
+  const expected = AttemptTokenContextSchema.parse(expectedValue);
   assertWindow(payload.expiresAt, nowSec);
   const matches = payload.attemptId === expected.attemptId
-    && payload.buyer === expected.buyer
-    && payload.expiresAt === expected.expiresAt;
+    && payload.buyer === expected.buyer;
   if (!matches) throw new Error("Attempt token does not match expected context");
   return payload;
 }

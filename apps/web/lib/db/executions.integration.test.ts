@@ -127,6 +127,8 @@ describe("guided mainnet execution repository", () => {
     const first = await executions.begin(input);
 
     expect(await executions.begin(input)).toEqual(first);
+    await expect(executions.getByRoute(route.fixture.quote.quoteId))
+      .resolves.toMatchObject({ id: first.id, steps: [] });
     expect(first).toMatchObject({ state: "prepared", executionChainId: 196, nextOrdinal: 0 });
     await expect(executions.begin({
       ...input,

@@ -52,6 +52,8 @@ export interface ExecutionReadClientV2 extends ProtocolReadClient {
     nonce: bigint;
   }): Promise<bigint>;
   getTransactionCount(address: Address): Promise<bigint>;
+  getBalance(address: Address): Promise<bigint>;
+  getGasPrice(): Promise<bigint>;
   getBlockTransactions(blockNumber: bigint): Promise<ExecutionTransactionV2[]>;
   readContract(request: {
     address: Address;

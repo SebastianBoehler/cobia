@@ -38,7 +38,7 @@ export async function readAllowanceV2(
   }), "ERC20 allowance");
 }
 
-async function readBalance(
+export async function readTokenBalanceV2(
   client: ExecutionReadClientV2,
   token: Address,
   owner: Address,
@@ -102,14 +102,14 @@ export async function captureTransactionStateV2(
   }
   if (descriptor.kind === "swap") {
     const [beforeInputAtomic, beforeOutputAtomic] = await Promise.all([
-      readBalance(client, descriptor.tokenIn, owner, blockNumber),
-      readBalance(client, descriptor.tokenOut, owner, blockNumber),
+      readTokenBalanceV2(client, descriptor.tokenIn, owner, blockNumber),
+      readTokenBalanceV2(client, descriptor.tokenOut, owner, blockNumber),
     ]);
     return { ...descriptor, beforeInputAtomic, beforeOutputAtomic };
   }
   const [beforeInputAtomic, scaledATokenBeforeAtomic, normalizedIncomeBeforeRay] =
     await Promise.all([
-      readBalance(client, descriptor.asset, owner, blockNumber),
+      readTokenBalanceV2(client, descriptor.asset, owner, blockNumber),
       readScaledBalance(client, descriptor.aToken, owner, blockNumber),
       readNormalizedIncome(client, descriptor.asset, blockNumber),
     ]);
@@ -149,8 +149,8 @@ export async function validateTransactionStateV2(
   if (before.kind === "swap") {
     const swap = requireEvidence(evidence, "swap");
     const [afterInputAtomic, afterOutputAtomic] = await Promise.all([
-      readBalance(client, before.tokenIn, owner, blockNumber),
-      readBalance(client, before.tokenOut, owner, blockNumber),
+      readTokenBalanceV2(client, before.tokenIn, owner, blockNumber),
+      readTokenBalanceV2(client, before.tokenOut, owner, blockNumber),
     ]);
     if (afterInputAtomic > before.beforeInputAtomic ||
       before.beforeInputAtomic - afterInputAtomic !== before.amountInAtomic) {
@@ -172,7 +172,7 @@ export async function validateTransactionStateV2(
   }
   const supply = requireEvidence(evidence, "aave-supply");
   const [afterInputAtomic, scaledAfter, incomeAfter] = await Promise.all([
-    readBalance(client, before.asset, owner, blockNumber),
+    readTokenBalanceV2(client, before.asset, owner, blockNumber),
     readScaledBalance(client, before.aToken, owner, blockNumber),
     readNormalizedIncome(client, before.asset, blockNumber),
   ]);

@@ -12,16 +12,22 @@ const payload = {
 describe("mainnet execution attempt token", () => {
   it("round-trips exact bounded attempt authority", async () => {
     const token = await issueAttemptToken(payload, secret, nowSec);
-    await expect(verifyAttemptToken(token, payload, secret, nowSec)).resolves.toEqual(payload);
+    await expect(verifyAttemptToken(token, {
+      attemptId: payload.attemptId,
+      buyer: payload.buyer,
+    }, secret, nowSec)).resolves.toEqual(payload);
   });
 
   it.each([
     ["attempt", { attemptId: "2f89ad1d-929a-43e0-8cbf-e87425832000" }],
     ["buyer", { buyer: "0x0000000000000000000000000000000000000001" as const }],
-    ["expiry", { expiresAt: nowSec + 239 }],
   ])("rejects changed expected %s", async (_label, mutation) => {
     const token = await issueAttemptToken(payload, secret, nowSec);
-    await expect(verifyAttemptToken(token, { ...payload, ...mutation }, secret, nowSec))
+    await expect(verifyAttemptToken(token, {
+      attemptId: payload.attemptId,
+      buyer: payload.buyer,
+      ...mutation,
+    }, secret, nowSec))
       .rejects.toThrow("context");
   });
 
@@ -30,9 +36,10 @@ describe("mainnet execution attempt token", () => {
     const [body, mac] = token.split(".");
     await expect(verifyAttemptToken(`${body}.${mac?.replace(/^./, "A")}`, payload, secret, nowSec))
       .rejects.toThrow();
-    await expect(verifyAttemptToken(token, payload, "b".repeat(64), nowSec))
+    const expected = { attemptId: payload.attemptId, buyer: payload.buyer };
+    await expect(verifyAttemptToken(token, expected, "b".repeat(64), nowSec))
       .rejects.toThrow();
-    await expect(verifyAttemptToken(token, payload, secret, payload.expiresAt))
+    await expect(verifyAttemptToken(token, expected, secret, payload.expiresAt))
       .rejects.toThrow("expired");
     await expect(issueAttemptToken({ ...payload, expiresAt: nowSec + 301 }, secret, nowSec))
       .rejects.toThrow("too long-lived");

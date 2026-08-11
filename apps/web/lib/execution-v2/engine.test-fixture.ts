@@ -32,8 +32,13 @@ export {
 } from "./engine-log.test-fixture";
 
 function key(address: Address, name: string, args: readonly unknown[], block: bigint) {
-  return `${address.toLowerCase()}:${name}:${JSON.stringify(args, (_, value) =>
-    typeof value === "bigint" ? value.toString() : value)}:${block}`;
+  return `${address.toLowerCase()}:${name}:${JSON.stringify(args, (_, value) => {
+    if (typeof value === "bigint") return value.toString();
+    if (typeof value === "string" && /^0x[0-9a-fA-F]{40}$/.test(value)) {
+      return value.toLowerCase();
+    }
+    return value;
+  })}:${block}`;
 }
 
 function implementationWord(address: Address): Hex {
@@ -76,6 +81,8 @@ export class ScriptedReadClient implements ExecutionReadClientV2 {
   readonly aaveMintIndexOverrides = new Map<Hash, bigint>();
   readonly aaveScaledBalanceBeforeOverrides = new Map<Hash, bigint>();
   pendingNonce = 7n;
+  nativeBalance = 10n ** 18n;
+  gasPrice = 1_000_000_000n;
 
   constructor(readonly events: string[]) {
     addDeployment(this.runtimeCodeHashes, this.implementationSlots, PROTOCOL_REGISTRY.aaveV3.pool);
@@ -95,12 +102,18 @@ export class ScriptedReadClient implements ExecutionReadClientV2 {
     }
   }
 
-  allowance(token: Address, spender: Address, block: bigint, value: bigint) {
-    this.contractResponses.set(key(token, "allowance", [OWNER, spender], block), value);
+  allowance(
+    token: Address,
+    spender: Address,
+    block: bigint,
+    value: bigint,
+    owner: Address = OWNER,
+  ) {
+    this.contractResponses.set(key(token, "allowance", [owner, spender], block), value);
   }
 
-  balance(token: Address, block: bigint, value: bigint) {
-    this.contractResponses.set(key(token, "balanceOf", [OWNER], block), value);
+  balance(token: Address, block: bigint, value: bigint, owner: Address = OWNER) {
+    this.contractResponses.set(key(token, "balanceOf", [owner], block), value);
   }
 
   scaledBalance(token: Address, block: bigint, value: bigint) {
@@ -140,6 +153,10 @@ export class ScriptedReadClient implements ExecutionReadClientV2 {
   async estimateGas() { return 21_000n; }
 
   async getTransactionCount() { return this.pendingNonce; }
+
+  async getBalance() { return this.nativeBalance; }
+
+  async getGasPrice() { return this.gasPrice; }
 
   async getBlockTransactions(blockNumber: bigint) {
     return this.blockTransactions.get(blockNumber) ?? [];

@@ -15,12 +15,14 @@ type ViemExecutionClient = Pick<
   PublicClient,
   | "getBlock"
   | "getBlockNumber"
+  | "getBalance"
   | "getChainId"
   | "getCode"
   | "estimateGas"
   | "getStorageAt"
   | "getTransaction"
   | "getTransactionCount"
+  | "getGasPrice"
   | "getTransactionReceipt"
   | "readContract"
 >;
@@ -72,6 +74,8 @@ export function createExecutionReadClientV2(
     async getTransactionCount(address) {
       return BigInt(await client.getTransactionCount({ address, blockTag: "pending" }));
     },
+    getBalance: (address) => client.getBalance({ address, blockTag: "pending" }),
+    getGasPrice: () => client.getGasPrice(),
     async getBlockTransactions(blockNumber) {
       const block = await client.getBlock({ blockNumber, includeTransactions: true });
       return block.transactions
