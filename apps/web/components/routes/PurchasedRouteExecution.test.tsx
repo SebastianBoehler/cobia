@@ -118,7 +118,7 @@ describe("PurchasedRouteExecution", () => {
     render(<PurchasedRouteExecution route={purchased} />);
 
     expect(screen.getByText("Fork rehearsal passed")).toBeVisible();
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start guided mainnet execution" })).toBeVisible();
     expect(wallet.request).not.toHaveBeenCalled();
   });
 

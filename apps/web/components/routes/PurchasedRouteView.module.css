@@ -136,6 +136,43 @@
 .executionBoundary { margin: 0; color: var(--muted); font-size: .82rem; line-height: 1.45; }
 .executionError { display: flex; gap: 7px; margin: 0; color: var(--danger); }
 
+.mainnetExecution {
+  display: grid;
+  gap: 14px;
+  margin: 16px 0 22px;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--verified) 40%, var(--line));
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--verified) 5%, var(--paper));
+}
+
+.executionGuardrail,
+.executionComplete {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 0;
+  color: var(--muted);
+  font-size: .82rem;
+  line-height: 1.45;
+}
+
+.executionGuardrail > svg,
+.executionComplete > svg { flex: 0 0 auto; color: var(--verified); }
+.executionComplete { color: var(--verified); font-weight: 650; }
+
+.preparedStep {
+  display: grid;
+  gap: 3px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+}
+
+.preparedStep span { color: var(--cobalt); font-size: .72rem; font-weight: 650; text-transform: uppercase; }
+.preparedStep small { color: var(--muted); }
+
 .receipt {
   flex-wrap: wrap;
   gap: 9px 18px;

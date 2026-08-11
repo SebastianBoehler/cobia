@@ -23,7 +23,7 @@ export function PolicySummary(props: PolicySummaryProps) {
     { icon: ShieldCheck, label: `Maximum snapshot age: ${props.snapshotAge}` },
     { icon: ShieldCheck, label: `Intent lifetime: ${props.intentLifetime}` },
     { icon: ShieldCheck, label: "Deterministic recomputation" },
-    { icon: Wallet, label: "Principal stays in your wallet" },
+    { icon: Wallet, label: "Principal stays in your wallet until separately confirmed execution" },
   ] as const;
   return (
     <aside className="policy-receipt" aria-label="Policy summary">

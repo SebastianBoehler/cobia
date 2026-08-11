@@ -256,7 +256,7 @@ export function PolicyForm() {
           onChange={(event) => setAcknowledged(event.target.checked)}
         />
         <span>
-          I understand this snapshot-derived exact allocation may evaluate Aave V3 supply and Uniswap V3 swap opportunities. My principal remains unmoved. Paid reveal is available only for a route-authorized quote; the purchased route remains a non-executing plan.
+          I understand this snapshot-derived exact allocation may evaluate Aave V3 supply and Uniswap V3 swap opportunities. Buying the route does not move principal. Mainnet execution is a separate guided flow with one explicit wallet confirmation for every transaction.
         </span>
       </label>
 

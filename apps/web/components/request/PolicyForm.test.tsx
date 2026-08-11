@@ -88,7 +88,7 @@ describe("PolicyForm", () => {
     expect(screen.getByText("Yield horizon: 30 days")).toBeVisible();
     expect(screen.getByText("Maximum snapshot age: 300 seconds")).toBeVisible();
     expect(screen.getByText("Intent lifetime: 30 minutes")).toBeVisible();
-    expect(screen.getByText("Principal stays in your wallet")).toBeVisible();
+    expect(screen.getByText(/Principal stays in your wallet until separately confirmed execution/)).toBeVisible();
     expect(screen.getByRole("button", { name: "Open solver market" })).toBeEnabled();
   });
 
@@ -98,8 +98,8 @@ describe("PolicyForm", () => {
     expect(screen.getByText("10.00 USDG exact")).toBeVisible();
     expect(screen.getByText(/may evaluate Aave V3 supply and Uniswap V3 swap opportunities/i))
       .toBeVisible();
-    expect(screen.getByText(/principal remains unmoved/i)).toBeVisible();
-    expect(screen.getByText(/purchased route remains a non-executing plan/i)).toBeVisible();
+    expect(screen.getByText(/Buying the route does not move principal/i)).toBeVisible();
+    expect(screen.getByText(/one explicit wallet confirmation for every transaction/i)).toBeVisible();
     expect(screen.getByText("Free request · Pay only after selecting an authorized quote"))
       .toBeVisible();
     expect(screen.queryByText(/paid reveal is not wired/i)).not.toBeInTheDocument();

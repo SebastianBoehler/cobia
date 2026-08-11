@@ -9,6 +9,7 @@ import {
 } from "../../lib/execution-v2/rehearsal-proof";
 import type { ExecutionRehearsalTrace } from "../../lib/execution-v2/rehearsal-trace";
 import { useWallet } from "../wallet/WalletProvider";
+import { MainnetExecutionLedger } from "./MainnetExecutionLedger";
 import type { PurchasedRouteV2 } from "./purchased-route";
 import styles from "./PurchasedRouteView.module.css";
 
@@ -120,7 +121,10 @@ export function PurchasedRouteExecution({ route }: { route: PurchasedRouteV2 }) 
     }
   }
 
-  if (trace) return <TraceLedger trace={trace} />;
+  if (trace) return <>
+    <TraceLedger trace={trace} />
+    <MainnetExecutionLedger route={route} trace={trace} />
+  </>;
   return (
     <div className={styles.execution}>
       <div className={styles.executionHeader}>

@@ -39,6 +39,7 @@ function actionSteps(
 }
 
 export function PurchasedRoutePlanV2({ route }: { route: PurchasedRouteV2 }) {
+  const retained = BigInt(route.bundle.routePlan.retainedAtomic);
   const steps: PresentedStep[] = [{
     key: "retained",
     label: `${formattedAssetAmount(
@@ -46,7 +47,9 @@ export function PurchasedRoutePlanV2({ route }: { route: PurchasedRouteV2 }) {
       route.bundle.routePlan.inputAsset,
       route.snapshot.valuations,
     )} retained`,
-    detail: "Risk buffer selected in the signed intent",
+    detail: retained > 0n
+      ? `Undeployed by the signed ${(route.policy.protocolExposureBps / 100).toFixed(0)}% protocol-exposure limit; this amount earns no route yield`
+      : "No retained buffer; the signed intent permits full deployment",
   }, ...route.bundle.routePlan.legs.flatMap((leg) =>
     actionSteps(leg, route.snapshot.valuations))];
 

@@ -8,7 +8,7 @@ import { createRepositoryFixtureV2 } from "../../lib/db/repository-test-fixtures
 import { PurchasedRouteView, type PurchasedRoute } from "./PurchasedRouteView";
 
 describe("PurchasedRouteView V2", () => {
-  it("renders retained capital and ordered adapter actions as a non-executing plan", async () => {
+  it("explains retained capital and renders ordered adapter actions", async () => {
     const fixture = await createRepositoryFixtureV2();
     const route: PurchasedRoute = {
       id: fixture.quote.quoteId,
@@ -33,7 +33,7 @@ describe("PurchasedRouteView V2", () => {
     const steps = screen.getAllByRole("listitem");
     expect(within(steps[0]).getByText("10.000001 USDt0 retained")).toBeVisible();
     expect(within(steps[0]).getByText(
-      "Risk buffer selected in the signed intent",
+      "Undeployed by the signed 60% protocol-exposure limit; this amount earns no route yield",
     )).toBeVisible();
     expect(within(steps[1]).getByText(
       "Swap 15 USDt0 for at least 14.85 USDG via Uniswap V3",
