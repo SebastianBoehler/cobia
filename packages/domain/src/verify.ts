@@ -5,6 +5,10 @@ import {
 } from "viem";
 import type { DecisionBundle } from "./bundle";
 import { commitment } from "./canonical";
+import {
+  atomicWeightedApyBps,
+  splitAtomicAllocation,
+} from "./allocation";
 import type { StablecoinPolicy } from "./policy";
 import { quoteRiskGrade, riskPenaltyBps } from "./score";
 import type { MarketSnapshot } from "./snapshot";
@@ -22,6 +26,7 @@ export type VerificationErrorCode =
   | "EXPOSURE_LIMIT_EXCEEDED"
   | "TVL_BELOW_MINIMUM"
   | "APY_BELOW_MINIMUM"
+  | "EXPECTED_NET_APY_MISMATCH"
   | "ACTION_AMOUNT_MISMATCH"
   | "ACTION_NOT_ALLOWED"
   | "EVIDENCE_MISSING"
@@ -34,10 +39,6 @@ function pushUnique(
   code: VerificationErrorCode,
 ): void {
   if (!errors.includes(code)) errors.push(code);
-}
-
-function allocationAmount(principalAtomic: string, bps: number): string {
-  return ((BigInt(principalAtomic) * BigInt(bps)) / 10_000n).toString();
 }
 
 async function hasValidSignature(
@@ -98,6 +99,9 @@ export async function verifyBundle(
   let recomputedNetApyBps = 0;
   let suppliedCandidateId: string | undefined;
   let suppliedBps = 0;
+  let suppliedAllocationCount = 0;
+  let protocolExposureBps = 0;
+  let cashBps = 0;
 
   for (const allocation of bundle.allocations) {
     const candidate = candidates.get(allocation.candidateId);
@@ -105,42 +109,65 @@ export async function verifyBundle(
       pushUnique(errors, "UNKNOWN_CANDIDATE");
       continue;
     }
-    recomputedNetApyBps += Math.floor(
-      (candidate.apyBps * allocation.bps) / 10_000,
-    );
+    if (candidate.kind === "cash") {
+      cashBps += allocation.bps;
+    }
     if (candidate.kind === "aave-v3" && allocation.bps > 0) {
+      const split = splitAtomicAllocation(
+        policy.principalAtomic,
+        allocation.bps,
+      );
+      recomputedNetApyBps += atomicWeightedApyBps(
+        candidate.apyBps,
+        split.protocolAtomic,
+        policy.principalAtomic,
+      );
       suppliedCandidateId = candidate.id;
       suppliedBps = allocation.bps;
-      if (allocation.bps > policy.maxProtocolExposureBps) {
-        pushUnique(errors, "EXPOSURE_LIMIT_EXCEEDED");
-      }
+      suppliedAllocationCount += 1;
+      protocolExposureBps += allocation.bps;
       if (BigInt(candidate.tvlUsdE6) < BigInt(policy.minTvlUsdE6)) {
         pushUnique(errors, "TVL_BELOW_MINIMUM");
       }
     }
   }
 
+  if (protocolExposureBps > policy.maxProtocolExposureBps) {
+    pushUnique(errors, "EXPOSURE_LIMIT_EXCEEDED");
+  }
+
   if (recomputedNetApyBps < policy.minNetApyBps) {
     pushUnique(errors, "APY_BELOW_MINIMUM");
+  }
+  if (bundle.expectedNetApyBps !== recomputedNetApyBps) {
+    pushUnique(errors, "EXPECTED_NET_APY_MISMATCH");
   }
 
   if (suppliedCandidateId) {
     const candidate = candidates.get(suppliedCandidateId);
+    const split = splitAtomicAllocation(policy.principalAtomic, suppliedBps);
     if (
       bundle.action.kind !== "aave-v3-supply" ||
+      suppliedAllocationCount !== 1 ||
+      split.protocolAtomic === "0" ||
       candidate?.kind !== "aave-v3" ||
       bundle.action.candidateId !== suppliedCandidateId ||
       bundle.action.investmentId !== candidate.investmentId
     ) {
       pushUnique(errors, "ACTION_NOT_ALLOWED");
     } else if (
-      bundle.action.amountAtomic !==
-      allocationAmount(policy.principalAtomic, suppliedBps)
+      bundle.action.amountAtomic !== split.protocolAtomic
     ) {
       pushUnique(errors, "ACTION_AMOUNT_MISMATCH");
     }
   } else if (bundle.action.kind === "aave-v3-supply") {
     pushUnique(errors, "ACTION_NOT_ALLOWED");
+  } else if (
+    bundle.action.kind === "hold" &&
+    bundle.action.amountAtomic !==
+      splitAtomicAllocation(policy.principalAtomic, 10_000 - cashBps).cashAtomic
+  ) {
+    pushUnique(errors, "ACTION_AMOUNT_MISMATCH");
   }
 
   const evidenceByHash = new Map(

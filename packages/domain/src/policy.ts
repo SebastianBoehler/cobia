@@ -5,6 +5,8 @@ import {
   PositiveAtomicAmountSchema,
 } from "./primitives";
 
+export const MAX_SNAPSHOT_AGE_SECONDS = 300;
+
 export const StablecoinPolicySchema = z
   .object({
     version: z.literal(1),
@@ -16,7 +18,7 @@ export const StablecoinPolicySchema = z
     maxProtocolExposureBps: BasisPointsSchema.min(1),
     minTvlUsdE6: z.string().regex(/^(0|[1-9][0-9]*)$/),
     minNetApyBps: z.number().int().min(0),
-    maxSnapshotAgeSec: z.number().int().positive(),
+    maxSnapshotAgeSec: z.number().int().positive().max(MAX_SNAPSHOT_AGE_SECONDS),
     deadline: z.number().int().positive(),
     noBridges: z.literal(true),
   })

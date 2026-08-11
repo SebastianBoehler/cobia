@@ -128,6 +128,11 @@ describe("domain boundaries", () => {
     ).toBe(false);
   });
 
+  it("rejects snapshot freshness windows beyond the settlement window", () => {
+    expect(StablecoinPolicySchema.safeParse({ ...policy, maxSnapshotAgeSec: 301 }).success)
+      .toBe(false);
+  });
+
   it("rejects an expired policy at the request boundary", () => {
     expect(() => parseStablecoinPolicy(policy, 2_000_000_001)).toThrow(
       "deadline",

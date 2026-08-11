@@ -49,6 +49,63 @@ describe("deterministic solver", () => {
     expect(bundle.action.kind).toBe("abstain");
   });
 
+  it("abstains rather than signing a zero-value protocol action", async () => {
+    const solver = createDeterministicSolver({
+      solverId: "determinist-labs",
+      account: solverAccount,
+    });
+
+    const bundle = await solver.solve({
+      policy: { ...policy, principalAtomic: "1", minNetApyBps: 0 },
+      snapshot,
+      nowSec,
+    });
+
+    expect(bundle.allocations).toEqual([
+      { candidateId: "cash:usdc", bps: 10_000 },
+    ]);
+    expect(bundle.action.kind).toBe("abstain");
+    expect(bundle.expectedNetApyBps).toBe(0);
+  });
+
+  it("calculates APY from the atomic amount actually supplied", async () => {
+    const solver = createDeterministicSolver({
+      solverId: "determinist-labs",
+      account: solverAccount,
+    });
+
+    const bundle = await solver.solve({
+      policy: { ...policy, principalAtomic: "3" },
+      snapshot,
+      nowSec,
+    });
+
+    expect(bundle.action).toMatchObject({ amountAtomic: "1" });
+    expect(bundle.expectedNetApyBps).toBe(214);
+  });
+
+  it("abstains when atomically weighted APY misses the policy minimum", async () => {
+    const solver = createDeterministicSolver({
+      solverId: "determinist-labs",
+      account: solverAccount,
+    });
+
+    const bundle = await solver.solve({
+      policy: {
+        ...policy,
+        principalAtomic: "3",
+        minNetApyBps: 220,
+      },
+      snapshot,
+      nowSec,
+    });
+
+    expect(bundle.allocations).toEqual([
+      { candidateId: "cash:usdc", bps: 10_000 },
+    ]);
+    expect(bundle.action.kind).toBe("abstain");
+  });
+
   it("breaks equal-APY ties by stable candidate ID", async () => {
     const solver = createDeterministicSolver({
       solverId: "determinist-labs",

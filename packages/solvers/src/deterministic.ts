@@ -1,5 +1,7 @@
 import {
+  atomicWeightedApyBps,
   commitment,
+  splitAtomicAllocation,
   type DecisionBundle,
   type MarketCandidate,
 } from "@cobia/domain";
@@ -7,25 +9,30 @@ import type { LocalAccount } from "viem";
 import { signBundle } from "./sign";
 import type { Solver, SolverInput } from "./types";
 
-interface DeterministicSolverOptions {
+export interface DeterministicSolverOptions {
   solverId: string;
   account: LocalAccount;
 }
 
 type AaveCandidate = Extract<MarketCandidate, { kind: "aave-v3" }>;
 
-function expectedNetApy(apyBps: number, exposureBps: number): number {
-  return Math.floor((apyBps * exposureBps) / 10_000);
-}
-
 function selectCandidate(input: SolverInput): AaveCandidate | undefined {
   const { policy, snapshot } = input;
+  const split = splitAtomicAllocation(
+    policy.principalAtomic,
+    policy.maxProtocolExposureBps,
+  );
+  if (split.protocolAtomic === "0") return undefined;
   return snapshot.candidates
     .filter((candidate): candidate is AaveCandidate => {
       if (candidate.kind !== "aave-v3") return false;
       if (BigInt(candidate.tvlUsdE6) < BigInt(policy.minTvlUsdE6)) return false;
       return (
-        expectedNetApy(candidate.apyBps, policy.maxProtocolExposureBps) >=
+        atomicWeightedApyBps(
+          candidate.apyBps,
+          split.protocolAtomic,
+          policy.principalAtomic,
+        ) >=
         policy.minNetApyBps
       );
     })
@@ -43,12 +50,12 @@ function snapshotExpiry(input: SolverInput): number {
   );
 }
 
-async function solve(
+export function buildDeterministicBundle(
   input: SolverInput,
   options: DeterministicSolverOptions,
-): Promise<DecisionBundle> {
+): Omit<DecisionBundle, "signature"> {
   const { policy, snapshot } = input;
-  const candidate = selectCandidate(input);
+  let candidate = selectCandidate(input);
   const cashCandidates = snapshot.candidates.filter(
     (item) => item.kind === "cash",
   );
@@ -56,44 +63,47 @@ async function solve(
     throw new Error("Snapshot must contain exactly one cash candidate");
   }
   const cashCandidateId = cashCandidates[0].id;
-  const exposureBps = candidate ? policy.maxProtocolExposureBps : 0;
+  let exposureBps = candidate ? policy.maxProtocolExposureBps : 0;
+  let split = splitAtomicAllocation(policy.principalAtomic, exposureBps);
+  if (split.protocolAtomic === "0") {
+    candidate = undefined;
+    exposureBps = 0;
+    split = splitAtomicAllocation(policy.principalAtomic, exposureBps);
+  }
   const cashBps = 10_000 - exposureBps;
-  const amountAtomic = (
-    (BigInt(policy.principalAtomic) * BigInt(exposureBps)) /
-    10_000n
-  ).toString();
 
-  return signBundle(
-    {
-      version: 1,
-      requestId: policy.requestId,
-      solverId: options.solverId,
-      solverAddress: options.account.address,
-      policyHash: commitment(policy),
-      snapshotHash: commitment(snapshot),
-      allocations: candidate
-        ? [
-            { candidateId: cashCandidateId, bps: cashBps },
-            { candidateId: candidate.id, bps: exposureBps },
-          ]
-        : [{ candidateId: cashCandidateId, bps: 10_000 }],
-      evidence: [],
-      riskFlags: [],
-      expectedNetApyBps: candidate
-        ? expectedNetApy(candidate.apyBps, exposureBps)
-        : 0,
-      action: candidate
-        ? {
-            kind: "aave-v3-supply",
-            candidateId: candidate.id,
-            investmentId: candidate.investmentId,
-            amountAtomic,
-          }
-        : { kind: "abstain", reason: "No market satisfies the policy" },
-      validUntil: snapshotExpiry(input),
-    },
-    options.account,
-  );
+  return {
+    version: 1,
+    requestId: policy.requestId,
+    solverId: options.solverId,
+    solverAddress: options.account.address,
+    policyHash: commitment(policy),
+    snapshotHash: commitment(snapshot),
+    allocations: candidate
+      ? [
+          { candidateId: cashCandidateId, bps: cashBps },
+          { candidateId: candidate.id, bps: exposureBps },
+        ]
+      : [{ candidateId: cashCandidateId, bps: 10_000 }],
+    evidence: [],
+    riskFlags: [],
+    expectedNetApyBps: candidate
+      ? atomicWeightedApyBps(
+          candidate.apyBps,
+          split.protocolAtomic,
+          policy.principalAtomic,
+        )
+      : 0,
+    action: candidate
+      ? {
+          kind: "aave-v3-supply",
+          candidateId: candidate.id,
+          investmentId: candidate.investmentId,
+          amountAtomic: split.protocolAtomic,
+        }
+      : { kind: "abstain", reason: "No market satisfies the policy" },
+    validUntil: snapshotExpiry(input),
+  };
 }
 
 export function createDeterministicSolver(
@@ -102,6 +112,7 @@ export function createDeterministicSolver(
   return {
     id: options.solverId,
     address: options.account.address,
-    solve: (input) => solve(input, options),
+    solve: (input) =>
+      signBundle(buildDeterministicBundle(input, options), options.account),
   };
 }

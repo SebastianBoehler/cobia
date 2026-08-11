@@ -1,104 +1,35 @@
-import { keccak256, toHex } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
 import { describe, expect, it } from "vitest";
 import {
   commitment,
-  projectRouteQuote,
   verifyBundle,
-  type DecisionBundle,
   type MarketSnapshot,
-  type StablecoinPolicy,
 } from "../src/index";
+import {
+  account,
+  criticalRiskFlag,
+  hash,
+  nowSec,
+  policy,
+  signedBundle,
+  snapshot,
+} from "./verification-fixtures";
 
-const account = privateKeyToAccount(keccak256(toHex("cobia-domain-test-signer")));
-const requestId = "550e8400-e29b-41d4-a716-446655440000";
-const asset = "0x2222222222222222222222222222222222222222";
-const hash = `0x${"ab".repeat(32)}` as const;
-const nowSec = Date.parse("2026-08-09T10:01:00.000Z") / 1_000;
-
-const policy: StablecoinPolicy = {
-  version: 1,
-  requestId,
-  owner: "0x1111111111111111111111111111111111111111",
-  executionChainId: 196,
-  asset,
-  principalAtomic: "25000000000",
-  maxProtocolExposureBps: 4_000,
-  minTvlUsdE6: "250000000000",
-  minNetApyBps: 200,
-  maxSnapshotAgeSec: 300,
-  deadline: 2_000_000_000,
-  noBridges: true,
-};
-
-const snapshot: MarketSnapshot = {
-  version: 1,
-  requestId,
-  chainId: 196,
-  blockNumber: "19842331",
-  blockHash: hash,
-  capturedAt: "2026-08-09T10:00:00.000Z",
-  asset: { address: asset, symbol: "USDC", decimals: 6 },
+const multiMarketSnapshot: MarketSnapshot = {
+  ...snapshot,
   candidates: [
+    ...snapshot.candidates,
     {
-      id: "cash:usdc",
-      kind: "cash",
-      apyBps: 0,
-      tvlUsdE6: "0",
-      retrievedAt: "2026-08-09T10:00:00.000Z",
-    },
-    {
-      id: "aave-v3:usdc",
+      id: "aave-v3:usdt",
       kind: "aave-v3",
-      investmentId: "196-aave-usdc",
-      poolAddress: "0x3333333333333333333333333333333333333333",
-      apyBps: 642,
+      investmentId: "196-aave-usdt",
+      poolAddress: "0x5555555555555555555555555555555555555555",
+      apyBps: 600,
       tvlUsdE6: "500000000000",
-      utilizationBps: 7_200,
+      utilizationBps: 7_000,
       retrievedAt: "2026-08-09T10:00:00.000Z",
     },
   ],
 };
-
-async function signedBundle(
-  overrides: Partial<Omit<DecisionBundle, "signature">> = {},
-): Promise<DecisionBundle> {
-  const unsigned = {
-    version: 1,
-    requestId,
-    solverId: "determinist-labs",
-    solverAddress: account.address,
-    policyHash: commitment(policy),
-    snapshotHash: commitment(snapshot),
-    allocations: [
-      { candidateId: "cash:usdc", bps: 6_000 },
-      { candidateId: "aave-v3:usdc", bps: 4_000 },
-    ],
-    evidence: [
-      {
-        url: "https://aave.com/docs",
-        title: "Aave documentation",
-        retrievedAt: "2026-08-09T10:00:00.000Z",
-        claim: "The reserve is active.",
-        contentHash: hash,
-      },
-    ],
-    riskFlags: [],
-    expectedNetApyBps: 256,
-    action: {
-      kind: "aave-v3-supply",
-      candidateId: "aave-v3:usdc",
-      investmentId: "196-aave-usdc",
-      amountAtomic: "10000000000",
-    },
-    validUntil: 2_000_000_000,
-    ...overrides,
-  } as Omit<DecisionBundle, "signature">;
-  const signature = await account.signMessage({
-    message: { raw: commitment(unsigned) },
-  });
-  return { ...unsigned, signature };
-}
 
 describe("deterministic bundle verification", () => {
   it("recomputes a valid bundle instead of trusting solver calculations", async () => {
@@ -117,6 +48,18 @@ describe("deterministic bundle verification", () => {
       riskPenaltyBps: 0,
       score: 256,
     });
+  });
+
+  it("rejects a signed expected APY that differs from recomputation", async () => {
+    const verdict = await verifyBundle(
+      policy,
+      snapshot,
+      await signedBundle({ expectedNetApyBps: 255 }),
+      account.address,
+      nowSec,
+    );
+
+    expect(verdict.errorCodes).toContain("EXPECTED_NET_APY_MISMATCH");
   });
 
   it("rejects a bundle for a different policy", async () => {
@@ -156,6 +99,58 @@ describe("deterministic bundle verification", () => {
     expect(verdict.errorCodes).toContain("EXPOSURE_LIMIT_EXCEEDED");
   });
 
+  it("rejects aggregate Aave exposure beyond the policy cap", async () => {
+    const verdict = await verifyBundle(
+      policy,
+      multiMarketSnapshot,
+      await signedBundle({
+        snapshotHash: commitment(multiMarketSnapshot),
+        allocations: [
+          { candidateId: "cash:usdc", bps: 4_000 },
+          { candidateId: "aave-v3:usdc", bps: 3_000 },
+          { candidateId: "aave-v3:usdt", bps: 3_000 },
+        ],
+        expectedNetApyBps: 372,
+        action: {
+          kind: "aave-v3-supply",
+          candidateId: "aave-v3:usdt",
+          investmentId: "196-aave-usdt",
+          amountAtomic: "7500000000",
+        },
+      }),
+      account.address,
+      nowSec,
+    );
+
+    expect(verdict.errorCodes).toContain("EXPOSURE_LIMIT_EXCEEDED");
+  });
+
+  it("rejects one supply action for multiple positive protocol allocations", async () => {
+    const verdict = await verifyBundle(
+      policy,
+      multiMarketSnapshot,
+      await signedBundle({
+        snapshotHash: commitment(multiMarketSnapshot),
+        allocations: [
+          { candidateId: "cash:usdc", bps: 6_000 },
+          { candidateId: "aave-v3:usdc", bps: 2_000 },
+          { candidateId: "aave-v3:usdt", bps: 2_000 },
+        ],
+        expectedNetApyBps: 248,
+        action: {
+          kind: "aave-v3-supply",
+          candidateId: "aave-v3:usdt",
+          investmentId: "196-aave-usdt",
+          amountAtomic: "5000000000",
+        },
+      }),
+      account.address,
+      nowSec,
+    );
+
+    expect(verdict.errorCodes).toContain("ACTION_NOT_ALLOWED");
+  });
+
   it("rejects an action amount that differs from its verified allocation", async () => {
     const verdict = await verifyBundle(
       policy,
@@ -171,6 +166,24 @@ describe("deterministic bundle verification", () => {
       account.address,
       nowSec,
     );
+    expect(verdict.errorCodes).toContain("ACTION_AMOUNT_MISMATCH");
+  });
+
+  it("rejects a cash hold amount that differs from its allocation", async () => {
+    const cashPolicy = { ...policy, minNetApyBps: 0 };
+    const verdict = await verifyBundle(
+      cashPolicy,
+      snapshot,
+      await signedBundle({
+        policyHash: commitment(cashPolicy),
+        allocations: [{ candidateId: "cash:usdc", bps: 10_000 }],
+        expectedNetApyBps: 0,
+        action: { kind: "hold", amountAtomic: "24999999999" },
+      }),
+      account.address,
+      nowSec,
+    );
+
     expect(verdict.errorCodes).toContain("ACTION_AMOUNT_MISMATCH");
   });
 
@@ -195,20 +208,24 @@ describe("deterministic bundle verification", () => {
       policy,
       snapshot,
       await signedBundle({
-        riskFlags: [
-          {
-            candidateId: "aave-v3:usdc",
-            severity: "critical",
-            code: "RESERVE_PAUSED",
-            summary: "The reserve is paused.",
-            evidenceHashes: [hash],
-          },
-        ],
+        riskFlags: [criticalRiskFlag],
       }),
       account.address,
       nowSec,
     );
     expect(verdict.errorCodes).toContain("CRITICAL_RISK");
+  });
+
+  it("penalizes critical risk with the high-severity weight", async () => {
+    const verdict = await verifyBundle(
+      policy,
+      snapshot,
+      await signedBundle({ riskFlags: [criticalRiskFlag] }),
+      account.address,
+      nowSec,
+    );
+
+    expect(verdict).toMatchObject({ riskPenaltyBps: 100, score: 156 });
   });
 
   it("rejects a bundle signed by a different solver", async () => {
@@ -220,30 +237,5 @@ describe("deterministic bundle verification", () => {
       nowSec,
     );
     expect(verdict.errorCodes).toContain("SOLVER_SIGNATURE_INVALID");
-  });
-});
-
-describe("public quote projection", () => {
-  it("exposes comparison metrics without leaking executable route fields", async () => {
-    const bundle = await signedBundle();
-    const verdict = await verifyBundle(
-      policy,
-      snapshot,
-      bundle,
-      account.address,
-      nowSec,
-    );
-    const quote = projectRouteQuote(bundle, verdict, "100000", 2_000_000_000);
-    const serialized = JSON.stringify(quote);
-
-    expect(quote).toMatchObject({
-      solverId: "determinist-labs",
-      expectedNetApyBps: 256,
-      priceAtomic: "100000",
-    });
-    expect(serialized).not.toContain("aave-v3-supply");
-    expect(serialized).not.toContain("196-aave-usdc");
-    expect(serialized).not.toContain("https://");
-    expect(serialized).not.toContain("10000000000");
   });
 });
