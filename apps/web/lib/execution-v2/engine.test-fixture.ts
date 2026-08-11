@@ -153,7 +153,6 @@ export class ScriptedReadClient implements ExecutionReadClientV2 {
   async estimateGas() { return 21_000n; }
 
   async getTransactionCount() { return this.pendingNonce; }
-
   async getBalance() { return this.nativeBalance; }
 
   async getGasPrice() { return this.gasPrice; }
