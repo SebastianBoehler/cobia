@@ -66,3 +66,13 @@ export function readAgenticSolverConfig(
   }
   return parsed.data;
 }
+
+export function readExecutionSessionSecret(
+  source: Record<string, string | undefined> = process.env,
+): string {
+  const parsed = z.string().min(32).safeParse(source.EXECUTION_SESSION_SECRET);
+  if (!parsed.success) {
+    throw new Error("Missing or invalid execution configuration: EXECUTION_SESSION_SECRET");
+  }
+  return parsed.data;
+}

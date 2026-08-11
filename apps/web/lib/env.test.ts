@@ -1,6 +1,10 @@
 import { keccak256, toHex } from "viem";
 import { describe, expect, it } from "vitest";
-import { readAgenticSolverConfig, readMarketConfig } from "./env";
+import {
+  readAgenticSolverConfig,
+  readExecutionSessionSecret,
+  readMarketConfig,
+} from "./env";
 
 describe("market environment", () => {
   it("accepts the deterministic signer without AI solver configuration", () => {
@@ -33,5 +37,12 @@ describe("market environment", () => {
       OPENAI_API_KEY: "test-key",
       OPENAI_SOLVER_MODEL: "gpt-test",
     })).toThrow("AI_SOLVER_PRIVATE_KEY");
+  });
+
+  it("requires a dedicated high-entropy execution session secret", () => {
+    const secret = "11".repeat(32);
+    expect(readExecutionSessionSecret({ EXECUTION_SESSION_SECRET: secret })).toBe(secret);
+    expect(() => readExecutionSessionSecret({ EXECUTION_SESSION_SECRET: "short" }))
+      .toThrow("EXECUTION_SESSION_SECRET");
   });
 });
