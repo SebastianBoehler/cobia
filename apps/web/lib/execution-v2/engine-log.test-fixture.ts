@@ -2,6 +2,7 @@ import {
   decodeFunctionData,
   encodeAbiParameters,
   encodeEventTopics,
+  zeroAddress,
   type Address,
   type Hash,
   type Hex,
@@ -11,7 +12,10 @@ import { rayDivFloor, rayMulFloor } from "../adapters/aave-math";
 import {
   AAVE_SUPPLY_EVENT_ABI,
   A_TOKEN_MINT_EVENT_ABI,
+  ERC721_TRANSFER_EVENT_ABI,
   ERC20_APPROVAL_EVENT_ABI,
+  NONFUNGIBLE_POSITION_MANAGER_EVENT_ABI,
+  NONFUNGIBLE_POSITION_MANAGER_ABI,
   UNISWAP_SWAP_EVENT_ABI,
 } from "./abis";
 import type {
@@ -53,10 +57,19 @@ function transactionLabel(transaction: ExecutionTransactionV2) {
       }],
       data: transaction.input,
     }).args[1];
-    const aave = approvalSpender(transaction).toLowerCase() === pool.toLowerCase();
+    const spender = approvalSpender(transaction);
+    const aave = spender.toLowerCase() === pool.toLowerCase();
+    const manager = spender.toLowerCase() ===
+      PROTOCOL_REGISTRY.uniswapV3.nonfungiblePositionManager.address.toLowerCase();
     return amount === 0n
-      ? (aave ? "reset-aave-allowance" : "reset-uniswap-allowance")
-      : (aave ? "approve-aave-exact" : "approve-uniswap-exact");
+      ? (aave ? "reset-aave-allowance" : manager
+        ? "reset-position-manager-allowance" : "reset-uniswap-allowance")
+      : (aave ? "approve-aave-exact" : manager
+        ? "approve-position-manager-exact" : "approve-uniswap-exact");
+  }
+  if (transaction.to?.toLowerCase() ===
+    PROTOCOL_REGISTRY.uniswapV3.nonfungiblePositionManager.address.toLowerCase()) {
+    return "uniswap-v3-full-range-mint";
   }
   return selector === "0x617ba037" ? "aave-v3-supply" : "uniswap-v3-exact-input";
 }
@@ -68,13 +81,25 @@ export function protocolLogs(
   aaveScaledBalanceBefore = 0n,
 ) {
   if (!transaction.to) return [];
+  const label = transactionLabel(transaction);
+  const minimumLiquidity = label === "uniswap-v3-full-range-mint"
+    ? (() => {
+      const decoded = decodeFunctionData({
+        abi: NONFUNGIBLE_POSITION_MANAGER_ABI,
+        data: transaction.input,
+      });
+      if (decoded.functionName !== "mint") throw new Error("Expected LP mint");
+      return decoded.args[0].amount0Min;
+    })()
+    : undefined;
   const descriptor = describeExecutionTransactionV2({
-    label: transactionLabel(transaction),
+    label,
     chainId: 196,
     from: transaction.from,
     to: transaction.to,
     value: 0n,
     data: transaction.input,
+    ...(minimumLiquidity ? { minimumLiquidity } : {}),
   });
   if (descriptor.kind === "allowance") {
     return [eventLog(
@@ -112,6 +137,37 @@ export function protocolLogs(
           : [-outputAtomic, descriptor.amountInAtomic, 1n, 1n, 0],
       ),
     )];
+  }
+  if (descriptor.kind === "uniswap-lp-mint") {
+    const manager = PROTOCOL_REGISTRY.uniswapV3.nonfungiblePositionManager.address;
+    const tokenId = 42n;
+    return [
+      eventLog(
+        manager,
+        encodeEventTopics({
+          abi: ERC721_TRANSFER_EVENT_ABI,
+          eventName: "Transfer",
+          args: { from: zeroAddress, to: transaction.from, tokenId },
+        }) as readonly Hex[],
+        "0x",
+      ),
+      eventLog(
+        manager,
+        encodeEventTopics({
+          abi: NONFUNGIBLE_POSITION_MANAGER_EVENT_ABI,
+          eventName: "IncreaseLiquidity",
+          args: { tokenId },
+        }) as readonly Hex[],
+        encodeAbiParameters(
+          [{ type: "uint128" }, { type: "uint256" }, { type: "uint256" }],
+          [
+            descriptor.minimumLiquidity,
+            descriptor.amount0DesiredAtomic,
+            descriptor.amount1DesiredAtomic,
+          ],
+        ),
+      ),
+    ];
   }
   const scaledAmount = rayDivFloor(descriptor.suppliedAtomic, aaveMintIndexRay);
   const mintedUnderlying = rayMulFloor(

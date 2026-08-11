@@ -46,3 +46,17 @@ export const SWAP_ROUTER02_ABI = parseAbi([
 export const UNISWAP_SWAP_EVENT_ABI = parseAbi([
   "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)",
 ]);
+
+export const NONFUNGIBLE_POSITION_MANAGER_ABI = parseAbi([
+  "function mint((address token0, address token1, uint24 fee, int24 tickLower, int24 tickUpper, uint256 amount0Desired, uint256 amount1Desired, uint256 amount0Min, uint256 amount1Min, address recipient, uint256 deadline) params) payable returns (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1)",
+  "function ownerOf(uint256 tokenId) view returns (address owner)",
+  "function positions(uint256 tokenId) view returns (uint96 nonce, address operator, address token0, address token1, uint24 fee, int24 tickLower, int24 tickUpper, uint128 liquidity, uint256 feeGrowthInside0LastX128, uint256 feeGrowthInside1LastX128, uint128 tokensOwed0, uint128 tokensOwed1)",
+]);
+
+export const NONFUNGIBLE_POSITION_MANAGER_EVENT_ABI = parseAbi([
+  "event IncreaseLiquidity(uint256 indexed tokenId, uint128 liquidity, uint256 amount0, uint256 amount1)",
+]);
+
+export const ERC721_TRANSFER_EVENT_ABI = parseAbi([
+  "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)",
+]);

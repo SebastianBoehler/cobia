@@ -89,6 +89,20 @@ export type CapturedExecutionStateV2 =
     beforeInputAtomic: bigint;
     scaledATokenBeforeAtomic: bigint;
     normalizedIncomeBeforeRay: bigint;
+  }
+  | {
+    kind: "uniswap-lp-mint";
+    token0: Address;
+    token1: Address;
+    feeTier: number;
+    tickLower: number;
+    tickUpper: number;
+    amount0DesiredAtomic: bigint;
+    amount1DesiredAtomic: bigint;
+    amount0MinAtomic: bigint;
+    amount1MinAtomic: bigint;
+    minimumLiquidity: bigint;
+    deadlineSec: bigint;
   };
 
 export type ExecutionProtocolEvidenceV2 =
@@ -106,6 +120,13 @@ export type ExecutionProtocolEvidenceV2 =
     mintValueAtomic: bigint;
     mintBalanceIncreaseAtomic: bigint;
     mintIndexRay: bigint;
+  }
+  | {
+    kind: "uniswap-lp-mint";
+    tokenId: bigint;
+    liquidity: bigint;
+    amount0Atomic: bigint;
+    amount1Atomic: bigint;
   };
 
 export type ExecutionStateCheckV2 =
@@ -135,6 +156,15 @@ export type ExecutionStateCheckV2 =
     scaledATokenDeltaAtomic: bigint;
     normalizedIncomeBeforeRay: bigint;
     normalizedIncomeAfterRay: bigint;
+  }
+  | {
+    kind: "uniswap-lp-mint";
+    tokenId: bigint;
+    token0: Address;
+    token1: Address;
+    liquidity: bigint;
+    amount0Atomic: bigint;
+    amount1Atomic: bigint;
   };
 
 export interface ConfirmedOwnerTransactionV2 {

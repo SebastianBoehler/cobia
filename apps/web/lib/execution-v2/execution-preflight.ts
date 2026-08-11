@@ -3,33 +3,37 @@ import { parseExecutionContextV2, type VerifiedExecutionInputV2 } from "./execut
 import type { ExecutionReadClientV2 } from "./engine-types";
 import type { GuidedPreparedStepV2 } from "./guided-session";
 import { readTokenBalanceV2 } from "./transaction-state";
+import { describeExecutionTransactionV2 } from "./transaction-descriptor";
 
 export interface GuidedFundingPreflightV2 {
-  asset: Address;
-  requiredTokenAtomic: bigint;
-  tokenBalanceAtomic: bigint;
+  tokenRequirements: Array<{
+    asset: Address;
+    requiredAtomic: bigint;
+    balanceAtomic: bigint;
+  }>;
   gasPriceAtomic: bigint;
   requiredGasAtomic: bigint;
   nativeBalanceAtomic: bigint;
 }
 
-function requiredAsset(
-  input: Omit<VerifiedExecutionInputV2, "nowSec">,
+function requiredAssets(
+  _input: Omit<VerifiedExecutionInputV2, "nowSec">,
   prepared: GuidedPreparedStepV2,
 ) {
-  const plan = parseExecutionContextV2({ ...input, nowSec: 0 }).routePlan;
-  const first = plan.legs[0]?.actions[0];
-  if (!first) throw new Error("Execution route has no principal action");
-  if (prepared.phase === "initial") {
-    return {
-      asset: first.kind === "aave-v3-supply" ? first.asset : first.tokenIn,
-      amount: BigInt(plan.legs[0]!.inputAtomic),
-    };
+  const descriptor = describeExecutionTransactionV2(prepared.transaction);
+  if (descriptor.kind === "allowance") {
+    return [{ asset: descriptor.token, amount: descriptor.expectedAtomic }];
   }
-  if (first.kind !== "uniswap-v3-exact-input") {
-    throw new Error("Post-swap funding preflight requires a swap route");
+  if (descriptor.kind === "swap") {
+    return [{ asset: descriptor.tokenIn, amount: descriptor.amountInAtomic }];
   }
-  return { asset: first.tokenOut, amount: prepared.authorizedAmountAtomic };
+  if (descriptor.kind === "aave-supply") {
+    return [{ asset: descriptor.asset, amount: descriptor.suppliedAtomic }];
+  }
+  return [
+    { asset: descriptor.token0, amount: descriptor.amount0DesiredAtomic },
+    { asset: descriptor.token1, amount: descriptor.amount1DesiredAtomic },
+  ];
 }
 
 export async function assertGuidedFundsV2(
@@ -38,18 +42,21 @@ export async function assertGuidedFundsV2(
   prepared: GuidedPreparedStepV2,
 ): Promise<GuidedFundingPreflightV2> {
   const context = parseExecutionContextV2({ ...input, nowSec: 0 });
-  const requirement = requiredAsset(input, prepared);
-  const [tokenBalanceAtomic, nativeBalanceAtomic, gasPriceAtomic] = await Promise.all([
-    readTokenBalanceV2(
-      readClient,
-      requirement.asset,
-      context.owner,
-      prepared.preBlockNumber,
-    ),
+  const requirements = requiredAssets(input, prepared);
+  const [balances, nativeBalanceAtomic, gasPriceAtomic] = await Promise.all([
+    Promise.all(requirements.map(({ asset }) => readTokenBalanceV2(
+      readClient, asset, context.owner, prepared.preBlockNumber,
+    ))),
     readClient.getBalance(context.owner),
     readClient.getGasPrice(),
   ]);
-  if (tokenBalanceAtomic < requirement.amount) {
+  const tokenRequirements = requirements.map(({ asset, amount }, index) => ({
+    asset,
+    requiredAtomic: amount,
+    balanceAtomic: balances[index]!,
+  }));
+  if (tokenRequirements.some(({ balanceAtomic, requiredAtomic }) =>
+    balanceAtomic < requiredAtomic)) {
     throw new Error("Wallet token balance is below the exact route requirement");
   }
   if (gasPriceAtomic <= 0n) throw new Error("X Layer gas price is unavailable");
@@ -58,9 +65,7 @@ export async function assertGuidedFundsV2(
     throw new Error("Wallet OKB balance is below the buffered gas requirement");
   }
   return {
-    asset: requirement.asset,
-    requiredTokenAtomic: requirement.amount,
-    tokenBalanceAtomic,
+    tokenRequirements,
     gasPriceAtomic,
     requiredGasAtomic,
     nativeBalanceAtomic,

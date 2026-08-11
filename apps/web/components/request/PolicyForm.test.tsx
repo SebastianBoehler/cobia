@@ -49,7 +49,7 @@ describe("PolicyForm", () => {
     expect(screen.getByRole("combobox", { name: "Asset" })).toHaveDisplayValue("USDG");
     expect(screen.getByRole("option", { name: "USDt0" })).toBeVisible();
     expect(screen.queryByLabelText("Protocol exposure")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Minimum Aave reserve TVL")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Minimum protocol TVL")).not.toBeInTheDocument();
   });
 
   it("keeps verifier controls behind advanced settings", () => {
@@ -58,7 +58,7 @@ describe("PolicyForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "Advanced settings" }));
 
     expect(screen.getByLabelText("Protocol exposure")).toHaveValue("100");
-    expect(screen.getByLabelText("Minimum Aave reserve TVL")).toHaveValue("500000");
+    expect(screen.getByLabelText("Minimum protocol TVL")).toHaveValue("500000");
     expect(screen.getByLabelText("Minimum estimated pre-gas APY")).toHaveValue("0.05");
   });
 
@@ -83,7 +83,9 @@ describe("PolicyForm", () => {
     expect(screen.getByText("10.00 USDG exact")).toBeVisible();
     expect(screen.getByText("No bridges")).toBeVisible();
     expect(screen.getByText("Outputs: USDG and USDt0")).toBeVisible();
-    expect(screen.getByText("Adapters: Aave V3 supply and Uniswap V3 swap")).toBeVisible();
+    expect(screen.getByText(
+      "Adapters: Aave V3 supply, Uniswap V3 swap, and full-range LP",
+    )).toBeVisible();
     expect(screen.getByText("Maximum swap slippage: 0.50%")).toBeVisible();
     expect(screen.getByText("Yield horizon: 30 days")).toBeVisible();
     expect(screen.getByText("Maximum snapshot age: 300 seconds")).toBeVisible();
@@ -96,8 +98,9 @@ describe("PolicyForm", () => {
     renderForm();
 
     expect(screen.getByText("10.00 USDG exact")).toBeVisible();
-    expect(screen.getByText(/may evaluate Aave V3 supply and Uniswap V3 swap opportunities/i))
+    expect(screen.getByText(/may evaluate Aave V3 supply, Uniswap V3 swaps, and full-range LP positions/i))
       .toBeVisible();
+    expect(screen.getByText(/LP fee APY is historical and not guaranteed/i)).toBeVisible();
     expect(screen.getByText(/Buying the route does not move principal/i)).toBeVisible();
     expect(screen.getByText(/one explicit wallet confirmation for every transaction/i)).toBeVisible();
     expect(screen.getByText("Free request · Pay only after selecting an authorized quote"))

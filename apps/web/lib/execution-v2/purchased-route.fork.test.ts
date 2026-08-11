@@ -13,7 +13,7 @@ import {
 import { createPublicClient, http, keccak256, toHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { describe, expect, it } from "vitest";
-import { registryHash } from "../adapters/registry";
+import { PROTOCOL_REGISTRY, registryHash } from "../adapters/registry";
 import { xLayer } from "../chain/xlayer";
 import { USDG_ADDRESS } from "../chain/xlayer";
 import type { PurchasedRouteArtifact } from "../db/purchased-route-artifact";
@@ -29,7 +29,7 @@ const buyer = privateKeyToAccount(keccak256(toHex("cobia-purchased-route-fork-bu
 
 async function capturedRoute(input: {
   requestId: string;
-  actionCount: 1 | 2;
+  actionKinds: readonly string[];
 }): Promise<PurchasedRouteArtifact> {
   const client = createPublicClient({
     cacheTime: 0,
@@ -53,9 +53,11 @@ async function capturedRoute(input: {
   );
   const nowSec = Math.floor(Date.parse(snapshot.capturedAt) / 1_000);
   const candidates = listRouteCandidateSummariesV2({ policy, snapshot, nowSec });
-  const candidate = candidates.find(({ actions }) => actions.length === input.actionCount);
+  const candidate = candidates.find(({ actions }) =>
+    actions.length === input.actionKinds.length &&
+    actions.every((action, index) => action === input.actionKinds[index]));
   if (!candidate) {
-    throw new Error(`Pinned X Layer snapshot has no ${input.actionCount}-action route`);
+    throw new Error(`Pinned X Layer snapshot has no ${input.actionKinds.join(" -> ")} route`);
   }
   const unsigned = buildSelectedRouteBundleV2(
     { policy, snapshot, nowSec },
@@ -95,7 +97,7 @@ describe("purchased V2 route execution on a pinned X Layer fork", () => {
   it("rehearses a direct Aave supply with exact receipt attribution", async () => {
     const route = await capturedRoute({
       requestId: "550e8400-e29b-41d4-a716-446655440091",
-      actionCount: 1,
+      actionKinds: ["aave-v3-supply"],
     });
     const trace = await runPurchasedRouteRehearsal(route);
 
@@ -110,7 +112,7 @@ describe("purchased V2 route execution on a pinned X Layer fork", () => {
   it("rehearses swap then supply with all four attributed transactions", async () => {
     const route = await capturedRoute({
       requestId: "550e8400-e29b-41d4-a716-446655440092",
-      actionCount: 2,
+      actionKinds: ["uniswap-v3-exact-input", "aave-v3-supply"],
     });
     const trace = await runPurchasedRouteRehearsal(route);
 
@@ -122,5 +124,27 @@ describe("purchased V2 route execution on a pinned X Layer fork", () => {
       "aave-v3-supply",
     ]);
     expect(trace.snapshot.blockHash).toBe(route.snapshot.blockHash);
+  });
+
+  it("rehearses one-sided balancing and an owner-held full-range LP mint", async () => {
+    const route = await capturedRoute({
+      requestId: "550e8400-e29b-41d4-a716-446655440093",
+      actionKinds: ["uniswap-v3-balance-swap", "uniswap-v3-full-range-mint"],
+    });
+    const trace = await runPurchasedRouteRehearsal(route);
+
+    expect(trace.result.status).toBe("success");
+    expect(trace.result.transactions.map(({ label }) => label)).toEqual([
+      "approve-uniswap-exact",
+      "uniswap-v3-exact-input",
+      "approve-position-manager-exact",
+      "approve-position-manager-exact",
+      "uniswap-v3-full-range-mint",
+    ]);
+    expect(trace.result.transactions.at(-1)?.stateCheck).toMatchObject({
+      kind: "uniswap-lp-mint",
+      token0: PROTOCOL_REGISTRY.aaveV3.assets.USDG.underlying.address,
+      token1: PROTOCOL_REGISTRY.aaveV3.assets.USDt0.underlying.address,
+    });
   });
 });

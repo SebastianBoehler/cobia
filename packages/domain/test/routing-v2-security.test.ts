@@ -25,6 +25,7 @@ describe("V2 verifier security boundaries", () => {
       if (opportunity.kind === "uniswap-v3-exact-input") {
         return { ...opportunity, quotedOutputAtomic: "10000000" };
       }
+      if (opportunity.kind !== "aave-v3-supply") return opportunity;
       return opportunity.asset === policy.asset
         ? opportunity
         : { ...opportunity, validatedSupplyAtomic: "10000000" };

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { PROTOCOL_REGISTRY } from "../adapters/registry";
 import { executeRoutePlanV2 } from "./execute-route";
 import {
   aUsdg,
@@ -14,6 +15,7 @@ import {
   directPlan,
   INPUT_ATOMIC,
   MINIMUM_OUTPUT_ATOMIC,
+  lpPlan,
   noActionPlan,
   NOW_SEC,
   OWNER,
@@ -168,6 +170,60 @@ describe("executeRoutePlanV2", () => {
     const aaveAllowanceRead = events.indexOf(`read:allowance:${usdg.toLowerCase()}:202`);
     expect(outputReceiptRead).toBeGreaterThan(-1);
     expect(aaveAllowanceRead).toBeGreaterThan(outputReceiptRead);
+    expectEstimateThenAuthorityBeforeEverySend(events);
+  });
+
+  it("executes a one-sided balance swap and attributed full-range LP mint", async () => {
+    const events: string[] = [];
+    const read = new ScriptedReadClient(events);
+    const wallet = new ScriptedWallet(events);
+    const hashes = [31, 32, 33, 34, 35].map(transactionHash);
+    wallet.hashes.push(...hashes);
+    read.latestBlocks.push(
+      300n, 300n, 302n, 301n, 303n, 302n, 304n, 303n, 305n, 304n, 306n,
+    );
+    const manager = PROTOCOL_REGISTRY.uniswapV3.nonfungiblePositionManager.address;
+    read.allowance(usdt0, router, 300n, 0n);
+    read.allowance(usdt0, router, 301n, 25_000_000n);
+    read.balance(usdt0, 301n, 100_000_000n);
+    read.balance(usdg, 301n, 10_000_000n);
+    read.balance(usdt0, 302n, 75_000_000n);
+    read.balance(usdg, 302n, 34_950_000n);
+    read.swapOutputOverrides.set(hashes[1]!, 24_950_000n);
+    read.allowance(usdg, manager, 302n, 0n);
+    read.allowance(usdt0, manager, 302n, 0n);
+    read.allowance(usdg, manager, 303n, 24_950_000n);
+    read.allowance(usdt0, manager, 303n, 0n);
+    read.allowance(usdt0, manager, 304n, 25_000_000n);
+    read.position(305n, {
+      token0: usdg,
+      token1: usdt0,
+      liquidity: 24_700_500n,
+    });
+    hashes.forEach((hash, index) => read.receipts(
+      hash,
+      successfulReceipt(301n + BigInt(index)),
+    ));
+
+    const result = await executeRoutePlanV2(await engineInput(lpPlan, wallet, read));
+
+    expect(result.status).toBe("success");
+    expect(result.transactions.map(({ label }) => label)).toEqual([
+      "approve-uniswap-exact",
+      "uniswap-v3-exact-input",
+      "approve-position-manager-exact",
+      "approve-position-manager-exact",
+      "uniswap-v3-full-range-mint",
+    ]);
+    expect(result.transactions.at(-1)?.stateCheck).toEqual({
+      kind: "uniswap-lp-mint",
+      tokenId: 42n,
+      token0: usdg,
+      token1: usdt0,
+      liquidity: 24_700_500n,
+      amount0Atomic: 24_950_000n,
+      amount1Atomic: 25_000_000n,
+    });
     expectEstimateThenAuthorityBeforeEverySend(events);
   });
 });

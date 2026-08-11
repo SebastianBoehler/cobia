@@ -5,13 +5,54 @@ import { captureRouteSnapshotV2 } from "./capture-route-snapshot-v2";
 import {
   block,
   dependencies,
+  lookbackBlock,
   policy,
   reserve,
+  uniswapQuote,
   usdg,
   usdt0,
 } from "./capture-route-snapshot-v2.test-fixture";
 
 describe("captureRouteSnapshotV2", () => {
+  it("captures an amount-specific full-range LP opportunity from historical fees", async () => {
+    const deps = dependencies();
+    const snapshot = await captureRouteSnapshotV2(policy, deps);
+
+    expect(snapshot.opportunities).toContainEqual({
+      id: `uniswap-v3-lp:${usdt0.toLowerCase()}:${usdg.toLowerCase()}:100:50000000`,
+      kind: "uniswap-v3-full-range-lp",
+      adapterId: "uniswap-v3@1",
+      pool: PROTOCOL_REGISTRY.uniswapV3.pair.pool.address.toLowerCase(),
+      token0: usdg.toLowerCase(),
+      token1: usdt0.toLowerCase(),
+      feeTier: 100,
+      tickLower: -887272,
+      tickUpper: 887272,
+      historicalFeeApyBps: 273,
+      tvlUsdE6: "1999112520",
+      lookbackSeconds: 86_400,
+      validatedInputAsset: usdt0.toLowerCase(),
+      validatedInputAtomic: "50000000",
+      balanceSwapInputAtomic: "25000000",
+      quotedSwapOutputAtomic: "24950000",
+      amount0DesiredAtomic: "24950000",
+      amount1DesiredAtomic: "25000000",
+      quotedLiquidity: "24950000",
+      minimumLiquidity: "24700500",
+    });
+    expect(deps.getBlock).toHaveBeenCalledWith(lookbackBlock.number);
+    expect(deps.quoteExactInput).toHaveBeenCalledWith({
+      tokenIn: "USDt0",
+      tokenOut: "USDG",
+      amountInAtomic: 25_000_000n,
+      block,
+    });
+    expect(deps.readFullRangeState).toHaveBeenCalledWith({
+      block,
+      lookbackBlock,
+    });
+  });
+
   it("captures one same-block Aave and Uniswap route graph", async () => {
     const deps = dependencies();
 
@@ -31,7 +72,9 @@ describe("captureRouteSnapshotV2", () => {
         { asset: usdt0.toLowerCase(), decimals: 6, priceUsdE8: "99912234" },
       ],
     });
-    expect(snapshot.opportunities).toEqual([
+    expect(snapshot.opportunities.filter(
+      (opportunity) => opportunity.kind !== "uniswap-v3-full-range-lp",
+    )).toEqual([
       {
         id: `aave-v3:${usdg.toLowerCase()}`,
         kind: "aave-v3-supply",
@@ -64,6 +107,7 @@ describe("captureRouteSnapshotV2", () => {
         estimatedGas: "100212",
       },
     ]);
+    expect(snapshot.opportunities).toHaveLength(4);
     expect(deps.readReserve).toHaveBeenCalledWith({
       asset: "USDG",
       amountAtomic: 49_900_000n,
@@ -108,7 +152,7 @@ describe("captureRouteSnapshotV2", () => {
   it("rejects adapter output from another block or registry", async () => {
     const deps = dependencies();
     deps.quoteExactInput.mockResolvedValue({
-      ...await deps.quoteExactInput(),
+      ...uniswapQuote(),
       blockHash: `0x${"ef".repeat(32)}`,
     });
 
@@ -134,7 +178,7 @@ describe("captureRouteSnapshotV2", () => {
   ] as const)("rejects a quote with another %s", async (_, change) => {
     const deps = dependencies();
     deps.quoteExactInput.mockResolvedValue({
-      ...await deps.quoteExactInput(),
+      ...uniswapQuote(),
       ...change,
     });
 

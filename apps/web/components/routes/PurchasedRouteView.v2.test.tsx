@@ -98,4 +98,94 @@ describe("PurchasedRouteView V2", () => {
       "Swap 15 USDt0 for at least 1.4 0x999999…999999 via Uniswap V3",
     )).toBeVisible();
   });
+
+  it("presents a one-sided LP route and labels fee APY as historical", async () => {
+    const fixture = await createRepositoryFixtureV2();
+    const [leg] = fixture.bundle.routePlan.legs;
+    if (!leg || leg.actions[0].kind !== "uniswap-v3-exact-input") {
+      throw new Error("Expected swap fixture");
+    }
+    const input = leg.actions[0].tokenIn;
+    const output = leg.actions[0].tokenOut;
+    const opportunityId = "uniswap-v3-lp:retail";
+    const route = {
+      id: fixture.quote.quoteId,
+      requestId: fixture.policy.requestId,
+      quoteId: fixture.quote.quoteId,
+      buyer: fixture.policy.owner.toLowerCase(),
+      executionChainId: 196,
+      paymentChainId: 1952,
+      receiptHash: `0x${"cd".repeat(32)}`,
+      purchasedAt: "2026-08-10T19:00:00.000Z",
+      policy: StablecoinPolicyV2Schema.parse(fixture.policy),
+      snapshot: {
+        ...fixture.snapshot,
+        opportunities: [...fixture.snapshot.opportunities, {
+          id: opportunityId,
+          kind: "uniswap-v3-full-range-lp",
+          adapterId: "uniswap-v3@1",
+          pool: "0x6666666666666666666666666666666666666666",
+          token0: output,
+          token1: input,
+          feeTier: 100,
+          tickLower: -887272,
+          tickUpper: 887272,
+          historicalFeeApyBps: 420,
+          tvlUsdE6: "500000000000",
+          lookbackSeconds: 86_400,
+          validatedInputAsset: input,
+          validatedInputAtomic: "15000000",
+          balanceSwapInputAtomic: "7500000",
+          quotedSwapOutputAtomic: "7490000",
+          amount0DesiredAtomic: "7490000",
+          amount1DesiredAtomic: "7500000",
+          quotedLiquidity: "7490000",
+          minimumLiquidity: "7415100",
+        }],
+      },
+      bundle: {
+        ...fixture.bundle,
+        routePlan: {
+          ...fixture.bundle.routePlan,
+          legs: [{
+            id: "retail-lp",
+            inputAtomic: "15000000",
+            actions: [{
+              kind: "uniswap-v3-balance-swap",
+              opportunityId,
+              inputAtomic: "7500000",
+              tokenIn: input,
+              tokenOut: output,
+              quotedOutputAtomic: "7490000",
+              minimumOutputAtomic: "7415100",
+            }, {
+              kind: "uniswap-v3-full-range-mint",
+              opportunityId,
+              token0: output,
+              token1: input,
+              feeTier: 100,
+              tickLower: -887272,
+              tickUpper: 887272,
+              amount0DesiredAtomic: "7490000",
+              amount1DesiredAtomic: "7500000",
+              amount0MinAtomic: "7415100",
+              amount1MinAtomic: "7425000",
+              quotedLiquidity: "7490000",
+              minimumLiquidity: "7415100",
+            }],
+          }],
+        },
+      },
+      rehearsalRealm: "localhost:3000",
+      rehearsal: null,
+    } as PurchasedRoute;
+
+    render(<PurchasedRouteView route={route} />);
+
+    expect(screen.getByText(/Balance-swap 7.5 USDt0 for at least 7.4151 USDG/))
+      .toBeVisible();
+    expect(screen.getByText(/Mint a full-range 7.49 USDG \+ 7.5 USDt0/)).toBeVisible();
+    expect(screen.getByText(/Historical fee sample 4.20% annualized over 24h; not guaranteed/))
+      .toBeVisible();
+  });
 });

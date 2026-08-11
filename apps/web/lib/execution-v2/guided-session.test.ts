@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { PROTOCOL_REGISTRY } from "../adapters/registry";
 import {
   aUsdt0,
   pool,
@@ -11,6 +12,7 @@ import { prepareNextGuidedStepV2, resolveGuidedStepV2 } from "./guided-session";
 import {
   directPlan,
   INPUT_ATOMIC,
+  lpPlan,
   MINIMUM_OUTPUT_ATOMIC,
   NOW_SEC,
   OUTPUT_ATOMIC,
@@ -73,6 +75,43 @@ describe("guided route session", () => {
     });
     const next = await prepareNextGuidedStepV2(await input(directPlan, read), [approval]);
     expect(next).toMatchObject({ kind: "prepared", transaction: { label: "aave-v3-supply" } });
+  });
+
+  it("prepares both exact LP approvals before the bounded position mint", async () => {
+    const read = new ScriptedReadClient([]);
+    const manager = PROTOCOL_REGISTRY.uniswapV3.nonfungiblePositionManager.address;
+    const swap = confirmed("uniswap-v3-exact-input", {
+      kind: "swap", tokenIn: usdt0, tokenOut: usdg,
+      inputSpentAtomic: 25_000_000n, outputDeltaAtomic: 24_950_000n,
+      ownerOutputBalanceDeltaAtomic: 24_950_000n,
+      minimumOutputAtomic: 24_700_500n,
+    });
+    read.latestBlocks.push(250n, 251n);
+    read.allowance(usdg, manager, 250n, 0n);
+    read.allowance(usdt0, manager, 250n, 0n);
+    const approval = await prepareNextGuidedStepV2(await input(lpPlan, read), [swap]);
+    expect(approval).toMatchObject({
+      kind: "prepared",
+      phase: "post-swap",
+      authorizedAmountAtomic: 24_950_000n,
+      transaction: { label: "approve-position-manager-exact", to: usdg },
+    });
+
+    read.allowance(usdg, manager, 251n, 24_950_000n);
+    read.allowance(usdt0, manager, 251n, 25_000_000n);
+    const mint = await prepareNextGuidedStepV2(await input(lpPlan, read), [swap]);
+    expect(mint).toMatchObject({
+      kind: "prepared",
+      phase: "post-swap",
+      transaction: {
+        label: "uniswap-v3-full-range-mint",
+        minimumLiquidity: 24_700_500n,
+      },
+      capturedState: {
+        kind: "uniswap-lp-mint",
+        minimumLiquidity: 24_700_500n,
+      },
+    });
   });
 
   it("uses event-attributed swap output for the post-swap approval and capped supply", async () => {

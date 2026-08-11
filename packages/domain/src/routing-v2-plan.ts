@@ -50,17 +50,88 @@ export const UniswapV3ExactInputActionV2Schema = z
     }
   });
 
+export const UniswapV3BalanceSwapActionV2Schema = z
+  .object({
+    kind: z.literal("uniswap-v3-balance-swap"),
+    opportunityId: OpportunityReferenceSchema,
+    inputAtomic: PositiveAtomicAmountSchema,
+    tokenIn: RouteAddressV2Schema,
+    tokenOut: RouteAddressV2Schema,
+    quotedOutputAtomic: PositiveAtomicAmountSchema,
+    minimumOutputAtomic: PositiveAtomicAmountSchema,
+  })
+  .strict()
+  .superRefine((action, context) => {
+    if (BigInt(action.minimumOutputAtomic) > BigInt(action.quotedOutputAtomic)) {
+      context.addIssue({
+        code: "custom",
+        path: ["minimumOutputAtomic"],
+        message: "Minimum output cannot exceed quoted output",
+      });
+    }
+    if (isAddressEqual(action.tokenIn, action.tokenOut)) {
+      context.addIssue({
+        code: "custom",
+        path: ["tokenOut"],
+        message: "A balance swap must change assets",
+      });
+    }
+  });
+
+export const UniswapV3FullRangeMintActionV2Schema = z
+  .object({
+    kind: z.literal("uniswap-v3-full-range-mint"),
+    opportunityId: OpportunityReferenceSchema,
+    token0: RouteAddressV2Schema,
+    token1: RouteAddressV2Schema,
+    feeTier: z.number().int().min(1).max(1_000_000),
+    tickLower: z.number().int().min(-887272).max(887272),
+    tickUpper: z.number().int().min(-887272).max(887272),
+    amount0DesiredAtomic: PositiveAtomicAmountSchema,
+    amount1DesiredAtomic: PositiveAtomicAmountSchema,
+    amount0MinAtomic: PositiveAtomicAmountSchema,
+    amount1MinAtomic: PositiveAtomicAmountSchema,
+    quotedLiquidity: PositiveAtomicAmountSchema,
+    minimumLiquidity: PositiveAtomicAmountSchema,
+  })
+  .strict()
+  .superRefine((action, context) => {
+    if (isAddressEqual(action.token0, action.token1)) {
+      context.addIssue({ code: "custom", path: ["token1"], message: "LP assets must differ" });
+    }
+    if (action.tickLower >= action.tickUpper) {
+      context.addIssue({ code: "custom", path: ["tickUpper"], message: "LP ticks must be ordered" });
+    }
+    if (BigInt(action.amount0MinAtomic) > BigInt(action.amount0DesiredAtomic)) {
+      context.addIssue({ code: "custom", path: ["amount0MinAtomic"], message: "Token0 minimum exceeds desired amount" });
+    }
+    if (BigInt(action.amount1MinAtomic) > BigInt(action.amount1DesiredAtomic)) {
+      context.addIssue({ code: "custom", path: ["amount1MinAtomic"], message: "Token1 minimum exceeds desired amount" });
+    }
+    if (BigInt(action.minimumLiquidity) > BigInt(action.quotedLiquidity)) {
+      context.addIssue({ code: "custom", path: ["minimumLiquidity"], message: "Minimum liquidity exceeds quote" });
+    }
+  });
+
 const DirectSupplyActionsSchema = z.tuple([AaveV3SupplyActionV2Schema]);
 const SwapThenSupplyActionsSchema = z.tuple([
   UniswapV3ExactInputActionV2Schema,
   AaveV3SupplyActionV2Schema,
+]);
+const BalanceSwapThenMintActionsSchema = z.tuple([
+  UniswapV3BalanceSwapActionV2Schema,
+  UniswapV3FullRangeMintActionV2Schema,
 ]);
 
 export const RouteLegV2Schema = z
   .object({
     id: z.string().min(1).max(64),
     inputAtomic: PositiveAtomicAmountSchema,
-    actions: z.union([DirectSupplyActionsSchema, SwapThenSupplyActionsSchema]),
+    actions: z.union([
+      DirectSupplyActionsSchema,
+      SwapThenSupplyActionsSchema,
+      BalanceSwapThenMintActionsSchema,
+    ]),
   })
   .strict();
 
@@ -98,6 +169,42 @@ export const RoutePlanV2Schema = z
         }
         return;
       }
+      if (first.kind === "uniswap-v3-balance-swap") {
+        if (!second || second.kind !== "uniswap-v3-full-range-mint") {
+          context.addIssue({
+            code: "custom",
+            path: ["legs", index, "actions"],
+            message: "A balance swap must be followed by an LP mint",
+          });
+          return;
+        }
+        const inputIsToken0 = isAddressEqual(plan.inputAsset, second.token0);
+        const inputIsToken1 = isAddressEqual(plan.inputAsset, second.token1);
+        const outputMatches = inputIsToken0
+          ? isAddressEqual(first.tokenOut, second.token1)
+          : isAddressEqual(first.tokenOut, second.token0);
+        const retainedInput = BigInt(inputIsToken0
+          ? second.amount0DesiredAtomic
+          : second.amount1DesiredAtomic);
+        const desiredOutput = inputIsToken0
+          ? second.amount1DesiredAtomic
+          : second.amount0DesiredAtomic;
+        if (
+          !isAddressEqual(first.tokenIn, plan.inputAsset) ||
+          (!inputIsToken0 && !inputIsToken1) ||
+          !outputMatches ||
+          first.opportunityId !== second.opportunityId ||
+          BigInt(first.inputAtomic) + retainedInput !== BigInt(leg.inputAtomic) ||
+          first.quotedOutputAtomic !== desiredOutput
+        ) {
+          context.addIssue({
+            code: "custom",
+            path: ["legs", index, "actions"],
+            message: "LP actions must conserve and bind the one-sided input",
+          });
+        }
+        return;
+      }
       if (!second || !isAddressEqual(first.tokenIn, plan.inputAsset)) {
         context.addIssue({
           code: "custom",
@@ -105,7 +212,8 @@ export const RoutePlanV2Schema = z
           message: "Swap legs must consume the route input asset",
         });
       }
-      if (second && !isAddressEqual(first.tokenOut, second.asset)) {
+      if (second?.kind === "aave-v3-supply" &&
+        !isAddressEqual(first.tokenOut, second.asset)) {
         context.addIssue({
           code: "custom",
           path: ["legs", index, "actions", 1, "asset"],

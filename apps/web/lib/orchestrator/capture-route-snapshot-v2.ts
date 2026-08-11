@@ -16,11 +16,14 @@ import {
 } from "../adapters/registry";
 import type { BlockReference } from "../adapters/read-client";
 import type { UniswapExactInputQuote } from "../adapters/uniswap-reader";
+import type { UniswapFullRangeState } from "../adapters/uniswap-lp-reader";
+import { captureFullRangeLpOpportunity } from "./capture-uniswap-lp";
 
 const BPS_RAY = 10n ** 23n;
 
 export interface RouteSnapshotV2Dependencies {
   getLatestBlock(): Promise<BlockReference>;
+  getBlock(blockNumber: bigint): Promise<BlockReference>;
   readOraclePrices(input: { block: BlockReference }): Promise<AaveOracleSnapshot>;
   readReserve(input: {
     asset: RegistryAsset;
@@ -33,6 +36,10 @@ export interface RouteSnapshotV2Dependencies {
     amountInAtomic: bigint;
     block: BlockReference;
   }): Promise<UniswapExactInputQuote>;
+  readFullRangeState(input: {
+    block: BlockReference;
+    lookbackBlock: BlockReference;
+  }): Promise<UniswapFullRangeState>;
 }
 
 interface RegisteredAsset {
@@ -173,6 +180,30 @@ export async function captureRouteSnapshotV2(
         quotedOutputAtomic: swap.amountOutAtomic.toString(),
         estimatedGas: swap.gasEstimate.toString(),
       });
+    } catch (error) {
+      if (!(error instanceof ProtocolIneligibleError)) throw error;
+    }
+  }
+
+  if (deployed > 0n && otherAsset &&
+    policy.allowedAdapters.includes("uniswap-v3@1")) {
+    try {
+      const lp = await captureFullRangeLpOpportunity({
+        policy,
+        deployedAtomic: deployed,
+        inputAsset: {
+          ...inputAsset,
+          priceUsdE8: priceByAsset.get(inputAsset.address.toLowerCase())!.priceUsdE8,
+        },
+        outputAsset: {
+          ...otherAsset,
+          priceUsdE8: priceByAsset.get(otherAsset.address.toLowerCase())!.priceUsdE8,
+        },
+        block,
+        dependencies,
+        assertContext,
+      });
+      if (lp) opportunities.push(lp);
     } catch (error) {
       if (!(error instanceof ProtocolIneligibleError)) throw error;
     }

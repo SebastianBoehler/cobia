@@ -1,10 +1,11 @@
-import { isAddressEqual, type Address } from "viem";
+import { isAddress, isAddressEqual, type Address } from "viem";
 import { rayDivFloor, rayMulFloor } from "../adapters/aave-math";
 import { PROTOCOL_REGISTRY } from "../adapters/registry";
 import {
   AAVE_EXECUTION_STATE_ABI,
   A_TOKEN_EXECUTION_STATE_ABI,
   ERC20_STATE_ABI,
+  NONFUNGIBLE_POSITION_MANAGER_ABI,
 } from "./abis";
 import { describeExecutionTransactionV2 } from "./transaction-descriptor";
 import type {
@@ -107,6 +108,7 @@ export async function captureTransactionStateV2(
     ]);
     return { ...descriptor, beforeInputAtomic, beforeOutputAtomic };
   }
+  if (descriptor.kind === "uniswap-lp-mint") return descriptor;
   const [beforeInputAtomic, scaledATokenBeforeAtomic, normalizedIncomeBeforeRay] =
     await Promise.all([
       readTokenBalanceV2(client, descriptor.asset, owner, blockNumber),
@@ -168,6 +170,49 @@ export async function validateTransactionStateV2(
       outputDeltaAtomic: swap.outputAtomic,
       ownerOutputBalanceDeltaAtomic: afterOutputAtomic - before.beforeOutputAtomic,
       minimumOutputAtomic: before.minimumOutputAtomic,
+    };
+  }
+  if (before.kind === "uniswap-lp-mint") {
+    const mint = requireEvidence(evidence, "uniswap-lp-mint");
+    const manager = PROTOCOL_REGISTRY.uniswapV3.nonfungiblePositionManager.address;
+    const [positionOwner, rawPosition] = await Promise.all([
+      client.readContract({
+        address: manager,
+        abi: NONFUNGIBLE_POSITION_MANAGER_ABI,
+        functionName: "ownerOf",
+        args: [mint.tokenId],
+        blockNumber,
+      }),
+      client.readContract({
+        address: manager,
+        abi: NONFUNGIBLE_POSITION_MANAGER_ABI,
+        functionName: "positions",
+        args: [mint.tokenId],
+        blockNumber,
+      }),
+    ]);
+    if (typeof positionOwner !== "string" || !isAddress(positionOwner) ||
+      !isAddressEqual(positionOwner, owner) ||
+      !Array.isArray(rawPosition) || rawPosition.length !== 12) {
+      throw new Error("Minted Uniswap position ownership or state is malformed");
+    }
+    const [, , token0, token1, fee, tickLower, tickUpper, liquidity] = rawPosition;
+    if (typeof token0 !== "string" || !isAddress(token0) ||
+      typeof token1 !== "string" || !isAddress(token1) ||
+      !isAddressEqual(token0, before.token0) || !isAddressEqual(token1, before.token1) ||
+      fee !== before.feeTier || tickLower !== before.tickLower ||
+      tickUpper !== before.tickUpper || typeof liquidity !== "bigint" ||
+      liquidity < mint.liquidity || liquidity < before.minimumLiquidity) {
+      throw new Error("Minted Uniswap position does not match the signed route");
+    }
+    return {
+      kind: "uniswap-lp-mint",
+      tokenId: mint.tokenId,
+      token0: before.token0,
+      token1: before.token1,
+      liquidity: mint.liquidity,
+      amount0Atomic: mint.amount0Atomic,
+      amount1Atomic: mint.amount1Atomic,
     };
   }
   const supply = requireEvidence(evidence, "aave-supply");

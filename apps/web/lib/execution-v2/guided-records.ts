@@ -22,6 +22,8 @@ const DataSchema = z.string().regex(/^0x(?:[0-9a-fA-F]{2})*$/)
 const LabelSchema = z.enum([
   "reset-aave-allowance", "approve-aave-exact", "aave-v3-supply",
   "reset-uniswap-allowance", "approve-uniswap-exact", "uniswap-v3-exact-input",
+  "reset-position-manager-allowance", "approve-position-manager-exact",
+  "uniswap-v3-full-range-mint",
 ]);
 
 const CapturedStateSchema = z.discriminatedUnion("kind", [
@@ -39,6 +41,14 @@ const CapturedStateSchema = z.discriminatedUnion("kind", [
     suppliedAtomic: PositiveAtomic, beforeInputAtomic: Atomic,
     scaledATokenBeforeAtomic: Atomic, normalizedIncomeBeforeRay: PositiveAtomic,
   }).strict(),
+  z.object({
+    kind: z.literal("uniswap-lp-mint"), token0: AddressSchema, token1: AddressSchema,
+    feeTier: z.number().int().positive(), tickLower: z.number().int(),
+    tickUpper: z.number().int(), amount0DesiredAtomic: PositiveAtomic,
+    amount1DesiredAtomic: PositiveAtomic, amount0MinAtomic: PositiveAtomic,
+    amount1MinAtomic: PositiveAtomic, minimumLiquidity: PositiveAtomic,
+    deadlineSec: PositiveAtomic,
+  }).strict(),
 ]);
 
 const EvidenceSchema = z.discriminatedUnion("kind", [
@@ -49,6 +59,9 @@ const EvidenceSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("aave-supply"), suppliedAtomic: PositiveAtomic,
     mintValueAtomic: PositiveAtomic, mintBalanceIncreaseAtomic: Atomic,
     mintIndexRay: PositiveAtomic }).strict(),
+  z.object({ kind: z.literal("uniswap-lp-mint"), tokenId: PositiveAtomic,
+    liquidity: PositiveAtomic, amount0Atomic: PositiveAtomic,
+    amount1Atomic: PositiveAtomic }).strict(),
 ]);
 
 const StateCheckSchema = z.discriminatedUnion("kind", [
@@ -61,6 +74,9 @@ const StateCheckSchema = z.discriminatedUnion("kind", [
     inputSpentAtomic: PositiveAtomic, suppliedAtomic: PositiveAtomic,
     scaledATokenDeltaAtomic: PositiveAtomic, normalizedIncomeBeforeRay: PositiveAtomic,
     normalizedIncomeAfterRay: PositiveAtomic }).strict(),
+  z.object({ kind: z.literal("uniswap-lp-mint"), tokenId: PositiveAtomic,
+    token0: AddressSchema, token1: AddressSchema, liquidity: PositiveAtomic,
+    amount0Atomic: PositiveAtomic, amount1Atomic: PositiveAtomic }).strict(),
 ]);
 
 const PreparedSemanticSchema = z.object({
@@ -69,9 +85,11 @@ const PreparedSemanticSchema = z.object({
   authorizedAmountAtomic: PositiveAtomic,
   capturedState: CapturedStateSchema,
   funding: z.object({
-    asset: AddressSchema,
-    requiredTokenAtomic: Atomic,
-    tokenBalanceAtomic: Atomic,
+    tokenRequirements: z.array(z.object({
+      asset: AddressSchema,
+      requiredAtomic: Atomic,
+      balanceAtomic: Atomic,
+    }).strict()).min(1).max(2),
     gasPriceAtomic: PositiveAtomic,
     requiredGasAtomic: PositiveAtomic,
     nativeBalanceAtomic: Atomic,
@@ -148,6 +166,9 @@ export function parseGuidedPreparedStepV2(row: Record<string, unknown>): GuidedP
       to: AddressSchema.parse(row.to),
       value: 0n as const,
       data: DataSchema.parse(row.calldata ?? row.data),
+      ...(semantic.capturedState.kind === "uniswap-lp-mint"
+        ? { minimumLiquidity: semantic.capturedState.minimumLiquidity }
+        : {}),
     }),
     capturedState: Object.freeze(semantic.capturedState) as CapturedExecutionStateV2,
     authorizedAmountAtomic: semantic.authorizedAmountAtomic,

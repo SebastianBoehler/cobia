@@ -5,7 +5,7 @@ import { PROTOCOL_REGISTRY, registryHash } from "./registry";
 describe("X Layer protocol registry", () => {
   it("commits the audited Aave and Uniswap deployment manifest", () => {
     expect(registryHash).toBe(
-      "0xa0c0ffbb2881447b778ddaabcfc1e3bfd93c42a9f591448cc289a6e316f9fc92",
+      "0x57f9c21f0c77f4eb38455d3ab9d21f1c7780adddd99adaa53834d4937a2ea988",
     );
     expect({
       chainId: PROTOCOL_REGISTRY.chainId,
@@ -25,6 +25,7 @@ describe("X Layer protocol registry", () => {
       uniFactory: PROTOCOL_REGISTRY.uniswapV3.factory.address,
       uniQuoter: PROTOCOL_REGISTRY.uniswapV3.quoterV2.address,
       uniRouter: PROTOCOL_REGISTRY.uniswapV3.swapRouter02.address,
+      uniPositionManager: PROTOCOL_REGISTRY.uniswapV3.nonfungiblePositionManager.address,
       uniPool: PROTOCOL_REGISTRY.uniswapV3.pair.pool.address,
       fee: PROTOCOL_REGISTRY.uniswapV3.pair.fee,
       aaveAdapter: PROTOCOL_REGISTRY.aaveV3.adapterId,

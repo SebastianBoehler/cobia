@@ -12,6 +12,7 @@ import {
   directPlan,
   executionPolicy,
   INPUT_ATOMIC,
+  lpPlan,
   MINIMUM_OUTPUT_ATOMIC,
   noActionPlan,
   NOW_SEC,
@@ -136,6 +137,25 @@ describe("buildInitialRouteTransactionsV2 swap phase", () => {
       minimumDeltaAtomic: MINIMUM_OUTPUT_ATOMIC,
       quotedDeltaAtomic: OUTPUT_ATOMIC,
     }]);
+  });
+
+  it("swaps only the signed LP balancing amount and leaves the paired input for mint", async () => {
+    const result = await initial(lpPlan, 0n);
+    expect(result.transactions.map(({ label }) => label)).toEqual([
+      "approve-uniswap-exact",
+      "uniswap-v3-exact-input",
+    ]);
+    const [approve, swap] = result.transactions;
+    const router = PROTOCOL_REGISTRY.uniswapV3.swapRouter02.address;
+    expect(decodeApproval(approve.data)).toEqual([router, 25_000_000n]);
+    const outer = decodeFunctionData({ abi: SWAP_ROUTER02_ABI, data: swap.data });
+    if (outer.functionName !== "multicall") throw new Error("Expected router multicall");
+    const inner = decodeFunctionData({ abi: SWAP_ROUTER02_ABI, data: outer.args[1][0]! });
+    if (inner.functionName !== "exactInputSingle") throw new Error("Expected exact input");
+    expect(inner.args[0]).toMatchObject({
+      amountIn: 25_000_000n,
+      amountOutMinimum: 24_700_500n,
+    });
   });
 });
 

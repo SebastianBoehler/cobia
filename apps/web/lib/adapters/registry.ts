@@ -108,6 +108,10 @@ export const PROTOCOL_REGISTRY = {
       address: "0x4f0C28f5926AFDA16bf2506D5D9e57Ea190f9bcA",
       runtimeCodeHash: "0x83ee2f04768ca84e762b139bf36844bf7efbd75b3c7cc898705169eacb9d5102",
     },
+    nonfungiblePositionManager: {
+      address: "0x315e413A11AB0df498eF83873012430ca36638Ae",
+      runtimeCodeHash: "0xd8339465f5c45afef4319fde20bb35cb5c5e17cf861c73b669d07ca615e3213c",
+    },
     pair: {
       pool: {
         address: "0x0cBe0dBE1400e57f371a38BD3b9bC80F7C3676dA",

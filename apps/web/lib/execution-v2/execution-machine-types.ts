@@ -36,11 +36,16 @@ export type MachineBatchResultV2 =
     failure: ExecutionFailureV2;
   };
 
+export type PostSwapAllowancesV2 = bigint | {
+  token0Atomic: bigint;
+  token1Atomic: bigint;
+};
+
 export interface RouteExecutionMachineV2 {
   executeInitial(currentAllowanceAtomic: bigint): Promise<MachineBatchResultV2>;
   executePostSwap(
     confirmedSwap: ConfirmedOwnerTransactionV2,
-    currentAllowanceAtomic: bigint,
+    currentAllowances: PostSwapAllowancesV2,
   ): Promise<MachineBatchResultV2>;
   resumeSubmitted(
     checkpoint: ExecutionResumeCheckpointV2,

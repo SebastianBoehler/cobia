@@ -12,14 +12,35 @@ interface PresentedStep {
 
 function actionSteps(
   leg: RouteLegV2,
-  valuations: PurchasedRouteV2["snapshot"]["valuations"],
+  snapshot: PurchasedRouteV2["snapshot"],
 ): PresentedStep[] {
+  const { valuations } = snapshot;
   return leg.actions.map((action, index) => {
     if (action.kind === "uniswap-v3-exact-input") {
       return {
         key: `${leg.id}:${index}:${action.opportunityId}`,
         label: `Swap ${formattedAssetAmount(leg.inputAtomic, action.tokenIn, valuations)} for at least ${formattedAssetAmount(action.minimumOutputAtomic, action.tokenOut, valuations)} via Uniswap V3`,
         detail: `Quoted output ${formattedAssetAmount(action.quotedOutputAtomic, action.tokenOut, valuations)} · ${action.opportunityId}`,
+      };
+    }
+    if (action.kind === "uniswap-v3-balance-swap") {
+      return {
+        key: `${leg.id}:${index}:${action.opportunityId}`,
+        label: `Balance-swap ${formattedAssetAmount(action.inputAtomic, action.tokenIn, valuations)} for at least ${formattedAssetAmount(action.minimumOutputAtomic, action.tokenOut, valuations)}`,
+        detail: `One-sided LP preparation via Uniswap V3 · quoted ${formattedAssetAmount(action.quotedOutputAtomic, action.tokenOut, valuations)}`,
+      };
+    }
+    if (action.kind === "uniswap-v3-full-range-mint") {
+      const opportunity = snapshot.opportunities.find((candidate) =>
+        candidate.kind === "uniswap-v3-full-range-lp" &&
+        candidate.id === action.opportunityId);
+      const feeHistory = opportunity?.kind === "uniswap-v3-full-range-lp"
+        ? `Historical fee sample ${(opportunity.historicalFeeApyBps / 100).toFixed(2)}% annualized over ${(opportunity.lookbackSeconds / 3_600).toFixed(0)}h; not guaranteed`
+        : "Historical fee estimate unavailable";
+      return {
+        key: `${leg.id}:${index}:${action.opportunityId}`,
+        label: `Mint a full-range ${formattedAssetAmount(action.amount0DesiredAtomic, action.token0, valuations)} + ${formattedAssetAmount(action.amount1DesiredAtomic, action.token1, valuations)} Uniswap V3 position`,
+        detail: `Owner-held NFT · 1 bp pool · minimum liquidity ${action.minimumLiquidity} · ${feeHistory}`,
       };
     }
     const priorAction = index > 0 ? leg.actions[index - 1] : undefined;
@@ -51,7 +72,7 @@ export function PurchasedRoutePlanV2({ route }: { route: PurchasedRouteV2 }) {
       ? `Undeployed by the signed ${(route.policy.protocolExposureBps / 100).toFixed(0)}% protocol-exposure limit; this amount earns no route yield`
       : "No retained buffer; the signed intent permits full deployment",
   }, ...route.bundle.routePlan.legs.flatMap((leg) =>
-    actionSteps(leg, route.snapshot.valuations))];
+    actionSteps(leg, route.snapshot))];
 
   return (
     <ol className={styles.steps} aria-label="Purchased route plan">

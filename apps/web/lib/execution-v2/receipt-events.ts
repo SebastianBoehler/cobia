@@ -3,7 +3,9 @@ import { PROTOCOL_REGISTRY } from "../adapters/registry";
 import {
   AAVE_SUPPLY_EVENT_ABI,
   A_TOKEN_MINT_EVENT_ABI,
+  ERC721_TRANSFER_EVENT_ABI,
   ERC20_APPROVAL_EVENT_ABI,
+  NONFUNGIBLE_POSITION_MANAGER_EVENT_ABI,
   UNISWAP_SWAP_EVENT_ABI,
 } from "./abis";
 import { ExecutionStepErrorV2 } from "./execution-errors";
@@ -20,6 +22,54 @@ import type { OwnerTransactionV2 } from "./types";
 
 function logsAt(receipt: ExecutionReceiptV2, address: `0x${string}`) {
   return receipt.logs.filter((log) => isAddressEqual(log.address, address));
+}
+
+function lpMintEvidence(
+  descriptor: Extract<ExecutionTransactionDescriptorV2, { kind: "uniswap-lp-mint" }>,
+  transaction: OwnerTransactionV2,
+  receipt: ExecutionReceiptV2,
+): ExecutionProtocolEvidenceV2 {
+  const manager = PROTOCOL_REGISTRY.uniswapV3.nonfungiblePositionManager.address;
+  const transfers = decodedLogs(logsAt(receipt, manager), ERC721_TRANSFER_EVENT_ABI);
+  const increases = decodedLogs(
+    logsAt(receipt, manager),
+    NONFUNGIBLE_POSITION_MANAGER_EVENT_ABI,
+  );
+  for (const transfer of transfers) {
+    if (transfer.eventName !== "Transfer") continue;
+    const transferArgs = transfer.args as {
+      from: `0x${string}`; to: `0x${string}`; tokenId: bigint;
+    };
+    if (transferArgs.from !== "0x0000000000000000000000000000000000000000" ||
+      !isAddressEqual(transferArgs.to, transaction.from)) continue;
+    const increase = increases.find((event) => {
+      if (event.eventName !== "IncreaseLiquidity") return false;
+      const args = event.args as {
+        tokenId: bigint; liquidity: bigint; amount0: bigint; amount1: bigint;
+      };
+      return args.tokenId === transferArgs.tokenId &&
+        args.liquidity >= descriptor.minimumLiquidity &&
+        args.amount0 >= descriptor.amount0MinAtomic &&
+        args.amount0 <= descriptor.amount0DesiredAtomic &&
+        args.amount1 >= descriptor.amount1MinAtomic &&
+        args.amount1 <= descriptor.amount1DesiredAtomic;
+    });
+    if (!increase || increase.eventName !== "IncreaseLiquidity") continue;
+    const args = increase.args as {
+      liquidity: bigint; amount0: bigint; amount1: bigint;
+    };
+    return {
+      kind: "uniswap-lp-mint",
+      tokenId: transferArgs.tokenId,
+      liquidity: args.liquidity,
+      amount0Atomic: args.amount0,
+      amount1Atomic: args.amount1,
+    };
+  }
+  throw new ExecutionStepErrorV2(
+    "protocol-event-missing",
+    "Receipt is missing the exact bounded Uniswap LP mint events",
+  );
 }
 
 function decodedLogs(
@@ -171,5 +221,8 @@ export function validateProtocolEventsV2(
     return approvalEvidence(descriptor, transaction, receipt);
   }
   if (descriptor.kind === "swap") return swapEvidence(descriptor, transaction, receipt);
+  if (descriptor.kind === "uniswap-lp-mint") {
+    return lpMintEvidence(descriptor, transaction, receipt);
+  }
   return aaveEvidence(descriptor, transaction, receipt);
 }

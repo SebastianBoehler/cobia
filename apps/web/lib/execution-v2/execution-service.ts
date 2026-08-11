@@ -133,7 +133,8 @@ export function createExecutionService(dependencies: ExecutionServiceDependencie
       );
       return;
     }
-    const complete = resolved.transaction.label === "aave-v3-supply";
+    const complete = resolved.transaction.label === "aave-v3-supply" ||
+      resolved.transaction.label === "uniswap-v3-full-range-mint";
     await dependencies.executions.confirmStep(
       attemptId,
       ordinal,

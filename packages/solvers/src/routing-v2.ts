@@ -3,23 +3,23 @@ import {
   RouteSnapshotV2Schema,
   StablecoinPolicyV2Schema,
   assessRouteAuthorizationV2,
-  compareRouteEconomicsV2,
   commitment,
-  estimateRouteEconomicsV2,
-  type RouteEconomicsV2,
   type RoutePlanV2,
   type RouteSnapshotV2,
   type StablecoinPolicyV2,
 } from "@cobia/domain";
 import {
-  isAddressEqual,
   type Address,
   type Hash,
   type LocalAccount,
 } from "viem";
 import { signRouteBundleV2 } from "./sign";
+import {
+  noActionCandidateV2,
+  routeCandidatesV2,
+  type RouteCandidateV2,
+} from "./routing-v2-candidates";
 
-const BPS_SCALE = 10_000n;
 const UnsignedRouteBundleV2Schema = RouteBundleV2Schema.omit({ signature: true });
 
 export interface RouteSolverInputV2 {
@@ -47,12 +47,6 @@ export interface RouteSolverV2 {
   solve(input: RouteSolverInputV2): Promise<ReturnType<typeof RouteBundleV2Schema.parse>>;
 }
 
-interface Candidate {
-  id: string;
-  economics: RouteEconomicsV2;
-  plan: RoutePlanV2;
-}
-
 export interface RouteCandidateSummaryV2 {
   id: string;
   estimatedPreGasApyBps: number;
@@ -61,144 +55,11 @@ export interface RouteCandidateSummaryV2 {
   actions: readonly RoutePlanV2["legs"][number]["actions"][number]["kind"][];
 }
 
-function noActionPlan(policy: StablecoinPolicyV2): RoutePlanV2 {
-  return {
-    version: 2,
-    inputAsset: policy.asset,
-    inputAtomic: policy.principalAtomic,
-    retainedAtomic: policy.principalAtomic,
-    horizonDays: policy.horizonDays,
-    legs: [],
-  };
-}
-
-function noActionCandidate(policy: StablecoinPolicyV2): Candidate {
-  return {
-    id: "no-action",
-    economics: {
-      estimatedPreGasApyBps: 0,
-      positiveGain: false,
-    },
-    plan: noActionPlan(policy),
-  };
-}
-
 function validUntil(input: RouteSolverInputV2): number {
   const capturedAtSec = Math.floor(Date.parse(input.snapshot.capturedAt) / 1_000);
   return Math.min(
     input.policy.deadline,
     capturedAtSec + input.policy.maxSnapshotAgeSec,
-  );
-}
-
-function routeCandidates(
-  policy: StablecoinPolicyV2,
-  snapshot: RouteSnapshotV2,
-): Candidate[] {
-  const principal = BigInt(policy.principalAtomic);
-  const deployed = principal * BigInt(policy.protocolExposureBps) / BPS_SCALE;
-  const retained = principal - deployed;
-  if (deployed === 0n) return [];
-  const candidates: Candidate[] = [];
-  const addCandidate = (id: string, plan: RoutePlanV2) => {
-    candidates.push({
-      id,
-      economics: estimateRouteEconomicsV2(policy, snapshot, plan),
-      plan,
-    });
-  };
-
-  const supplyEligible = (
-    supply: Extract<RouteSnapshotV2["opportunities"][number], { kind: "aave-v3-supply" }>,
-    asset: Address,
-    amountAtomic: string,
-  ) => policy.allowedAdapters.includes(supply.adapterId) &&
-    policy.allowedOutputAssets.some((allowed) => isAddressEqual(allowed, asset)) &&
-    isAddressEqual(supply.asset, asset) &&
-    supply.validatedSupplyAtomic === amountAtomic &&
-    BigInt(supply.tvlUsdE6) >= BigInt(policy.minTvlUsdE6);
-
-  for (const supply of snapshot.opportunities) {
-    if (supply.kind !== "aave-v3-supply") continue;
-    if (supplyEligible(supply, policy.asset, deployed.toString())) {
-      addCandidate(`direct:${supply.id}`, {
-        version: 2,
-        inputAsset: policy.asset,
-        inputAtomic: policy.principalAtomic,
-        retainedAtomic: retained.toString(),
-        horizonDays: policy.horizonDays,
-        legs: [{
-          id: "direct-supply",
-          inputAtomic: deployed.toString(),
-          actions: [{
-            kind: "aave-v3-supply",
-            opportunityId: supply.id,
-            consume: "all",
-            asset: supply.asset,
-          }],
-        }],
-      });
-    }
-  }
-
-  for (const swap of snapshot.opportunities) {
-    if (swap.kind !== "uniswap-v3-exact-input") continue;
-    if (
-      !policy.allowedAdapters.includes(swap.adapterId) ||
-      !isAddressEqual(swap.tokenIn, policy.asset) ||
-      !policy.allowedOutputAssets.some((asset) => isAddressEqual(asset, swap.tokenOut)) ||
-      swap.quotedInputAtomic !== deployed.toString()
-    ) continue;
-    for (const supply of snapshot.opportunities) {
-      if (
-        supply.kind !== "aave-v3-supply" ||
-        !supplyEligible(supply, swap.tokenOut, swap.quotedOutputAtomic)
-      ) continue;
-      const minimumOutputNumerator = BigInt(swap.quotedOutputAtomic) *
-        BigInt(10_000 - policy.maxSlippageBps);
-      const minimumOutput =
-        (minimumOutputNumerator + BPS_SCALE - 1n) / BPS_SCALE;
-      addCandidate(`swap:${swap.id}:${supply.id}`, {
-        version: 2,
-        inputAsset: policy.asset,
-        inputAtomic: policy.principalAtomic,
-        retainedAtomic: retained.toString(),
-        horizonDays: policy.horizonDays,
-        legs: [{
-          id: "swap-then-supply",
-          inputAtomic: deployed.toString(),
-          actions: [{
-            kind: "uniswap-v3-exact-input",
-            opportunityId: swap.id,
-            consume: "all",
-            tokenIn: swap.tokenIn,
-            tokenOut: swap.tokenOut,
-            quotedOutputAtomic: swap.quotedOutputAtomic,
-            minimumOutputAtomic: (minimumOutput > 0n ? minimumOutput : 1n).toString(),
-          }, {
-            kind: "aave-v3-supply",
-            opportunityId: supply.id,
-            consume: "all",
-            asset: supply.asset,
-          }],
-        }],
-      });
-    }
-  }
-
-  candidates.sort((left, right) => {
-    const economicsOrder = compareRouteEconomicsV2(
-      policy,
-      snapshot,
-      left.plan,
-      right.plan,
-    );
-    if (economicsOrder !== 0) return economicsOrder;
-    return left.id.localeCompare(right.id);
-  });
-  return candidates.filter(({ economics }) =>
-    economics.positiveGain &&
-    economics.estimatedPreGasApyBps >= policy.minPreGasApyBps
   );
 }
 
@@ -220,7 +81,7 @@ function parseRouteInput(rawInput: RouteSolverInputV2) {
 function buildRouteBundleForCandidateV2(
   rawInput: RouteSolverInputV2,
   options: RouteBuilderOptionsV2,
-  candidate: Candidate,
+  candidate: RouteCandidateV2,
 ): UnsignedRouteBundleV2 {
   const { policy, snapshot, expiry } = parseRouteInput(rawInput);
   const bundle = UnsignedRouteBundleV2Schema.parse({
@@ -251,7 +112,7 @@ export function listRouteCandidateSummariesV2(
   rawInput: RouteSolverInputV2,
 ): readonly RouteCandidateSummaryV2[] {
   const { policy, snapshot } = parseRouteInput(rawInput);
-  return Object.freeze(routeCandidates(policy, snapshot).map(({ id, economics, plan }) =>
+  return Object.freeze(routeCandidatesV2(policy, snapshot).map(({ id, economics, plan }) =>
     Object.freeze({
       id,
       estimatedPreGasApyBps: economics.estimatedPreGasApyBps,
@@ -268,7 +129,7 @@ export function buildSelectedRouteBundleV2(
   candidateId: string,
 ): UnsignedRouteBundleV2 {
   const { policy, snapshot } = parseRouteInput(rawInput);
-  const candidate = routeCandidates(policy, snapshot).find(({ id }) => id === candidateId);
+  const candidate = routeCandidatesV2(policy, snapshot).find(({ id }) => id === candidateId);
   if (!candidate) throw new Error("Advisor selected an unknown route candidate");
   return buildRouteBundleForCandidateV2(rawInput, options, candidate);
 }
@@ -278,7 +139,7 @@ export function buildDeterministicRouteBundleV2(
   options: RouteBuilderOptionsV2,
 ): UnsignedRouteBundleV2 {
   const { policy, snapshot } = parseRouteInput(rawInput);
-  const candidate = routeCandidates(policy, snapshot)[0] ?? noActionCandidate(policy);
+  const candidate = routeCandidatesV2(policy, snapshot)[0] ?? noActionCandidateV2(policy);
   return buildRouteBundleForCandidateV2(rawInput, options, candidate);
 }
 

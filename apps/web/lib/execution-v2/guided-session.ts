@@ -2,6 +2,7 @@ import { isAddressEqual, type Hash } from "viem";
 import { PROTOCOL_REGISTRY } from "../adapters/registry";
 import { buildInitialRouteTransactionsV2 } from "./build-initial";
 import { buildPostSwapSupplyTransactionsV2 } from "./build-post-swap";
+import { buildPostSwapLiquidityTransactionsV2 } from "./build-post-swap-lp";
 import {
   assertExecutionBlockHashV2,
   assertExecutionDeploymentsV2,
@@ -56,7 +57,8 @@ async function nextTransactions(
 ) {
   const context = parseExecutionContextV2(input);
   const leg = context.routePlan.legs[0];
-  if (!leg || confirmed.some(({ label }) => label === "aave-v3-supply")) {
+  if (!leg || confirmed.some(({ label }) =>
+    label === "aave-v3-supply" || label === "uniswap-v3-full-range-mint")) {
     return { context, phase: "initial" as const, authorizedAmountAtomic: 0n, transactions: [] };
   }
   const first = leg.actions[0];
@@ -75,28 +77,51 @@ async function nextTransactions(
     return {
       context,
       phase: "initial" as const,
-      authorizedAmountAtomic: BigInt(leg.inputAtomic),
+      authorizedAmountAtomic: BigInt(first.kind === "uniswap-v3-balance-swap"
+        ? first.inputAtomic : leg.inputAtomic),
       transactions: batch.transactions,
     };
   }
-  if (first.kind !== "uniswap-v3-exact-input" || swap.stateCheck.kind !== "swap") {
+  if ((first.kind !== "uniswap-v3-exact-input" &&
+    first.kind !== "uniswap-v3-balance-swap") || swap.stateCheck.kind !== "swap") {
     throw new Error("Confirmed execution prefix does not match the route plan");
   }
+  const swapState = swap.stateCheck;
   const pair = registeredSwapPair(first.tokenIn, first.tokenOut);
-  const allowance = await readAllowanceV2(
-    input.readClient,
-    pair.output.address,
-    context.owner,
-    PROTOCOL_REGISTRY.aaveV3.pool.address,
-    blockNumber,
-  );
-  const batch = buildPostSwapSupplyTransactionsV2({
-    ...input,
-    observedOutputBalanceDeltaAtomic: swap.stateCheck.outputDeltaAtomic,
-    currentAllowanceAtomic: allowance,
-  });
-  const authorizedAmountAtomic = swap.stateCheck.outputDeltaAtomic < BigInt(first.quotedOutputAtomic)
-    ? swap.stateCheck.outputDeltaAtomic : BigInt(first.quotedOutputAtomic);
+  const batch = first.kind === "uniswap-v3-balance-swap"
+    ? await (async () => {
+      const mint = leg.actions[1];
+      if (mint?.kind !== "uniswap-v3-full-range-mint") {
+        throw new Error("LP route is missing its mint action");
+      }
+      const manager = PROTOCOL_REGISTRY.uniswapV3.nonfungiblePositionManager.address;
+      const [token0Allowance, token1Allowance] = await Promise.all([
+        readAllowanceV2(input.readClient, mint.token0, context.owner, manager, blockNumber),
+        readAllowanceV2(input.readClient, mint.token1, context.owner, manager, blockNumber),
+      ]);
+      return buildPostSwapLiquidityTransactionsV2({
+        ...input,
+        observedOutputBalanceDeltaAtomic: swapState.outputDeltaAtomic,
+        currentToken0AllowanceAtomic: token0Allowance,
+        currentToken1AllowanceAtomic: token1Allowance,
+      });
+    })()
+    : await (async () => {
+      const allowance = await readAllowanceV2(
+        input.readClient,
+        pair.output.address,
+        context.owner,
+        PROTOCOL_REGISTRY.aaveV3.pool.address,
+        blockNumber,
+      );
+      return buildPostSwapSupplyTransactionsV2({
+        ...input,
+        observedOutputBalanceDeltaAtomic: swapState.outputDeltaAtomic,
+        currentAllowanceAtomic: allowance,
+      });
+    })();
+  const authorizedAmountAtomic = swapState.outputDeltaAtomic < BigInt(first.quotedOutputAtomic)
+    ? swapState.outputDeltaAtomic : BigInt(first.quotedOutputAtomic);
   return { context, phase: "post-swap" as const, authorizedAmountAtomic,
     transactions: batch.transactions };
 }

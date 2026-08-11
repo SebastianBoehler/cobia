@@ -1,6 +1,7 @@
 import { isAddressEqual } from "viem";
 import { buildInitialRouteTransactionsV2 } from "./build-initial";
 import { buildPostSwapSupplyTransactionsV2 } from "./build-post-swap";
+import { buildPostSwapLiquidityTransactionsV2 } from "./build-post-swap-lp";
 import {
   assertExecutionBlockHashV2,
   assertExecutionDeploymentsV2,
@@ -92,16 +93,17 @@ export function createRouteExecutionMachineV2(
   async function executeBatch(
     transactions: readonly OwnerTransactionV2[],
     phase: ExecutionResumeCheckpointV2["phase"],
+    explicitAuthorizedAmountAtomic?: bigint,
   ): Promise<MachineBatchResultV2> {
     const confirmed: ConfirmedOwnerTransactionV2[] = [];
     const finalDescriptor = transactions.at(-1)
       ? describeExecutionTransactionV2(transactions.at(-1)!)
       : undefined;
-    const authorizedAmountAtomic = finalDescriptor?.kind === "swap"
+    const authorizedAmountAtomic = explicitAuthorizedAmountAtomic ?? (finalDescriptor?.kind === "swap"
       ? finalDescriptor.amountInAtomic
       : finalDescriptor?.kind === "aave-supply"
         ? finalDescriptor.suppliedAtomic
-        : undefined;
+        : undefined);
     if (transactions.length > 0 && authorizedAmountAtomic === undefined) {
       throw new Error("Execution batch has no authorized protocol action");
     }
@@ -206,7 +208,7 @@ export function createRouteExecutionMachineV2(
     },
     executePostSwap(
       confirmedSwap: ConfirmedOwnerTransactionV2,
-      currentAllowanceAtomic: bigint,
+      currentAllowances: import("./execution-machine-types").PostSwapAllowancesV2,
     ) {
       const reservation = swapCapabilities.begin(confirmedSwap, (source) => {
         if (source.bundleHash.toLowerCase() !== input.verdict.bundleHash.toLowerCase() ||
@@ -216,13 +218,36 @@ export function createRouteExecutionMachineV2(
         assertAuthorizedResumeCheckpointV2(verified, source);
       });
       try {
-        const batch = buildPostSwapSupplyTransactionsV2({
-          ...verified,
-          nowSec: input.nowSec(),
-          observedOutputBalanceDeltaAtomic: reservation.outputDeltaAtomic,
-          currentAllowanceAtomic,
-        });
-        return executeBatch(batch.transactions, "post-swap").then(
+        const first = context.routePlan.legs[0]?.actions[0];
+        const batch = first?.kind === "uniswap-v3-balance-swap"
+          ? (() => {
+            if (typeof currentAllowances === "bigint") {
+              throw new Error("LP continuation requires both position-manager allowances");
+            }
+            return buildPostSwapLiquidityTransactionsV2({
+              ...verified,
+              nowSec: input.nowSec(),
+              observedOutputBalanceDeltaAtomic: reservation.outputDeltaAtomic,
+              currentToken0AllowanceAtomic: currentAllowances.token0Atomic,
+              currentToken1AllowanceAtomic: currentAllowances.token1Atomic,
+            });
+          })()
+          : (() => {
+            if (typeof currentAllowances !== "bigint") {
+              throw new Error("Aave continuation requires one pool allowance");
+            }
+            return buildPostSwapSupplyTransactionsV2({
+              ...verified,
+              nowSec: input.nowSec(),
+              observedOutputBalanceDeltaAtomic: reservation.outputDeltaAtomic,
+              currentAllowanceAtomic: currentAllowances,
+            });
+          })();
+        return executeBatch(
+          batch.transactions,
+          "post-swap",
+          reservation.outputDeltaAtomic,
+        ).then(
           (result) => {
             swapCapabilities.settleBatch(reservation, result);
             return result;

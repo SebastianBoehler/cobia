@@ -113,13 +113,36 @@ export async function executeRoutePlanV2(
   try {
     if (swap?.stateCheck.kind !== "swap") throw new Error("Swap evidence was not captured");
     const pair = registeredSwapPair(first.tokenIn, first.tokenOut);
-    const outputAllowance = await readAllowanceV2(
-      input.readClient,
-      pair.output.address,
-      context.owner,
-      PROTOCOL_REGISTRY.aaveV3.pool.address,
-      swap.blockNumber,
-    );
+    const second = context.routePlan.legs[0]!.actions[1];
+    if (first.kind === "uniswap-v3-balance-swap" &&
+      second?.kind !== "uniswap-v3-full-range-mint") {
+      throw new Error("LP route is missing its mint action");
+    }
+    const outputAllowance = first.kind === "uniswap-v3-balance-swap" &&
+      second?.kind === "uniswap-v3-full-range-mint"
+      ? await Promise.all([
+        readAllowanceV2(
+          input.readClient,
+          registeredExecutionAsset(second.token0).address,
+          context.owner,
+          PROTOCOL_REGISTRY.uniswapV3.nonfungiblePositionManager.address,
+          swap.blockNumber,
+        ),
+        readAllowanceV2(
+          input.readClient,
+          registeredExecutionAsset(second.token1).address,
+          context.owner,
+          PROTOCOL_REGISTRY.uniswapV3.nonfungiblePositionManager.address,
+          swap.blockNumber,
+        ),
+      ]).then(([token0Atomic, token1Atomic]) => ({ token0Atomic, token1Atomic }))
+      : await readAllowanceV2(
+        input.readClient,
+        pair.output.address,
+        context.owner,
+        PROTOCOL_REGISTRY.aaveV3.pool.address,
+        swap.blockNumber,
+      );
     const postSwap = await machine.executePostSwap(
       swap,
       outputAllowance,

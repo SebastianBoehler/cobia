@@ -60,7 +60,8 @@ export class SwapCapabilityStoreV2 {
   }
 
   settleBatch(reservation: SwapReservationV2, result: MachineBatchResultV2): void {
-    if (result.kind === "complete" || result.submitted?.label === "aave-v3-supply") {
+    if (result.kind === "complete" || result.submitted?.label === "aave-v3-supply" ||
+      result.submitted?.label === "uniswap-v3-full-range-mint") {
       this.consume(reservation);
     } else if (result.resume && (result.kind === "pending" ||
       result.failure.code !== "transaction-reverted")) {

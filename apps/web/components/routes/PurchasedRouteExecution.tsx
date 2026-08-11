@@ -20,6 +20,9 @@ const labels = {
   "reset-uniswap-allowance": "Reset Uniswap allowance",
   "approve-uniswap-exact": "Approve Uniswap exact amount",
   "uniswap-v3-exact-input": "Swap exact input on Uniswap V3",
+  "reset-position-manager-allowance": "Reset Uniswap LP allowance",
+  "approve-position-manager-exact": "Approve exact Uniswap LP amount",
+  "uniswap-v3-full-range-mint": "Mint full-range Uniswap V3 position",
 } as const;
 
 function shortHash(value: string): string {

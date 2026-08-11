@@ -21,6 +21,9 @@ const labels: Record<string, string> = {
   "reset-uniswap-allowance": "Reset Uniswap allowance",
   "approve-uniswap-exact": "Approve Uniswap exact amount",
   "uniswap-v3-exact-input": "Swap exact input on Uniswap V3",
+  "reset-position-manager-allowance": "Reset Uniswap LP allowance",
+  "approve-position-manager-exact": "Approve exact Uniswap LP amount",
+  "uniswap-v3-full-range-mint": "Mint full-range Uniswap V3 position",
 };
 
 function message(cause: unknown) {
@@ -128,7 +131,7 @@ export function MainnetExecutionLedger({
         <Landmark size={19} />
         <div>
           <strong>Guided X Layer mainnet execution</strong>
-          <p>This path uses real X Layer mainnet funds. Every approval, swap, and supply is a separate OKX Wallet confirmation.</p>
+          <p>This path uses real X Layer mainnet funds. Every approval, swap, supply, or LP mint is a separate OKX Wallet confirmation.</p>
         </div>
         <span>Chain 196</span>
       </div>

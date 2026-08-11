@@ -45,8 +45,15 @@ export const UNISWAP_POOL_ABI = parseAbi([
   "function token0() view returns (address)",
   "function token1() view returns (address)",
   "function fee() view returns (uint24)",
+  "function tickSpacing() view returns (int24)",
   "function liquidity() view returns (uint128)",
+  "function feeGrowthGlobal0X128() view returns (uint256)",
+  "function feeGrowthGlobal1X128() view returns (uint256)",
   "function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked)",
+]);
+
+export const UNISWAP_POSITION_MANAGER_ABI = parseAbi([
+  "function factory() view returns (address)",
 ]);
 
 export const UNISWAP_QUOTER_V2_ABI = parseAbi([

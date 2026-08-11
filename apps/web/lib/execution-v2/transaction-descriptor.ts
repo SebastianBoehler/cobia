@@ -3,6 +3,7 @@ import { PROTOCOL_REGISTRY } from "../adapters/registry";
 import {
   AAVE_POOL_SUPPLY_ABI,
   ERC20_APPROVE_ABI,
+  NONFUNGIBLE_POSITION_MANAGER_ABI,
   SWAP_ROUTER02_ABI,
 } from "./abis";
 import {
@@ -32,6 +33,20 @@ export type ExecutionTransactionDescriptorV2 =
     asset: Address;
     aToken: Address;
     suppliedAtomic: bigint;
+  }
+  | {
+    kind: "uniswap-lp-mint";
+    token0: Address;
+    token1: Address;
+    feeTier: number;
+    tickLower: number;
+    tickUpper: number;
+    amount0DesiredAtomic: bigint;
+    amount1DesiredAtomic: bigint;
+    amount0MinAtomic: bigint;
+    amount1MinAtomic: bigint;
+    minimumLiquidity: bigint;
+    deadlineSec: bigint;
   };
 
 function isApproval(transaction: OwnerTransactionV2): boolean {
@@ -44,7 +59,9 @@ function approvalDescriptor(transaction: OwnerTransactionV2) {
   const [spender, expectedAtomic] = decoded.args;
   const expectedSpender = transaction.label.includes("aave")
     ? PROTOCOL_REGISTRY.aaveV3.pool.address
-    : PROTOCOL_REGISTRY.uniswapV3.swapRouter02.address;
+    : transaction.label.includes("position-manager")
+      ? PROTOCOL_REGISTRY.uniswapV3.nonfungiblePositionManager.address
+      : PROTOCOL_REGISTRY.uniswapV3.swapRouter02.address;
   if (!isAddressEqual(spender, expectedSpender)) {
     throw new Error("Approval spender does not match the registered deployment");
   }
@@ -54,6 +71,47 @@ function approvalDescriptor(transaction: OwnerTransactionV2) {
     token: transaction.to,
     spender,
     expectedAtomic,
+  };
+}
+
+function lpMintDescriptor(transaction: OwnerTransactionV2) {
+  const deployment = PROTOCOL_REGISTRY.uniswapV3;
+  if (!isAddressEqual(transaction.to, deployment.nonfungiblePositionManager.address)) {
+    throw new Error("LP mint target does not match the registered position manager");
+  }
+  const decoded = decodeFunctionData({
+    abi: NONFUNGIBLE_POSITION_MANAGER_ABI,
+    data: transaction.data,
+  });
+  if (decoded.functionName !== "mint") throw new Error("LP transaction must call mint");
+  const params = decoded.args[0];
+  const token0 = registeredExecutionAsset(params.token0);
+  const token1 = registeredExecutionAsset(params.token1);
+  const pairToken0 = PROTOCOL_REGISTRY.aaveV3.assets[deployment.pair.token0].underlying.address;
+  const pairToken1 = PROTOCOL_REGISTRY.aaveV3.assets[deployment.pair.token1].underlying.address;
+  if (!isAddressEqual(token0.address, pairToken0) ||
+    !isAddressEqual(token1.address, pairToken1) || params.fee !== deployment.pair.fee ||
+    params.tickLower !== -887272 || params.tickUpper !== 887272 ||
+    !isAddressEqual(params.recipient, transaction.from) ||
+    params.amount0Desired <= 0n || params.amount1Desired <= 0n ||
+    params.amount0Min <= 0n || params.amount1Min <= 0n ||
+    params.amount0Min > params.amount0Desired || params.amount1Min > params.amount1Desired ||
+    params.deadline <= 0n || !transaction.minimumLiquidity || transaction.minimumLiquidity <= 0n) {
+    throw new Error("LP mint parameters do not match the registered bounded route");
+  }
+  return {
+    kind: "uniswap-lp-mint" as const,
+    token0: token0.address,
+    token1: token1.address,
+    feeTier: params.fee,
+    tickLower: params.tickLower,
+    tickUpper: params.tickUpper,
+    amount0DesiredAtomic: params.amount0Desired,
+    amount1DesiredAtomic: params.amount1Desired,
+    amount0MinAtomic: params.amount0Min,
+    amount1MinAtomic: params.amount1Min,
+    minimumLiquidity: transaction.minimumLiquidity,
+    deadlineSec: params.deadline,
   };
 }
 
@@ -112,6 +170,9 @@ export function describeExecutionTransactionV2(
   if (isApproval(transaction)) return approvalDescriptor(transaction);
   if (transaction.label === "uniswap-v3-exact-input") {
     return swapDescriptor(transaction);
+  }
+  if (transaction.label === "uniswap-v3-full-range-mint") {
+    return lpMintDescriptor(transaction);
   }
   return supplyDescriptor(transaction);
 }

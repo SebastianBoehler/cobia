@@ -106,17 +106,25 @@ export function exactApprovalTransactions(input: {
   owner: Address;
   currentAllowanceAtomic: unknown;
   requiredAmountAtomic: bigint;
-  spenderKind: "aave" | "uniswap";
+  spenderKind: "aave" | "uniswap" | "position-manager";
 }): OwnerTransactionV2[] {
   const allowance = parseAtomic(input.currentAllowanceAtomic, "Current allowance");
   if (allowance >= input.requiredAmountAtomic) return [];
   const spender = input.spenderKind === "aave"
     ? PROTOCOL_REGISTRY.aaveV3.pool.address
-    : PROTOCOL_REGISTRY.uniswapV3.swapRouter02.address;
+    : input.spenderKind === "uniswap"
+      ? PROTOCOL_REGISTRY.uniswapV3.swapRouter02.address
+      : PROTOCOL_REGISTRY.uniswapV3.nonfungiblePositionManager.address;
   const resetLabel = input.spenderKind === "aave"
-    ? "reset-aave-allowance" : "reset-uniswap-allowance";
+    ? "reset-aave-allowance"
+    : input.spenderKind === "uniswap"
+      ? "reset-uniswap-allowance"
+      : "reset-position-manager-allowance";
   const approveLabel = input.spenderKind === "aave"
-    ? "approve-aave-exact" : "approve-uniswap-exact";
+    ? "approve-aave-exact"
+    : input.spenderKind === "uniswap"
+      ? "approve-uniswap-exact"
+      : "approve-position-manager-exact";
   const approval = (amount: bigint, label: typeof resetLabel | typeof approveLabel) => ({
     label,
     chainId: EXECUTION_CHAIN_ID,

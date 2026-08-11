@@ -7,6 +7,11 @@ export const block = {
   hash: "0x389aab5c989acb3e633dbf96f8fab038757bee9919142ba983d4bd195eb64b5a",
   timestamp: 1_786_418_398n,
 } as const;
+export const lookbackBlock = {
+  number: block.number - 86_400n,
+  hash: `0x${"12".repeat(32)}` as const,
+  timestamp: block.timestamp - 86_400n,
+};
 export const usdg = PROTOCOL_REGISTRY.aaveV3.assets.USDG.underlying.address;
 export const usdt0 = PROTOCOL_REGISTRY.aaveV3.assets.USDt0.underlying.address;
 
@@ -71,9 +76,35 @@ export function reserve(
   };
 }
 
+export function uniswapQuote(amountInAtomic: bigint = 50_000_000n) {
+  return {
+    adapterId: "uniswap-v3@1" as const,
+    registryHash,
+    blockNumber: block.number,
+    blockHash: block.hash,
+    blockTimestamp: block.timestamp,
+    tokenIn: usdt0,
+    tokenOut: usdg,
+    pool: PROTOCOL_REGISTRY.uniswapV3.pair.pool.address,
+    fee: 100 as const,
+    liquidity: 1_000_000n,
+    amountInAtomic,
+    amountOutAtomic: amountInAtomic === 25_000_000n
+      ? 24_950_000n
+      : 49_900_000n,
+    sqrtPriceX96After: 2n ** 96n,
+    initializedTicksCrossed: 0,
+    gasEstimate: 100_212n,
+  };
+}
+
 export function dependencies() {
   return {
     getLatestBlock: vi.fn().mockResolvedValue(block),
+    getBlock: vi.fn().mockImplementation(async (blockNumber: bigint) => {
+      if (blockNumber !== lookbackBlock.number) throw new Error("unexpected lookback block");
+      return lookbackBlock;
+    }),
     readOraclePrices: vi.fn().mockResolvedValue({
       adapterId: "aave-v3@1" as const,
       registryHash,
@@ -92,22 +123,31 @@ export function dependencies() {
     ) => input.asset === "USDG"
       ? reserve(usdg, 40n * 10n ** 23n, input.amountAtomic)
       : reserve(usdt0, 24n * 10n ** 23n, input.amountAtomic)),
-    quoteExactInput: vi.fn().mockResolvedValue({
+    quoteExactInput: vi.fn().mockImplementation(async (
+      input: { amountInAtomic: bigint },
+    ) => uniswapQuote(input.amountInAtomic)),
+    readFullRangeState: vi.fn().mockResolvedValue({
       adapterId: "uniswap-v3@1" as const,
       registryHash,
       blockNumber: block.number,
       blockHash: block.hash,
       blockTimestamp: block.timestamp,
-      tokenIn: usdt0,
-      tokenOut: usdg,
       pool: PROTOCOL_REGISTRY.uniswapV3.pair.pool.address,
+      positionManager: PROTOCOL_REGISTRY.uniswapV3.nonfungiblePositionManager.address,
+      token0: usdg,
+      token1: usdt0,
       fee: 100 as const,
+      tickSpacing: 1,
+      tickLower: -887272,
+      tickUpper: 887272,
+      sqrtPriceX96: 2n ** 96n,
+      tick: 0,
       liquidity: 1_000_000n,
-      amountInAtomic: 50_000_000n,
-      amountOutAtomic: 49_900_000n,
-      sqrtPriceX96After: 1n,
-      initializedTicksCrossed: 0,
-      gasEstimate: 100_212n,
+      reserve0Atomic: 1_000_000_000n,
+      reserve1Atomic: 1_000_000_000n,
+      feeGrowth0DeltaX128: (2n ** 128n) / 10_000n,
+      feeGrowth1DeltaX128: (2n ** 128n) / 20_000n,
+      lookbackSeconds: 86_400n,
     }),
   };
 }

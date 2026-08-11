@@ -25,6 +25,7 @@ export const ADDRESSES = {
   uniFactory: "0x4B2ab38DBF28D31D467aA8993f6c2585981D6804",
   uniQuoter: "0xD1b797D92d87B688193A2B976eFc8D577D204343",
   uniRouter: "0x4f0C28f5926AFDA16bf2506D5D9e57Ea190f9bcA",
+  uniPositionManager: "0x315e413A11AB0df498eF83873012430ca36638Ae",
   uniPool: "0x0cBe0dBE1400e57f371a38BD3b9bC80F7C3676dA",
 } as const satisfies Record<string, Address>;
 
@@ -44,6 +45,7 @@ export const CODE_HASHES = {
   uniFactory: "0x98cde3564f540d7529feb2c697e2d79b85e3bc864d088ebe09fd5dcfc60a5c0e",
   uniQuoter: "0xfd872b486699c79a91db9b977e6e271edfed3535fb624a6973bb05d6dac2a277",
   uniRouter: "0x83ee2f04768ca84e762b139bf36844bf7efbd75b3c7cc898705169eacb9d5102",
+  uniPositionManager: "0xd8339465f5c45afef4319fde20bb35cb5c5e17cf861c73b669d07ca615e3213c",
   uniPool: "0x3bcd8365275438d68771a8164c5aef769ca3693921498cdd1e85f91736fea73a",
 } as const satisfies Record<keyof typeof ADDRESSES, Hash>;
 
@@ -64,6 +66,15 @@ function contractKey(address: Address, functionName: string, args: readonly unkn
     typeof value === "bigint" ? value.toString() : value)}`;
 }
 
+function blockContractKey(
+  blockNumber: bigint,
+  address: Address,
+  functionName: string,
+  args: readonly unknown[] = [],
+) {
+  return `${blockNumber}:${contractKey(address, functionName, args)}`;
+}
+
 export class ReaderTestClient {
   readonly codeHashes = new Map<string, Hash>();
   readonly implementationSlots = new Map<string, Hex>();
@@ -72,6 +83,11 @@ export class ReaderTestClient {
     { ...BLOCK_REFERENCE },
   ];
   private readonly responses = new Map<string, unknown>();
+  private readonly additionalBlocks = new Map<bigint, {
+    number: bigint;
+    hash: Hash;
+    timestamp: bigint;
+  }>();
   private blockReadIndex = 0;
   chainId = 196;
 
@@ -88,8 +104,26 @@ export class ReaderTestClient {
     this.responses.set(contractKey(address, functionName, args), result);
   }
 
+  respondAt(
+    blockNumber: bigint,
+    address: Address,
+    functionName: string,
+    args: readonly unknown[],
+    result: unknown,
+  ) {
+    this.responses.set(blockContractKey(blockNumber, address, functionName, args), result);
+  }
+
+  addBlock(block: { number: bigint; hash: Hash; timestamp: bigint }) {
+    this.additionalBlocks.set(block.number, block);
+  }
+
   async getBlock({ blockNumber }: { blockNumber: bigint }) {
-    if (blockNumber !== this.expectedBlockNumber) throw new Error("reader did not pin block read");
+    if (blockNumber !== this.expectedBlockNumber) {
+      const block = this.additionalBlocks.get(blockNumber);
+      if (!block) throw new Error("reader did not pin block read");
+      return block;
+    }
     return this.blocks[Math.min(this.blockReadIndex++, this.blocks.length - 1)];
   }
 
@@ -101,7 +135,9 @@ export class ReaderTestClient {
   }
 
   async getRuntimeCodeHash({ address, blockNumber }: { address: Address; blockNumber: bigint }) {
-    if (blockNumber !== this.expectedBlockNumber) throw new Error("reader did not pin bytecode read");
+    if (blockNumber !== this.expectedBlockNumber && !this.additionalBlocks.has(blockNumber)) {
+      throw new Error("reader did not pin bytecode read");
+    }
     return this.codeHashes.get(address.toLowerCase());
   }
 
@@ -115,9 +151,17 @@ export class ReaderTestClient {
     args?: readonly unknown[];
     blockNumber?: bigint;
   }) {
-    if (request.blockNumber !== this.expectedBlockNumber) {
+    if (request.blockNumber !== this.expectedBlockNumber &&
+      !this.additionalBlocks.has(request.blockNumber ?? -1n)) {
       throw new Error("reader did not pin contract read");
     }
+    const exactKey = blockContractKey(
+      request.blockNumber!,
+      request.address,
+      request.functionName,
+      request.args,
+    );
+    if (this.responses.has(exactKey)) return this.responses.get(exactKey);
     const key = contractKey(request.address, request.functionName, request.args);
     if (!this.responses.has(key)) throw new Error(`unexpected contract read: ${key}`);
     return this.responses.get(key);

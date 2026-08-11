@@ -77,7 +77,7 @@ describe("readAaveReserve", () => {
   it("returns one block-committed, treasury-inclusive reserve state", async () => {
     await expect(readAaveReserve(validClient(), input())).resolves.toEqual({
       adapterId: "aave-v3@1",
-      registryHash: "0xa0c0ffbb2881447b778ddaabcfc1e3bfd93c42a9f591448cc289a6e316f9fc92",
+      registryHash: "0x57f9c21f0c77f4eb38455d3ab9d21f1c7780adddd99adaa53834d4937a2ea988",
       blockNumber: BLOCK_REFERENCE.number,
       blockHash: BLOCK_REFERENCE.hash,
       blockTimestamp: BLOCK_REFERENCE.timestamp,

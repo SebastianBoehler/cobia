@@ -26,8 +26,9 @@ export function buildInitialRouteTransactionsV2(
   const { routePlan, owner, deadlineSec } = parseExecutionContextV2(input);
   const leg = routePlan.legs[0];
   if (!leg) return { transactions: [], postconditions: [] };
-  const amountInAtomic = BigInt(leg.inputAtomic);
   const [first, second] = leg.actions;
+  const amountInAtomic = BigInt(first.kind === "uniswap-v3-balance-swap"
+    ? first.inputAtomic : leg.inputAtomic);
 
   if (first.kind === "aave-v3-supply") {
     const asset = registeredExecutionAsset(first.asset);
@@ -46,9 +47,9 @@ export function buildInitialRouteTransactionsV2(
     };
   }
 
-  if (!second) throw new Error("Execution swap must be followed by Aave supply");
+  if (!second) throw new Error("Execution swap must be followed by a protocol action");
   const pair = registeredSwapPair(first.tokenIn, first.tokenOut);
-  registeredExecutionAsset(second.asset);
+  if (second.kind === "aave-v3-supply") registeredExecutionAsset(second.asset);
   const innerSwap = encodeFunctionData({
     abi: SWAP_ROUTER02_ABI,
     functionName: "exactInputSingle",

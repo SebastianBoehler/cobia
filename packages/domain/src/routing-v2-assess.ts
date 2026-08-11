@@ -92,6 +92,18 @@ function assessSupply(
   }
 }
 
+function withinSlippage(
+  desired: string,
+  minimum: string,
+  maxSlippageBps: number,
+): boolean {
+  const desiredAtomic = BigInt(desired);
+  const minimumAtomic = BigInt(minimum);
+  return minimumAtomic <= desiredAtomic &&
+    (desiredAtomic - minimumAtomic) * 10_000n <=
+      desiredAtomic * BigInt(maxSlippageBps);
+}
+
 /**
  * Checks signed route/adapter/asset constraints only. Rate, gas, signature,
  * simulation, and execution checks are deliberately outside this assessment.
@@ -150,6 +162,52 @@ export function assessRouteAuthorizationV2(
       continue;
     }
 
+    if (first.kind === "uniswap-v3-balance-swap") {
+      const lp = opportunities.get(first.opportunityId);
+      if (assessOpportunityBase(lp, "uniswap-v3-full-range-lp", policy, errors) &&
+        lp.kind === "uniswap-v3-full-range-lp") {
+        const mint = second?.kind === "uniswap-v3-full-range-mint" ? second : undefined;
+        const routeMatches = mint &&
+          isAddressEqual(lp.validatedInputAsset, policy.asset) &&
+          isAddressEqual(first.tokenIn, lp.validatedInputAsset) &&
+          ((isAddressEqual(first.tokenIn, lp.token0) && isAddressEqual(first.tokenOut, lp.token1)) ||
+            (isAddressEqual(first.tokenIn, lp.token1) && isAddressEqual(first.tokenOut, lp.token0))) &&
+          isAddressEqual(mint.token0, lp.token0) &&
+          isAddressEqual(mint.token1, lp.token1) &&
+          mint.feeTier === lp.feeTier &&
+          mint.tickLower === lp.tickLower &&
+          mint.tickUpper === lp.tickUpper;
+        if (!routeMatches) add(errors, "OPPORTUNITY_ROUTE_MISMATCH");
+        const amountsMatch = mint &&
+          lp.validatedInputAtomic === leg.inputAtomic &&
+          lp.balanceSwapInputAtomic === first.inputAtomic &&
+          lp.quotedSwapOutputAtomic === first.quotedOutputAtomic &&
+          lp.amount0DesiredAtomic === mint.amount0DesiredAtomic &&
+          lp.amount1DesiredAtomic === mint.amount1DesiredAtomic &&
+          lp.quotedLiquidity === mint.quotedLiquidity &&
+          lp.minimumLiquidity === mint.minimumLiquidity;
+        if (!amountsMatch) add(errors, "OPPORTUNITY_AMOUNT_MISMATCH");
+        if (!addressAllowed(lp.token0, policy.allowedOutputAssets) ||
+          !addressAllowed(lp.token1, policy.allowedOutputAssets)) {
+          add(errors, "OUTPUT_ASSET_NOT_ALLOWED");
+        }
+        if (BigInt(lp.tvlUsdE6) < BigInt(policy.minTvlUsdE6)) {
+          add(errors, "TVL_BELOW_MINIMUM");
+        }
+        if (!withinSlippage(
+          first.quotedOutputAtomic,
+          first.minimumOutputAtomic,
+          policy.maxSlippageBps,
+        ) || !mint ||
+          !withinSlippage(mint.amount0DesiredAtomic, mint.amount0MinAtomic, policy.maxSlippageBps) ||
+          !withinSlippage(mint.amount1DesiredAtomic, mint.amount1MinAtomic, policy.maxSlippageBps) ||
+          !withinSlippage(mint.quotedLiquidity, mint.minimumLiquidity, policy.maxSlippageBps)) {
+          add(errors, "SLIPPAGE_LIMIT_EXCEEDED");
+        }
+      }
+      continue;
+    }
+
     const swap = opportunities.get(first.opportunityId);
     if (assessOpportunityBase(swap, "uniswap-v3-exact-input", policy, errors)) {
       if (swap.kind === "uniswap-v3-exact-input") {
@@ -173,7 +231,7 @@ export function assessRouteAuthorizationV2(
     ) {
       add(errors, "SLIPPAGE_LIMIT_EXCEEDED");
     }
-    if (second) {
+    if (second?.kind === "aave-v3-supply") {
       assessSupply(
         opportunities.get(second.opportunityId),
         second.asset,

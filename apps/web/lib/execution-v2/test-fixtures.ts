@@ -2,6 +2,7 @@ import {
   commitment,
   estimateRouteEconomicsV2,
   RoutePlanV2Schema,
+  RouteSnapshotV2Schema,
   verifyRouteBundleV2,
   type RouteBundleV2,
   type RoutePlanV2,
@@ -64,6 +65,37 @@ export const swapPlan = {
   }],
 } as const;
 
+export const lpPlan = {
+  ...directPlan,
+  legs: [{
+    id: "balance-swap-then-mint",
+    inputAtomic: INPUT_ATOMIC.toString(),
+    actions: [{
+      kind: "uniswap-v3-balance-swap",
+      opportunityId: "uniswap-v3-lp:registered-pair",
+      inputAtomic: "25000000",
+      tokenIn: usdt0,
+      tokenOut: usdg,
+      quotedOutputAtomic: "24950000",
+      minimumOutputAtomic: "24700500",
+    }, {
+      kind: "uniswap-v3-full-range-mint",
+      opportunityId: "uniswap-v3-lp:registered-pair",
+      token0: usdg,
+      token1: usdt0,
+      feeTier: 100,
+      tickLower: -887272,
+      tickUpper: 887272,
+      amount0DesiredAtomic: "24950000",
+      amount1DesiredAtomic: "25000000",
+      amount0MinAtomic: "24700500",
+      amount1MinAtomic: "24750000",
+      quotedLiquidity: "24950000",
+      minimumLiquidity: "24700500",
+    }],
+  }],
+} as const;
+
 export const noActionPlan = {
   ...directPlan,
   retainedAtomic: directPlan.inputAtomic,
@@ -92,7 +124,7 @@ export const executionPolicy: StablecoinPolicyV2 = {
   horizonDays: directPlan.horizonDays,
 };
 
-const executionSnapshot: RouteSnapshotV2 = {
+const executionSnapshot: RouteSnapshotV2 = RouteSnapshotV2Schema.parse({
   version: 2,
   requestId,
   chainId: 196,
@@ -137,8 +169,30 @@ const executionSnapshot: RouteSnapshotV2 = {
       quotedOutputAtomic: OUTPUT_ATOMIC.toString(),
       estimatedGas: "100000",
     },
+    {
+      id: "uniswap-v3-lp:registered-pair",
+      kind: "uniswap-v3-full-range-lp",
+      adapterId: "uniswap-v3@1",
+      pool: PROTOCOL_REGISTRY.uniswapV3.pair.pool.address,
+      token0: usdgLower,
+      token1: usdt0Lower,
+      feeTier: 100,
+      tickLower: -887272,
+      tickUpper: 887272,
+      historicalFeeApyBps: 1_000,
+      tvlUsdE6: "500000000000",
+      lookbackSeconds: 86_400,
+      validatedInputAsset: usdt0Lower,
+      validatedInputAtomic: INPUT_ATOMIC.toString(),
+      balanceSwapInputAtomic: "25000000",
+      quotedSwapOutputAtomic: "24950000",
+      amount0DesiredAtomic: "24950000",
+      amount1DesiredAtomic: "25000000",
+      quotedLiquidity: "24950000",
+      minimumLiquidity: "24700500",
+    },
   ],
-};
+});
 
 export async function verifiedExecutionInput(rawPlan: unknown = directPlan) {
   const routePlan: RoutePlanV2 = RoutePlanV2Schema.parse(rawPlan);

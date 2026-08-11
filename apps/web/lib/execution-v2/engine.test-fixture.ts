@@ -5,7 +5,7 @@ import {
   type Hex,
 } from "viem";
 import { EIP1967_IMPLEMENTATION_SLOT } from "../adapters/read-client";
-import { PROTOCOL_REGISTRY, type PinnedDeployment } from "../adapters/registry";
+import { PROTOCOL_REGISTRY } from "../adapters/registry";
 import type {
   ExecutionReadClientV2,
   ExecutionReceiptV2,
@@ -19,6 +19,10 @@ import {
   testBlockHash,
 } from "./engine-log.test-fixture";
 import { OUTPUT_ATOMIC, OWNER } from "./test-fixtures";
+import {
+  executionFixtureKey as key,
+  seedExecutionFixtureDeployments,
+} from "./engine-read-fixture-deployments";
 
 export {
   aUsdg,
@@ -30,38 +34,6 @@ export {
   testBlockHash,
   transactionHash,
 } from "./engine-log.test-fixture";
-
-function key(address: Address, name: string, args: readonly unknown[], block: bigint) {
-  return `${address.toLowerCase()}:${name}:${JSON.stringify(args, (_, value) => {
-    if (typeof value === "bigint") return value.toString();
-    if (typeof value === "string" && /^0x[0-9a-fA-F]{40}$/.test(value)) {
-      return value.toLowerCase();
-    }
-    return value;
-  })}:${block}`;
-}
-
-function implementationWord(address: Address): Hex {
-  return `0x${"0".repeat(24)}${address.slice(2).toLowerCase()}`;
-}
-
-function addDeployment(
-  code: Map<string, Hash>,
-  slots: Map<string, Hex>,
-  deployment: PinnedDeployment,
-) {
-  code.set(deployment.address.toLowerCase(), deployment.runtimeCodeHash);
-  if (deployment.implementation) {
-    code.set(
-      deployment.implementation.address.toLowerCase(),
-      deployment.implementation.runtimeCodeHash,
-    );
-    slots.set(
-      deployment.address.toLowerCase(),
-      implementationWord(deployment.implementation.address),
-    );
-  }
-}
 
 export class ScriptedReadClient implements ExecutionReadClientV2 {
   chainId = 196;
@@ -85,21 +57,7 @@ export class ScriptedReadClient implements ExecutionReadClientV2 {
   gasPrice = 1_000_000_000n;
 
   constructor(readonly events: string[]) {
-    addDeployment(this.runtimeCodeHashes, this.implementationSlots, PROTOCOL_REGISTRY.aaveV3.pool);
-    addDeployment(
-      this.runtimeCodeHashes,
-      this.implementationSlots,
-      PROTOCOL_REGISTRY.uniswapV3.swapRouter02,
-    );
-    addDeployment(
-      this.runtimeCodeHashes,
-      this.implementationSlots,
-      PROTOCOL_REGISTRY.uniswapV3.pair.pool,
-    );
-    for (const asset of Object.values(PROTOCOL_REGISTRY.aaveV3.assets)) {
-      addDeployment(this.runtimeCodeHashes, this.implementationSlots, asset.underlying);
-      addDeployment(this.runtimeCodeHashes, this.implementationSlots, asset.aToken);
-    }
+    seedExecutionFixtureDeployments(this.runtimeCodeHashes, this.implementationSlots);
   }
 
   allowance(
@@ -122,6 +80,38 @@ export class ScriptedReadClient implements ExecutionReadClientV2 {
 
   normalizedIncome(asset: Address, block: bigint, value: bigint) {
     this.contractResponses.set(key(pool, "getReserveNormalizedIncome", [asset], block), value);
+  }
+
+  position(block: bigint, input: {
+    tokenId?: bigint;
+    owner?: Address;
+    token0: Address;
+    token1: Address;
+    fee?: number;
+    tickLower?: number;
+    tickUpper?: number;
+    liquidity: bigint;
+  }) {
+    const manager = PROTOCOL_REGISTRY.uniswapV3.nonfungiblePositionManager.address;
+    const tokenId = input.tokenId ?? 42n;
+    this.contractResponses.set(
+      key(manager, "ownerOf", [tokenId], block),
+      input.owner ?? OWNER,
+    );
+    this.contractResponses.set(key(manager, "positions", [tokenId], block), [
+      0n,
+      "0x0000000000000000000000000000000000000000",
+      input.token0,
+      input.token1,
+      input.fee ?? 100,
+      input.tickLower ?? -887272,
+      input.tickUpper ?? 887272,
+      input.liquidity,
+      0n,
+      0n,
+      0n,
+      0n,
+    ]);
   }
 
   receipts(hash: Hash, ...responses: Array<ExecutionReceiptV2 | undefined>) {

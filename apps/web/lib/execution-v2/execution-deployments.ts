@@ -36,11 +36,21 @@ export async function assertExecutionDeploymentsV2(
     await pin(client, asset.underlying, "approval asset", blockNumber);
     if (isAddressEqual(descriptor.spender, PROTOCOL_REGISTRY.aaveV3.pool.address)) {
       await pin(client, PROTOCOL_REGISTRY.aaveV3.pool, "Aave Pool", blockNumber);
-    } else {
+    } else if (isAddressEqual(
+      descriptor.spender,
+      PROTOCOL_REGISTRY.uniswapV3.swapRouter02.address,
+    )) {
       await pin(
         client,
         PROTOCOL_REGISTRY.uniswapV3.swapRouter02,
         "Uniswap SwapRouter02",
+        blockNumber,
+      );
+    } else {
+      await pin(
+        client,
+        PROTOCOL_REGISTRY.uniswapV3.nonfungiblePositionManager,
+        "Uniswap NonfungiblePositionManager",
         blockNumber,
       );
     }
@@ -51,6 +61,20 @@ export async function assertExecutionDeploymentsV2(
       pin(client, assetDeployment(descriptor.tokenIn).underlying, "swap input", blockNumber),
       pin(client, assetDeployment(descriptor.tokenOut).underlying, "swap output", blockNumber),
       pin(client, PROTOCOL_REGISTRY.uniswapV3.swapRouter02, "Uniswap SwapRouter02", blockNumber),
+      pin(client, PROTOCOL_REGISTRY.uniswapV3.pair.pool, "Uniswap pool", blockNumber),
+    ]);
+    return block.hash;
+  }
+  if (descriptor.kind === "uniswap-lp-mint") {
+    await Promise.all([
+      pin(client, assetDeployment(descriptor.token0).underlying, "LP token0", blockNumber),
+      pin(client, assetDeployment(descriptor.token1).underlying, "LP token1", blockNumber),
+      pin(
+        client,
+        PROTOCOL_REGISTRY.uniswapV3.nonfungiblePositionManager,
+        "Uniswap NonfungiblePositionManager",
+        blockNumber,
+      ),
       pin(client, PROTOCOL_REGISTRY.uniswapV3.pair.pool, "Uniswap pool", blockNumber),
     ]);
     return block.hash;

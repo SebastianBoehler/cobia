@@ -84,15 +84,30 @@ function computeRouteEconomicsV2(
     const supply = requireOpportunity(snapshot, first.opportunityId, first.kind);
     gainNumerator = deployedValue * BigInt(supply.supplyRateBps) *
       BigInt(policy.horizonDays);
-  } else {
+  } else if (first.kind === "uniswap-v3-exact-input") {
     const swap = requireOpportunity(snapshot, first.opportunityId, first.kind);
-    if (!second) throw new Error("Swap route is missing its supply action");
-    const supply = requireOpportunity(snapshot, second.opportunityId, second.kind);
+    if (second?.kind !== "aave-v3-supply") {
+      throw new Error("Swap route is missing its supply action");
+    }
+    const supply = requireOpportunity(snapshot, second.opportunityId, "aave-v3-supply");
     const outputValuation = requireValuation(snapshot, swap.tokenOut);
     const outputValue = atomicUsdE8(swap.quotedOutputAtomic, outputValuation);
     gainNumerator =
       (outputValue - deployedValue) * BPS_SCALE * DAYS_PER_YEAR +
       outputValue * BigInt(supply.supplyRateBps) * BigInt(policy.horizonDays);
+  } else {
+    const lp = requireOpportunity(snapshot, first.opportunityId, "uniswap-v3-full-range-lp");
+    const outputValuation = requireValuation(snapshot, first.tokenOut);
+    const outputValue = atomicUsdE8(first.quotedOutputAtomic, outputValuation);
+    const retainedInputAtomic = BigInt(leg.inputAtomic) - BigInt(first.inputAtomic);
+    const retainedInputValue = atomicUsdE8(
+      retainedInputAtomic.toString(),
+      inputValuation,
+    );
+    const lpValue = retainedInputValue + outputValue;
+    gainNumerator =
+      (lpValue - deployedValue) * BPS_SCALE * DAYS_PER_YEAR +
+      lpValue * BigInt(lp.historicalFeeApyBps) * BigInt(policy.horizonDays);
   }
 
   if (gainNumerator <= 0n) {
