@@ -29,17 +29,18 @@ external-solver market.
 | X Layer mainnet USDt0 and Aave aToken balances | Live reads |
 | Aave V3 + Uniswap V3 route planning | Implemented for one exact exposure and at most one deployed leg |
 | Solver competition | Two Cobia-operated solvers run independently; external solver admission is not implemented |
-| Transaction construction/execution engine | Unit-tested and exercised in the opt-in pinned-fork rehearsal; not wired to the product or persisted |
-| X Layer mainnet-fork engine rehearsal | Implemented and green in isolated Anvil state at block `67,649,362` |
+| Transaction construction/execution engine | Unit-tested and used by the buyer-authenticated purchased-route fork rehearsal |
+| X Layer mainnet-fork route rehearsal | Product-visible, persisted, and green for direct Aave and Uniswap-to-Aave purchased V2 routes |
 | AI execution/calldata authority | Not granted; deterministic construction and verification remain authoritative |
 
 APY and TVL are snapshot-derived estimates. A block-bounded capture does not
 turn an off-chain rate into an on-chain oracle. Product principal remains
-unmoved. The fork rehearsal proves only the engine against copied mainnet state:
-capture and authorization, exact USDG approval, Uniswap USDG-to-USDt0 swap,
-exact USDt0 approval, and Aave supply with receipt, event, and state checks. It
-is not product simulation, persisted/product execution, live mainnet principal
-execution, or deployment proof.
+unmoved on public chains. After a paid V2 route is unlocked, its buyer can sign
+an action-scoped proof and replay that exact bundle at its committed snapshot
+block in disposable Anvil state. The persisted trace shows exact approvals, an
+optional Uniswap swap, Aave supply, receipts, events, and postconditions. This
+is historical fork evidence—not a current-price guarantee, live mainnet
+principal execution, or deployment proof.
 
 ## Trust boundary
 
@@ -54,6 +55,7 @@ flowchart LR
     V --> Q["Sanitized public quote"]
     Q --> P["Owner-bound MPP payment"]
     P --> R["Committed private bundle"]
+    R --> F["Buyer-authenticated fork rehearsal"]
 ```
 
 Solvers reference only registered opportunity IDs; adapter code resolves

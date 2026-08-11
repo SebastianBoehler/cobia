@@ -45,16 +45,17 @@ payment configuration is unavailable; it does not substitute sample data.
   and signer before publishing a sanitized quote.
 - Reveal payment supports only X Layer testnet chain `1952` and its fixed
   six-decimal USDt0 token at `0x9e29b3aada05bf2d2c827af80bd28dc0b9b4fb0c`.
-- The product does not move the user's stablecoin principal. A guarded
-  transaction-construction/execution library exists behind a local verifier
-  capability, but it is not wired to UI or persistence. `eth_estimateGas` is gas
-  preflight, not product simulation. No testnet Aave or Uniswap deployment is
-  claimed.
-- An opt-in Docker/Anvil test at pinned X Layer mainnet block `67,649,362` has
-  passed capture, authorization, exact USDG approval, Uniswap USDG-to-USDt0,
-  exact USDt0 approval, and Aave supply with receipt, event, and state checks.
-  This isolated fork rehearsal is not product simulation, persisted/product
-  execution, live mainnet principal execution, or deployment proof.
+- The product does not move the user's stablecoin principal on a public chain.
+  Purchased V2 routes expose a buyer-authenticated action that replays the exact
+  committed bundle in disposable X Layer mainnet-fork state and persists the
+  attributed transaction trace. `eth_estimateGas` remains gas preflight, not a
+  current-state or profitability guarantee. No testnet Aave or Uniswap
+  deployment is claimed.
+- Both the product rehearsal and the opt-in acceptance lane have passed direct
+  Aave and Uniswap USDG-to-USDt0-to-Aave routes with exact approvals, receipts,
+  protocol events, and state checks. Fork evidence is historical and uses
+  simulated funds; it is not live mainnet principal execution or deployment
+  proof.
   A full testnet payment check requires a funded Agentic Wallet, OKX MPP
   credentials, treasury/signer addresses, and a deployed payment asset.
 

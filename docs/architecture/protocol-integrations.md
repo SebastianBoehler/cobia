@@ -15,19 +15,19 @@ read adapter is not, by itself, an executable Cobia route.
 | V1 solver | Live in the product | One deterministic cash/Aave allocation over OKX discovery data; no independent solver competition |
 | V2 policy, snapshot, plan, quote, and purchase | Live product path | Persisted versioned artifacts; one exact deployed leg at most; estimated pre-gas economics only |
 | MPP/EIP-3009 reveal payment | Implemented for fixed chain 1952 lane | Pays for the private bundle, not principal execution; a funded receipt-correlation canary is still required |
-| Aave/Uniswap transaction engine | Unit-tested and fork-rehearsed, product-unwired | Exact approvals, SwapRouter02/Aave calldata, receipt attribution, protocol events, postconditions, and resumable states; no UI/DB integration or live principal execution |
-| Product route simulation | Unimplemented | Gas estimation is not simulation; the isolated pinned-fork engine rehearsal is not a product simulation endpoint |
+| Aave/Uniswap transaction engine | Unit-tested and product-wired for fork rehearsal | Exact approvals, SwapRouter02/Aave calldata, receipt attribution, protocol events, and postconditions; no live principal execution |
+| Purchased-route fork rehearsal | Product-visible and persisted | Buyer proof replays the exact V2 bundle at its committed snapshot block with simulated funds; historical evidence, not current-state simulation |
 | Bounded agentic solver | Live V2 quote input | OpenAI selects only among server-built candidates; it cannot invent assets, amounts, contracts, or calldata, and the normal verifier remains authoritative |
 
 Production code has no sample protocol, fallback APY, or fabricated route. Unit
 tests use deterministic read/wallet clients; each explicit database integration
 suite (or standalone migration test) owns a disposable PostgreSQL 16 container.
-Those test doubles are not product data. The opt-in fork lane uses a
-digest-pinned Foundry/Anvil container at X Layer block `67,649,362` and is green
-for capture and authorization, exact USDG approval, Uniswap USDG-to-USDt0, exact
-USDt0 approval, and Aave supply with receipt, event, and state checks. It is
-isolated engine evidence, not product simulation, persisted/product execution,
-live mainnet principal execution, or deployment proof.
+Those test doubles are not product data. The opt-in acceptance lane and the
+buyer-authenticated product action use a digest-pinned Foundry/Anvil runtime.
+Each product rehearsal forks the purchased snapshot block, funds only the exact
+principal in isolated state, executes the committed route, and persists its
+attributed trace. This is historical engine evidence, not a current-state,
+profitability, live-mainnet, or deployment guarantee.
 
 ## Guarantee classes for broader intents
 
@@ -118,12 +118,12 @@ The transaction library is deliberately narrow:
    telemetry after confirmation;
 6. structured pending/partial/failed checkpoints rather than blind retries.
 
-The library is not yet a product execution surface. Injected-wallet approval and
-Aave supply have no on-chain Cobia deadline, so a wallet confirmation left open
-past expiry cannot be made atomic without an executor contract or account-level
-validity window. The isolated mainnet-fork engine rehearsal is implemented and
-green; persisted checkpoint authority, product wiring and UI approval, and a
-capped live canary remain release gates.
+The library is a product execution surface only for disposable fork rehearsal.
+It never asks the injected wallet to approve or send a transaction. Real
+injected-wallet approval and Aave supply have no on-chain Cobia deadline, so a
+wallet confirmation left open past expiry cannot be made atomic without an
+executor contract or account-level validity window. Durable mainnet step
+authority and a capped live canary remain release gates.
 
 Reproduce the opt-in rehearsal from the repository root:
 
