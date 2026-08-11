@@ -6,6 +6,41 @@ import {CobiaExecutorV1} from "../src/CobiaExecutorV1.sol";
 import {ExecutorTestBase, MockSixDecimalToken} from "./ExecutorTestBase.sol";
 
 contract CobiaExecutorV1Test is ExecutorTestBase {
+    function test_hashRouteMatchesTypeScriptRegressionVector() public view {
+        ICobiaExecutorV1.StepV1[] memory steps = new ICobiaExecutorV1.StepV1[](1);
+        steps[0] = ICobiaExecutorV1.StepV1({
+            adapterId: bytes32(hex"6666666666666666666666666666666666666666666666666666666666666666"),
+            target: address(0x3333333333333333333333333333333333333333),
+            spendToken: address(0x2222222222222222222222222222222222222222),
+            spendAmount: 10_000_000,
+            data: hex"abcdef01"
+        });
+        ICobiaExecutorV1.BalanceConstraintV1[] memory constraints = new ICobiaExecutorV1.BalanceConstraintV1[](1);
+        constraints[0] = ICobiaExecutorV1.BalanceConstraintV1({
+            token: address(0x4444444444444444444444444444444444444444),
+            account: address(0x1111111111111111111111111111111111111111),
+            minimumIncrease: 9_999_999
+        });
+        ICobiaExecutorV1.ExecutionRouteV1 memory route = ICobiaExecutorV1.ExecutionRouteV1({
+            policyHash: bytes32(hex"1111111111111111111111111111111111111111111111111111111111111111"),
+            snapshotHash: bytes32(hex"2222222222222222222222222222222222222222222222222222222222222222"),
+            bundleHash: bytes32(hex"3333333333333333333333333333333333333333333333333333333333333333"),
+            routeHash: bytes32(0),
+            simulationHash: bytes32(hex"4444444444444444444444444444444444444444444444444444444444444444"),
+            owner: address(0x1111111111111111111111111111111111111111),
+            inputToken: address(0x2222222222222222222222222222222222222222),
+            inputAmount: 10_000_000,
+            deadline: 2_000_000_000,
+            nonce: bytes32(hex"5555555555555555555555555555555555555555555555555555555555555555"),
+            steps: steps,
+            constraints: constraints
+        });
+        require(
+            executor.hashRoute(route) == bytes32(hex"6bd63fd720b08b7b464617b929082ded8db5dd0fc648c4fc77ea3ff10f997d62"),
+            "route hash mismatch"
+        );
+    }
+
     function test_executesOneBoundedRouteAndResetsState() public {
         ICobiaExecutorV1.ExecutionRouteV1 memory route = _route(NONCE, ROUTE_CAP);
         uint256 ownerInputBefore = inputToken.balanceOf(owner);

@@ -150,7 +150,7 @@ export const executionPolicy: StablecoinPolicyV2 = {
   horizonDays: directPlan.horizonDays,
 };
 
-const executionSnapshot: RouteSnapshotV2 = RouteSnapshotV2Schema.parse({
+export const executionSnapshot: RouteSnapshotV2 = RouteSnapshotV2Schema.parse({
   version: 2,
   requestId,
   chainId: 196,
