@@ -18,6 +18,6 @@ export const SUPPORTED_ASSETS: readonly SupportedAsset[] = [
 
 export function supportedAsset(address: Address): SupportedAsset {
   const asset = SUPPORTED_ASSETS.find((item) => isAddressEqual(item.address, address));
-  if (!asset) throw new Error("Policy asset is not supported for execution");
+  if (!asset) throw new Error("Policy asset is not supported for quoting");
   return asset;
 }

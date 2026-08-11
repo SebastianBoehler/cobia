@@ -1,19 +1,28 @@
 import {
-  DecisionBundleSchema,
-  MarketSnapshotSchema,
-  RouteQuoteSchema,
-  StablecoinPolicySchema,
-  VerificationVerdictSchema,
   commitment,
-  type DecisionBundle,
-  type MarketSnapshot,
-  type RouteQuote,
-  type StablecoinPolicy,
-  type VerificationVerdict,
+  type PersistedBundle,
+  type PersistedRouteQuote,
+  type PersistedSnapshot,
+  type PersistedStablecoinPolicy,
+  type PersistedVerificationVerdict,
+  type RouteVerificationVerdictV2,
 } from "@cobia/domain";
 import { and, eq, inArray } from "drizzle-orm";
+import {
+  isActiveRequestState,
+  visibleRequestQuotes,
+} from "../markets/active-quotes";
 import type { CobiaDatabase } from "./client";
-import { cobiaQuotes, cobiaRequests } from "./schema";
+import { marketIdentity, verifyStoredMarketIdentity } from "./market-identity";
+import {
+  parsePersistedPolicy,
+  parsePersistedSnapshot,
+  parsePublicPersistedQuote,
+  validatePersistedRoundArtifacts,
+  validateRoundArtifacts,
+  validateSnapshotArtifact,
+} from "./persisted-round";
+import { cobiaMarkets, cobiaQuotes, cobiaRequests, cobiaRoutePurchases } from "./schema";
 
 const selectableStates = ["quotes_ready", "partial"] as const;
 
@@ -25,47 +34,71 @@ function requireUpdated<T>(rows: T[], message: string): T {
 
 export function createRequestRepository(db: CobiaDatabase) {
   return {
-    async createRequest(input: StablecoinPolicy): Promise<void> {
-      const policy = StablecoinPolicySchema.parse(input);
-      await db.insert(cobiaRequests).values({
-        id: policy.requestId,
-        policy,
-        policyHash: commitment(policy),
+    async createRequest(input: PersistedStablecoinPolicy): Promise<void> {
+      const policy = parsePersistedPolicy(input);
+      const marketId = marketIdentity(policy);
+      await db.transaction(async (tx) => {
+        const inserted = await tx.insert(cobiaMarkets).values({
+          id: marketId,
+          executionChainId: policy.executionChainId,
+          asset: policy.asset.toLowerCase(),
+        }).onConflictDoNothing({ target: cobiaMarkets.id }).returning({ id: cobiaMarkets.id });
+        if (!inserted[0]) {
+          const stored = await tx.query.cobiaMarkets.findFirst({
+            where: eq(cobiaMarkets.id, marketId),
+          });
+          if (!stored) throw new Error("Conflicting market identity disappeared");
+          verifyStoredMarketIdentity(stored, policy);
+        }
+        await tx.insert(cobiaRequests).values({
+          id: policy.requestId,
+          marketId,
+          policy,
+          policyHash: commitment(policy),
+        });
       });
     },
 
-    async saveSnapshot(requestId: string, input: MarketSnapshot): Promise<void> {
-      const snapshot = MarketSnapshotSchema.parse(input);
-      if (snapshot.requestId !== requestId) throw new Error("Snapshot request mismatch");
-      requireUpdated(
-        await db
+    async saveSnapshot(requestId: string, input: PersistedSnapshot): Promise<void> {
+      await db.transaction(async (tx) => {
+        const request = await tx.query.cobiaRequests.findFirst({
+          columns: { policy: true },
+          where: eq(cobiaRequests.id, requestId),
+        });
+        if (!request) throw new Error("Request must be open before snapshot capture");
+        const snapshot = validateSnapshotArtifact(requestId, request.policy, input);
+        requireUpdated(
+          await tx
           .update(cobiaRequests)
           .set({ snapshot, state: "collecting", updatedAt: new Date() })
           .where(and(eq(cobiaRequests.id, requestId), eq(cobiaRequests.state, "open")))
           .returning({ id: cobiaRequests.id }),
-        "Request must be open before snapshot capture",
-      );
+          "Request must be open before snapshot capture",
+        );
+      });
     },
 
     async saveQuote(
       requestId: string,
-      bundleInput: DecisionBundle,
-      verdictInput: VerificationVerdict,
-      quoteInput: RouteQuote,
+      bundleInput: PersistedBundle,
+      verdictInput: PersistedVerificationVerdict | RouteVerificationVerdictV2,
+      quoteInput: PersistedRouteQuote,
     ): Promise<void> {
-      const bundle = DecisionBundleSchema.parse(bundleInput);
-      const verdict = VerificationVerdictSchema.parse(verdictInput);
-      const quote = RouteQuoteSchema.parse(quoteInput);
-      if (
-        bundle.requestId !== requestId ||
-        quote.requestId !== requestId ||
-        quote.quoteId !== verdict.bundleHash ||
-        quote.bundleHash !== commitment(bundle)
-      ) {
-        throw new Error("Quote commitment mismatch");
-      }
-
       await db.transaction(async (tx) => {
+        const request = await tx.query.cobiaRequests.findFirst({
+          columns: { policy: true, policyHash: true, snapshot: true },
+          where: eq(cobiaRequests.id, requestId),
+        });
+        if (!request?.snapshot) throw new Error("Request is not accepting a quote");
+        const { bundle, verdict, quote, eligible } = validateRoundArtifacts({
+          requestId,
+          storedPolicy: request.policy,
+          storedPolicyHash: request.policyHash,
+          storedSnapshot: request.snapshot,
+          bundleInput,
+          verdictInput,
+          quoteInput,
+        });
         requireUpdated(
           await tx
             .update(cobiaRequests)
@@ -77,7 +110,7 @@ export function createRequestRepository(db: CobiaDatabase) {
               ),
             )
             .returning({ id: cobiaRequests.id }),
-          "Request is not accepting solver quotes",
+          "Request is not accepting a quote",
         );
         await tx.insert(cobiaQuotes).values({
           id: quote.quoteId,
@@ -86,7 +119,7 @@ export function createRequestRepository(db: CobiaDatabase) {
           privateBundle: bundle,
           verdict,
           publicQuote: quote,
-          executable: verdict.executable,
+          executable: eligible,
         });
       });
     },
@@ -142,23 +175,41 @@ export function createRequestRepository(db: CobiaDatabase) {
       );
     },
 
-    async getPublicRequest(requestId: string) {
+    async getPublicRequest(
+      requestId: string,
+      nowSec = Math.floor(Date.now() / 1_000),
+    ) {
       const request = await db.query.cobiaRequests.findFirst({
         where: eq(cobiaRequests.id, requestId),
       });
       if (!request) return undefined;
+      const purchase = ["paid", "revealed", "executed"].includes(request.state)
+        ? await db.query.cobiaRoutePurchases.findFirst({
+            columns: { id: true },
+            where: eq(cobiaRoutePurchases.requestId, requestId),
+          })
+        : undefined;
       const storedQuotes = await db.query.cobiaQuotes.findMany({
-        columns: { publicQuote: true },
+        columns: { executable: true, publicQuote: true },
         where: eq(cobiaQuotes.requestId, requestId),
       });
+      const quotes = storedQuotes
+        .filter(({ executable }) => !isActiveRequestState(request.state) || executable)
+        .map(({ publicQuote }) => parsePublicPersistedQuote(publicQuote));
       return {
         requestId: request.id,
         state: request.state,
-        policy: StablecoinPolicySchema.parse(request.policy),
-        snapshot: request.snapshot ? MarketSnapshotSchema.parse(request.snapshot) : null,
+        policy: parsePersistedPolicy(request.policy),
+        snapshot: request.snapshot ? parsePersistedSnapshot(request.snapshot) : null,
         selectedQuoteId: request.selectedQuoteId,
-        purchasedRouteId: request.state === "revealed" ? request.selectedQuoteId : null,
-        quotes: storedQuotes.map(({ publicQuote }) => RouteQuoteSchema.parse(publicQuote)),
+        purchasedRouteId: purchase?.id ?? (
+          ["revealed", "executed"].includes(request.state) ? request.selectedQuoteId : null
+        ),
+        quotes: visibleRequestQuotes({
+          state: request.state,
+          selectedQuoteId: request.selectedQuoteId,
+          quotes,
+        }, nowSec),
       };
     },
 
@@ -170,9 +221,9 @@ export function createRequestRepository(db: CobiaDatabase) {
           eq(cobiaQuotes.executable, true),
         ),
       });
-      if (!quoteRow) throw new Error("No executable quote belongs to this request");
-      const quote = RouteQuoteSchema.parse(quoteRow.publicQuote);
-      if (quote.validUntil <= nowSec) throw new Error("Executable quote has expired");
+      if (!quoteRow) throw new Error("No eligible quote belongs to this request");
+      const quote = parsePublicPersistedQuote(quoteRow.publicQuote);
+      if (quote.validUntil <= nowSec) throw new Error("Eligible quote has expired");
 
       requireUpdated(
         await db
@@ -189,63 +240,55 @@ export function createRequestRepository(db: CobiaDatabase) {
       );
     },
 
-    async recordPayment(requestId: string, receiptHash: string): Promise<void> {
-      requireUpdated(
-        await db
-          .update(cobiaRequests)
-          .set({ paymentReceiptHash: receiptHash, state: "paid", updatedAt: new Date() })
-          .where(
-            and(
-              eq(cobiaRequests.id, requestId),
-              inArray(cobiaRequests.state, ["selected", "payment_pending"]),
-            ),
-          )
-          .returning({ id: cobiaRequests.id }),
-        "Payment requires a selected request",
-      );
-    },
-
-    async markRevealed(requestId: string): Promise<void> {
-      requireUpdated(
-        await db
-          .update(cobiaRequests)
-          .set({ state: "revealed", updatedAt: new Date() })
-          .where(and(eq(cobiaRequests.id, requestId), eq(cobiaRequests.state, "paid")))
-          .returning({ id: cobiaRequests.id }),
-        "Reveal requires a paid request",
-      );
-    },
-
-    async getPaidBundle(requestId: string, quoteId: string) {
-      const request = await db.query.cobiaRequests.findFirst({
-        where: and(
+    async getPaymentContext(requestId: string, quoteId: string) {
+      const row = (await db.select({ request: cobiaRequests, quote: cobiaQuotes })
+        .from(cobiaRequests)
+        .innerJoin(cobiaQuotes, and(
+          eq(cobiaQuotes.requestId, cobiaRequests.id),
+          eq(cobiaQuotes.id, cobiaRequests.selectedQuoteId),
+        ))
+        .where(and(
           eq(cobiaRequests.id, requestId),
-          eq(cobiaRequests.selectedQuoteId, quoteId),
-          inArray(cobiaRequests.state, ["paid", "revealed"]),
-        ),
+          eq(cobiaQuotes.id, quoteId),
+          inArray(cobiaRequests.state, ["selected", "payment_pending", "paid", "revealed"]),
+        )))[0];
+      if (!row) throw new Error("Payment requires the selected quote");
+      if (!row.request.snapshot) throw new Error("Selected quote snapshot is unavailable");
+      const artifacts = validatePersistedRoundArtifacts({
+        requestId: row.request.id,
+        storedPolicy: row.request.policy,
+        storedPolicyHash: row.request.policyHash,
+        storedSnapshot: row.request.snapshot,
+        bundleInput: row.quote.privateBundle,
+        verdictInput: row.quote.verdict,
+        quoteInput: row.quote.publicQuote,
       });
-      if (!request) throw new Error("Bundle requires the paid selected quote");
-      const quote = await db.query.cobiaQuotes.findFirst({
-        where: and(eq(cobiaQuotes.requestId, requestId), eq(cobiaQuotes.id, quoteId)),
-      });
-      if (!quote) throw new Error("Selected quote bundle is unavailable");
-      return DecisionBundleSchema.parse(quote.privateBundle);
+      if (!artifacts.eligible || !row.quote.executable) {
+        throw new Error("Payment requires an eligible selected quote");
+      }
+      const common = {
+        requestId: row.request.id,
+        state: row.request.state,
+        quoteCreatedAt: row.quote.createdAt,
+      };
+      return artifacts.version === 1
+        ? {
+            ...common,
+            policy: artifacts.policy,
+            snapshot: artifacts.snapshot,
+            bundle: artifacts.bundle,
+            verdict: artifacts.verdict,
+            quote: artifacts.quote,
+          }
+        : {
+            ...common,
+            policy: artifacts.policy,
+            snapshot: artifacts.snapshot,
+            bundle: artifacts.bundle,
+            verdict: artifacts.verdict,
+            quote: artifacts.quote,
+          };
     },
 
-    async getSelectedBundleForPayment(requestId: string, quoteId: string) {
-      const request = await db.query.cobiaRequests.findFirst({
-        where: and(
-          eq(cobiaRequests.id, requestId),
-          eq(cobiaRequests.selectedQuoteId, quoteId),
-          inArray(cobiaRequests.state, ["selected", "payment_pending"]),
-        ),
-      });
-      if (!request) throw new Error("Payment requires the selected quote");
-      const quote = await db.query.cobiaQuotes.findFirst({
-        where: and(eq(cobiaQuotes.requestId, requestId), eq(cobiaQuotes.id, quoteId)),
-      });
-      if (!quote) throw new Error("Selected quote bundle is unavailable");
-      return DecisionBundleSchema.parse(quote.privateBundle);
-    },
   };
 }

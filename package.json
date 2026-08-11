@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@11.20.0",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.22"
   },
   "scripts": {
     "dev": "pnpm --filter @cobia/web dev",
@@ -11,9 +11,7 @@
     "build": "pnpm -r --if-present build",
     "lint": "pnpm -r --if-present lint",
     "typecheck": "pnpm -r --if-present typecheck",
-    "test": "pnpm -r --if-present test",
-    "e2e:testnet": "tsx scripts/e2e-testnet.ts",
-    "verify:deployment": "tsx scripts/verify-deployment.ts"
+    "test": "pnpm -r --if-present test"
   },
   "devDependencies": {
     "tsx": "4.23.11",

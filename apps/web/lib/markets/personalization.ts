@@ -1,6 +1,7 @@
 import type { Address } from "viem";
-import type { StoredMarket } from "../db/markets";
+import type { StoredMarketSummary } from "../db/markets";
 import type { PortfolioSnapshot } from "../portfolio/read-portfolio";
+import { quoteApyBps } from "./quote-metrics";
 
 export type AssetBalances = ReadonlyMap<string, number>;
 
@@ -15,34 +16,18 @@ export function balanceForAsset(balances: AssetBalances, asset: Address): number
   return balances.get(asset.toLowerCase()) ?? 0;
 }
 
-export function rankMarkets(markets: StoredMarket[], balances: AssetBalances): StoredMarket[] {
+export function rankMarkets(
+  markets: StoredMarketSummary[],
+  balances: AssetBalances,
+): StoredMarketSummary[] {
   return [...markets].sort((left, right) => {
-    const leftFunded = balanceForAsset(balances, left.policy.asset) > 0 ? 1 : 0;
-    const rightFunded = balanceForAsset(balances, right.policy.asset) > 0 ? 1 : 0;
+    const leftFunded = balanceForAsset(balances, left.asset) > 0 ? 1 : 0;
+    const rightFunded = balanceForAsset(balances, right.asset) > 0 ? 1 : 0;
     if (leftFunded !== rightFunded) return rightFunded - leftFunded;
-    if (left.status !== right.status) return left.status === "current" ? -1 : 1;
-    const leftApy = Math.max(...left.quotes.map((quote) => quote.expectedNetApyBps));
-    const rightApy = Math.max(...right.quotes.map((quote) => quote.expectedNetApyBps));
+    const leftApy = Math.max(...left.latestActiveAttempt.quotes
+      .map(quoteApyBps), 0);
+    const rightApy = Math.max(...right.latestActiveAttempt.quotes
+      .map(quoteApyBps), 0);
     return rightApy - leftApy;
   });
-}
-
-export interface MarketGroup {
-  market: StoredMarket;
-  roundCount: number;
-}
-
-export function latestMarketsByAsset(markets: StoredMarket[]): MarketGroup[] {
-  const groups = new Map<string, MarketGroup>();
-  for (const market of markets) {
-    const key = `${market.policy.executionChainId}:${market.policy.asset.toLowerCase()}`;
-    const current = groups.get(key);
-    if (current) {
-      current.roundCount += 1;
-      if (current.market.status === "historical" && market.status === "current") current.market = market;
-    } else {
-      groups.set(key, { market, roundCount: 1 });
-    }
-  }
-  return [...groups.values()];
 }

@@ -1,9 +1,8 @@
 import { randomBytes } from "node:crypto";
-import { open } from "node:fs/promises";
+import { appendFile, open, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { privateKeyToAccount } from "viem/accounts";
 
-const TEST_USDT0 = "0x9e29b3aada05bf2d2c827af80bd28dc0b9b4fb0c";
 const envPath = resolve(import.meta.dirname, "../.env.local");
 
 function createWallet() {
@@ -28,22 +27,15 @@ OKX_PASSPHRASE=
 # Local PostgreSQL default. Change this if your database differs.
 DATABASE_URL=postgresql://cobia:cobia@127.0.0.1:5432/cobia
 
-# Solver signing and payment-recipient wallets.
+# Solver signing and payment-recipient wallet.
 # Deterministic solver: ${wallets.deterministic.address}
 DETERMINISTIC_SOLVER_PRIVATE_KEY=${wallets.deterministic.privateKey}
-# Research solver: ${wallets.research.address}
-AI_SOLVER_PRIVATE_KEY=${wallets.research.privateKey}
-
-# Research solver model access.
-OPENAI_API_KEY=
-OPENAI_SOLVER_MODEL=
 
 # Seller payment state and the recoverable 10% protocol treasury.
 MPPX_SECRET_KEY=${mppSecret}
 COBIA_TREASURY=${wallets.treasury.address}
 COBIA_DEV_TREASURY_PRIVATE_KEY=${wallets.treasury.privateKey}
-PAYMENT_CHAIN_ID=1952
-PAYMENT_ASSET=${TEST_USDT0}
+PAYMENT_REALM=localhost:3000
 
 # X Layer RPC endpoints.
 XLAYER_RPC_URL=https://rpc.xlayer.tech
@@ -51,32 +43,40 @@ XLAYER_TESTNET_RPC_URL=https://testrpc.xlayer.tech/terigon
 `;
 }
 
-const wallets = {
-  deterministic: createWallet(),
-  research: createWallet(),
-  treasury: createWallet(),
-};
-const mppSecret = randomBytes(32).toString("hex");
-
-let file;
-try {
-  file = await open(envPath, "wx", 0o600);
-  await file.writeFile(renderEnv(wallets, mppSecret), { encoding: "utf8" });
-} catch (error) {
-  if (error?.code === "EEXIST") {
-    console.error(`Refusing to overwrite existing ${envPath}`);
-    process.exitCode = 1;
-  } else {
+async function migrateExistingEnv() {
+  let content;
+  try {
+    content = await readFile(envPath, "utf8");
+  } catch (error) {
+    if (error?.code === "ENOENT") return false;
     throw error;
   }
-} finally {
-  await file?.close();
+  if (/^PAYMENT_REALM=/m.test(content)) {
+    console.error(`Refusing to overwrite existing ${envPath}`);
+    process.exitCode = 1;
+    return true;
+  }
+  const separator = content.endsWith("\n") ? "" : "\n";
+  await appendFile(envPath, `${separator}PAYMENT_REALM=localhost:3000\n`, "utf8");
+  console.log(`Added missing non-secret PAYMENT_REALM to existing ${envPath}`);
+  return true;
 }
 
-if (!process.exitCode) {
+if (!await migrateExistingEnv()) {
+  const wallets = {
+    deterministic: createWallet(),
+    treasury: createWallet(),
+  };
+  const mppSecret = randomBytes(32).toString("hex");
+  let file;
+  try {
+    file = await open(envPath, "wx", 0o600);
+    await file.writeFile(renderEnv(wallets, mppSecret), { encoding: "utf8" });
+  } finally {
+    await file?.close();
+  }
   console.log(`Created ${envPath}`);
   console.log(`Deterministic solver: ${wallets.deterministic.address}`);
-  console.log(`Research solver:      ${wallets.research.address}`);
   console.log(`Dev treasury:         ${wallets.treasury.address}`);
   console.log("Private keys were written only to the ignored env file.");
 }

@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { getRequestRepository } from "@/lib/runtime/market";
+import { activeQuoteFreshness } from "@/lib/markets/active-quotes";
+import { readPaymentTermsConfig } from "@/lib/payments/config";
+import { buildContextPaymentTerms } from "@/lib/payments/payment-context";
+import { getPaymentRepository, getRequestRepository } from "@/lib/runtime/market";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,11 +13,51 @@ export async function GET(
 ): Promise<Response> {
   const { id } = await context.params;
   try {
-    const result = await getRequestRepository().getPublicRequest(id);
+    const nowSec = Math.floor(Date.now() / 1_000);
+    const repository = getRequestRepository();
+    const result = await repository.getPublicRequest(id, nowSec);
     if (!result) {
       return NextResponse.json({ code: "NOT_FOUND", message: "Yield intent not found.", requestId: id }, { status: 404 });
     }
-    return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
+    let paymentRecovery = "none" as "none" | "resume" | "recover" | "reconcile";
+    let attempt: Awaited<ReturnType<ReturnType<typeof getPaymentRepository>["getPaymentByRequest"]>>;
+    if (result.state === "payment_pending" || result.state === "paid") {
+      attempt = await getPaymentRepository().getPaymentByRequest(id);
+      if (result.state === "payment_pending") {
+        paymentRecovery = attempt?.state === "pending" && !attempt.credentialHash
+          ? "resume"
+          : "reconcile";
+      } else {
+        paymentRecovery = attempt?.state === "settled" || attempt?.state === "finalized"
+          ? "recover"
+          : "reconcile";
+      }
+    }
+    let paymentTerms = attempt?.paymentTerms;
+    if (
+      result.selectedQuoteId
+      && !result.purchasedRouteId
+      && paymentRecovery !== "reconcile"
+      && !paymentTerms
+    ) {
+      const paymentContext = await repository.getPaymentContext(
+        id,
+        result.selectedQuoteId,
+      );
+      paymentTerms = buildContextPaymentTerms(
+        paymentContext,
+        readPaymentTermsConfig(),
+      );
+    }
+    return NextResponse.json(
+      {
+        ...result,
+        freshness: activeQuoteFreshness(result.quotes, nowSec),
+        paymentRecovery,
+        ...(paymentTerms ? { paymentTerms } : {}),
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error) {
     return NextResponse.json({
       code: "READ_FAILED",

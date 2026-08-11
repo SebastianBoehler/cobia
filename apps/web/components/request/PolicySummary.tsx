@@ -4,16 +4,27 @@ interface PolicySummaryProps {
   principal: string;
   exposure: string;
   minimumTvl: string;
-  minimumApy: string;
+  minimumPreGasApy: string;
+  outputAssets: string;
+  adapters: string;
+  maximumSlippage: string;
+  horizon: string;
+  snapshotAge: string;
+  intentLifetime: string;
 }
 
-const constraints = [
-  { icon: Check, label: "No bridges" },
-  { icon: ShieldCheck, label: "Deterministic verification" },
-  { icon: Wallet, label: "Principal stays in your wallet" },
-] as const;
-
 export function PolicySummary(props: PolicySummaryProps) {
+  const constraints = [
+    { icon: Check, label: "No bridges" },
+    { icon: ShieldCheck, label: `Outputs: ${props.outputAssets}` },
+    { icon: ShieldCheck, label: `Adapters: ${props.adapters}` },
+    { icon: ShieldCheck, label: `Maximum swap slippage: ${props.maximumSlippage}` },
+    { icon: ShieldCheck, label: `Yield horizon: ${props.horizon}` },
+    { icon: ShieldCheck, label: `Maximum snapshot age: ${props.snapshotAge}` },
+    { icon: ShieldCheck, label: `Intent lifetime: ${props.intentLifetime}` },
+    { icon: ShieldCheck, label: "Deterministic recomputation" },
+    { icon: Wallet, label: "Principal stays in your wallet" },
+  ] as const;
   return (
     <aside className="policy-receipt" aria-label="Policy summary">
       <div className="policy-receipt__heading">
@@ -30,12 +41,12 @@ export function PolicySummary(props: PolicySummaryProps) {
           <dd>{props.exposure}</dd>
         </div>
         <div>
-          <dt>Minimum TVL</dt>
+          <dt>Minimum Aave reserve TVL</dt>
           <dd>{props.minimumTvl}</dd>
         </div>
         <div>
-          <dt>Minimum net APY</dt>
-          <dd>{props.minimumApy}</dd>
+          <dt>Minimum pre-gas APY</dt>
+          <dd>{props.minimumPreGasApy}</dd>
         </div>
       </dl>
       <ul className="policy-receipt__constraints">

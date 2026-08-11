@@ -18,10 +18,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Cobia — verified DeFi route market",
+    default: "Cobia — verified Aave + Uniswap routes",
     template: "%s · Cobia",
   },
-  description: "Independent solvers compete to produce verified executable DeFi routes on X Layer.",
+  description: "Pinned-block Aave V3 and Uniswap V3 opportunities on X Layer, deterministically authorized before paid reveal. Principal remains unmoved; execution is not product-wired.",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

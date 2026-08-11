@@ -9,9 +9,9 @@ export const dynamic = "force-dynamic";
 export default async function MarketsPage() {
   const markets = await getMarketRepository().listMarkets(currentUnixSeconds());
   return <><AppHeader /><main className={styles.page}>
-    <header className={styles.heading}><h1>Earn markets</h1><p>Solver competitions over routes that Cobia can verify. Historical rounds stay visible but can never be executed as fresh quotes.</p></header>
+    <header className={styles.heading}><h1>Allocation quotes</h1><p>Current eligible allocation quotes from snapshot-derived Aave V3 and Uniswap V3 opportunities. Yield semantics are labeled per quote; eligibility expires with each quote.</p></header>
     {markets.length ? <MarketsView markets={markets} /> : (
-      <section className={styles.empty}><h2>No verified rounds yet</h2><p>Cobia does not fabricate yield cards. Create a custom request to produce the first stored competition.</p></section>
+      <section className={styles.empty}><h2>No active quotes</h2><p>No stored quote is currently eligible. Create a request to produce a fresh deterministic allocation quote.</p></section>
     )}
   </main></>;
 }

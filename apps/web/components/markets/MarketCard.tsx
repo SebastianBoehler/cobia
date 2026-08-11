@@ -1,37 +1,46 @@
 import Link from "next/link";
 import { formatUnits } from "viem";
 import { supportedAsset } from "../../lib/chain/supported-assets";
-import type { StoredMarket } from "../../lib/db/markets";
+import type { StoredMarketSummary } from "../../lib/db/markets";
+import { riskGradeLabel } from "../../lib/markets/risk-grade";
+import {
+  exposureLabel,
+  protocolSourceLabel,
+  quoteApyBps,
+  quoteApyLabel,
+} from "../../lib/markets/quote-metrics";
 import styles from "../product/ProductShell.module.css";
 
-export function MarketCard({ market, walletBalance, roundCount = 1 }: {
-  market: StoredMarket;
+export function MarketCard({ market, walletBalance }: {
+  market: StoredMarketSummary;
   walletBalance?: number;
-  roundCount?: number;
 }) {
-  const asset = supportedAsset(market.policy.asset);
-  const leader = [...market.quotes].sort((a, b) => b.expectedNetApyBps - a.expectedNetApyBps)[0];
-  const principal = Number(formatUnits(BigInt(market.policy.principalAtomic), asset.decimals));
+  const attempt = market.latestActiveAttempt;
+  const asset = supportedAsset(market.asset);
+  const leader = [...attempt.quotes].sort((a, b) => quoteApyBps(b) - quoteApyBps(a))[0];
+  if (!leader) return null;
+  const apyBps = quoteApyBps(leader);
+  const principal = Number(formatUnits(BigInt(attempt.policy.principalAtomic), asset.decimals));
   const estimatePrincipal = walletBalance ?? principal;
-  const yearly = estimatePrincipal * leader.expectedNetApyBps / 10_000;
+  const yearly = estimatePrincipal * apyBps / 10_000;
   const monthly = yearly / 12;
   return (
     <article className={styles.card}>
       <div className={styles.cardHead}>
-        <div><h2>{asset.displaySymbol} Earn</h2><p>X Layer · {roundCount} verified round{roundCount === 1 ? "" : "s"}</p></div>
-        <span className={`${styles.badge} ${market.status === "historical" ? styles.historical : ""}`}>{market.status}</span>
+        <div><h2>{asset.displaySymbol} allocation</h2><p>X Layer · {market.requestAttemptCount} request attempt{market.requestAttemptCount === 1 ? "" : "s"} · {market.quoteBearingAttemptCount} with quotes</p></div>
+        <span className={styles.badge}>current</span>
       </div>
       <div className={styles.metric}>
-        <strong>{(leader.expectedNetApyBps / 100).toFixed(2)}%</strong>
-        <span>verified net APY · about {yearly.toLocaleString("en-US", { maximumFractionDigits: 2 })} {asset.displaySymbol}/year · {monthly.toLocaleString("en-US", { maximumFractionDigits: 2 })}/month</span>
+        <strong>{(apyBps / 100).toFixed(2)}%</strong>
+        <span>{quoteApyLabel(leader)} · about {yearly.toLocaleString("en-US", { maximumFractionDigits: 2 })} {asset.displaySymbol}/year · {monthly.toLocaleString("en-US", { maximumFractionDigits: 2 })}/month</span>
       </div>
       <div className={styles.facts}>
         <span>{walletBalance === undefined ? "Reference amount" : "Available in your wallet"} {estimatePrincipal.toLocaleString("en-US", { maximumFractionDigits: 6 })} {asset.displaySymbol}</span>
-        <span>{market.protocols?.join(", ") || "No protocol allocation"} source rate {((market.sourceApyBps ?? 0) / 100).toFixed(2)}% · {(market.policy.maxProtocolExposureBps / 100).toFixed(0)}% maximum exposure</span>
-        <span>{market.blockNumber ? `Verified at block ${market.blockNumber}` : "Historical snapshot block unavailable"}</span>
-        <span>Risk grade {leader.riskGrade}</span>
+        <span>{protocolSourceLabel(attempt.policy, attempt.protocols, attempt.sourceApyBps)} · {exposureLabel(attempt.policy)}</span>
+        <span>{attempt.blockNumber ? `Snapshot reference block ${attempt.blockNumber}` : "Snapshot block unavailable"}</span>
+        <span>Risk grade {riskGradeLabel(leader.riskGrade)}</span>
       </div>
-      <Link className={`button button--quiet ${styles.buttonLink}`} href={`/markets/${market.id}`}>View competition</Link>
+      <Link className={`button button--quiet ${styles.buttonLink}`} href={`/markets/${market.id}`}>View quote</Link>
     </article>
   );
 }

@@ -14,6 +14,8 @@ export const USDG_ADDRESS: Address =
   "0x4ae46a509F6b1D9056937BA4500cb143933D2dc8";
 export const USDG_A_TOKEN: Address =
   "0x228765a3C18065C923F23a0CCb6c7cEFB3eA2223";
+export const USDT_A_TOKEN: Address =
+  "0xF356ae412dB5df43BD3a10746f7ad4e1C4De4297";
 export const USDC_ADDRESS: Address =
   "0xA8CE8aee21bC2A48a5EF670afCc9274C7bbbC035";
 

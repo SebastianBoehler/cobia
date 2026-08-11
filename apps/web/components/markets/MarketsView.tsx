@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { StoredMarket } from "../../lib/db/markets";
+import type { StoredMarketSummary } from "../../lib/db/markets";
 import {
   balanceForAsset,
   balancesFromPortfolio,
-  latestMarketsByAsset,
   rankMarkets,
 } from "../../lib/markets/personalization";
 import type { PortfolioSnapshot } from "../../lib/portfolio/read-portfolio";
@@ -13,7 +12,7 @@ import { useWallet } from "../wallet/WalletProvider";
 import styles from "../product/ProductShell.module.css";
 import { MarketCard } from "./MarketCard";
 
-export function MarketsView({ markets }: { markets: StoredMarket[] }) {
+export function MarketsView({ markets }: { markets: StoredMarketSummary[] }) {
   const wallet = useWallet();
   const [result, setResult] = useState<{ account: string; snapshot: PortfolioSnapshot }>();
 
@@ -34,17 +33,15 @@ export function MarketsView({ markets }: { markets: StoredMarket[] }) {
   const portfolio = result?.account === wallet.account ? result.snapshot : undefined;
   const balances = useMemo(() => balancesFromPortfolio(portfolio), [portfolio]);
   const ordered = useMemo(() => rankMarkets(markets, balances), [balances, markets]);
-  const groups = useMemo(() => latestMarketsByAsset(ordered), [ordered]);
 
   return <>
     {wallet.account ? <p className={styles.walletContext}>
       Ranked for your X Layer mainnet balances. Markets matching assets you already hold appear first.
     </p> : null}
-    <section className={styles.grid}>{groups.map(({ market, roundCount }) => <MarketCard
-      key={`${market.policy.executionChainId}:${market.policy.asset}`}
+    <section className={styles.grid}>{ordered.map((market) => <MarketCard
+      key={market.id}
       market={market}
-      roundCount={roundCount}
-      walletBalance={portfolio ? balanceForAsset(balances, market.policy.asset) : undefined}
+      walletBalance={portfolio ? balanceForAsset(balances, market.asset) : undefined}
     />)}</section>
   </>;
 }

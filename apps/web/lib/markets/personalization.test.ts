@@ -1,22 +1,42 @@
 import { describe, expect, it } from "vitest";
-import type { StoredMarket } from "../db/markets";
-import { latestMarketsByAsset, rankMarkets } from "./personalization";
+import type { MarketAttempt, StoredMarketSummary } from "../db/markets";
+import { rankMarkets } from "./personalization";
 
 const assetA = "0x1111111111111111111111111111111111111111";
 const assetB = "0x2222222222222222222222222222222222222222";
 
-function market(id: string, asset: `0x${string}`, apy: number): StoredMarket {
+function market(id: string, asset: `0x${string}`, apy: number): StoredMarketSummary {
+  const round = {
+    policy: { asset } as MarketAttempt["policy"],
+    quotes: [{ expectedNetApyBps: apy } as MarketAttempt["quotes"][number]],
+    quoteEligibility: "active",
+  } as MarketAttempt;
   return {
     id,
-    requestId: id,
-    policy: { asset } as StoredMarket["policy"],
-    quotes: [{ expectedNetApyBps: apy } as StoredMarket["quotes"][number]],
-    state: "quotes_ready",
-    blockNumber: "1",
-    createdAt: "2026-08-10T00:00:00.000Z",
-    sourceApyBps: apy,
-    protocols: ["Aave V3"],
-    status: "current",
+    executionChainId: 196,
+    asset,
+    latestActiveAttempt: round,
+    requestAttemptCount: 1,
+    quoteBearingAttemptCount: 1,
+  };
+}
+
+function routeQuote(apy: number): Extract<
+  MarketAttempt["quotes"][number],
+  { version: 2 }
+> {
+  return {
+    version: 2,
+    quoteId: `0x${"ab".repeat(32)}`,
+    requestId: "550e8400-e29b-41d4-a716-446655440000",
+    solverId: "route-solver",
+    solverAddress: "0x1111111111111111111111111111111111111111",
+    bundleHash: `0x${"ab".repeat(32)}`,
+    estimatedPreGasApyBps: apy,
+    riskGrade: "unassessed",
+    priceAtomic: "100000",
+    validUntil: 2_000_000_000,
+    authorization: { routeAuthorized: true, errorCodes: [] },
   };
 }
 
@@ -27,9 +47,12 @@ describe("market personalization", () => {
     expect(rankMarkets([unsupported, funded], new Map([[assetA, 25]]))[0]?.id).toBe("funded");
   });
 
-  it("collapses repeated competitions for the same asset into one market", () => {
-    const groups = latestMarketsByAsset([market("new", assetA, 120), market("old", assetA, 90)]);
-    expect(groups).toHaveLength(1);
-    expect(groups[0]).toMatchObject({ market: { id: "new" }, roundCount: 2 });
+  it("ranks V2 markets by estimated pre-gas APY", () => {
+    const lower = market("lower", assetA, 100);
+    const higher = market("higher", assetB, 900);
+    lower.latestActiveAttempt.quotes = [routeQuote(100)];
+    higher.latestActiveAttempt.quotes = [routeQuote(900)];
+
+    expect(rankMarkets([lower, higher], new Map())[0]?.id).toBe("higher");
   });
 });

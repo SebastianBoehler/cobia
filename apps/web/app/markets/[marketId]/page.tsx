@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { MarketDetailView } from "@/components/markets/MarketDetailView";
 import styles from "@/components/product/ProductShell.module.css";
@@ -9,10 +9,17 @@ export const dynamic = "force-dynamic";
 
 export default async function MarketPage(context: PageProps<"/markets/[marketId]">) {
   const { marketId } = await context.params;
-  const market = await getMarketRepository().getMarket(marketId, currentUnixSeconds());
-  if (!market) notFound();
+  const resolution = await getMarketRepository().resolveMarket(marketId, currentUnixSeconds());
+  if (!resolution) notFound();
+  if (resolution.resolvedFrom === "attempt") redirect(`/markets/${resolution.canonicalId}`);
+  const { market } = resolution;
+  const description = market.latestActiveAttempt
+    ? "A current snapshot-derived estimate."
+    : market.mostRecentAttempt.lifecycle === "running"
+      ? "The latest request attempt is still running."
+      : "No current quote is available. Create a fresh request before relying on historical output.";
   return <><AppHeader /><main className={styles.page}>
-    <header className={styles.heading}><h1>Competition</h1><p>{market.status === "current" ? "A currently valid reference round." : "A historical round. Start a fresh custom quote before acting."}</p></header>
+    <header className={styles.heading}><h1>Allocation quote</h1><p>{description} Route execution and simulation are not implemented.</p></header>
     <MarketDetailView market={market} />
   </main></>;
 }

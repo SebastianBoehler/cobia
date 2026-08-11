@@ -1,6 +1,7 @@
-import { createPublicClient, erc20Abi, formatUnits, getAddress, http, type Address } from "viem";
+import { createPublicClient, erc20Abi, formatUnits, http, type Address } from "viem";
 import { SUPPORTED_ASSETS } from "../chain/supported-assets";
-import { USDG_A_TOKEN, xLayer, xLayerTestnet } from "../chain/xlayer";
+import { USDT_A_TOKEN, USDG_A_TOKEN, xLayer, xLayerTestnet } from "../chain/xlayer";
+import { PAYMENT_ASSET, PAYMENT_DECIMALS } from "../payments/support";
 
 export type PortfolioChainId = 196 | 1952;
 
@@ -12,7 +13,12 @@ export interface PortfolioSnapshot {
   observedAt: string;
   native: { symbol: "OKB"; amountAtomic: string; formatted: string };
   balances: Array<{ address: Address; symbol: string; amountAtomic: string; formatted: string }>;
-  positions: Array<{ adapterId: "aave-v3@1"; symbol: "aUSDG"; amountAtomic: string; formatted: string }>;
+  positions: Array<{
+    adapterId: "aave-v3@1";
+    symbol: "aUSDG" | "aUSDt0";
+    amountAtomic: string;
+    formatted: string;
+  }>;
 }
 
 export async function readPortfolio(
@@ -28,9 +34,8 @@ export async function readPortfolio(
   const blockNumber = await client.getBlockNumber();
   const native = await client.getBalance({ address, blockNumber });
   if (chainId === 1952) {
-    const paymentAsset = getAddress(process.env.PAYMENT_ASSET ?? "0x9e29b3aada05bf2d2c827af80bd28dc0b9b4fb0c");
     const amount = await client.readContract({
-      address: paymentAsset,
+      address: PAYMENT_ASSET,
       abi: erc20Abi,
       functionName: "balanceOf",
       args: [address],
@@ -44,16 +49,16 @@ export async function readPortfolio(
       observedAt: new Date().toISOString(),
       native: { symbol: "OKB", amountAtomic: native.toString(), formatted: formatUnits(native, 18) },
       balances: [{
-        address: paymentAsset,
+        address: PAYMENT_ASSET,
         symbol: "USDt0 test",
         amountAtomic: amount.toString(),
-        formatted: formatUnits(amount, 6),
+        formatted: formatUnits(amount, PAYMENT_DECIMALS),
       }],
       positions: [],
     };
   }
 
-  const [balances, aUsdG] = await Promise.all([
+  const [balances, aUsdG, aUsdT0] = await Promise.all([
     Promise.all(SUPPORTED_ASSETS.map(async (asset) => ({
       asset,
       amount: await client.readContract({
@@ -66,6 +71,13 @@ export async function readPortfolio(
     }))),
     client.readContract({
       address: USDG_A_TOKEN,
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: [address],
+      blockNumber,
+    }),
+    client.readContract({
+      address: USDT_A_TOKEN,
       abi: erc20Abi,
       functionName: "balanceOf",
       args: [address],
@@ -85,11 +97,19 @@ export async function readPortfolio(
       amountAtomic: amount.toString(),
       formatted: formatUnits(amount, asset.decimals),
     })),
-    positions: [{
-      adapterId: "aave-v3@1",
-      symbol: "aUSDG",
-      amountAtomic: aUsdG.toString(),
-      formatted: formatUnits(aUsdG, 6),
-    }],
+    positions: [
+      {
+        adapterId: "aave-v3@1",
+        symbol: "aUSDG",
+        amountAtomic: aUsdG.toString(),
+        formatted: formatUnits(aUsdG, 6),
+      },
+      {
+        adapterId: "aave-v3@1",
+        symbol: "aUSDt0",
+        amountAtomic: aUsdT0.toString(),
+        formatted: formatUnits(aUsdT0, 6),
+      },
+    ],
   };
 }

@@ -1,18 +1,25 @@
-import { getAddress, type Address, type Hash } from "viem";
+import { getAddress, isAddress, isAddressEqual } from "viem";
 import { z } from "zod";
-import { USDC_ADDRESS } from "../chain/xlayer";
+import { PAYMENT_ASSET, PAYMENT_CHAIN_ID, PAYMENT_DECIMALS } from "./support";
 
-const PaymentEnvSchema = z.object({
-  MPPX_SECRET_KEY: z.string().min(32),
+const PaymentTermsEnvSchema = z.object({
   COBIA_TREASURY: z.string().transform((value) => getAddress(value)),
-  PAYMENT_CHAIN_ID: z.coerce.number().int().refine((value) => value === 196 || value === 1952),
-  PAYMENT_ASSET: z.string().default(USDC_ADDRESS).transform((value) => getAddress(value)),
+  PAYMENT_REALM: z.string().trim().min(1),
+  PAYMENT_CHAIN_ID: z.string().optional()
+    .refine((value) => value === undefined || value === `${PAYMENT_CHAIN_ID}`),
+  PAYMENT_ASSET: z.string().optional().refine((value) =>
+    value === undefined || (isAddress(value) && isAddressEqual(value, PAYMENT_ASSET))),
 });
 
-export function readPaymentConfig(
-  source: Record<string, string | undefined> = process.env,
-) {
-  const parsed = PaymentEnvSchema.safeParse(source);
+const PaymentEnvSchema = PaymentTermsEnvSchema.extend({
+  MPPX_SECRET_KEY: z.string().min(32),
+});
+
+function parseConfig<T>(
+  schema: z.ZodType<T>,
+  source: Record<string, string | undefined>,
+): T {
+  const parsed = schema.safeParse(source);
   if (!parsed.success) {
     const invalid = parsed.error.issues.map((issue) => issue.path.join(".")).join(", ");
     throw new Error(`Missing or invalid payment configuration: ${invalid}`);
@@ -20,25 +27,25 @@ export function readPaymentConfig(
   return parsed.data;
 }
 
-interface WinnerChargeInput {
-  chainId: 196 | 1952;
-  currency: Address;
-  solver: Address;
-  treasury: Address;
-  quoteId: Hash;
+export function readPaymentTermsConfig(
+  source: Record<string, string | undefined> = process.env,
+) {
+  const parsed = parseConfig(PaymentTermsEnvSchema, source);
+  return {
+    COBIA_TREASURY: parsed.COBIA_TREASURY,
+    PAYMENT_REALM: parsed.PAYMENT_REALM,
+    PAYMENT_CHAIN_ID,
+    PAYMENT_ASSET,
+    PAYMENT_DECIMALS,
+  };
 }
 
-export function buildWinnerCharge(input: WinnerChargeInput) {
+export function readPaymentConfig(
+  source: Record<string, string | undefined> = process.env,
+) {
+  const parsed = parseConfig(PaymentEnvSchema, source);
   return {
-    amount: "100000",
-    currency: input.currency,
-    recipient: input.solver,
-    description: "Reveal Cobia verified yield route",
-    externalId: input.quoteId,
-    methodDetails: {
-      chainId: input.chainId,
-      feePayer: true,
-      splits: [{ amount: "10000", recipient: input.treasury, memo: "cobia-platform" }],
-    },
+    ...readPaymentTermsConfig(source),
+    MPPX_SECRET_KEY: parsed.MPPX_SECRET_KEY,
   };
 }

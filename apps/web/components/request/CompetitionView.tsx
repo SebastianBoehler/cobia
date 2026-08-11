@@ -1,24 +1,42 @@
 "use client";
 
-import type { MarketSnapshot, RouteQuote, StablecoinPolicy } from "@cobia/domain";
-import { Check, CircleAlert, LoaderCircle, LockKeyhole, ShieldCheck } from "lucide-react";
+import type { PersistedSnapshot, PersistedStablecoinPolicy } from "@cobia/domain";
+import { CircleAlert, LoaderCircle, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { isAddressEqual } from "viem";
 import { quoteSelectionCommitment } from "../../lib/intents/commitments";
+import {
+  type ActiveQuoteFreshness,
+  type PublicRouteQuote,
+  activeQuoteFreshness,
+  isActiveRouteQuote,
+  refreshDelayMs,
+  visibleRequestQuotes,
+} from "../../lib/markets/active-quotes";
 import { authorizePayment } from "../../lib/payments/eip3009";
+import { buildRevealProof, revealProofCommitment } from "../../lib/payments/reveal-proof";
+import { randomBytes32 } from "../../lib/payments/random";
+import { PaymentTermsSchema, hashPaymentTerms, type PaymentTerms } from "../../lib/payments/terms";
 import { useWallet } from "../wallet/WalletProvider";
 import { PurchasedRouteView, type PurchasedRoute } from "../routes/PurchasedRouteView";
+import {
+  CompetitionQuoteCard,
+  type PaymentRecovery,
+} from "./CompetitionQuoteCard";
 import styles from "./CompetitionView.module.css";
 
 interface PublicRequest {
   requestId: string;
   state: string;
-  policy: StablecoinPolicy;
-  snapshot: MarketSnapshot | null;
+  policy: PersistedStablecoinPolicy;
+  snapshot: PersistedSnapshot | null;
   selectedQuoteId: string | null;
   purchasedRouteId: string | null;
-  quotes: RouteQuote[];
+  paymentTerms?: PaymentTerms;
+  paymentRecovery: PaymentRecovery;
+  freshness: ActiveQuoteFreshness;
+  quotes: PublicRouteQuote[];
 }
 
 function shortHash(value: string): string {
@@ -26,9 +44,31 @@ function shortHash(value: string): string {
 }
 
 function jsonMessage(input: unknown, fallback: string): string {
-  return typeof input === "object" && input && "message" in input && typeof input.message === "string"
-    ? input.message
-    : fallback;
+  const body = typeof input === "object" && input ? input as Record<string, unknown> : {};
+  return [body.message, body.detail, body.title]
+    .find((value): value is string => typeof value === "string") ?? fallback;
+}
+
+const recoveryExpirySec = () => Math.floor(Date.now() / 1_000) + 240;
+
+function withVisibleQuotes(market: PublicRequest): PublicRequest {
+  return {
+    ...market,
+    quotes: visibleRequestQuotes(market, market.freshness.observedAtSec),
+  };
+}
+
+function v2SnapshotDescription(snapshot: PersistedSnapshot | null): string {
+  if (!snapshot || snapshot.version !== 2) {
+    return "Pinned X Layer opportunity data is not available yet. APY is an estimated pre-gas rate; route authorization is deterministically recomputed.";
+  }
+  const protocols = new Set(snapshot.opportunities.map((opportunity) =>
+    opportunity.kind === "aave-v3-supply" ? "Aave V3" : "Uniswap V3"));
+  if (protocols.size === 0) {
+    return "The pinned X Layer snapshot contains no eligible protocol opportunities. APY is an estimated pre-gas rate; route authorization is deterministically recomputed.";
+  }
+  const names = [...protocols].join(" and ");
+  return `Pinned ${names} opportunity data ${protocols.size === 1 ? "was" : "were"} read at one X Layer block. APY is an estimated pre-gas rate; route authorization is deterministically recomputed.`;
 }
 
 export function CompetitionView({ requestId }: { requestId: string }) {
@@ -42,8 +82,8 @@ export function CompetitionView({ requestId }: { requestId: string }) {
   const load = useCallback(async () => {
     const response = await fetch(`/api/requests/${requestId}`, { cache: "no-store" });
     const body = await response.json();
-    if (!response.ok) throw new Error(jsonMessage(body, "Could not load the quote market."));
-    setMarket(body as PublicRequest);
+    if (!response.ok) throw new Error(jsonMessage(body, "Could not load the deterministic quote."));
+    setMarket(withVisibleQuotes(body as PublicRequest));
   }, [requestId]);
 
   useEffect(() => {
@@ -51,8 +91,8 @@ export function CompetitionView({ requestId }: { requestId: string }) {
     fetch(`/api/requests/${requestId}`, { cache: "no-store" })
       .then(async (response) => {
         const body = await response.json();
-        if (!response.ok) throw new Error(jsonMessage(body, "Could not load the quote market."));
-        return body as PublicRequest;
+        if (!response.ok) throw new Error(jsonMessage(body, "Could not load the deterministic quote."));
+        return withVisibleQuotes(body as PublicRequest);
       })
       .then((body) => { if (active) setMarket(body); })
       .catch((cause) => {
@@ -61,11 +101,31 @@ export function CompetitionView({ requestId }: { requestId: string }) {
     return () => { active = false; };
   }, [requestId]);
 
+  useEffect(() => {
+    if (!market) return;
+    const delayMs = refreshDelayMs(market.freshness);
+    const observedAtSec = market.freshness.nextExpirySec;
+    if (delayMs === null || observedAtSec === null) return;
+    const reachesExpiry = delayMs === Math.max(0, (observedAtSec - market.freshness.observedAtSec) * 1_000);
+    const timer = window.setTimeout(() => {
+      if (reachesExpiry) setMarket((current) => current
+        ? withVisibleQuotes({
+          ...current,
+          freshness: activeQuoteFreshness(current.quotes, observedAtSec),
+        })
+        : current);
+      void load().catch((cause) => {
+        setError(cause instanceof Error ? cause.message : "Could not refresh market.");
+      });
+    }, delayMs);
+    return () => window.clearTimeout(timer);
+  }, [load, market]);
+
   async function select(quoteId: string): Promise<void> {
     setPendingQuote(quoteId);
     setError(undefined);
     try {
-      if (!market) throw new Error("The quote market is not loaded.");
+      if (!market) throw new Error("The deterministic quote is not loaded.");
       if (!wallet.account) throw new Error("Connect the owner wallet to authorize this quote.");
       if (!isAddressEqual(wallet.account, market.policy.owner)) {
         throw new Error(`Connect request owner ${shortHash(market.policy.owner)} to select a quote.`);
@@ -97,20 +157,62 @@ export function CompetitionView({ requestId }: { requestId: string }) {
     setPendingQuote(quoteId);
     setError(undefined);
     try {
-      if (!wallet.account) throw new Error("Connect an EVM wallet to pay and reveal this route.");
+      if (!market) throw new Error("The deterministic quote is not loaded.");
+      if (!wallet.account) throw new Error("Connect the owner wallet to pay and reveal this bundle.");
+      if (!isAddressEqual(wallet.account, market.policy.owner)) {
+        throw new Error(`Connect request owner ${shortHash(market.policy.owner)} to reveal this quote.`);
+      }
+      if (!market.paymentTerms) throw new Error("Payment terms are unavailable for this quote.");
+      const terms = PaymentTermsSchema.parse(market.paymentTerms);
+      if (terms.externalId.toLowerCase() !== quoteId.toLowerCase()) {
+        throw new Error("Payment terms do not belong to the selected quote.");
+      }
+      const proof = buildRevealProof({
+        realm: terms.realm,
+        requestId,
+        quoteId: quoteId as `0x${string}`,
+        owner: market.policy.owner,
+        paymentChainId: terms.paymentChainId,
+        executionChainId: market.policy.executionChainId,
+        paymentTermsHash: hashPaymentTerms(terms),
+        nonce: randomBytes32(),
+        expiresAt: market.paymentRecovery === "recover"
+          ? recoveryExpirySec()
+          : terms.expiresAt,
+      });
+      const ownerSignature = await wallet.request({
+        method: "personal_sign",
+        params: [revealProofCommitment(proof), market.policy.owner],
+      });
+      if (typeof ownerSignature !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(ownerSignature)) {
+        throw new Error("Wallet returned an invalid reveal-proof signature.");
+      }
+      const payload = JSON.stringify({ proof, ownerSignature });
       const url = `/api/requests/${requestId}/quotes/${quoteId}/reveal`;
-      let response = await fetch(url, { method: "POST" });
-      if (response.status === 402) {
+      let response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+      });
+      const credentialRequired = response.status === 402;
+      if (credentialRequired) {
         const authorization = await authorizePayment(response, {
           account: wallet.account,
           request: wallet.request,
           switchChain: wallet.switchChain,
+        }, { terms, owner: market.policy.owner });
+        response = await fetch(url, {
+          method: "POST",
+          headers: { Authorization: authorization, "Content-Type": "application/json" },
+          body: payload,
         });
-        response = await fetch(url, { method: "POST", headers: { Authorization: authorization } });
       }
       const body = await response.json();
-      if (!response.ok) throw new Error(jsonMessage(body, "Paid reveal failed."));
-      if (!body.route) throw new Error("Payment settled but the purchased route was not returned.");
+      if (!response.ok) {
+        if (credentialRequired) await load().catch(() => undefined);
+        throw new Error(jsonMessage(body, "Paid reveal failed."));
+      }
+      if (!body.route) throw new Error("Payment settled but the purchased quote was not returned.");
       setPurchasedRoute(body.route as PurchasedRoute);
       setRevealed(true);
       await load();
@@ -122,15 +224,19 @@ export function CompetitionView({ requestId }: { requestId: string }) {
   }
 
   if (!market && !error) {
-    return <main className={styles.loading}><LoaderCircle className="spin" /> Loading verified quotes…</main>;
+    return <main className={styles.loading}><LoaderCircle className="spin" /> Loading deterministic quote…</main>;
   }
   if (!market) return <main className={styles.loading} role="alert">{error}</main>;
 
   return (
     <main className={styles.shell}>
       <header className={styles.intro}>
-        <h1>Solver competition</h1>
-        <p>Every solver received the same X Layer block-bounded snapshot. Only verified summaries are public.</p>
+        <h1>{market.policy.version === 1
+          ? "Deterministic Aave V3 quote"
+          : "Deterministic X Layer route quote"}</h1>
+        <p>{market.policy.version === 1
+          ? "Live OKX discovery was collected between X Layer block reads. APY and TVL are snapshot-derived estimates; the signed bundle is deterministically recomputed."
+          : v2SnapshotDescription(market.snapshot)}</p>
         <div className={styles.facts}>
           <span>Intent {shortHash(requestId)}</span>
           <span><ShieldCheck size={15} /> {market.state.replaceAll("_", " ")}</span>
@@ -140,51 +246,42 @@ export function CompetitionView({ requestId }: { requestId: string }) {
       </header>
 
       {error ? <p className={styles.alert} role="alert"><CircleAlert size={17} /> {error}</p> : null}
-      <section className={styles.grid} aria-label="Verified solver quotes">
+      {market.quotes.length === 0 ? (
+        <section className={styles.grid} aria-label="Quote eligibility status">
+          <article className={styles.quote}>
+            <h2>No eligible quote</h2>
+            <p>{market.policy.version === 1
+              ? "No verifier-executable quote remains within its validity window."
+              : "No route-authorized quote remains within its validity window."}</p>
+            <Link className="button button--primary" href="/requests/new">Create fresh request</Link>
+          </article>
+        </section>
+      ) : <section className={styles.grid} aria-label={market.policy.version === 1
+        ? "Deterministic Aave V3 allocation quote"
+        : "Deterministic X Layer route quote"}>
         {market.quotes.map((quote, index) => {
           const selected = market.selectedQuoteId === quote.quoteId;
-          return (
-            <article className={`${styles.quote} ${index === 0 ? styles.leading : ""}`} key={quote.quoteId}>
-              <div className={styles.quoteHead}>
-                <div>
-                  <span className={styles.rank}>0{index + 1}</span>
-                  <span><h2>{quote.solverId}</h2><small className={styles.operator}>Operated by Cobia</small></span>
-                </div>
-                <span className={quote.verification.executable ? styles.verified : styles.rejected}>
-                  {quote.verification.executable ? <Check size={14} /> : <CircleAlert size={14} />}
-                  {quote.verification.executable ? "Policy valid" : "Policy rejected"}
-                </span>
-              </div>
-              <dl className={styles.metrics}>
-                <div><dt>Net APY</dt><dd>{(quote.expectedNetApyBps / 100).toFixed(2)}%</dd></div>
-                <div><dt>Verifier score</dt><dd>{quote.verification.score}</dd></div>
-                <div><dt>Risk</dt><dd>{quote.riskGrade}</dd></div>
-                <div><dt>Reveal</dt><dd>0.10</dd></div>
-              </dl>
-              <div className={styles.feeSplit}><span>0.09 to solver</span><span>0.01 to Cobia</span></div>
-              <div className={styles.commitment}><LockKeyhole size={14} /> Bundle {shortHash(quote.bundleHash)}</div>
-              {quote.verification.errorCodes.length > 0 ? (
-                <ul className={styles.errors}>{quote.verification.errorCodes.map((code) => <li key={code}>{code}</li>)}</ul>
-              ) : null}
-              {selected && market.purchasedRouteId ? (
-                <Link className="button button--primary" href={`/routes/${market.purchasedRouteId}`}>
-                  View purchased route
-                </Link>
-              ) : selected ? (
-                <button className="button button--primary" onClick={() => reveal(quote.quoteId)} disabled={Boolean(pendingQuote) || revealed}>
-                  {pendingQuote === quote.quoteId ? <LoaderCircle className="spin" size={16} /> : null}
-                  {revealed ? "Route revealed" : "Pay winner & reveal"}
-                </button>
-              ) : (
-                <button className="button button--quiet" onClick={() => select(quote.quoteId)} disabled={!quote.verification.executable || Boolean(market.selectedQuoteId) || Boolean(pendingQuote)}>
-                  {pendingQuote === quote.quoteId ? <LoaderCircle className="spin" size={16} /> : null}
-                  Select quote
-                </button>
-              )}
-            </article>
-          );
+          const activeQuote = isActiveRouteQuote(quote, market.freshness.observedAtSec);
+          const recoverable = market.paymentRecovery === "recover"
+            || (market.paymentRecovery === "resume" && activeQuote);
+          return <CompetitionQuoteCard
+            key={quote.quoteId}
+            quote={quote}
+            rank={index + 1}
+            selected={selected}
+            active={activeQuote}
+            recoverable={recoverable}
+            purchasedRouteId={market.purchasedRouteId}
+            paymentRecovery={market.paymentRecovery}
+            selectionLocked={Boolean(market.selectedQuoteId)}
+            busy={Boolean(pendingQuote)}
+            pending={pendingQuote === quote.quoteId}
+            revealed={revealed}
+            onSelect={() => select(quote.quoteId)}
+            onReveal={() => reveal(quote.quoteId)}
+          />;
         })}
-      </section>
+      </section>}
       {purchasedRoute ? <PurchasedRouteView route={purchasedRoute} /> : null}
     </main>
   );

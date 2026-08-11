@@ -3,9 +3,9 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { PolicyForm } from "@/components/request/PolicyForm";
 
 const stages = [
-  { icon: Waypoints, label: "Solvers quote privately" },
-  { icon: Scale, label: "Cobia verifies deterministically" },
-  { icon: LockKeyhole, label: "You pay only after choosing" },
+  { icon: Waypoints, label: "Pinned same-block reads" },
+  { icon: Scale, label: "Aave + Uniswap route quote" },
+  { icon: LockKeyhole, label: "Route authorization recomputed" },
 ] as const;
 
 export default function NewRequestPage() {
@@ -14,9 +14,9 @@ export default function NewRequestPage() {
       <AppHeader />
       <main className="request-page">
         <section className="request-page__intro">
-          <h1>Set the bounds.<br />Let solvers compete.</h1>
+          <h1>Set exact bounds.<br />Review one route.</h1>
           <p className="request-page__lede">
-            Ask for net yield without choosing a protocol. Every executable field is recomputed before a route can win.
+            Cobia compares exact Aave V3 and Uniswap V3 allocations from one pinned X Layer block. Paid reveal is available for an authorized quote; product execution is not yet wired.
           </p>
           <ol className="request-stages">
             {stages.map(({ icon: Icon, label }, index) => (
@@ -29,7 +29,7 @@ export default function NewRequestPage() {
         </section>
         <section className="request-page__workspace" aria-labelledby="request-form-title">
           <div className="workspace-heading">
-            <h2 id="request-form-title">Earn yield</h2>
+            <h2 id="request-form-title">Create route quote</h2>
             <span className="asset-badge"><i>$</i> USDG / USDt0 · X Layer</span>
           </div>
           <PolicyForm />

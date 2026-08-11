@@ -41,7 +41,7 @@ export function PortfolioView() {
   if (!snapshot) return null;
   return <section className={styles.panel}>
     <div className={styles.panelHeader}><div><h2>Wallet assets</h2><p>Observed at block {snapshot.blockNumber}</p></div><span className={styles.badge}>{snapshot.networkName}</span></div>
-    {snapshot.chainId === 1952 ? <p className={styles.notice}>Testnet assets are for payment and execution rehearsal only. Live earn markets use X Layer mainnet balances.</p> : null}
+    {snapshot.chainId === 1952 ? <p className={styles.notice}>Testnet assets are for payment rehearsal only. V2 quote construction reads registered Aave V3 and Uniswap V3 contracts at one pinned X Layer mainnet block; mainnet wallet balances personalize listings and estimates.</p> : null}
     <div className={styles.rows}>
       <div className={styles.row}><div><strong>OKB</strong><small>Gas balance</small></div><span>Native asset</span><strong>{pretty(snapshot.native.formatted)}</strong></div>
       {snapshot.balances.map((balance) => <div className={styles.row} key={balance.address}><div><strong>{balance.symbol}</strong><small>Wallet balance</small></div><span>{balance.address.slice(0, 10)}…</span><strong>{pretty(balance.formatted)}</strong></div>)}

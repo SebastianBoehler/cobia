@@ -27,9 +27,6 @@ export function readOkxCredentials(
 const MarketEnvSchema = z.object({
   DATABASE_URL: z.string().url(),
   DETERMINISTIC_SOLVER_PRIVATE_KEY: z.string().regex(/^0x[0-9a-fA-F]{64}$/).transform((value) => value as Hex),
-  AI_SOLVER_PRIVATE_KEY: z.string().regex(/^0x[0-9a-fA-F]{64}$/).transform((value) => value as Hex),
-  OPENAI_API_KEY: z.string().min(1),
-  OPENAI_SOLVER_MODEL: z.string().min(1),
   XLAYER_RPC_URL: z.string().url().default("https://rpc.xlayer.tech"),
 });
 

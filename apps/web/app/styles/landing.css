@@ -17,24 +17,16 @@
 .route-canvas::before { background: var(--paper); content: ""; height: 120%; left: -21%; position: absolute; top: -10%; transform: rotate(7deg); width: 28%; }
 .route-canvas svg { height: 100%; inset: 0; min-width: 760px; position: absolute; width: 100%; }
 .route-path { fill: none; stroke-linecap: round; stroke-width: 2; }
-.route-path--muted { stroke: var(--line-strong); }
 .route-path--active { animation: draw-route 900ms cubic-bezier(.2,.8,.2,1) forwards; stroke: var(--cobalt); stroke-dasharray: 820; stroke-dashoffset: 820; }
-.route-path--delay { animation-delay: 180ms; }
-.route-path--winner { animation-delay: 760ms; stroke-width: 3; }
-.route-path--rejected { animation: draw-reject 750ms 340ms ease forwards; stroke: var(--rejected); stroke-dasharray: 720; stroke-dashoffset: 720; }
 .route-node { fill: var(--cobalt); }
-.route-node--ring { fill: var(--cobalt-wash); stroke: var(--cobalt); stroke-width: 1.5; }
-.reject-mark { fill: none; stroke: var(--rejected); stroke-linecap: round; stroke-width: 2; }
 @keyframes draw-route { to { stroke-dashoffset: 0; } }
-@keyframes draw-reject { to { stroke-dashoffset: 130; } }
 .route-canvas__label { color: var(--ink); font-size: 12px; font-weight: 590; position: absolute; z-index: 2; }
 .route-canvas__label span { color: var(--cobalt); display: block; font-family: var(--font-geist-mono), monospace; font-size: 10px; margin-bottom: 4px; }
 .route-canvas__label--intent { left: 5%; top: 40%; }
-.route-canvas__label--solver-a { left: 36%; top: 10%; }
-.route-canvas__label--solver-b { left: 36%; top: 40%; }
-.route-canvas__label--verify { left: 67%; top: 40%; }
-.route-canvas__label--winner { right: 4%; top: 40%; }
-.route-canvas__caption { bottom: 36px; color: var(--muted); font-family: var(--font-geist-mono), monospace; font-size: 10px; left: 8%; margin: 0; position: absolute; }
+.route-canvas__label--discovery { left: 36%; top: 40%; }
+.route-canvas__label--quote { left: 67%; top: 40%; }
+.route-canvas__label--bundle { right: 4%; top: 40%; }
+.route-canvas__caption { bottom: 36px; color: var(--muted); font-family: var(--font-geist-mono), monospace; font-size: 10px; left: 8%; margin: 0; max-width: 78%; position: absolute; }
 
 .mechanism { border-top: 1px solid var(--line); padding: 120px clamp(24px, 6vw, 104px) 140px; }
 .mechanism__steps { border-top: 1px solid var(--ink); display: grid; grid-template-columns: repeat(5, 1fr); list-style: none; margin: 80px 0 0; padding: 0; }
@@ -61,9 +53,9 @@
   .home-hero__boundary { align-items: flex-start; line-height: 1.5; width: auto; }
   .route-canvas { min-height: 440px; }
   .route-canvas svg { left: -90px; }
-  .route-canvas__label--solver-a, .route-canvas__label--solver-b { left: 33%; }
-  .route-canvas__label--verify { left: 64%; }
-  .route-canvas__label--winner { display: none; }
+  .route-canvas__label--discovery { left: 33%; }
+  .route-canvas__label--quote { left: 64%; }
+  .route-canvas__label--bundle { display: none; }
   .mechanism { padding-block: 84px; }
   .mechanism__steps { grid-template-columns: 1fr; margin-top: 54px; }
   .mechanism__steps li, .mechanism__steps li + li { min-height: 0; padding: 24px 0 32px; }
