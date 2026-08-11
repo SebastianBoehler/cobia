@@ -56,15 +56,15 @@ The `/mcp` endpoint exposes four tools:
 2. `prepare-yield-intent` creates the same canonical unsigned V2 policy used by
    the browser and returns its commitment.
 3. `submit-yield-intent` checks an external wallet signature and captures the
-   direct V2 snapshot before running the deterministic solver. It can truthfully
-   return zero authorized quotes.
+   direct V2 snapshot before running deterministic and bounded agentic solvers.
+   It can truthfully return zero authorized quotes.
 4. `track-yield-intent` returns lifecycle state and the sanitized quote.
 
 The hosted server never receives or holds the request owner's private key. It
 prepares data, returns owner signing to the wallet, and accepts only the
-resulting signature. It does hold the configured deterministic solver signing
-key used for Cobia's solver bundles; that key does not authorize request-owner
-principal transactions. The signed allocation bundle remains protected by the
+resulting signature. It does hold separate configured deterministic and agentic
+solver signing keys used for Cobia's solver bundles; neither key authorizes
+request-owner principal transactions. The signed allocation bundle remains protected by the
 same reveal-payment boundary used by the browser.
 
 ## Target, not implemented

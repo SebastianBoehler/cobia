@@ -1,6 +1,6 @@
 # Cobia web
 
-Cobia creates one deterministic, route-authorized quote for X Layer. A wallet
+Cobia runs deterministic and bounded agentic solvers for X Layer. A wallet
 signs an exact USDG or USDt0 policy; direct Aave V3 and Uniswap V3 reads are
 captured at one pinned block; and the signed plan is independently recomputed
 before it can be selected or revealed through OKX MPP. APY remains an estimated
@@ -19,8 +19,8 @@ pnpm --filter @cobia/web dev
 ```
 
 `pnpm env:dev` creates an ignored, owner-readable `apps/web/.env.local` with
-a fresh deterministic signing wallet, a separate recoverable dev treasury, an
-MPP secret, and a canonical local payment realm. It never overwrites an
+fresh deterministic and agentic signing wallets, a separate recoverable dev
+treasury, an MPP secret, and a canonical local payment realm. It never overwrites an
 existing value or prints private keys. When migrating an older file, it may
 append the missing non-secret `PAYMENT_REALM`. Fill in the blank OKX
 credentials before exercising live discovery.
@@ -29,8 +29,9 @@ Open <http://localhost:3000>. The MCP endpoint is
 <http://localhost:3000/mcp>.
 
 Every variable in `.env.example` is required for the corresponding live path.
-The app returns an explicit error when PostgreSQL, OKX, deterministic signing,
-or payment configuration is unavailable; it does not substitute sample data.
+The V2 solver market requires the OpenAI key/model and a separate agentic
+signer. The app returns an explicit error when PostgreSQL, protocol, solver, or
+payment configuration is unavailable; it does not substitute sample data.
 
 ## Network boundary
 
@@ -38,8 +39,8 @@ or payment configuration is unavailable; it does not substitute sample data.
   runtime and proxy implementation code, Aave reserve/oracle state, and the
   registered Uniswap pool/quote at the same block. V1 stored rounds retain their
   explicitly labeled OKX-derived estimates.
-- One configured deterministic solver proposes a direct Aave supply,
-  Uniswap-to-Aave route, or retain-all plan. Cobia recomputes exact conservation,
+- The deterministic solver ranks exact candidates; the agentic solver may
+  choose only among those server-built candidates. Cobia recomputes exact conservation,
   exposure, opportunity amounts, pre-gas economics, registry coverage, expiry,
   and signer before publishing a sanitized quote.
 - Reveal payment supports only X Layer testnet chain `1952` and its fixed

@@ -17,7 +17,7 @@ read adapter is not, by itself, an executable Cobia route.
 | MPP/EIP-3009 reveal payment | Implemented for fixed chain 1952 lane | Pays for the private bundle, not principal execution; a funded receipt-correlation canary is still required |
 | Aave/Uniswap transaction engine | Unit-tested and fork-rehearsed, product-unwired | Exact approvals, SwapRouter02/Aave calldata, receipt attribution, protocol events, postconditions, and resumable states; no UI/DB integration or live principal execution |
 | Product route simulation | Unimplemented | Gas estimation is not simulation; the isolated pinned-fork engine rehearsal is not a product simulation endpoint |
-| AI route or risk authority | Unimplemented | MCP access is agent-friendly, but it is not itself a meaningful AI feature |
+| Bounded agentic solver | Live V2 quote input | OpenAI selects only among server-built candidates; it cannot invent assets, amounts, contracts, or calldata, and the normal verifier remains authoritative |
 
 Production code has no sample protocol, fallback APY, or fabricated route. Unit
 tests use deterministic read/wallet clients; each explicit database integration
@@ -28,6 +28,31 @@ for capture and authorization, exact USDG approval, Uniswap USDG-to-USDt0, exact
 USDt0 approval, and Aave supply with receipt, event, and state checks. It is
 isolated engine evidence, not product simulation, persisted/product execution,
 live mainnet principal execution, or deployment proof.
+
+## Guarantee classes for broader intents
+
+Every future adapter must separate three kinds of output instead of presenting
+all strategy fields as equally enforceable:
+
+1. **Signed constraints** — assets, spend caps, adapters, slippage, deadlines,
+   pool fee/range, and recipient are committed before solver execution.
+2. **Immediate postconditions** — simulation and receipts can verify minimum
+   swap output, liquidity or shares minted, position ownership, protocol events,
+   and that no unexpected call or approval occurred.
+3. **Forecasts** — APY, LP trading fees, utilization, rewards, impermanent loss,
+   and future token prices are estimates. They may be block-bounded and sourced,
+   but simulation cannot guarantee their future lower bound.
+
+The target solver input is a server-enumerated typed route graph. An agentic
+solver may compose swaps, lending, LP positions, and conserved splits; a
+deterministic compiler resolves each action through a registered adapter and
+checks the final enforceable outcome. It never accepts model-authored calldata.
+The current V2 implementation remains narrower: one deployed leg containing
+direct Aave supply or Uniswap swap followed by Aave supply.
+
+Concentrated-liquidity support remains a target until Cobia implements range
+selection, position-manager calldata, amount/range validation, fork simulation,
+receipt attribution, and withdrawal postconditions.
 
 ## Verified X Layer mainnet deployments
 

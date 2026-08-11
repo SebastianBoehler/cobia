@@ -2,15 +2,17 @@
 
 Cobia is a verified DeFi quote and paid-route market for X Layer. A wallet signs
 an exact stablecoin intent, Cobia captures Aave V3 and Uniswap V3 opportunity
-data at one pinned block, a deterministic solver proposes a bounded route, and
-an independent verifier recomputes its authorization before publication. The
+data at one pinned block, deterministic and bounded agentic solvers propose
+routes, and an independent verifier recomputes authorization before publication. The
 private signed plan is released only to the request owner after an OKX MPP
 payment.
 
 The current product is deliberately narrow: USDG/USDt0, Aave V3 supply, the
-registered Uniswap V3 0.01% pool, and one configured deterministic solver. V1
-OKX-derived Aave allocation rounds remain readable for compatibility. Cobia is
-not yet a broad aggregator, an open solver market, or an AI optimizer.
+registered Uniswap V3 0.01% pool, and two Cobia-operated solvers. The agentic
+solver may choose only among server-built candidates; it cannot invent assets,
+amounts, contracts, or calldata. V1 OKX-derived Aave allocation rounds remain
+readable for compatibility. Cobia is not yet a broad aggregator or an open
+external-solver market.
 
 ## Current truth
 
@@ -20,15 +22,16 @@ not yet a broad aggregator, an open solver market, or an AI optimizer.
 | Direct Aave V3 reserve/oracle and Uniswap V3 quote reads | Live V2 capture at one pinned X Layer block |
 | Versioned policy, snapshot, route, and quote commitments | Implemented |
 | Deterministic V2 route authorization | Implemented and recomputed before persistence/payment |
+| Bounded OpenAI route selector | Live; selects only server-enumerated candidates and signs with an independent solver key |
 | Quote selection and owner signatures | Implemented |
 | MPP/EIP-3009 paid reveal | Implemented for the fixed X Layer testnet payment lane |
 | PostgreSQL request/payment/purchase history | Implemented |
 | X Layer mainnet USDt0 and Aave aToken balances | Live reads |
 | Aave V3 + Uniswap V3 route planning | Implemented for one exact exposure and at most one deployed leg |
-| Competing/external solvers | Not implemented; one configured solver is isolated behind a multi-solver harness |
+| Solver competition | Two Cobia-operated solvers run independently; external solver admission is not implemented |
 | Transaction construction/execution engine | Unit-tested and exercised in the opt-in pinned-fork rehearsal; not wired to the product or persisted |
 | X Layer mainnet-fork engine rehearsal | Implemented and green in isolated Anvil state at block `67,649,362` |
-| AI research or allocation authority | Not implemented |
+| AI execution/calldata authority | Not granted; deterministic construction and verification remain authoritative |
 
 APY and TVL are snapshot-derived estimates. A block-bounded capture does not
 turn an off-chain rate into an on-chain oracle. Product principal remains
@@ -45,7 +48,9 @@ flowchart LR
     W["Owner wallet"] --> I["Signed stablecoin intent"]
     I --> S["Pinned Aave + Uniswap snapshot"]
     S --> D["Deterministic solver"]
+    S --> A["Bounded agentic selector"]
     D --> V["Pure verifier"]
+    A --> V
     V --> Q["Sanitized public quote"]
     Q --> P["Owner-bound MPP payment"]
     P --> R["Committed private bundle"]
@@ -105,7 +110,7 @@ to `ghcr.io` for the image and `https://rpc.xlayer.tech` for fork state.
 
 - `apps/web` — Next.js product, API routes, MCP endpoint, persistence, and chain reads
 - `packages/domain` — canonical schemas, commitments, allocation math, scoring, and verification
-- `packages/solvers` — deterministic allocation solver
+- `packages/solvers` — deterministic builder and bounded agentic candidate selector
 - `docs/architecture` — current/target architecture and intent-compatibility boundaries
 
 See [apps/web/README.md](apps/web/README.md) for the exact network and payment
