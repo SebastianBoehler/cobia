@@ -57,7 +57,7 @@ describe("PolicyForm", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Advanced settings" }));
 
-    expect(screen.getByLabelText("Protocol exposure")).toHaveValue("40");
+    expect(screen.getByLabelText("Protocol exposure")).toHaveValue("100");
     expect(screen.getByLabelText("Minimum Aave reserve TVL")).toHaveValue("500000");
     expect(screen.getByLabelText("Minimum estimated pre-gas APY")).toHaveValue("0.05");
   });
@@ -80,7 +80,7 @@ describe("PolicyForm", () => {
 
     expect(screen.getByRole("textbox", { name: "Amount" })).toHaveValue("10");
     expect(screen.getByText("10.00 USDG")).toBeVisible();
-    expect(screen.getByText("4.00 USDG exact")).toBeVisible();
+    expect(screen.getByText("10.00 USDG exact")).toBeVisible();
     expect(screen.getByText("No bridges")).toBeVisible();
     expect(screen.getByText("Outputs: USDG and USDt0")).toBeVisible();
     expect(screen.getByText("Adapters: Aave V3 supply and Uniswap V3 swap")).toBeVisible();
@@ -95,7 +95,7 @@ describe("PolicyForm", () => {
   it("describes adapter possibilities without promising a multi-protocol route", () => {
     renderForm();
 
-    expect(screen.getByText("4.00 USDG exact")).toBeVisible();
+    expect(screen.getByText("10.00 USDG exact")).toBeVisible();
     expect(screen.getByText(/may evaluate Aave V3 supply and Uniswap V3 swap opportunities/i))
       .toBeVisible();
     expect(screen.getByText(/principal remains unmoved/i)).toBeVisible();
@@ -184,7 +184,7 @@ describe("PolicyForm", () => {
         version: 2,
         owner,
         principalAtomic: "10000000",
-        protocolExposureBps: 4_000,
+        protocolExposureBps: 10_000,
         minPreGasApyBps: 5,
         noBridges: true,
         allowedOutputAssets: [

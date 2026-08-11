@@ -49,7 +49,7 @@ export function PolicyForm() {
   const wallet = useWallet();
   const [assetAddress, setAssetAddress] = useState(SUPPORTED_ASSETS[0].address);
   const [principal, setPrincipal] = useState("10");
-  const [exposure, setExposure] = useState("40");
+  const [exposure, setExposure] = useState("100");
   const [minimumTvl, setMinimumTvl] = useState("500000");
   const [minimumApy, setMinimumApy] = useState("0.05");
   const [acknowledged, setAcknowledged] = useState(false);

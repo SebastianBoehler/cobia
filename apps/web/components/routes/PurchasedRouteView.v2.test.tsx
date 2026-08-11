@@ -30,6 +30,9 @@ describe("PurchasedRouteView V2", () => {
     expect(screen.getByText("Principal unmoved")).toBeVisible();
     const steps = screen.getAllByRole("listitem");
     expect(within(steps[0]).getByText("10.000001 USDt0 retained")).toBeVisible();
+    expect(within(steps[0]).getByText(
+      "Risk buffer selected in the signed intent",
+    )).toBeVisible();
     expect(within(steps[1]).getByText(
       "Swap 15 USDt0 for at least 14.85 USDG via Uniswap V3",
     )).toBeVisible();

@@ -46,7 +46,7 @@ export function PurchasedRoutePlanV2({ route }: { route: PurchasedRouteV2 }) {
       route.bundle.routePlan.inputAsset,
       route.snapshot.valuations,
     )} retained`,
-    detail: "Not submitted to a protocol",
+    detail: "Risk buffer selected in the signed intent",
   }, ...route.bundle.routePlan.legs.flatMap((leg) =>
     actionSteps(leg, route.snapshot.valuations))];
 
