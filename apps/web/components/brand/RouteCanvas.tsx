@@ -12,7 +12,7 @@ export function RouteCanvas() {
         <circle className="route-node" cx="520" cy="200" r="7" />
         <circle className="route-node" cx="720" cy="200" r="8" />
       </svg>
-      <p className="route-canvas__caption">Snapshot-derived estimate only. Execution is fork-tested but not wired into the product.</p>
+      <p className="route-canvas__caption">Snapshot-derived estimate only. Fresh purchased routes can be rehearsed, then executed through explicit verified wallet steps.</p>
     </div>
   );
 }

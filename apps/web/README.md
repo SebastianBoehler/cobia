@@ -4,7 +4,8 @@ Cobia runs deterministic and bounded agentic solvers for X Layer. A wallet
 signs an exact USDG or USDt0 policy; direct Aave V3 and Uniswap V3 reads are
 captured at one pinned block; and the signed plan is independently recomputed
 before it can be selected or revealed through OKX MPP. APY remains an estimated
-pre-gas rate. Principal remains unmoved by the product.
+pre-gas rate. Buying a route does not move principal; a fresh rehearsed V2 route
+can be executed later through separate, explicit X Layer mainnet wallet prompts.
 
 ## Local run
 
@@ -22,8 +23,9 @@ pnpm --filter @cobia/web dev
 fresh deterministic and agentic signing wallets, a separate recoverable dev
 treasury, an MPP secret, and a canonical local payment realm. It never overwrites an
 existing value or prints private keys. When migrating an older file, it may
-append the missing non-secret `PAYMENT_REALM`. Fill in the blank OKX
-credentials before exercising live discovery.
+append the missing non-secret `PAYMENT_REALM` and a new local
+`EXECUTION_SESSION_SECRET`. Fill in the blank OKX credentials before exercising
+live discovery.
 
 Open <http://localhost:3000>. The MCP endpoint is
 <http://localhost:3000/mcp>.
@@ -45,17 +47,20 @@ payment configuration is unavailable; it does not substitute sample data.
   and signer before publishing a sanitized quote.
 - Reveal payment supports only X Layer testnet chain `1952` and its fixed
   six-decimal USDt0 token at `0x9e29b3aada05bf2d2c827af80bd28dc0b9b4fb0c`.
-- The product does not move the user's stablecoin principal on a public chain.
-  Purchased V2 routes expose a buyer-authenticated action that replays the exact
-  committed bundle in disposable X Layer mainnet-fork state and persists the
-  attributed transaction trace. `eth_estimateGas` remains gas preflight, not a
-  current-state or profitability guarantee. No testnet Aave or Uniswap
-  deployment is claimed.
+- Purchased V2 routes first expose a buyer-authenticated action that replays the
+  exact committed bundle in disposable X Layer mainnet-fork state and persists
+  the attributed trace. A passing, still-fresh route can then enter guided X
+  Layer mainnet execution. The browser independently verifies each server-built
+  transaction and OKX Wallet asks the buyer to confirm one approval, swap, or
+  supply at a time. The server never signs or relays principal transactions.
+  `eth_estimateGas` remains gas preflight, not a profitability guarantee. No
+  testnet Aave or Uniswap deployment is claimed.
 - Both the product rehearsal and the opt-in acceptance lane have passed direct
   Aave and Uniswap USDG-to-USDt0-to-Aave routes with exact approvals, receipts,
   protocol events, and state checks. Fork evidence is historical and uses
-  simulated funds; it is not live mainnet principal execution or deployment
-  proof.
+  simulated funds; the guided wallet lane separately rechecks freshness,
+  deployments, balances, gas, transaction attribution, and postconditions at
+  mainnet execution time.
   A full testnet payment check requires a funded Agentic Wallet, OKX MPP
   credentials, treasury/signer addresses, and a deployed payment asset.
 

@@ -29,18 +29,20 @@ external-solver market.
 | X Layer mainnet USDt0 and Aave aToken balances | Live reads |
 | Aave V3 + Uniswap V3 route planning | Implemented for one exact exposure and at most one deployed leg |
 | Solver competition | Two Cobia-operated solvers run independently; external solver admission is not implemented |
-| Transaction construction/execution engine | Unit-tested and used by the buyer-authenticated purchased-route fork rehearsal |
+| Transaction construction/execution engine | Unit/fork-tested and wired as buyer-authenticated, one-step-at-a-time X Layer mainnet wallet execution |
 | X Layer mainnet-fork route rehearsal | Product-visible, persisted, and green for direct Aave and Uniswap-to-Aave purchased V2 routes |
+| Guided X Layer mainnet execution | Product-wired for fresh, purchased, rehearsed V2 routes; every transaction requires an explicit buyer-wallet confirmation and durable receipt verification |
 | AI execution/calldata authority | Not granted; deterministic construction and verification remain authoritative |
 
 APY and TVL are snapshot-derived estimates. A block-bounded capture does not
-turn an off-chain rate into an on-chain oracle. Product principal remains
-unmoved on public chains. After a paid V2 route is unlocked, its buyer can sign
-an action-scoped proof and replay that exact bundle at its committed snapshot
-block in disposable Anvil state. The persisted trace shows exact approvals, an
-optional Uniswap swap, Aave supply, receipts, events, and postconditions. This
-is historical fork evidence—not a current-price guarantee, live mainnet
-principal execution, or deployment proof.
+turn an off-chain rate into an on-chain oracle. Buying a route does not move
+principal. After a paid V2 route is unlocked, its buyer can first replay the
+exact bundle at its committed snapshot block in disposable Anvil state, then
+separately authorize guided chain-196 execution while the route remains fresh.
+The browser and server independently rebuild each step; each approval, swap,
+or supply requires its own wallet confirmation. Persisted hashes, receipts,
+events, and postconditions make reload recovery explicit. Fork evidence is
+historical and APY remains a forecast—not a profitability guarantee.
 
 ## Trust boundary
 
@@ -56,6 +58,7 @@ flowchart LR
     Q --> P["Owner-bound MPP payment"]
     P --> R["Committed private bundle"]
     R --> F["Buyer-authenticated fork rehearsal"]
+    F --> E["Explicit guided wallet steps"]
 ```
 
 Solvers reference only registered opportunity IDs; adapter code resolves
@@ -83,7 +86,8 @@ pnpm dev
 
 `pnpm env:dev` creates an ignored, owner-readable local environment file. It
 never overwrites secrets or existing values; for an older file, it may append
-the missing non-secret `PAYMENT_REALM`. It never prints generated private keys.
+the missing non-secret `PAYMENT_REALM` and a new local
+`EXECUTION_SESSION_SECRET`. It never prints generated private keys or secrets.
 Live OKX paths require the corresponding credentials; missing configuration
 fails visibly and never substitutes sample data.
 
