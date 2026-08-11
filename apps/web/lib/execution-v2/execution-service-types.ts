@@ -56,6 +56,8 @@ export interface ExecutionServiceDependencies {
   executions: {
     begin(input: BeginExecutionInput): Promise<AttemptRow>;
     prepareStep(input: PrepareExecutionStepInput): Promise<StepRow>;
+    armStep(attemptId: string, ordinal: number): Promise<StepRow>;
+    cancelArmedStep(attemptId: string, ordinal: number): Promise<StepRow>;
     getAttempt(attemptId: string): Promise<ExecutionAttempt | null>;
     getByRoute(routeId: string): Promise<ExecutionAttempt | null>;
     bindSubmittedHash(attemptId: string, ordinal: number, hash: Hash): Promise<StepRow>;

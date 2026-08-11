@@ -19,6 +19,11 @@ import {
   sameExecutionJson as sameJson,
 } from "./execution-storage";
 import {
+  armExecutionStep,
+  cancelArmedExecutionStep,
+  reconcileExecutionStep,
+} from "./execution-broadcast-storage";
+import {
   cobiaExecutionAttempts,
   cobiaExecutionRehearsals,
   cobiaExecutionSteps,
@@ -132,6 +137,12 @@ export function createExecutionRepository(db: CobiaDatabase) {
       });
     },
 
+    armStep: (attemptId: string, ordinal: number) =>
+      armExecutionStep(db, attemptId, ordinal),
+
+    cancelArmedStep: (attemptId: string, ordinal: number) =>
+      cancelArmedExecutionStep(db, attemptId, ordinal),
+
     async bindSubmittedHash(attemptId: string, ordinal: number, value: Hash) {
       const transactionHash = value.toLowerCase() as Hash;
       return db.transaction(async (tx) => {
@@ -142,9 +153,9 @@ export function createExecutionRepository(db: CobiaDatabase) {
           eq(cobiaExecutionSteps.attemptId, attempt.id),
           eq(cobiaExecutionSteps.ordinal, ordinal),
         )).for("update"), "Execution step is unavailable");
-        if (step.state !== "prepared") {
+        if (step.state !== "broadcasting") {
           if (step.transactionHash === transactionHash) return step;
-          throw new Error("Submitted transaction hash conflicts");
+          throw new Error("Execution step must be armed before submission");
         }
         const submitted = row(await tx.update(cobiaExecutionSteps).set({
           state: "submitted",
@@ -209,34 +220,8 @@ export function createExecutionRepository(db: CobiaDatabase) {
       });
     },
 
-    async markReconcile(attemptId: string, ordinal: number, codeValue: string) {
-      const failureCode = safeExecutionFailureCode(codeValue);
-      return db.transaction(async (tx) => {
-        const attempt = row(await tx.select().from(cobiaExecutionAttempts)
-          .where(eq(cobiaExecutionAttempts.id, attemptId)).for("update"),
-        "Execution attempt is unavailable");
-        const step = row(await tx.select().from(cobiaExecutionSteps).where(and(
-          eq(cobiaExecutionSteps.attemptId, attempt.id),
-          eq(cobiaExecutionSteps.ordinal, ordinal),
-        )).for("update"), "Execution step is unavailable");
-        if (step.state === "reconcile" && step.failureCode === failureCode) {
-          return { attempt, step };
-        }
-        if (step.state !== "submitted") throw new Error("Only a submitted step can reconcile");
-        const updatedAt = new Date();
-        const reconciledStep = row(await tx.update(cobiaExecutionSteps).set({
-          state: "reconcile", failureCode, updatedAt,
-        }).where(eq(cobiaExecutionSteps.id, step.id)).returning(), "Step reconciliation failed");
-        const reconciledAttempt = row(await tx.update(cobiaExecutionAttempts).set({
-          state: "reconcile", updatedAt,
-        }).where(eq(cobiaExecutionAttempts.id, attempt.id)).returning(),
-        "Attempt reconciliation failed");
-        await executionActivity(tx, reconciledAttempt, "execution_reconciliation", "reconcile", {
-          ordinal, stepId: step.id, failureCode,
-        }, step.transactionHash ?? undefined);
-        return { attempt: reconciledAttempt, step: reconciledStep };
-      });
-    },
+    markReconcile: (attemptId: string, ordinal: number, code: string) =>
+      reconcileExecutionStep(db, attemptId, ordinal, code),
 
     async failStep(attemptId: string, ordinal: number, codeValue: string) {
       const failureCode = safeExecutionFailureCode(codeValue);

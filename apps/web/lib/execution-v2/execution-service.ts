@@ -30,6 +30,7 @@ import {
 } from "./mainnet-proof";
 
 export type ExecutionAdvanceActionV2 =
+  | { action: "arm" | "cancel"; ordinal: number }
   | { action: "submitted"; ordinal: number; transactionHash: Hash }
   | { action: "resolve"; ordinal: number }
   | { action: "recover"; ordinal: number };
@@ -48,7 +49,7 @@ export function createExecutionService(dependencies: ExecutionServiceDependencie
     const stored = await dependencies.executions.getAttempt(attemptId);
     if (!stored) throw new Error("Execution attempt is unavailable");
     if (stored.steps.some((step: StepRow) =>
-      ["prepared", "submitted", "reconcile"].includes(step.state))) return stored;
+      ["prepared", "broadcasting", "submitted", "reconcile"].includes(step.state))) return stored;
     if (["complete", "failed", "reconcile"].includes(stored.state)) return stored;
     const verdict = await verifyFreshExecutionArtifactV2(dependencies, artifact, nowSec);
     const confirmed = parseConfirmedExecutionStepsV2(
@@ -147,6 +148,31 @@ export function createExecutionService(dependencies: ExecutionServiceDependencie
     }
   }
 
+  async function inspectBroadcast(
+    attemptId: string,
+    ordinal: number,
+  ): Promise<"submitted" | "clear" | "reconcile"> {
+    const attempt = await dependencies.executions.getAttempt(attemptId);
+    const step = attempt?.steps.find((candidate) => candidate.ordinal === ordinal);
+    if (!attempt || !step || step.state !== "broadcasting") {
+      throw new Error("Execution step is not awaiting a wallet broadcast");
+    }
+    const prepared = parseGuidedPreparedStepV2(step);
+    const recovered = await recoverGuidedSubmissionV2(dependencies.readClient, prepared);
+    if (recovered) {
+      await dependencies.executions.bindSubmittedHash(attemptId, ordinal, recovered);
+      return "submitted";
+    }
+    const pendingNonce = await dependencies.readClient.getTransactionCount(
+      prepared.transaction.from,
+    );
+    if (pendingNonce > prepared.expectedNonce) {
+      await dependencies.executions.markReconcile(attemptId, ordinal, "BROADCAST_UNCERTAIN");
+      return "reconcile";
+    }
+    return "clear";
+  }
+
   return {
     async start(routeIdValue: string, proofValue: unknown, signature: Hex) {
       const nowSec = dependencies.nowSec();
@@ -205,21 +231,24 @@ export function createExecutionService(dependencies: ExecutionServiceDependencie
       const session = await authenticatedAttempt(routeId, attemptId, token, nowSec);
       const step = session.attempt.steps.find((candidate) => candidate.ordinal === action.ordinal);
       if (!step) throw new Error("Execution step is unavailable");
-      if (action.action === "submitted") {
+      if (action.action === "arm") {
         if (step.state !== "prepared") throw new Error("Execution step is not prepared");
+        await dependencies.executions.armStep(attemptId, action.ordinal);
+      } else if (action.action === "submitted") {
+        if (step.state !== "broadcasting") throw new Error("Execution step is not armed");
         await dependencies.executions.bindSubmittedHash(
           attemptId,
           action.ordinal,
           action.transactionHash,
         );
       } else if (action.action === "recover") {
-        if (step.state !== "prepared") throw new Error("Execution step is not prepared");
-        const recovered = await recoverGuidedSubmissionV2(
-          dependencies.readClient,
-          parseGuidedPreparedStepV2(step),
-        );
-        if (recovered) {
-          await dependencies.executions.bindSubmittedHash(attemptId, action.ordinal, recovered);
+        if (step.state !== "broadcasting") throw new Error("Execution step is not broadcasting");
+        await inspectBroadcast(attemptId, action.ordinal);
+      } else if (action.action === "cancel") {
+        if (step.state !== "broadcasting") throw new Error("Execution step is not broadcasting");
+        const inspection = await inspectBroadcast(attemptId, action.ordinal);
+        if (inspection === "clear") {
+          await dependencies.executions.cancelArmedStep(attemptId, action.ordinal);
         }
       }
       const afterAction = await dependencies.executions.getAttempt(attemptId);

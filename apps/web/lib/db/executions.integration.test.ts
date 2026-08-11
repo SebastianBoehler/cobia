@@ -168,6 +168,9 @@ describe("guided mainnet execution repository", () => {
     });
     await executions.prepareStep(preparedInput(attempt.id));
     const transactionHash = `0x${"ee".repeat(32)}` as const;
+    await expect(executions.bindSubmittedHash(attempt.id, 0, transactionHash))
+      .rejects.toThrow("armed");
+    await executions.armStep(attempt.id, 0);
     await executions.bindSubmittedHash(attempt.id, 0, transactionHash);
 
     await expect(executions.prepareStep(preparedInput(attempt.id, 1)))
@@ -184,6 +187,7 @@ describe("guided mainnet execution repository", () => {
     const next = { ...preparedInput(attempt.id, 1), kind: "supply" as const };
     await executions.prepareStep(next);
     const secondHash = `0x${"ef".repeat(32)}` as const;
+    await executions.armStep(attempt.id, 1);
     await executions.bindSubmittedHash(attempt.id, 1, secondHash);
     const complete = await executions.confirmStep(attempt.id, 1, {
       transactionHash: secondHash,
@@ -205,11 +209,13 @@ describe("guided mainnet execution repository", () => {
       proofNonce: `0x${"b5".repeat(32)}`,
     });
     await executions.prepareStep(preparedInput(attempt.id));
-    const transactionHash = `0x${"e1".repeat(32)}` as const;
-    await executions.bindSubmittedHash(attempt.id, 0, transactionHash);
-    const reconciled = await executions.markReconcile(attempt.id, 0, "RECEIPT_UNRESOLVED");
+    const armed = await executions.armStep(attempt.id, 0);
+    expect(armed.state).toBe("broadcasting");
+    expect(await executions.armStep(attempt.id, 0)).toEqual(armed);
+    const reconciled = await executions.markReconcile(attempt.id, 0, "BROADCAST_UNCERTAIN");
 
     expect(reconciled.attempt.state).toBe("reconcile");
+    expect(reconciled.step.transactionHash).toBeNull();
     await expect(executions.prepareStep(preparedInput(attempt.id, 1)))
       .rejects.toThrow("reconciliation");
     expect(await executions.findRecoverable(route.fixture.policy.owner))

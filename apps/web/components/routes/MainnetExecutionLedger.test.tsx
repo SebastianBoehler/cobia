@@ -46,7 +46,7 @@ function session(state: "active" | "complete" = "active"): MainnetExecutionSessi
       state, nextOrdinal: 0, failureCode: null },
     steps: [],
     preparedStep: state === "active" ? {
-      ordinal: 0, state: "prepared", kind: "approval", from: wallet.account!,
+      ordinal: 0, state: "prepared", kind: "approval", from: buyer,
       to: "0x4ae46a509f6b1d9056937ba4500cb143933d2dc8", valueAtomic: "0",
       calldata: "0x1234", calldataHash: `0x${"44".repeat(32)}`,
       semantic: { version: 1, label: "approve-aave-exact", phase: "initial",

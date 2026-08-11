@@ -24,6 +24,7 @@ export const executionAttemptState = pgEnum("cobia_execution_attempt_state", [
 
 export const executionStepState = pgEnum("cobia_execution_step_state", [
   "prepared",
+  "broadcasting",
   "submitted",
   "confirmed",
   "reconcile",
@@ -136,13 +137,18 @@ export const cobiaExecutionSteps = pgTable(
         AND ${table.receipt} IS NULL AND ${table.evidence} IS NULL
         AND ${table.postcondition} IS NULL AND ${table.failureCode} IS NULL
         AND ${table.resolvedAt} IS NULL)
+      OR (${table.state} = 'broadcasting'
+        AND ${table.transactionHash} IS NULL AND ${table.submittedAt} IS NOT NULL
+        AND ${table.receipt} IS NULL AND ${table.evidence} IS NULL
+        AND ${table.postcondition} IS NULL AND ${table.failureCode} IS NULL
+        AND ${table.resolvedAt} IS NULL)
       OR (${table.state} = 'confirmed'
         AND ${table.transactionHash} IS NOT NULL AND ${table.submittedAt} IS NOT NULL
         AND ${table.receipt} IS NOT NULL AND ${table.evidence} IS NOT NULL
         AND ${table.postcondition} IS NOT NULL AND ${table.failureCode} IS NULL
         AND ${table.resolvedAt} IS NOT NULL)
       OR (${table.state} = 'reconcile'
-        AND ${table.transactionHash} IS NOT NULL AND ${table.submittedAt} IS NOT NULL
+        AND ${table.submittedAt} IS NOT NULL
         AND ${table.receipt} IS NULL AND ${table.evidence} IS NULL
         AND ${table.postcondition} IS NULL AND ${table.failureCode} IS NOT NULL
         AND ${table.resolvedAt} IS NULL)

@@ -22,7 +22,8 @@ export function executionSessionView(
     postcondition: step.postcondition,
     failureCode: step.failureCode,
   }));
-  const current = attempt.steps.findLast((step) => step.state === "prepared");
+  const current = attempt.steps.findLast((step) =>
+    step.state === "prepared" || step.state === "broadcasting");
   const preparedStep = current ? {
     ordinal: current.ordinal,
     state: current.state,

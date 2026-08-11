@@ -1,5 +1,5 @@
 CREATE TYPE "public"."cobia_execution_attempt_state" AS ENUM('prepared', 'active', 'partial', 'reconcile', 'failed', 'complete');--> statement-breakpoint
-CREATE TYPE "public"."cobia_execution_step_state" AS ENUM('prepared', 'submitted', 'confirmed', 'reconcile', 'failed');--> statement-breakpoint
+CREATE TYPE "public"."cobia_execution_step_state" AS ENUM('prepared', 'broadcasting', 'submitted', 'confirmed', 'reconcile', 'failed');--> statement-breakpoint
 CREATE TABLE "cobia_execution_attempts" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"route_id" text NOT NULL,
@@ -86,13 +86,18 @@ CREATE TABLE "cobia_execution_steps" (
         AND "cobia_execution_steps"."receipt" IS NULL AND "cobia_execution_steps"."evidence" IS NULL
         AND "cobia_execution_steps"."postcondition" IS NULL AND "cobia_execution_steps"."failure_code" IS NULL
         AND "cobia_execution_steps"."resolved_at" IS NULL)
+      OR ("cobia_execution_steps"."state" = 'broadcasting'
+        AND "cobia_execution_steps"."transaction_hash" IS NULL AND "cobia_execution_steps"."submitted_at" IS NOT NULL
+        AND "cobia_execution_steps"."receipt" IS NULL AND "cobia_execution_steps"."evidence" IS NULL
+        AND "cobia_execution_steps"."postcondition" IS NULL AND "cobia_execution_steps"."failure_code" IS NULL
+        AND "cobia_execution_steps"."resolved_at" IS NULL)
       OR ("cobia_execution_steps"."state" = 'confirmed'
         AND "cobia_execution_steps"."transaction_hash" IS NOT NULL AND "cobia_execution_steps"."submitted_at" IS NOT NULL
         AND "cobia_execution_steps"."receipt" IS NOT NULL AND "cobia_execution_steps"."evidence" IS NOT NULL
         AND "cobia_execution_steps"."postcondition" IS NOT NULL AND "cobia_execution_steps"."failure_code" IS NULL
         AND "cobia_execution_steps"."resolved_at" IS NOT NULL)
       OR ("cobia_execution_steps"."state" = 'reconcile'
-        AND "cobia_execution_steps"."transaction_hash" IS NOT NULL AND "cobia_execution_steps"."submitted_at" IS NOT NULL
+        AND "cobia_execution_steps"."submitted_at" IS NOT NULL
         AND "cobia_execution_steps"."receipt" IS NULL AND "cobia_execution_steps"."evidence" IS NULL
         AND "cobia_execution_steps"."postcondition" IS NULL AND "cobia_execution_steps"."failure_code" IS NOT NULL
         AND "cobia_execution_steps"."resolved_at" IS NULL)

@@ -39,7 +39,7 @@ const SessionSchema = z.object({
   }).strict(),
   steps: z.array(z.object({
     ordinal: z.number().int().nonnegative(),
-    state: z.enum(["prepared", "submitted", "confirmed", "reconcile", "failed"]),
+    state: z.enum(["prepared", "broadcasting", "submitted", "confirmed", "reconcile", "failed"]),
     kind: z.enum(["approval", "swap", "supply"]), label: z.string().optional(),
     to: AddressSchema, gasEstimateAtomic: z.string().regex(/^(0|[1-9][0-9]*)$/),
     transactionHash: HashSchema.nullable(), receipt: z.unknown().nullable(),
@@ -125,7 +125,7 @@ export async function advanceMainnetExecutionV2(input: {
   routeId: Hash;
   session: MainnetExecutionSessionV2;
   action: { action: "submitted"; ordinal: number; transactionHash: Hash }
-    | { action: "resolve" | "recover"; ordinal: number };
+    | { action: "resolve" | "recover" | "arm" | "cancel"; ordinal: number };
   fetcher?: Fetcher;
 }) {
   const fetcher = input.fetcher ?? fetch;
@@ -152,6 +152,9 @@ export async function submitMainnetExecutionStepV2(input: {
   fetcher?: Fetcher;
 }) {
   if (!input.session.preparedStep) throw new Error("No execution step is prepared");
+  if (input.session.preparedStep.state !== "prepared") {
+    throw new Error("Execution step is already awaiting a wallet broadcast");
+  }
   const nowSec = () => Math.floor(Date.now() / 1_000);
   const verdict = await verifyRouteBundleV2(
     input.policy, input.snapshot, input.bundle, input.bundle.solverAddress,
@@ -162,13 +165,31 @@ export async function submitMainnetExecutionStepV2(input: {
     chain: xLayer, transport: http(),
   }));
   await input.wallet.switchToXLayer();
-  const submitted = await submitGuidedStepV2({
-    policy: input.policy, bundle: input.bundle, verdict, nowSec,
-    readClient, wallet: input.wallet,
-    prepared: parseGuidedPreparedStepV2(input.session.preparedStep),
-  });
-  return advanceMainnetExecutionV2({
+  const armed = await advanceMainnetExecutionV2({
     routeId: input.routeId, session: input.session, fetcher: input.fetcher,
+    action: { action: "arm", ordinal: input.session.attempt.nextOrdinal },
+  });
+  if (!armed.preparedStep || armed.preparedStep.state !== "broadcasting") {
+    throw new Error("Execution step was not durably armed");
+  }
+  let submitted;
+  try {
+    submitted = await submitGuidedStepV2({
+      policy: input.policy, bundle: input.bundle, verdict, nowSec,
+      readClient, wallet: input.wallet,
+      prepared: parseGuidedPreparedStepV2(armed.preparedStep),
+    });
+  } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === 4001) {
+      await advanceMainnetExecutionV2({
+        routeId: input.routeId, session: armed, fetcher: input.fetcher,
+        action: { action: "cancel", ordinal: input.session.attempt.nextOrdinal },
+      });
+    }
+    throw error;
+  }
+  return advanceMainnetExecutionV2({
+    routeId: input.routeId, session: armed, fetcher: input.fetcher,
     action: { action: "submitted", ordinal: input.session.attempt.nextOrdinal,
       transactionHash: submitted.hash },
   });

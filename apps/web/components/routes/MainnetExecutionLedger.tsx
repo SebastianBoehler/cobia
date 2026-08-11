@@ -50,6 +50,7 @@ export function MainnetExecutionLedger({
   const buyerConnected = Boolean(wallet.account && isAddress(route.buyer) &&
     isAddressEqual(wallet.account, route.buyer));
   const currentSubmitted = session?.steps.findLast((step) => step.state === "submitted");
+  const broadcasting = session?.preparedStep?.state === "broadcasting";
   const preparedLabel = session?.preparedStep &&
     typeof session.preparedStep.semantic === "object" && session.preparedStep.semantic &&
     "label" in session.preparedStep.semantic &&
@@ -182,13 +183,13 @@ export function MainnetExecutionLedger({
           {pending ? <LoaderCircle className="spin" size={16} /> : null}
           {pending ? "Authorizing…" : "Start guided mainnet execution"}
         </button>
-      ) : session.preparedStep && !uncertain ? (
+      ) : session.preparedStep && !broadcasting && !uncertain ? (
         <button className="button button--primary" type="button" disabled={pending}
           onClick={submit}>
           {pending ? <LoaderCircle className="spin" size={16} /> : null}
           {pending ? "Checking and opening wallet…" : `Review in wallet: ${preparedLabel}`}
         </button>
-      ) : uncertain ? (
+      ) : uncertain || broadcasting ? (
         <button className="button button--secondary" type="button" disabled={pending}
           onClick={() => advance("recover", session.attempt.nextOrdinal)}>
           {pending ? "Scanning chain…" : "Recover submitted transaction"}

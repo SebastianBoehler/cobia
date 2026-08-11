@@ -39,6 +39,16 @@ describe("mainnet execution attempt endpoint", () => {
     expect(read.status).toBe(200);
     expect(state.read).toHaveBeenCalledWith(routeId, attemptId, token);
 
+    const armed = await POST(new Request("http://localhost", {
+      method: "POST",
+      headers: { ...bearer(), "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "arm", ordinal: 0 }),
+    }), context);
+    expect(armed.status).toBe(200);
+    expect(state.advance).toHaveBeenCalledWith(routeId, attemptId, token, {
+      action: "arm", ordinal: 0,
+    });
+
     const response = await POST(new Request("http://localhost", {
       method: "POST",
       headers: { ...bearer(), "Content-Type": "application/json" },

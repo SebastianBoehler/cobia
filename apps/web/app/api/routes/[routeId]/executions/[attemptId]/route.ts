@@ -20,6 +20,8 @@ const ActionSchema = z.discriminatedUnion("action", [
   }).strict(),
   z.object({ action: z.literal("resolve"), ordinal: z.number().int().nonnegative() }).strict(),
   z.object({ action: z.literal("recover"), ordinal: z.number().int().nonnegative() }).strict(),
+  z.object({ action: z.literal("arm"), ordinal: z.number().int().nonnegative() }).strict(),
+  z.object({ action: z.literal("cancel"), ordinal: z.number().int().nonnegative() }).strict(),
 ]);
 
 function json(body: unknown, status = 200): Response {

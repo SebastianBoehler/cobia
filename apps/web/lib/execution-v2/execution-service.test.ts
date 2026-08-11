@@ -58,6 +58,18 @@ async function setup() {
       attempts[0].state = "active";
       return step;
     },
+    armStep: async (_attemptId: string, ordinal: number) => {
+      const step = attempts[0].steps.find((item) => item.ordinal === ordinal);
+      if (!step) throw new Error("step missing");
+      step.state = "broadcasting";
+      return step;
+    },
+    cancelArmedStep: async (_attemptId: string, ordinal: number) => {
+      const step = attempts[0].steps.find((item) => item.ordinal === ordinal);
+      if (!step) throw new Error("step missing");
+      step.state = "prepared";
+      return step;
+    },
     bindSubmittedHash: async (_attemptId: string, ordinal: number, hash: string) => {
       const step = attempts[0].steps.find((item) => item.ordinal === ordinal);
       if (!step) throw new Error("step missing");
@@ -115,7 +127,7 @@ async function setup() {
   const signature = await repositoryTestAccount.signMessage({
     message: { raw: executionMainnetCommitment(proof) },
   });
-  return { service, routeId, proof, signature, attempts, rehearsal };
+  return { service, routeId, proof, signature, attempts, rehearsal, read };
 }
 
 describe("guided mainnet execution service", () => {
@@ -160,6 +172,10 @@ describe("guided mainnet execution service", () => {
     const started = await context.service.start(
       context.routeId, context.proof, context.signature,
     );
+    await context.service.advance(
+      context.routeId, started.attempt.id, started.token,
+      { action: "arm", ordinal: 0 },
+    );
     const hash = `0x${"91".repeat(32)}` as const;
     const result = await context.service.advance(
       context.routeId,
@@ -171,5 +187,24 @@ describe("guided mainnet execution service", () => {
       expect.objectContaining({ ordinal: 0, state: "submitted", transactionHash: hash }),
     ]);
     expect(result.preparedStep).toBeNull();
+  });
+
+  it("keeps a hashless ambiguous broadcast armed instead of making it sendable", async () => {
+    const context = await setup();
+    const started = await context.service.start(
+      context.routeId, context.proof, context.signature,
+    );
+    const armed = await context.service.advance(
+      context.routeId, started.attempt.id, started.token,
+      { action: "arm", ordinal: 0 },
+    );
+    expect(armed.preparedStep).toMatchObject({ state: "broadcasting" });
+    context.read.latestBlocks.push(91n);
+    const recovered = await context.service.advance(
+      context.routeId, started.attempt.id, started.token,
+      { action: "recover", ordinal: 0 },
+    );
+    expect(recovered.preparedStep).toMatchObject({ state: "broadcasting" });
+    expect(recovered.attempt.state).toBe("active");
   });
 });
