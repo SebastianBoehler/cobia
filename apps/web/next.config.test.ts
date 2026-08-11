@@ -3,6 +3,7 @@ import nextConfig from "./next.config";
 
 describe("Next deployment headers", () => {
   it("denies framing and browser capabilities on every product route", async () => {
+    expect(nextConfig.poweredByHeader).toBe(false);
     const entries = await nextConfig.headers?.();
     expect(entries).toHaveLength(1);
     expect(entries?.[0]?.source).toBe("/(.*)");
