@@ -106,6 +106,37 @@ describe("CompetitionView V2 route quote", () => {
     expect(screen.queryByText(/Uniswap V3/i)).not.toBeInTheDocument();
   });
 
+  it("names Curve separately when the pinned snapshot contains a Curve opportunity", async () => {
+    const snapshot: RouteSnapshotV2 = {
+      ...aaveSnapshot,
+      scannedAdapters: ["aave-v3@1", "curve-stableswap-ng@1", "uniswap-v3@1"],
+      opportunities: [...aaveSnapshot.opportunities, {
+        id: "curve-stableswap-ng:registered-pair",
+        kind: "curve-stableswap-ng-exact-input",
+        adapterId: "curve-stableswap-ng@1",
+        pool: "0x31F066aA0A687d4F383F96a514984AF727Eb8e38",
+        tokenIn: "0x4ae46a509f6b1d9056937ba4500cb143933d2dc8",
+        tokenOut: "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+        inputIndex: 0,
+        outputIndex: 1,
+        fee: "1000000",
+        quotedInputAtomic: "10000000",
+        quotedOutputAtomic: "9990000",
+      }],
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({
+      ...market(false),
+      snapshot,
+    })));
+
+    render(<WalletProvider><CompetitionView requestId={requestId} /></WalletProvider>);
+
+    expect(await screen.findByText(/Pinned Aave V3 and Curve StableSwap NG opportunity data/i))
+      .toBeVisible();
+    expect(screen.queryByText(/Aave V3 and Uniswap V3 opportunity data/i))
+      .not.toBeInTheDocument();
+  });
+
   it("shows only truthful pre-gas route authorization metrics and remains selectable", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(market(false))));
 
@@ -129,8 +160,8 @@ describe("CompetitionView V2 route quote", () => {
     render(<WalletProvider><CompetitionView requestId={requestId} /></WalletProvider>);
 
     expect(await screen.findByRole("button", { name: "Pay & reveal bundle" })).toBeEnabled();
-    expect(screen.getByText("0.09 to quote signer")).toBeVisible();
-    expect(screen.getByText("0.01 to Cobia")).toBeVisible();
+    expect(screen.getByText("One 0.10 payment · 2 wallet signatures")).toBeVisible();
+    expect(screen.getByText("0.09 to quote signer + 0.01 to Cobia")).toBeVisible();
     expect(screen.queryByText(/not wired/i)).not.toBeInTheDocument();
   });
 

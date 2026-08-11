@@ -172,6 +172,8 @@ describe("V2 paid reveal recovery", () => {
       policy: { version: 2, requestId: input.policy.requestId },
       snapshot: { version: 2, requestId: input.policy.requestId },
       bundle: { version: 2, requestId: input.policy.requestId },
+      rehearsalRealm: "pay.cobia.example",
+      rehearsal: null,
     });
     expect(body.route.snapshot).toStrictEqual(input.context.snapshot);
     expect(body.route).not.toHaveProperty("paymentId");

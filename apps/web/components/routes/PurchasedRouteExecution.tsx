@@ -17,6 +17,9 @@ const labels = {
   "reset-aave-allowance": "Reset Aave allowance",
   "approve-aave-exact": "Approve Aave exact amount",
   "aave-v3-supply": "Supply to Aave V3",
+  "reset-curve-allowance": "Reset Curve allowance",
+  "approve-curve-exact": "Approve Curve exact amount",
+  "curve-stableswap-ng-exact-input": "Swap exact input on Curve StableSwap NG",
   "reset-uniswap-allowance": "Reset Uniswap allowance",
   "approve-uniswap-exact": "Approve Uniswap exact amount",
   "uniswap-v3-exact-input": "Swap exact input on Uniswap V3",
@@ -89,6 +92,10 @@ export function PurchasedRouteExecution({ route }: { route: PurchasedRouteV2 }) 
 
   async function rehearse(): Promise<void> {
     if (!wallet.account || !buyerConnected) return;
+    if (!route.rehearsalRealm) {
+      setError("Rehearsal signing context is unavailable. Reload this purchased route.");
+      return;
+    }
     setPending(true);
     setError(undefined);
     try {

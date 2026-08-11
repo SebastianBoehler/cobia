@@ -128,14 +128,14 @@ describe("CompetitionView", () => {
     });
   });
 
-  it("identifies the Cobia-operated quote signer and complete reveal split", async () => {
+  it("describes one reveal payment with two direct authorization signatures", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(market)));
 
     render(<CompetitionView requestId={requestId} />);
 
     expect(await screen.findByText("Operated by Cobia")).toBeVisible();
-    expect(screen.getByText("0.09 to quote signer")).toBeVisible();
-    expect(screen.getByText("0.01 to Cobia")).toBeVisible();
+    expect(screen.getByText("One 0.10 payment · 2 wallet signatures")).toBeVisible();
+    expect(screen.getByText("0.09 to quote signer + 0.01 to Cobia")).toBeVisible();
   });
 
   it("signs one owner proof and replays its exact body with an EIP-3009 credential", async () => {

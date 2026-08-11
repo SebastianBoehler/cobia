@@ -78,7 +78,10 @@ export function CompetitionQuoteCard(props: CompetitionQuoteCardProps) {
         </span>
       </div>
       <QuoteMetrics quote={quote} />
-      <div className={styles.feeSplit}><span>0.09 to quote signer</span><span>0.01 to Cobia</span></div>
+      <div className={styles.feeSplit}>
+        <span>One 0.10 payment · 2 wallet signatures</span>
+        <span>0.09 to quote signer + 0.01 to Cobia</span>
+      </div>
       <div className={styles.commitment}><LockKeyhole size={14} /> Bundle {shortHash(quote.bundleHash)}</div>
       {errorCodes.length > 0 ? (
         <ul className={styles.errors}>{errorCodes.map((code) => <li key={code}>{code}</li>)}</ul>

@@ -131,4 +131,19 @@ describe("PurchasedRouteExecution", () => {
     fireEvent.click(screen.getByRole("button"));
     await waitFor(() => expect(wallet.request).not.toHaveBeenCalled());
   });
+
+  it("fails closed before signing when the server omits the rehearsal realm", async () => {
+    const malformed = {
+      ...await route(),
+      rehearsalRealm: undefined,
+    } as unknown as PurchasedRouteV2;
+    render(<PurchasedRouteExecution route={malformed} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Rehearse exact quote on fork" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Rehearsal signing context is unavailable. Reload this purchased route.",
+    );
+    expect(wallet.request).not.toHaveBeenCalled();
+  });
 });

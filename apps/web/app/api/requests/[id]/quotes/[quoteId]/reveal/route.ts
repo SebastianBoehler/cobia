@@ -69,7 +69,11 @@ function purchasedRouteResponse(
   });
   const response = NextResponse.json({
     routeId: route.id,
-    route,
+    route: {
+      ...route,
+      rehearsalRealm: payment.paymentTerms.realm,
+      rehearsal: null,
+    },
   });
   response.headers.set("Payment-Receipt", payment.receiptHeader);
   response.headers.set("X-Cobia-Receipt-Hash", payment.receiptHash);
