@@ -11,7 +11,14 @@ import {
   cobiaRoutePurchases,
   executionRehearsalState,
 } from "./route-schema";
+import {
+  cobiaExecutionAttempts,
+  cobiaExecutionSteps,
+  executionAttemptState,
+  executionStepState,
+} from "./execution-schema";
 
+export * from "./execution-schema";
 export * from "./payment-schema";
 export * from "./request-schema";
 export * from "./route-schema";
@@ -23,13 +30,19 @@ export const cobiaSchema = {
   cobiaPayments,
   cobiaRoutePurchases,
   cobiaExecutionRehearsals,
+  cobiaExecutionAttempts,
+  cobiaExecutionSteps,
   cobiaActivityEvents,
   requestState,
   paymentState,
   executionRehearsalState,
+  executionAttemptState,
+  executionStepState,
 };
 
 export type CobiaRequestState = (typeof requestState.enumValues)[number];
 export type CobiaPaymentState = (typeof paymentState.enumValues)[number];
 export type CobiaExecutionRehearsalState =
   (typeof executionRehearsalState.enumValues)[number];
+export type CobiaExecutionAttemptState = (typeof executionAttemptState.enumValues)[number];
+export type CobiaExecutionStepState = (typeof executionStepState.enumValues)[number];
