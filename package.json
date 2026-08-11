@@ -6,6 +6,7 @@
     "node": ">=22.22"
   },
   "scripts": {
+    "contracts:slither": "bash scripts/slither.sh",
     "contracts:test": "bash scripts/forge.sh test",
     "dev": "pnpm --filter @cobia/web dev",
     "env:dev": "node apps/web/scripts/seed-dev-env.mjs",
