@@ -43,6 +43,13 @@
       "when": 1786419131265,
       "tag": "0005_market_identity",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786440057908,
+      "tag": "0006_execution_rehearsal",
+      "breakpoints": true
     }
   ]
 }
