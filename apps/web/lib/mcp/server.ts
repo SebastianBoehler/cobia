@@ -89,7 +89,7 @@ export function createCobiaMcpServer(dependencies: CobiaMcpDependencies): McpSer
     "submit-yield-intent",
     {
       title: "Submit a signed yield intent",
-      description: "Checks a wallet-signed V2 policy and evaluates registered Aave V3 supply and Uniswap V3 swap opportunities at one pinned X Layer block. A result may contain no authorized quote. Principal remains unmoved, and the server never receives a private key.",
+      description: "Checks a wallet-signed V2 policy and evaluates registered Aave V3 supply plus Curve and Uniswap V3 swap opportunities at one pinned X Layer block. A result may contain no authorized quote. Principal remains unmoved, and the server never receives the request owner's private key.",
       inputSchema: z.object({
         policy: ProductRoutePolicyV2Schema,
         ownerSignature: z.string().regex(/^0x[0-9a-fA-F]{130}$/),

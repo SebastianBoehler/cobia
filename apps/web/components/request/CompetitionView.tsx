@@ -18,6 +18,7 @@ import { authorizePayment } from "../../lib/payments/eip3009";
 import { buildRevealProof, revealProofCommitment } from "../../lib/payments/reveal-proof";
 import { randomBytes32 } from "../../lib/payments/random";
 import { PaymentTermsSchema, hashPaymentTerms, type PaymentTerms } from "../../lib/payments/terms";
+import { protocolLabelV2 } from "../../lib/markets/protocol-labels";
 import { useWallet } from "../wallet/WalletProvider";
 import { PurchasedRouteView, type PurchasedRoute } from "../routes/PurchasedRouteView";
 import {
@@ -62,8 +63,7 @@ function v2SnapshotDescription(snapshot: PersistedSnapshot | null): string {
   if (!snapshot || snapshot.version !== 2) {
     return "Pinned X Layer opportunity data is not available yet. APY is an estimated pre-gas rate; route authorization is deterministically recomputed.";
   }
-  const protocols = new Set(snapshot.opportunities.map((opportunity) =>
-    opportunity.kind === "aave-v3-supply" ? "Aave V3" : "Uniswap V3"));
+  const protocols = new Set(snapshot.opportunities.map(({ kind }) => protocolLabelV2(kind)));
   if (protocols.size === 0) {
     return "The pinned X Layer snapshot contains no eligible protocol opportunities. APY is an estimated pre-gas rate; route authorization is deterministically recomputed.";
   }

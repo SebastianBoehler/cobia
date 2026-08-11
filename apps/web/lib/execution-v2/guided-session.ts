@@ -10,6 +10,7 @@ import {
 import { assertExecutionReadChainV2 } from "./execution-authority";
 import {
   parseExecutionContextV2,
+  registeredCurveSwap,
   registeredExecutionAsset,
   registeredSwapPair,
   type VerifiedExecutionInputV2,
@@ -66,10 +67,20 @@ async function nextTransactions(
   if (!swap) {
     const spender = first.kind === "aave-v3-supply"
       ? PROTOCOL_REGISTRY.aaveV3.pool.address
+      : first.kind === "curve-stableswap-ng-exact-input"
+        ? PROTOCOL_REGISTRY.curveStableSwapNg.pair.pool.address
       : PROTOCOL_REGISTRY.uniswapV3.swapRouter02.address;
     const asset = first.kind === "aave-v3-supply"
       ? registeredExecutionAsset(first.asset)
-      : registeredSwapPair(first.tokenIn, first.tokenOut).input;
+      : first.kind === "curve-stableswap-ng-exact-input"
+        ? registeredCurveSwap(
+          first.tokenIn,
+          first.tokenOut,
+          first.pool,
+          first.inputIndex,
+          first.outputIndex,
+        ).input
+        : registeredSwapPair(first.tokenIn, first.tokenOut).input;
     const allowance = await readAllowanceV2(
       input.readClient, asset.address, context.owner, spender, blockNumber,
     );
@@ -82,12 +93,21 @@ async function nextTransactions(
       transactions: batch.transactions,
     };
   }
-  if ((first.kind !== "uniswap-v3-exact-input" &&
+  if ((first.kind !== "curve-stableswap-ng-exact-input" &&
+    first.kind !== "uniswap-v3-exact-input" &&
     first.kind !== "uniswap-v3-balance-swap") || swap.stateCheck.kind !== "swap") {
     throw new Error("Confirmed execution prefix does not match the route plan");
   }
   const swapState = swap.stateCheck;
-  const pair = registeredSwapPair(first.tokenIn, first.tokenOut);
+  const outputAsset = first.kind === "curve-stableswap-ng-exact-input"
+    ? registeredCurveSwap(
+      first.tokenIn,
+      first.tokenOut,
+      first.pool,
+      first.inputIndex,
+      first.outputIndex,
+    ).output
+    : registeredSwapPair(first.tokenIn, first.tokenOut).output;
   const batch = first.kind === "uniswap-v3-balance-swap"
     ? await (async () => {
       const mint = leg.actions[1];
@@ -109,7 +129,7 @@ async function nextTransactions(
     : await (async () => {
       const allowance = await readAllowanceV2(
         input.readClient,
-        pair.output.address,
+        outputAsset.address,
         context.owner,
         PROTOCOL_REGISTRY.aaveV3.pool.address,
         blockNumber,

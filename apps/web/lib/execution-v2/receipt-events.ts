@@ -3,6 +3,7 @@ import { PROTOCOL_REGISTRY } from "../adapters/registry";
 import {
   AAVE_SUPPLY_EVENT_ABI,
   A_TOKEN_MINT_EVENT_ABI,
+  CURVE_TOKEN_EXCHANGE_EVENT_ABI,
   ERC721_TRANSFER_EVENT_ABI,
   ERC20_APPROVAL_EVENT_ABI,
   NONFUNGIBLE_POSITION_MANAGER_EVENT_ABI,
@@ -114,8 +115,10 @@ function approvalEvidence(
   };
 }
 
-function swapEvidence(
-  descriptor: Extract<ExecutionTransactionDescriptorV2, { kind: "swap" }>,
+function uniswapSwapEvidence(
+  descriptor: Extract<ExecutionTransactionDescriptorV2, {
+    kind: "swap"; venue: "uniswap-v3";
+  }>,
   transaction: OwnerTransactionV2,
   receipt: ExecutionReceiptV2,
 ): ExecutionProtocolEvidenceV2 {
@@ -143,6 +146,7 @@ function swapEvidence(
     if (outputAtomic < descriptor.minimumOutputAtomic) continue;
     return {
       kind: "swap",
+      venue: descriptor.venue,
       sender: args.sender,
       recipient: args.recipient,
       inputAtomic,
@@ -153,6 +157,55 @@ function swapEvidence(
     "protocol-event-missing",
     "Receipt is missing the signed Uniswap pool Swap event",
   );
+}
+
+function curveSwapEvidence(
+  descriptor: Extract<ExecutionTransactionDescriptorV2, {
+    kind: "swap"; venue: "curve-stableswap-ng";
+  }>,
+  transaction: OwnerTransactionV2,
+  receipt: ExecutionReceiptV2,
+): ExecutionProtocolEvidenceV2 {
+  for (const event of decodedLogs(
+    logsAt(receipt, descriptor.pool),
+    CURVE_TOKEN_EXCHANGE_EVENT_ABI,
+  )) {
+    if (event.eventName !== "TokenExchange") continue;
+    const args = event.args as {
+      buyer: `0x${string}`;
+      soldId: bigint;
+      tokensSold: bigint;
+      boughtId: bigint;
+      tokensBought: bigint;
+    };
+    if (!isAddressEqual(args.buyer, transaction.from) ||
+      args.soldId !== BigInt(descriptor.inputIndex) ||
+      args.boughtId !== BigInt(descriptor.outputIndex) ||
+      args.tokensSold !== descriptor.amountInAtomic ||
+      args.tokensBought < descriptor.minimumOutputAtomic) continue;
+    return {
+      kind: "swap",
+      venue: descriptor.venue,
+      sender: args.buyer,
+      recipient: transaction.from,
+      inputAtomic: args.tokensSold,
+      outputAtomic: args.tokensBought,
+    };
+  }
+  throw new ExecutionStepErrorV2(
+    "protocol-event-missing",
+    "Receipt is missing the exact Curve TokenExchange event",
+  );
+}
+
+function swapEvidence(
+  descriptor: Extract<ExecutionTransactionDescriptorV2, { kind: "swap" }>,
+  transaction: OwnerTransactionV2,
+  receipt: ExecutionReceiptV2,
+): ExecutionProtocolEvidenceV2 {
+  return descriptor.venue === "curve-stableswap-ng"
+    ? curveSwapEvidence(descriptor, transaction, receipt)
+    : uniswapSwapEvidence(descriptor, transaction, receipt);
 }
 
 function aaveEvidence(
@@ -209,8 +262,9 @@ function aaveEvidence(
   };
 }
 
-// Event shapes come directly from the official Aave and Uniswap interfaces:
+// Event shapes come directly from the official Aave, Curve, and Uniswap interfaces:
 // https://github.com/aave-dao/aave-v3-origin/blob/cff15de6d1271b0c800fc001f4aea4c263e8a597/src/contracts/interfaces/IPool.sol
+// https://github.com/curvefi/stableswap-ng/tree/2abe778f40206a6c0fd108a0a53ad3266cbedeee/contracts/main
 // https://github.com/Uniswap/v3-core/blob/main/contracts/interfaces/pool/IUniswapV3PoolEvents.sol
 export function validateProtocolEventsV2(
   transaction: OwnerTransactionV2,

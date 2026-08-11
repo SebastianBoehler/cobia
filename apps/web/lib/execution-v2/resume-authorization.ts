@@ -35,7 +35,8 @@ function stateMatchesDescriptor(
       state.expectedAtomic === descriptor.expectedAtomic;
   }
   if (state.kind === "swap" && descriptor.kind === "swap") {
-    return addressMatch(state.tokenIn, descriptor.tokenIn) &&
+    return (state.venue ?? "uniswap-v3") === descriptor.venue &&
+      addressMatch(state.tokenIn, descriptor.tokenIn) &&
       addressMatch(state.tokenOut, descriptor.tokenOut) &&
       state.amountInAtomic === descriptor.amountInAtomic &&
       state.minimumOutputAtomic === descriptor.minimumOutputAtomic;
@@ -109,7 +110,8 @@ function authorizedTransactions(
       currentToken1AllowanceAtomic: token1Allowance,
     }).transactions;
   }
-  if (first?.kind !== "uniswap-v3-exact-input") return [];
+  if (first?.kind !== "uniswap-v3-exact-input" &&
+    first?.kind !== "curve-stableswap-ng-exact-input") return [];
   const minimum = BigInt(first.minimumOutputAtomic);
   const quoted = BigInt(first.quotedOutputAtomic);
   if (checkpoint.authorizedAmountAtomic < minimum ||

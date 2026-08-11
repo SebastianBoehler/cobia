@@ -84,7 +84,8 @@ function computeRouteEconomicsV2(
     const supply = requireOpportunity(snapshot, first.opportunityId, first.kind);
     gainNumerator = deployedValue * BigInt(supply.supplyRateBps) *
       BigInt(policy.horizonDays);
-  } else if (first.kind === "uniswap-v3-exact-input") {
+  } else if (first.kind === "uniswap-v3-exact-input" ||
+    first.kind === "curve-stableswap-ng-exact-input") {
     const swap = requireOpportunity(snapshot, first.opportunityId, first.kind);
     if (second?.kind !== "aave-v3-supply") {
       throw new Error("Swap route is missing its supply action");

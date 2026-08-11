@@ -37,6 +37,28 @@ export const UniswapV3ExactInputOpportunityV2Schema = OpportunityBaseSchema.exte
   estimatedGas: AtomicAmountSchema,
 }).strict();
 
+export const CurveStableSwapNgExactInputOpportunityV2Schema = OpportunityBaseSchema.extend({
+  kind: z.literal("curve-stableswap-ng-exact-input"),
+  adapterId: z.literal("curve-stableswap-ng@1"),
+  pool: RouteAddressV2Schema,
+  tokenIn: RouteAddressV2Schema,
+  tokenOut: RouteAddressV2Schema,
+  inputIndex: z.union([z.literal(0), z.literal(1)]),
+  outputIndex: z.union([z.literal(0), z.literal(1)]),
+  fee: PositiveAtomicAmountSchema,
+  quotedInputAtomic: PositiveAtomicAmountSchema,
+  quotedOutputAtomic: PositiveAtomicAmountSchema,
+}).strict().superRefine((opportunity, context) => {
+  if (opportunity.tokenIn === opportunity.tokenOut ||
+    opportunity.inputIndex === opportunity.outputIndex) {
+    context.addIssue({
+      code: "custom",
+      path: ["tokenOut"],
+      message: "A Curve quote must change assets and pool indices",
+    });
+  }
+});
+
 export const UniswapV3FullRangeLpOpportunityV2Schema = OpportunityBaseSchema.extend({
   kind: z.literal("uniswap-v3-full-range-lp"),
   adapterId: z.literal("uniswap-v3@1"),
@@ -116,6 +138,7 @@ export const UniswapV3FullRangeLpOpportunityV2Schema = OpportunityBaseSchema.ext
 
 export const RouteOpportunityV2Schema = z.discriminatedUnion("kind", [
   AaveV3SupplyOpportunityV2Schema,
+  CurveStableSwapNgExactInputOpportunityV2Schema,
   UniswapV3ExactInputOpportunityV2Schema,
   UniswapV3FullRangeLpOpportunityV2Schema,
 ]);
@@ -196,6 +219,9 @@ export const RouteSnapshotV2Schema = z
         return !valued.has(opportunity.asset);
       }
       if (opportunity.kind === "uniswap-v3-exact-input") {
+        return !valued.has(opportunity.tokenIn) || !valued.has(opportunity.tokenOut);
+      }
+      if (opportunity.kind === "curve-stableswap-ng-exact-input") {
         return !valued.has(opportunity.tokenIn) || !valued.has(opportunity.tokenOut);
       }
       return !valued.has(opportunity.token0) || !valued.has(opportunity.token1);

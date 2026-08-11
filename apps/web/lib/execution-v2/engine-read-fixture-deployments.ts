@@ -38,7 +38,10 @@ export function seedExecutionFixtureDeployments(
   slots: Map<string, Hex>,
 ) {
   const uniswap = PROTOCOL_REGISTRY.uniswapV3;
+  const curve = PROTOCOL_REGISTRY.curveStableSwapNg;
   addDeployment(code, slots, PROTOCOL_REGISTRY.aaveV3.pool);
+  addDeployment(code, slots, curve.pair.pool);
+  addDeployment(code, slots, curve.plainImplementation);
   addDeployment(code, slots, uniswap.swapRouter02);
   addDeployment(code, slots, uniswap.pair.pool);
   addDeployment(code, slots, uniswap.nonfungiblePositionManager);

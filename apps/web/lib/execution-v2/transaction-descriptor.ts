@@ -2,12 +2,14 @@ import { decodeFunctionData, isAddressEqual, type Address } from "viem";
 import { PROTOCOL_REGISTRY } from "../adapters/registry";
 import {
   AAVE_POOL_SUPPLY_ABI,
+  CURVE_STABLESWAP_NG_EXCHANGE_ABI,
   ERC20_APPROVE_ABI,
   NONFUNGIBLE_POSITION_MANAGER_ABI,
   SWAP_ROUTER02_ABI,
 } from "./abis";
 import {
   registeredExecutionAsset,
+  registeredCurveSwap,
   registeredSwapPair,
 } from "./execution-context";
 import type { OwnerTransactionV2 } from "./types";
@@ -21,12 +23,24 @@ export type ExecutionTransactionDescriptorV2 =
   }
   | {
     kind: "swap";
+    venue: "uniswap-v3";
     tokenIn: Address;
     tokenOut: Address;
     pool: Address;
     amountInAtomic: bigint;
     minimumOutputAtomic: bigint;
     deadlineSec: bigint;
+  }
+  | {
+    kind: "swap";
+    venue: "curve-stableswap-ng";
+    tokenIn: Address;
+    tokenOut: Address;
+    pool: Address;
+    inputIndex: 0 | 1;
+    outputIndex: 0 | 1;
+    amountInAtomic: bigint;
+    minimumOutputAtomic: bigint;
   }
   | {
     kind: "aave-supply";
@@ -59,6 +73,8 @@ function approvalDescriptor(transaction: OwnerTransactionV2) {
   const [spender, expectedAtomic] = decoded.args;
   const expectedSpender = transaction.label.includes("aave")
     ? PROTOCOL_REGISTRY.aaveV3.pool.address
+    : transaction.label.includes("curve")
+      ? PROTOCOL_REGISTRY.curveStableSwapNg.pair.pool.address
     : transaction.label.includes("position-manager")
       ? PROTOCOL_REGISTRY.uniswapV3.nonfungiblePositionManager.address
       : PROTOCOL_REGISTRY.uniswapV3.swapRouter02.address;
@@ -137,12 +153,56 @@ function swapDescriptor(transaction: OwnerTransactionV2) {
   }
   return {
     kind: "swap" as const,
+    venue: "uniswap-v3" as const,
     tokenIn: pair.input.address,
     tokenOut: pair.output.address,
     pool: PROTOCOL_REGISTRY.uniswapV3.pair.pool.address,
     amountInAtomic: params.amountIn,
     minimumOutputAtomic: params.amountOutMinimum,
     deadlineSec: outer.args[0],
+  };
+}
+
+function curveSwapDescriptor(transaction: OwnerTransactionV2) {
+  const pool = PROTOCOL_REGISTRY.curveStableSwapNg.pair.pool.address;
+  if (!isAddressEqual(transaction.to, pool)) {
+    throw new Error("Curve swap target does not match the registered pool");
+  }
+  const decoded = decodeFunctionData({
+    abi: CURVE_STABLESWAP_NG_EXCHANGE_ABI,
+    data: transaction.data,
+  });
+  if (decoded.functionName !== "exchange") {
+    throw new Error("Curve transaction must call exchange");
+  }
+  const [inputIndexRaw, outputIndexRaw, amountInAtomic, minimumOutputAtomic, receiver] =
+    decoded.args;
+  if ((inputIndexRaw !== 0n && inputIndexRaw !== 1n) ||
+    (outputIndexRaw !== 0n && outputIndexRaw !== 1n) ||
+    !isAddressEqual(receiver, transaction.from) || amountInAtomic <= 0n ||
+    minimumOutputAtomic <= 0n) {
+    throw new Error("Curve swap parameters are invalid");
+  }
+  const inputIndex = Number(inputIndexRaw) as 0 | 1;
+  const outputIndex = Number(outputIndexRaw) as 0 | 1;
+  const pair = PROTOCOL_REGISTRY.curveStableSwapNg.pair;
+  const tokenIn = PROTOCOL_REGISTRY.aaveV3.assets[
+    inputIndex === 0 ? pair.token0 : pair.token1
+  ].underlying.address;
+  const tokenOut = PROTOCOL_REGISTRY.aaveV3.assets[
+    outputIndex === 0 ? pair.token0 : pair.token1
+  ].underlying.address;
+  registeredCurveSwap(tokenIn, tokenOut, pool, inputIndex, outputIndex);
+  return {
+    kind: "swap" as const,
+    venue: "curve-stableswap-ng" as const,
+    tokenIn,
+    tokenOut,
+    pool,
+    inputIndex,
+    outputIndex,
+    amountInAtomic,
+    minimumOutputAtomic,
   };
 }
 
@@ -170,6 +230,9 @@ export function describeExecutionTransactionV2(
   if (isApproval(transaction)) return approvalDescriptor(transaction);
   if (transaction.label === "uniswap-v3-exact-input") {
     return swapDescriptor(transaction);
+  }
+  if (transaction.label === "curve-stableswap-ng-exact-input") {
+    return curveSwapDescriptor(transaction);
   }
   if (transaction.label === "uniswap-v3-full-range-mint") {
     return lpMintDescriptor(transaction);

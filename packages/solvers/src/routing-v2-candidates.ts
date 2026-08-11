@@ -86,14 +86,42 @@ export function routeCandidatesV2(
   }
 
   for (const swap of snapshot.opportunities) {
-    if (swap.kind !== "uniswap-v3-exact-input" ||
+    if ((swap.kind !== "uniswap-v3-exact-input" &&
+      swap.kind !== "curve-stableswap-ng-exact-input") ||
       !policy.allowedAdapters.includes(swap.adapterId) ||
       !isAddressEqual(swap.tokenIn, policy.asset) || !allowed(swap.tokenOut) ||
       swap.quotedInputAtomic !== deployed.toString()) continue;
     for (const supply of snapshot.opportunities) {
       if (supply.kind !== "aave-v3-supply" ||
         !supplyEligible(supply, swap.tokenOut, swap.quotedOutputAtomic)) continue;
-      add(`swap:${swap.id}:${supply.id}`, {
+      const minimumOutputAtomic = minimumAfterSlippage(
+        swap.quotedOutputAtomic,
+        policy.maxSlippageBps,
+      );
+      const swapAction = swap.kind === "curve-stableswap-ng-exact-input"
+        ? {
+          kind: swap.kind,
+          opportunityId: swap.id,
+          consume: "all" as const,
+          pool: swap.pool,
+          tokenIn: swap.tokenIn,
+          tokenOut: swap.tokenOut,
+          inputIndex: swap.inputIndex,
+          outputIndex: swap.outputIndex,
+          fee: swap.fee,
+          quotedOutputAtomic: swap.quotedOutputAtomic,
+          minimumOutputAtomic,
+        }
+        : {
+          kind: swap.kind,
+          opportunityId: swap.id,
+          consume: "all" as const,
+          tokenIn: swap.tokenIn,
+          tokenOut: swap.tokenOut,
+          quotedOutputAtomic: swap.quotedOutputAtomic,
+          minimumOutputAtomic,
+        };
+      add(`${swap.kind.startsWith("curve") ? "curve" : "swap"}:${swap.id}:${supply.id}`, {
         version: 2,
         inputAsset: policy.asset,
         inputAtomic: policy.principalAtomic,
@@ -102,18 +130,7 @@ export function routeCandidatesV2(
         legs: [{
           id: "swap-then-supply",
           inputAtomic: deployed.toString(),
-          actions: [{
-            kind: "uniswap-v3-exact-input",
-            opportunityId: swap.id,
-            consume: "all",
-            tokenIn: swap.tokenIn,
-            tokenOut: swap.tokenOut,
-            quotedOutputAtomic: swap.quotedOutputAtomic,
-            minimumOutputAtomic: minimumAfterSlippage(
-              swap.quotedOutputAtomic,
-              policy.maxSlippageBps,
-            ),
-          }, {
+          actions: [swapAction, {
             kind: "aave-v3-supply",
             opportunityId: supply.id,
             consume: "all",

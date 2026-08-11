@@ -1,7 +1,7 @@
 # Cobia web
 
 Cobia runs deterministic and bounded agentic solvers for X Layer. A wallet
-signs an exact USDG or USDt0 policy; direct Aave V3 and Uniswap V3 reads are
+signs an exact USDG or USDt0 policy; direct Aave V3, Curve StableSwap NG, and Uniswap V3 reads are
 captured at one pinned block; and the signed plan is independently recomputed
 before it can be selected or revealed through OKX MPP. APY remains an estimated
 pre-gas rate. Buying a route does not move principal; a fresh rehearsed V2 route
@@ -39,7 +39,7 @@ payment configuration is unavailable; it does not substitute sample data.
 
 - V2 capture verifies chain `196`, block number/hash/timestamp, registered
   runtime and proxy implementation code, Aave reserve/oracle state, and the
-  registered Uniswap pool/quote at the same block. LP candidates additionally
+  registered Curve and Uniswap pools/quotes at the same block. LP candidates additionally
   pin a historical pool block and commit full-range fee-growth observations,
   pool balances, token amounts, and minimum liquidity. V1 stored rounds retain their
   explicitly labeled OKX-derived estimates.
@@ -56,9 +56,9 @@ payment configuration is unavailable; it does not substitute sample data.
   transaction and OKX Wallet asks the buyer to confirm one approval, swap,
   supply, or LP mint at a time. The server never signs or relays principal transactions.
   `eth_estimateGas` remains gas preflight, not a profitability guarantee. No
-  testnet Aave or Uniswap deployment is claimed.
+  testnet Aave, Curve, or Uniswap deployment is claimed.
 - Both the product rehearsal and the opt-in acceptance lane have passed direct
-  Aave, Uniswap-to-Aave, and one-sided full-range Uniswap LP-entry routes with
+  Aave, Curve/Uniswap-to-Aave, and one-sided full-range Uniswap LP-entry routes with
   exact approvals, receipts, protocol events, NFT ownership, and state checks.
   Fork evidence is historical and uses
   simulated funds; the guided wallet lane separately rechecks freshness,

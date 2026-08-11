@@ -50,6 +50,39 @@ export const UniswapV3ExactInputActionV2Schema = z
     }
   });
 
+export const CurveStableSwapNgExactInputActionV2Schema = z
+  .object({
+    kind: z.literal("curve-stableswap-ng-exact-input"),
+    opportunityId: OpportunityReferenceSchema,
+    consume: z.literal("all"),
+    pool: RouteAddressV2Schema,
+    tokenIn: RouteAddressV2Schema,
+    tokenOut: RouteAddressV2Schema,
+    inputIndex: z.union([z.literal(0), z.literal(1)]),
+    outputIndex: z.union([z.literal(0), z.literal(1)]),
+    fee: PositiveAtomicAmountSchema,
+    quotedOutputAtomic: PositiveAtomicAmountSchema,
+    minimumOutputAtomic: PositiveAtomicAmountSchema,
+  })
+  .strict()
+  .superRefine((action, context) => {
+    if (BigInt(action.minimumOutputAtomic) > BigInt(action.quotedOutputAtomic)) {
+      context.addIssue({
+        code: "custom",
+        path: ["minimumOutputAtomic"],
+        message: "Minimum output cannot exceed quoted output",
+      });
+    }
+    if (isAddressEqual(action.tokenIn, action.tokenOut) ||
+      action.inputIndex === action.outputIndex) {
+      context.addIssue({
+        code: "custom",
+        path: ["tokenOut"],
+        message: "A Curve swap must change assets and pool indices",
+      });
+    }
+  });
+
 export const UniswapV3BalanceSwapActionV2Schema = z
   .object({
     kind: z.literal("uniswap-v3-balance-swap"),
@@ -115,7 +148,10 @@ export const UniswapV3FullRangeMintActionV2Schema = z
 
 const DirectSupplyActionsSchema = z.tuple([AaveV3SupplyActionV2Schema]);
 const SwapThenSupplyActionsSchema = z.tuple([
-  UniswapV3ExactInputActionV2Schema,
+  z.union([
+    CurveStableSwapNgExactInputActionV2Schema,
+    UniswapV3ExactInputActionV2Schema,
+  ]),
   AaveV3SupplyActionV2Schema,
 ]);
 const BalanceSwapThenMintActionsSchema = z.tuple([

@@ -1,11 +1,12 @@
 import { encodeFunctionData } from "viem";
 import { PROTOCOL_REGISTRY } from "../adapters/registry";
-import { SWAP_ROUTER02_ABI } from "./abis";
+import { CURVE_STABLESWAP_NG_EXCHANGE_ABI, SWAP_ROUTER02_ABI } from "./abis";
 import {
   aaveSupplyPostcondition,
   aaveSupplyTransaction,
   exactApprovalTransactions,
   parseExecutionContextV2,
+  registeredCurveSwap,
   registeredExecutionAsset,
   registeredSwapPair,
   type VerifiedExecutionInputV2,
@@ -44,6 +45,55 @@ export function buildInitialRouteTransactionsV2(
         aaveSupplyTransaction(asset, owner, amountInAtomic),
       ],
       postconditions: [aaveSupplyPostcondition(asset, owner, amountInAtomic)],
+    };
+  }
+
+  if (first.kind === "curve-stableswap-ng-exact-input") {
+    const pair = registeredCurveSwap(
+      first.tokenIn,
+      first.tokenOut,
+      first.pool,
+      first.inputIndex,
+      first.outputIndex,
+    );
+    if (first.fee !== PROTOCOL_REGISTRY.curveStableSwapNg.pair.fee) {
+      throw new Error("Curve execution fee does not match the registered pool");
+    }
+    return {
+      transactions: [
+        ...exactApprovalTransactions({
+          asset: pair.input,
+          owner,
+          currentAllowanceAtomic: input.currentAllowanceAtomic,
+          requiredAmountAtomic: amountInAtomic,
+          spenderKind: "curve",
+        }),
+        {
+          label: "curve-stableswap-ng-exact-input",
+          chainId: EXECUTION_CHAIN_ID,
+          from: owner,
+          to: pair.pool,
+          value: 0n,
+          data: encodeFunctionData({
+            abi: CURVE_STABLESWAP_NG_EXCHANGE_ABI,
+            functionName: "exchange",
+            args: [
+              BigInt(first.inputIndex),
+              BigInt(first.outputIndex),
+              amountInAtomic,
+              BigInt(first.minimumOutputAtomic),
+              owner,
+            ],
+          }),
+        },
+      ],
+      postconditions: [{
+        kind: "owner-output-balance-delta",
+        owner,
+        asset: pair.output.address,
+        minimumDeltaAtomic: BigInt(first.minimumOutputAtomic),
+        quotedDeltaAtomic: BigInt(first.quotedOutputAtomic),
+      }],
     };
   }
 

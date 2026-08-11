@@ -144,7 +144,7 @@ export function createRouteExecutionMachineV2(
         );
         await assertExecutionAuthorityV2(input.wallet, input.readClient, input.owner);
         // Request-time only: an injected-wallet prompt can outlive validUntil.
-        // The router enforces swap expiry on-chain; approvals and Aave supply do not.
+        // Uniswap enforces swap expiry on-chain; Curve, approvals, and Aave do not.
         assertFresh();
         const hash = parseWalletHashV2(await input.wallet.request({
           method: "eth_sendTransaction",

@@ -17,10 +17,11 @@ export interface PinnedDeployment {
   };
 }
 
-const [AAVE_ADAPTER_ID, UNISWAP_ADAPTER_ID] = ROUTE_ADAPTER_IDS;
+const [AAVE_ADAPTER_ID, CURVE_ADAPTER_ID, UNISWAP_ADAPTER_ID] = ROUTE_ADAPTER_IDS;
 
 // Official deployment sources:
 // https://github.com/aave-dao/aave-address-book/blob/70e2f303fe93616784148d6827df6644e5dda4db/src/AaveV3XLayer.sol
+// https://github.com/curvefi/stableswap-ng/tree/2abe778f40206a6c0fd108a0a53ad3266cbedeee
 // https://developers.uniswap.org/docs/protocols/v3/deployments/v3-xlayer-deployments
 // Runtime bytecode was independently hashed from X Layer at block 67,649,362.
 export const PROTOCOL_REGISTRY = {
@@ -92,6 +93,30 @@ export const PROTOCOL_REGISTRY = {
         },
         decimals: 6,
       },
+    },
+  },
+  curveStableSwapNg: {
+    adapterId: CURVE_ADAPTER_ID,
+    factory: {
+      address: "0x5eeE3091f747E60a045a2E715a4c71e600e31F6E",
+      runtimeCodeHash: "0xa2360ff48b83e8eeb4a633f8f4c268a62c4f23c0d2da5b673423a2b58e7a78d2",
+    },
+    views: {
+      address: "0x506F594ceb4E33F5161139bAe3Ee911014df9f7f",
+      runtimeCodeHash: "0x34e327c9d8557aa0ef913c8972a44be8e21de2d829fcacb10237ccf8330df954",
+    },
+    plainImplementation: {
+      address: "0x87FE17697D0f14A222e8bEf386a0860eCffDD617",
+      runtimeCodeHash: "0xb7283520ec579d21cbcb603d7da789bccc5a7b1f48fe858af4ffd7dde9b16bc0",
+    },
+    pair: {
+      pool: {
+        address: "0x31F066aA0A687d4F383F96a514984AF727Eb8e38",
+        runtimeCodeHash: "0x855800c63268949eadd5206e5729c69e768f017722f275e90c4185b1fb0733bc",
+      },
+      token0: "USDG",
+      token1: "USDt0",
+      fee: "1000000",
     },
   },
   uniswapV3: {

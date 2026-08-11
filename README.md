@@ -1,14 +1,14 @@
 # Cobia
 
 Cobia is a verified DeFi quote and paid-route market for X Layer. A wallet signs
-an exact stablecoin intent, Cobia captures Aave V3 and Uniswap V3 opportunity
+an exact stablecoin intent, Cobia captures Aave V3, Curve StableSwap NG, and Uniswap V3 opportunity
 data at one pinned block, deterministic and bounded agentic solvers propose
 routes, and an independent verifier recomputes authorization before publication. The
 private signed plan is released only to the request owner after an OKX MPP
 payment.
 
 The current product is deliberately narrow: USDG/USDt0, Aave V3 supply, the
-registered Uniswap V3 0.01% swap and full-range LP entry, and two Cobia-operated solvers. The agentic
+registered Curve StableSwap NG and Uniswap V3 0.01% swaps, full-range Uniswap LP entry, and two Cobia-operated solvers. The agentic
 solver may choose only among server-built candidates; it cannot invent assets,
 amounts, contracts, or calldata. V1 OKX-derived Aave allocation rounds remain
 readable for compatibility. Cobia is not yet a broad aggregator or an open
@@ -19,7 +19,7 @@ external-solver market.
 | Capability | Status |
 |---|---|
 | Wallet connection and X Layer switching | Live |
-| Direct Aave V3 reserve/oracle and Uniswap V3 quote/LP reads | Live V2 capture with pinned current and historical X Layer blocks |
+| Direct Aave V3 reserve/oracle, Curve swap, and Uniswap V3 quote/LP reads | Live V2 capture with pinned current and historical X Layer blocks |
 | Versioned policy, snapshot, route, and quote commitments | Implemented |
 | Deterministic V2 route authorization | Implemented and recomputed before persistence/payment |
 | Bounded OpenAI route selector | Live; selects only server-enumerated candidates and signs with an independent solver key |
@@ -27,10 +27,10 @@ external-solver market.
 | MPP/EIP-3009 paid reveal | Implemented for the fixed X Layer testnet payment lane |
 | PostgreSQL request/payment/purchase history | Implemented |
 | X Layer mainnet USDt0 and Aave aToken balances | Live reads |
-| Aave V3 + Uniswap V3 route planning | Implemented for one exact conserved leg: Aave supply, swap-to-Aave, or one-sided full-range LP entry |
+| Aave + Curve + Uniswap route planning | Implemented for one exact conserved leg: Aave supply, Curve/Uniswap swap-to-Aave, or one-sided full-range Uniswap LP entry |
 | Solver competition | Two Cobia-operated solvers run independently; external solver admission is not implemented |
 | Transaction construction/execution engine | Unit/fork-tested and wired as buyer-authenticated, one-step-at-a-time X Layer mainnet wallet execution |
-| X Layer mainnet-fork route rehearsal | Product-visible, persisted, and green for direct Aave, Uniswap-to-Aave, and full-range Uniswap LP-entry routes |
+| X Layer mainnet-fork route rehearsal | Product-visible, persisted, and green for direct Aave, Curve/Uniswap-to-Aave, and full-range Uniswap LP-entry routes |
 | Guided X Layer mainnet execution | Product-wired for fresh, purchased, rehearsed V2 routes; every transaction requires an explicit buyer-wallet confirmation and durable receipt verification |
 | AI execution/calldata authority | Not granted; deterministic construction and verification remain authoritative |
 
@@ -52,7 +52,7 @@ but Cobia does not yet build collect, rebalance, decrease-liquidity, or exit ste
 ```mermaid
 flowchart LR
     W["Owner wallet"] --> I["Signed stablecoin intent"]
-    I --> S["Pinned Aave + Uniswap snapshot"]
+    I --> S["Pinned Aave + Curve + Uniswap snapshot"]
     S --> D["Deterministic solver"]
     S --> A["Bounded agentic selector"]
     D --> V["Pure verifier"]

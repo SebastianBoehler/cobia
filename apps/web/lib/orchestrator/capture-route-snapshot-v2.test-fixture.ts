@@ -29,7 +29,7 @@ export const policy: StablecoinPolicyV2 = {
   deadline: 2_000_000_000,
   noBridges: true,
   allowedOutputAssets: [usdg.toLowerCase(), usdt0.toLowerCase()] as [typeof usdg, typeof usdt0],
-  allowedAdapters: ["aave-v3@1", "uniswap-v3@1"],
+  allowedAdapters: ["aave-v3@1", "curve-stableswap-ng@1", "uniswap-v3@1"],
   maxSlippageBps: 100,
   horizonDays: 30,
 };
@@ -98,6 +98,28 @@ export function uniswapQuote(amountInAtomic: bigint = 50_000_000n) {
   };
 }
 
+export function curveQuote(amountInAtomic: bigint = 50_000_000n) {
+  return {
+    adapterId: "curve-stableswap-ng@1" as const,
+    registryHash,
+    blockNumber: block.number,
+    blockHash: block.hash,
+    blockTimestamp: block.timestamp,
+    pool: PROTOCOL_REGISTRY.curveStableSwapNg.pair.pool.address,
+    tokenIn: usdt0,
+    tokenOut: usdg,
+    inputIndex: 1 as const,
+    outputIndex: 0 as const,
+    amountInAtomic,
+    amountOutAtomic: 50_010_000n,
+    fee: 1_000_000n,
+    amplification: 2_000n,
+    balances: [257_413_498_021n, 743_393_436_552n] as const,
+    totalSupply: 1_000_002_049_432_912_529_217_488n,
+    virtualPrice: 1_000_727_740_125_638_893n,
+  };
+}
+
 export function dependencies() {
   return {
     getLatestBlock: vi.fn().mockResolvedValue(block),
@@ -126,6 +148,9 @@ export function dependencies() {
     quoteExactInput: vi.fn().mockImplementation(async (
       input: { amountInAtomic: bigint },
     ) => uniswapQuote(input.amountInAtomic)),
+    quoteCurveExactInput: vi.fn().mockImplementation(async (
+      input: { amountInAtomic: bigint },
+    ) => curveQuote(input.amountInAtomic)),
     readFullRangeState: vi.fn().mockResolvedValue({
       adapterId: "uniswap-v3@1" as const,
       registryHash,

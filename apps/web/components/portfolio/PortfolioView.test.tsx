@@ -55,7 +55,7 @@ describe("PortfolioView", () => {
     fireEvent.click(screen.getByRole("button", { name: "Connect wallet" }));
 
     expect(await screen.findByText(
-      "Testnet assets are for payment rehearsal only. V2 quote construction reads registered Aave V3 and Uniswap V3 contracts at one pinned X Layer mainnet block; mainnet wallet balances personalize listings and estimates.",
+      "Testnet assets are for payment rehearsal only. V2 quote construction reads registered Aave V3, Curve StableSwap NG, and Uniswap V3 contracts at one pinned X Layer mainnet block; mainnet wallet balances personalize listings and estimates.",
     )).toBeVisible();
   });
 });

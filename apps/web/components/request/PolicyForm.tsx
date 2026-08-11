@@ -242,7 +242,7 @@ export function PolicyForm() {
         minimumTvl={`$${Number(minimumTvl).toLocaleString("en-US")}`}
         minimumPreGasApy={`${minimumApy}%`}
         outputAssets={SUPPORTED_ASSETS.map(({ displaySymbol }) => displaySymbol).join(" and ")}
-        adapters="Aave V3 supply, Uniswap V3 swap, and full-range LP"
+        adapters="Aave V3 supply, Curve and Uniswap V3 swaps, and full-range LP"
         maximumSlippage={`${(ROUTE_POLICY_V2_DEFAULTS.maxSlippageBps / 100).toFixed(2)}%`}
         horizon={`${ROUTE_POLICY_V2_DEFAULTS.horizonDays} days`}
         snapshotAge={`${ROUTE_POLICY_V2_DEFAULTS.maxSnapshotAgeSec} seconds`}
@@ -256,7 +256,7 @@ export function PolicyForm() {
           onChange={(event) => setAcknowledged(event.target.checked)}
         />
         <span>
-          I understand this snapshot-derived exact allocation may evaluate Aave V3 supply, Uniswap V3 swaps, and full-range LP positions. LP fee APY is historical and not guaranteed. Buying the route does not move principal. Mainnet execution is a separate guided flow with one explicit wallet confirmation for every transaction.
+          I understand this snapshot-derived exact allocation may evaluate Aave V3 supply, Curve and Uniswap V3 swaps, and full-range LP positions. LP fee APY is historical and not guaranteed; swap minimums are enforced separately. Buying the route does not move principal. Mainnet execution is a separate guided flow with one explicit wallet confirmation for every transaction.
         </span>
       </label>
 

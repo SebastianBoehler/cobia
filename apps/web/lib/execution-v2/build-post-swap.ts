@@ -4,6 +4,7 @@ import {
   exactApprovalTransactions,
   parseAtomic,
   parseExecutionContextV2,
+  registeredCurveSwap,
   registeredSwapPair,
   type VerifiedExecutionInputV2,
 } from "./execution-context";
@@ -20,10 +21,20 @@ export function buildPostSwapSupplyTransactionsV2(
   const { routePlan, owner } = parseExecutionContextV2(input);
   const leg = routePlan.legs[0];
   const [first, second] = leg?.actions ?? [];
-  if (!leg || first?.kind !== "uniswap-v3-exact-input" || !second) {
+  if (!leg || (first?.kind !== "uniswap-v3-exact-input" &&
+    first?.kind !== "curve-stableswap-ng-exact-input") ||
+    second?.kind !== "aave-v3-supply") {
     throw new Error("Post-swap supply requires a swap-then-supply plan");
   }
-  const pair = registeredSwapPair(first.tokenIn, first.tokenOut);
+  const pair = first.kind === "curve-stableswap-ng-exact-input"
+    ? registeredCurveSwap(
+      first.tokenIn,
+      first.tokenOut,
+      first.pool,
+      first.inputIndex,
+      first.outputIndex,
+    )
+    : registeredSwapPair(first.tokenIn, first.tokenOut);
   const observed = parseAtomic(
     input.observedOutputBalanceDeltaAtomic,
     "Observed output balance delta",

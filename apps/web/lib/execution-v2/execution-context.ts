@@ -101,27 +101,53 @@ export function registeredSwapPair(tokenIn: Address, tokenOut: Address) {
   return { input, output, fee: pair.fee } as const;
 }
 
+export function registeredCurveSwap(
+  tokenIn: Address,
+  tokenOut: Address,
+  pool: Address,
+  inputIndex: 0 | 1,
+  outputIndex: 0 | 1,
+) {
+  const input = registeredExecutionAsset(tokenIn);
+  const output = registeredExecutionAsset(tokenOut);
+  const pair = PROTOCOL_REGISTRY.curveStableSwapNg.pair;
+  const forward = input.key === pair.token0 && output.key === pair.token1 &&
+    inputIndex === 0 && outputIndex === 1;
+  const reverse = input.key === pair.token1 && output.key === pair.token0 &&
+    inputIndex === 1 && outputIndex === 0;
+  if ((!forward && !reverse) || !isAddressEqual(pool, pair.pool.address)) {
+    throw new Error("Curve execution pair is not registered");
+  }
+  return { input, output, pool: pair.pool.address } as const;
+}
+
 export function exactApprovalTransactions(input: {
   asset: RegisteredExecutionAssetV2;
   owner: Address;
   currentAllowanceAtomic: unknown;
   requiredAmountAtomic: bigint;
-  spenderKind: "aave" | "uniswap" | "position-manager";
+  spenderKind: "aave" | "curve" | "uniswap" | "position-manager";
 }): OwnerTransactionV2[] {
   const allowance = parseAtomic(input.currentAllowanceAtomic, "Current allowance");
   if (allowance >= input.requiredAmountAtomic) return [];
   const spender = input.spenderKind === "aave"
     ? PROTOCOL_REGISTRY.aaveV3.pool.address
+    : input.spenderKind === "curve"
+      ? PROTOCOL_REGISTRY.curveStableSwapNg.pair.pool.address
     : input.spenderKind === "uniswap"
       ? PROTOCOL_REGISTRY.uniswapV3.swapRouter02.address
       : PROTOCOL_REGISTRY.uniswapV3.nonfungiblePositionManager.address;
   const resetLabel = input.spenderKind === "aave"
     ? "reset-aave-allowance"
+    : input.spenderKind === "curve"
+      ? "reset-curve-allowance"
     : input.spenderKind === "uniswap"
       ? "reset-uniswap-allowance"
       : "reset-position-manager-allowance";
   const approveLabel = input.spenderKind === "aave"
     ? "approve-aave-exact"
+    : input.spenderKind === "curve"
+      ? "approve-curve-exact"
     : input.spenderKind === "uniswap"
       ? "approve-uniswap-exact"
       : "approve-position-manager-exact";

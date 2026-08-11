@@ -6,6 +6,7 @@ import {
 import type { MachineBatchResultV2 } from "./execution-machine-types";
 import {
   parseExecutionContextV2,
+  registeredCurveSwap,
   registeredExecutionAsset,
   registeredSwapPair,
   type VerifiedExecutionInputV2,
@@ -91,10 +92,20 @@ export async function executeRoutePlanV2(
   const first = context.routePlan.legs[0].actions[0];
   const spender = first.kind === "aave-v3-supply"
     ? PROTOCOL_REGISTRY.aaveV3.pool.address
+    : first.kind === "curve-stableswap-ng-exact-input"
+      ? PROTOCOL_REGISTRY.curveStableSwapNg.pair.pool.address
     : PROTOCOL_REGISTRY.uniswapV3.swapRouter02.address;
   const inputAsset = first.kind === "aave-v3-supply"
     ? registeredExecutionAsset(first.asset)
-    : registeredSwapPair(first.tokenIn, first.tokenOut).input;
+    : first.kind === "curve-stableswap-ng-exact-input"
+      ? registeredCurveSwap(
+        first.tokenIn,
+        first.tokenOut,
+        first.pool,
+        first.inputIndex,
+        first.outputIndex,
+      ).input
+      : registeredSwapPair(first.tokenIn, first.tokenOut).input;
   const allowanceBlock = await input.readClient.getBlockNumber();
   const allowance = await readAllowanceV2(
     input.readClient, inputAsset.address, context.owner, spender, allowanceBlock,
@@ -112,7 +123,15 @@ export async function executeRoutePlanV2(
   const swap = initial.confirmed.at(-1);
   try {
     if (swap?.stateCheck.kind !== "swap") throw new Error("Swap evidence was not captured");
-    const pair = registeredSwapPair(first.tokenIn, first.tokenOut);
+    const outputAsset = first.kind === "curve-stableswap-ng-exact-input"
+      ? registeredCurveSwap(
+        first.tokenIn,
+        first.tokenOut,
+        first.pool,
+        first.inputIndex,
+        first.outputIndex,
+      ).output
+      : registeredSwapPair(first.tokenIn, first.tokenOut).output;
     const second = context.routePlan.legs[0]!.actions[1];
     if (first.kind === "uniswap-v3-balance-swap" &&
       second?.kind !== "uniswap-v3-full-range-mint") {
@@ -138,7 +157,7 @@ export async function executeRoutePlanV2(
       ]).then(([token0Atomic, token1Atomic]) => ({ token0Atomic, token1Atomic }))
       : await readAllowanceV2(
         input.readClient,
-        pair.output.address,
+        outputAsset.address,
         context.owner,
         PROTOCOL_REGISTRY.aaveV3.pool.address,
         swap.blockNumber,

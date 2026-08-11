@@ -1,6 +1,7 @@
 import { createPublicClient, http, type PublicClient } from "viem";
 import { readAaveOraclePrices } from "../adapters/aave-oracle-reader";
 import { readAaveReserve } from "../adapters/aave-reader";
+import { quoteCurveStableSwapNg } from "../adapters/curve-reader";
 import { createProtocolReadClient } from "../adapters/read-client";
 import { quoteUniswapExactInputSingle } from "../adapters/uniswap-reader";
 import { readUniswapFullRangeState } from "../adapters/uniswap-lp-reader";
@@ -30,6 +31,7 @@ export function routeSnapshotDependencies(
     readOraclePrices: (input) => readAaveOraclePrices(protocolClient, input),
     readReserve: (input) => readAaveReserve(protocolClient, input),
     quoteExactInput: (input) => quoteUniswapExactInputSingle(protocolClient, input),
+    quoteCurveExactInput: (input) => quoteCurveStableSwapNg(protocolClient, input),
     readFullRangeState: (input) => readUniswapFullRangeState(protocolClient, input),
   };
 }

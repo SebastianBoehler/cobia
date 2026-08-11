@@ -53,7 +53,7 @@ describe("captureRouteSnapshotV2", () => {
     });
   });
 
-  it("captures one same-block Aave and Uniswap route graph", async () => {
+  it("captures one same-block Aave, Curve, and Uniswap route graph", async () => {
     const deps = dependencies();
 
     const snapshot = await captureRouteSnapshotV2(policy, deps);
@@ -66,7 +66,7 @@ describe("captureRouteSnapshotV2", () => {
       blockHash: block.hash,
       capturedAt: "2026-08-11T03:19:58.000Z",
       adapterRegistryHash: registryHash,
-      scannedAdapters: ["aave-v3@1", "uniswap-v3@1"],
+      scannedAdapters: ["aave-v3@1", "curve-stableswap-ng@1", "uniswap-v3@1"],
       valuations: [
         { asset: usdg.toLowerCase(), decimals: 6, priceUsdE8: "99999018" },
         { asset: usdt0.toLowerCase(), decimals: 6, priceUsdE8: "99912234" },
@@ -76,7 +76,7 @@ describe("captureRouteSnapshotV2", () => {
       (opportunity) => opportunity.kind !== "uniswap-v3-full-range-lp",
     )).toEqual([
       {
-        id: `aave-v3:${usdg.toLowerCase()}`,
+        id: `aave-v3:${usdg.toLowerCase()}:49900000`,
         kind: "aave-v3-supply",
         adapterId: "aave-v3@1",
         asset: usdg.toLowerCase(),
@@ -86,7 +86,17 @@ describe("captureRouteSnapshotV2", () => {
         validatedSupplyAtomic: "49900000",
       },
       {
-        id: `aave-v3:${usdt0.toLowerCase()}`,
+        id: `aave-v3:${usdg.toLowerCase()}:50010000`,
+        kind: "aave-v3-supply",
+        adapterId: "aave-v3@1",
+        asset: usdg.toLowerCase(),
+        supplyRateBps: 40,
+        tvlUsdE6: "699993126000",
+        availableLiquidityAtomic: "40000000000000",
+        validatedSupplyAtomic: "50010000",
+      },
+      {
+        id: `aave-v3:${usdt0.toLowerCase()}:50000000`,
         kind: "aave-v3-supply",
         adapterId: "aave-v3@1",
         asset: usdt0.toLowerCase(),
@@ -94,6 +104,19 @@ describe("captureRouteSnapshotV2", () => {
         tvlUsdE6: "51954361680000",
         availableLiquidityAtomic: "40000000000000",
         validatedSupplyAtomic: "50000000",
+      },
+      {
+        id: `curve-stableswap-ng:${usdt0.toLowerCase()}:${usdg.toLowerCase()}:50000000`,
+        kind: "curve-stableswap-ng-exact-input",
+        adapterId: "curve-stableswap-ng@1",
+        pool: PROTOCOL_REGISTRY.curveStableSwapNg.pair.pool.address.toLowerCase(),
+        tokenIn: usdt0.toLowerCase(),
+        tokenOut: usdg.toLowerCase(),
+        inputIndex: 1,
+        outputIndex: 0,
+        fee: "1000000",
+        quotedInputAtomic: "50000000",
+        quotedOutputAtomic: "50010000",
       },
       {
         id: `uniswap-v3:${usdt0.toLowerCase()}:${usdg.toLowerCase()}:100:50000000`,
@@ -107,7 +130,7 @@ describe("captureRouteSnapshotV2", () => {
         estimatedGas: "100212",
       },
     ]);
-    expect(snapshot.opportunities).toHaveLength(4);
+    expect(snapshot.opportunities).toHaveLength(6);
     expect(deps.readReserve).toHaveBeenCalledWith({
       asset: "USDG",
       amountAtomic: 49_900_000n,
@@ -130,13 +153,17 @@ describe("captureRouteSnapshotV2", () => {
       "uniswap-zero-liquidity",
       "No active pool liquidity",
     ));
+    deps.quoteCurveExactInput.mockRejectedValue(new ProtocolIneligibleError(
+      "curve-zero-liquidity",
+      "No active pool liquidity",
+    ));
     deps.readReserve.mockRejectedValue(new ProtocolIneligibleError(
       "aave-reserve-paused",
       "Reserve paused",
     ));
 
     await expect(captureRouteSnapshotV2(policy, deps)).resolves.toMatchObject({
-      scannedAdapters: ["aave-v3@1", "uniswap-v3@1"],
+      scannedAdapters: ["aave-v3@1", "curve-stableswap-ng@1", "uniswap-v3@1"],
       opportunities: [],
     });
   });

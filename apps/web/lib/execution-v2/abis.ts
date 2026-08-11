@@ -3,6 +3,7 @@ import { parseAbi } from "viem";
 // Minimal interfaces pinned to official sources:
 // https://eips.ethereum.org/EIPS/eip-20
 // https://github.com/aave-dao/aave-v3-origin/blob/cff15de6d1271b0c800fc001f4aea4c263e8a597/src/contracts/interfaces/IPool.sol
+// https://github.com/curvefi/stableswap-ng/tree/2abe778f40206a6c0fd108a0a53ad3266cbedeee/contracts/main
 // https://github.com/Uniswap/swap-router-contracts/blob/70bc2e40dfca294c1cea9bf67a4036732ee54303/contracts/interfaces/IV3SwapRouter.sol
 // https://github.com/Uniswap/swap-router-contracts/blob/70bc2e40dfca294c1cea9bf67a4036732ee54303/contracts/interfaces/IMulticallExtended.sol
 export const ERC20_APPROVE_ABI = parseAbi([
@@ -41,6 +42,14 @@ export const A_TOKEN_MINT_EVENT_ABI = parseAbi([
 export const SWAP_ROUTER02_ABI = parseAbi([
   "function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96) params) payable returns (uint256 amountOut)",
   "function multicall(uint256 deadline, bytes[] data) payable returns (bytes[] results)",
+]);
+
+export const CURVE_STABLESWAP_NG_EXCHANGE_ABI = parseAbi([
+  "function exchange(int128 i, int128 j, uint256 dx, uint256 minDy, address receiver) returns (uint256)",
+]);
+
+export const CURVE_TOKEN_EXCHANGE_EVENT_ABI = parseAbi([
+  "event TokenExchange(address indexed buyer, int128 soldId, uint256 tokensSold, int128 boughtId, uint256 tokensBought)",
 ]);
 
 export const UNISWAP_SWAP_EVENT_ABI = parseAbi([

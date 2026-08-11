@@ -126,6 +126,26 @@ describe("purchased V2 route execution on a pinned X Layer fork", () => {
     expect(trace.snapshot.blockHash).toBe(route.snapshot.blockHash);
   });
 
+  it("rehearses a Curve StableSwap exchange before bounded Aave supply", async () => {
+    const route = await capturedRoute({
+      requestId: "550e8400-e29b-41d4-a716-446655440094",
+      actionKinds: ["curve-stableswap-ng-exact-input", "aave-v3-supply"],
+    });
+    const trace = await runPurchasedRouteRehearsal(route);
+
+    expect(trace.result.status).toBe("success");
+    expect(trace.result.transactions.map(({ label }) => label)).toEqual([
+      "approve-curve-exact",
+      "curve-stableswap-ng-exact-input",
+      "approve-aave-exact",
+      "aave-v3-supply",
+    ]);
+    expect(trace.result.transactions[1]).toMatchObject({
+      protocolEvidence: { kind: "swap", venue: "curve-stableswap-ng" },
+      stateCheck: { kind: "swap", venue: "curve-stableswap-ng" },
+    });
+  });
+
   it("rehearses one-sided balancing and an owner-held full-range LP mint", async () => {
     const route = await capturedRoute({
       requestId: "550e8400-e29b-41d4-a716-446655440093",

@@ -209,18 +209,38 @@ export function assessRouteAuthorizationV2(
     }
 
     const swap = opportunities.get(first.opportunityId);
-    if (assessOpportunityBase(swap, "uniswap-v3-exact-input", policy, errors)) {
-      if (swap.kind === "uniswap-v3-exact-input") {
-        const routeMatches =
-          isAddressEqual(swap.tokenIn, first.tokenIn) &&
-          isAddressEqual(swap.tokenOut, first.tokenOut);
-        if (!routeMatches) add(errors, "OPPORTUNITY_ROUTE_MISMATCH");
-        if (
-          swap.quotedInputAtomic !== leg.inputAtomic ||
-          swap.quotedOutputAtomic !== first.quotedOutputAtomic
-        ) {
+    if (first.kind === "curve-stableswap-ng-exact-input") {
+      if (assessOpportunityBase(
+        swap,
+        "curve-stableswap-ng-exact-input",
+        policy,
+        errors,
+      ) && swap.kind === "curve-stableswap-ng-exact-input") {
+        if (!isAddressEqual(swap.pool, first.pool) ||
+          !isAddressEqual(swap.tokenIn, first.tokenIn) ||
+          !isAddressEqual(swap.tokenOut, first.tokenOut) ||
+          swap.inputIndex !== first.inputIndex ||
+          swap.outputIndex !== first.outputIndex || swap.fee !== first.fee) {
+          add(errors, "OPPORTUNITY_ROUTE_MISMATCH");
+        }
+        if (swap.quotedInputAtomic !== leg.inputAtomic ||
+          swap.quotedOutputAtomic !== first.quotedOutputAtomic) {
           add(errors, "OPPORTUNITY_QUOTE_MISMATCH");
         }
+      }
+    } else if (assessOpportunityBase(
+      swap,
+      "uniswap-v3-exact-input",
+      policy,
+      errors,
+    ) && swap.kind === "uniswap-v3-exact-input") {
+      if (!isAddressEqual(swap.tokenIn, first.tokenIn) ||
+        !isAddressEqual(swap.tokenOut, first.tokenOut)) {
+        add(errors, "OPPORTUNITY_ROUTE_MISMATCH");
+      }
+      if (swap.quotedInputAtomic !== leg.inputAtomic ||
+        swap.quotedOutputAtomic !== first.quotedOutputAtomic) {
+        add(errors, "OPPORTUNITY_QUOTE_MISMATCH");
       }
     }
     const quoted = BigInt(first.quotedOutputAtomic);

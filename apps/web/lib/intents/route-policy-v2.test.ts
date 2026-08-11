@@ -23,7 +23,7 @@ describe("buildRoutePolicyV2", () => {
       maxSnapshotAgeSec: 300,
       deadline: 1_900_001_800,
       noBridges: true,
-      allowedAdapters: ["aave-v3@1", "uniswap-v3@1"],
+      allowedAdapters: ["aave-v3@1", "curve-stableswap-ng@1", "uniswap-v3@1"],
       maxSlippageBps: 50,
       horizonDays: 30,
     });

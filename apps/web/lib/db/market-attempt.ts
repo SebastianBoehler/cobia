@@ -8,6 +8,7 @@ import {
   visibleRequestQuotes,
 } from "../markets/active-quotes";
 import type { MarketAttempt } from "./market-types";
+import { protocolLabelV2 } from "../markets/protocol-labels";
 import {
   parsePersistedPolicy,
   parsePersistedSnapshot,
@@ -73,9 +74,7 @@ export function projectMarketAttempt(
       ? [...new Set(snapshot.candidates
         .filter(({ kind }) => kind !== "cash")
         .map(({ kind }) => kind === "aave-v3" ? "Aave V3" : kind))]
-      : [...new Set(snapshot?.opportunities.map(({ kind }) =>
-        kind === "aave-v3-supply" ? "Aave V3" : "Uniswap V3"
-      ) ?? [])],
+      : [...new Set(snapshot?.opportunities.map(({ kind }) => protocolLabelV2(kind)) ?? [])],
     createdAt: input.createdAt.toISOString(),
   };
 }

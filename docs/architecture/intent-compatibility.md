@@ -11,24 +11,24 @@ The implemented flow is:
 1. A wallet signs a V2 `StablecoinPolicy` for X Layer chain `196`, including
    exact protocol exposure, allowed assets/adapters, slippage, horizon, and
    freshness limits.
-2. The orchestrator captures registered Aave V3 reserve/oracle state and a
-   Uniswap V3 exact-input quote at one pinned block. Ineligible opportunities
+2. The orchestrator captures registered Aave V3 reserve/oracle state plus Curve
+   StableSwap NG and Uniswap V3 exact-input quotes at one pinned block. Ineligible opportunities
    are omitted; RPC, registry, identity, or reorg failures fail the capture.
-3. One configured deterministic Cobia solver constructs and signs a bounded
-   `RouteBundleV2`: retain all, direct Aave supply, or one Uniswap-to-Aave leg.
+3. Configured deterministic and bounded agentic Cobia solvers construct and sign
+   `RouteBundleV2` candidates: retain all, direct Aave supply, Curve/Uniswap-to-Aave,
+   or one-sided full-range Uniswap LP entry.
 4. The verifier recomputes authorization, conservation, opportunity amounts,
    policy limits, registry coverage, pre-gas economics, expiry, and signer,
    then projects one sanitized public quote.
 5. An owner-bound OKX MPP/EIP-3009 payment reveals the exact signed plan.
 
 V1 OKX-derived Aave allocation artifacts remain parseable for existing rows and
-purchases, but new browser and MCP intents use V2. The product does not submit
-principal transactions. A guarded execution library is unit-tested separately;
-an opt-in, pinned X Layer mainnet-fork rehearsal has also passed capture,
-authorization, USDG approval, Uniswap USDG-to-USDt0, USDt0 approval, and Aave
-supply with receipt, event, and state checks. That isolated Anvil evidence is
-not product simulation, persisted/product execution, live mainnet principal
-execution, UI capability, or deployment proof.
+purchases, but new browser and MCP intents use V2. Purchased V2 routes expose a
+persisted, buyer-authenticated fork rehearsal and guided owner-wallet chain-196
+execution while the route remains fresh. Direct Aave, Curve/Uniswap-to-Aave,
+and full-range Uniswap LP-entry routes have passed the pinned fork lane with
+receipt, event, deployment, and state checks. Fork funds and state are simulated;
+live mainnet execution still requires explicit wallet confirmation per step.
 
 ## Current primitive mapping
 
@@ -39,8 +39,8 @@ execution, UI capability, or deployment proof.
 | Solver fill plan | Signed `RouteBundleV2` | Registered opportunity references and bounded actions, hidden until reveal payment |
 | Order server | Cobia orchestrator | Captures direct registered protocol state at one pinned block |
 | Oracle / validation | Deterministic verifier | Recomputes authorization; it does not predict execution success |
-| Settlement | Not implemented | Principal remains in the wallet |
-| Fulfilment evidence | Not implemented | The OKX MPP/EIP-3009 receipt proves reveal payment only |
+| Settlement | Guided owner-wallet execution | Fresh purchased and rehearsed V2 routes submit one locally rebuilt, owner-confirmed transaction at a time |
+| Fulfilment evidence | Persisted per step | Canonical receipt, protocol event, deployment identity, and bounded state checks; fork evidence remains historical |
 
 The `0.10` stablecoin charge buys access to the signed deterministic allocation
 bundle. It is not an escrow deposit, solver bond, yield guarantee, settlement
@@ -64,7 +64,7 @@ The hosted server never receives or holds the request owner's private key. It
 prepares data, returns owner signing to the wallet, and accepts only the
 resulting signature. It does hold separate configured deterministic and agentic
 solver signing keys used for Cobia's solver bundles; neither key authorizes
-request-owner principal transactions. The signed allocation bundle remains protected by the
+request-owner principal transactions. The signed route bundle remains protected by the
 same reveal-payment boundary used by the browser.
 
 ## Target, not implemented
@@ -73,12 +73,11 @@ same reveal-payment boundary used by the browser.
   after signer admission, evidence provenance, and deterministic validation are
   specified and tested.
 - OIF origination, fulfilment, settlement, and rebalancing adapters could become
-  integration seams after Cobia implements execution.
+  integration seams after Cobia defines an interoperable external order lifecycle.
 - ERC-7683 and EIP-7930 become relevant only if cross-chain or non-EVM orders
   are added.
-- Product-wired simulation, user-approved execution, persisted execution
-  checkpoints, and fulfilment evidence require separate implementations and
-  conformance tests.
+- Atomic multi-step settlement, persisted cross-process engine checkpoints, and
+  generalized exit/rebalancing flows require separate implementations and tests.
 
 None of these target capabilities should appear as current product behavior
 until its implementation and verification exist.

@@ -63,7 +63,7 @@ describe("Cobia MCP server", () => {
         requestId: "550e8400-e29b-41d4-a716-446655440000",
         executionChainId: 196,
         deadline: nowSec + 1_800,
-        allowedAdapters: ["aave-v3@1", "uniswap-v3@1"],
+        allowedAdapters: ["aave-v3@1", "curve-stableswap-ng@1", "uniswap-v3@1"],
       },
     });
   });

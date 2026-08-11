@@ -74,6 +74,7 @@ export type CapturedExecutionStateV2 =
   }
   | {
     kind: "swap";
+    venue?: "uniswap-v3" | "curve-stableswap-ng";
     tokenIn: Address;
     tokenOut: Address;
     amountInAtomic: bigint;
@@ -109,6 +110,7 @@ export type ExecutionProtocolEvidenceV2 =
   | { kind: "approval"; owner: Address; spender: Address; amountAtomic: bigint }
   | {
     kind: "swap";
+    venue?: "uniswap-v3" | "curve-stableswap-ng";
     sender: Address;
     recipient: Address;
     inputAtomic: bigint;
@@ -140,6 +142,7 @@ export type ExecutionStateCheckV2 =
   }
   | {
     kind: "swap";
+    venue?: "uniswap-v3" | "curve-stableswap-ng";
     tokenIn: Address;
     tokenOut: Address;
     inputSpentAtomic: bigint;

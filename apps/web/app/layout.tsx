@@ -18,10 +18,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Cobia — verified Aave + Uniswap routes",
+    default: "Cobia — verified X Layer routes",
     template: "%s · Cobia",
   },
-  description: "Pinned-block Aave V3 and Uniswap V3 opportunities on X Layer, deterministically authorized before paid reveal. Principal remains unmoved; execution is not product-wired.",
+  description: "Pinned-block Aave V3, Curve StableSwap NG, and Uniswap V3 opportunities on X Layer, deterministically authorized before paid reveal and guided mainnet execution.",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

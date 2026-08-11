@@ -28,7 +28,11 @@ export const ROUTE_POLICY_V2_DEFAULTS = Object.freeze({
   allowedOutputAssets: Object.freeze(
     SUPPORTED_ASSETS.map(({ address }) => address.toLowerCase()).sort(),
   ),
-  allowedAdapters: Object.freeze(["aave-v3@1", "uniswap-v3@1"] as const),
+  allowedAdapters: Object.freeze([
+    "aave-v3@1",
+    "curve-stableswap-ng@1",
+    "uniswap-v3@1",
+  ] as const),
   maxSlippageBps: 50,
   horizonDays: 30,
 });

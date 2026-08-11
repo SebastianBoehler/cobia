@@ -65,6 +65,32 @@ export const swapPlan = {
   }],
 } as const;
 
+export const curvePlan = {
+  ...directPlan,
+  legs: [{
+    id: "curve-then-supply",
+    inputAtomic: INPUT_ATOMIC.toString(),
+    actions: [{
+      kind: "curve-stableswap-ng-exact-input",
+      opportunityId: "curve-stableswap-ng:registered-pair",
+      consume: "all",
+      pool: PROTOCOL_REGISTRY.curveStableSwapNg.pair.pool.address,
+      tokenIn: usdt0,
+      tokenOut: usdg,
+      inputIndex: 1,
+      outputIndex: 0,
+      fee: PROTOCOL_REGISTRY.curveStableSwapNg.pair.fee,
+      quotedOutputAtomic: OUTPUT_ATOMIC.toString(),
+      minimumOutputAtomic: MINIMUM_OUTPUT_ATOMIC.toString(),
+    }, {
+      kind: "aave-v3-supply",
+      opportunityId: `aave-v3:${usdg.toLowerCase()}`,
+      consume: "all",
+      asset: usdg,
+    }],
+  }],
+} as const;
+
 export const lpPlan = {
   ...directPlan,
   legs: [{
@@ -119,7 +145,7 @@ export const executionPolicy: StablecoinPolicyV2 = {
   deadline: DEADLINE_SEC,
   noBridges: true,
   allowedOutputAssets: [usdgLower, usdt0Lower],
-  allowedAdapters: ["aave-v3@1", "uniswap-v3@1"],
+  allowedAdapters: ["aave-v3@1", "curve-stableswap-ng@1", "uniswap-v3@1"],
   maxSlippageBps: 200,
   horizonDays: directPlan.horizonDays,
 };
@@ -132,7 +158,7 @@ const executionSnapshot: RouteSnapshotV2 = RouteSnapshotV2Schema.parse({
   blockHash: PROTOCOL_REGISTRY.auditedAtBlock.hash,
   capturedAt: new Date((DEADLINE_SEC - 300) * 1_000).toISOString(),
   adapterRegistryHash: registryHash,
-  scannedAdapters: ["aave-v3@1", "uniswap-v3@1"],
+  scannedAdapters: ["aave-v3@1", "curve-stableswap-ng@1", "uniswap-v3@1"],
   valuations: [
     { asset: usdgLower, decimals: 6, priceUsdE8: "100000000" },
     { asset: usdt0Lower, decimals: 6, priceUsdE8: "100000000" },
@@ -157,6 +183,19 @@ const executionSnapshot: RouteSnapshotV2 = RouteSnapshotV2Schema.parse({
       tvlUsdE6: "1000000000",
       availableLiquidityAtomic: "1000000000",
       validatedSupplyAtomic: INPUT_ATOMIC.toString(),
+    },
+    {
+      id: "curve-stableswap-ng:registered-pair",
+      kind: "curve-stableswap-ng-exact-input",
+      adapterId: "curve-stableswap-ng@1",
+      pool: PROTOCOL_REGISTRY.curveStableSwapNg.pair.pool.address,
+      tokenIn: usdt0Lower,
+      tokenOut: usdgLower,
+      inputIndex: 1,
+      outputIndex: 0,
+      fee: PROTOCOL_REGISTRY.curveStableSwapNg.pair.fee,
+      quotedInputAtomic: INPUT_ATOMIC.toString(),
+      quotedOutputAtomic: OUTPUT_ATOMIC.toString(),
     },
     {
       id: "uniswap-v3:registered-pair",

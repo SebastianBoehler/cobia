@@ -13,6 +13,7 @@ import {
 } from "./engine.test-fixture";
 import {
   directPlan,
+  curvePlan,
   INPUT_ATOMIC,
   MINIMUM_OUTPUT_ATOMIC,
   lpPlan,
@@ -170,6 +171,64 @@ describe("executeRoutePlanV2", () => {
     const aaveAllowanceRead = events.indexOf(`read:allowance:${usdg.toLowerCase()}:202`);
     expect(outputReceiptRead).toBeGreaterThan(-1);
     expect(aaveAllowanceRead).toBeGreaterThan(outputReceiptRead);
+    expectEstimateThenAuthorityBeforeEverySend(events);
+  });
+
+  it("executes and attributes a Curve swap before supplying its bounded output", async () => {
+    const events: string[] = [];
+    const read = new ScriptedReadClient(events);
+    const wallet = new ScriptedWallet(events);
+    const curvePool = PROTOCOL_REGISTRY.curveStableSwapNg.pair.pool.address;
+    const hashes = [21, 22, 23, 24, 25].map(transactionHash);
+    wallet.hashes.push(...hashes);
+    read.latestBlocks.push(
+      250n, 250n, 252n, 251n, 253n, 252n, 254n, 253n, 255n, 254n, 256n,
+    );
+    read.allowance(usdt0, curvePool, 250n, 0n);
+    read.allowance(usdt0, curvePool, 251n, INPUT_ATOMIC);
+    read.balance(usdt0, 251n, 100_000_000n);
+    read.balance(usdg, 251n, 10_000_000n);
+    read.balance(usdt0, 252n, 50_000_000n);
+    read.balance(usdg, 252n, 60_000_000n);
+    read.allowance(usdg, pool, 252n, 1n);
+    read.allowance(usdg, pool, 253n, 0n);
+    read.allowance(usdg, pool, 254n, OUTPUT_ATOMIC);
+    read.balance(usdg, 254n, 60_000_000n);
+    read.balance(aUsdg, 254n, 0n);
+    read.balance(usdg, 255n, 60_000_000n - OUTPUT_ATOMIC);
+    read.balance(aUsdg, 255n, OUTPUT_ATOMIC);
+    hashes.forEach((hash, index) => read.receipts(
+      hash,
+      successfulReceipt(251n + BigInt(index)),
+    ));
+
+    const result = await executeRoutePlanV2(await engineInput(curvePlan, wallet, read));
+
+    expect(result.status).toBe("success");
+    expect(result.transactions.map(({ label }) => label)).toEqual([
+      "approve-curve-exact",
+      "curve-stableswap-ng-exact-input",
+      "reset-aave-allowance",
+      "approve-aave-exact",
+      "aave-v3-supply",
+    ]);
+    expect(result.transactions[1]).toMatchObject({
+      protocolEvidence: {
+        kind: "swap",
+        venue: "curve-stableswap-ng",
+        inputAtomic: INPUT_ATOMIC,
+        outputAtomic: OUTPUT_ATOMIC,
+      },
+      stateCheck: {
+        kind: "swap",
+        venue: "curve-stableswap-ng",
+        outputDeltaAtomic: OUTPUT_ATOMIC,
+      },
+    });
+    expect(result.transactions[4].stateCheck).toMatchObject({
+      kind: "aave-supply",
+      suppliedAtomic: OUTPUT_ATOMIC,
+    });
     expectEstimateThenAuthorityBeforeEverySend(events);
   });
 

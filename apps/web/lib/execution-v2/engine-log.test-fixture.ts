@@ -12,6 +12,7 @@ import { rayDivFloor, rayMulFloor } from "../adapters/aave-math";
 import {
   AAVE_SUPPLY_EVENT_ABI,
   A_TOKEN_MINT_EVENT_ABI,
+  CURVE_TOKEN_EXCHANGE_EVENT_ABI,
   ERC721_TRANSFER_EVENT_ABI,
   ERC20_APPROVAL_EVENT_ABI,
   NONFUNGIBLE_POSITION_MANAGER_EVENT_ABI,
@@ -61,15 +62,23 @@ function transactionLabel(transaction: ExecutionTransactionV2) {
     const aave = spender.toLowerCase() === pool.toLowerCase();
     const manager = spender.toLowerCase() ===
       PROTOCOL_REGISTRY.uniswapV3.nonfungiblePositionManager.address.toLowerCase();
+    const curve = spender.toLowerCase() ===
+      PROTOCOL_REGISTRY.curveStableSwapNg.pair.pool.address.toLowerCase();
     return amount === 0n
       ? (aave ? "reset-aave-allowance" : manager
-        ? "reset-position-manager-allowance" : "reset-uniswap-allowance")
+        ? "reset-position-manager-allowance" : curve
+          ? "reset-curve-allowance" : "reset-uniswap-allowance")
       : (aave ? "approve-aave-exact" : manager
-        ? "approve-position-manager-exact" : "approve-uniswap-exact");
+        ? "approve-position-manager-exact" : curve
+          ? "approve-curve-exact" : "approve-uniswap-exact");
   }
   if (transaction.to?.toLowerCase() ===
     PROTOCOL_REGISTRY.uniswapV3.nonfungiblePositionManager.address.toLowerCase()) {
     return "uniswap-v3-full-range-mint";
+  }
+  if (transaction.to?.toLowerCase() ===
+    PROTOCOL_REGISTRY.curveStableSwapNg.pair.pool.address.toLowerCase()) {
+    return "curve-stableswap-ng-exact-input";
   }
   return selector === "0x617ba037" ? "aave-v3-supply" : "uniswap-v3-exact-input";
 }
@@ -113,6 +122,26 @@ export function protocolLogs(
     )];
   }
   if (descriptor.kind === "swap") {
+    if (descriptor.venue === "curve-stableswap-ng") {
+      return [eventLog(
+        descriptor.pool,
+        encodeEventTopics({
+          abi: CURVE_TOKEN_EXCHANGE_EVENT_ABI,
+          eventName: "TokenExchange",
+          args: { buyer: transaction.from },
+        }) as readonly Hex[],
+        encodeAbiParameters(
+          [
+            { type: "int128" }, { type: "uint256" },
+            { type: "int128" }, { type: "uint256" },
+          ],
+          [
+            BigInt(descriptor.inputIndex), descriptor.amountInAtomic,
+            BigInt(descriptor.outputIndex), outputAtomic,
+          ],
+        ),
+      )];
+    }
     const token0 = PROTOCOL_REGISTRY.aaveV3.assets[
       PROTOCOL_REGISTRY.uniswapV3.pair.token0
     ].underlying.address;

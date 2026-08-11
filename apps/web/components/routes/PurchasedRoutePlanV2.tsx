@@ -23,6 +23,13 @@ function actionSteps(
         detail: `Quoted output ${formattedAssetAmount(action.quotedOutputAtomic, action.tokenOut, valuations)} · ${action.opportunityId}`,
       };
     }
+    if (action.kind === "curve-stableswap-ng-exact-input") {
+      return {
+        key: `${leg.id}:${index}:${action.opportunityId}`,
+        label: `Swap ${formattedAssetAmount(leg.inputAtomic, action.tokenIn, valuations)} for at least ${formattedAssetAmount(action.minimumOutputAtomic, action.tokenOut, valuations)} via Curve StableSwap NG`,
+        detail: `Quoted output ${formattedAssetAmount(action.quotedOutputAtomic, action.tokenOut, valuations)} · ${action.opportunityId}`,
+      };
+    }
     if (action.kind === "uniswap-v3-balance-swap") {
       return {
         key: `${leg.id}:${index}:${action.opportunityId}`,
@@ -44,7 +51,8 @@ function actionSteps(
       };
     }
     const priorAction = index > 0 ? leg.actions[index - 1] : undefined;
-    if (priorAction?.kind === "uniswap-v3-exact-input") {
+    if (priorAction?.kind === "uniswap-v3-exact-input" ||
+      priorAction?.kind === "curve-stableswap-ng-exact-input") {
       return {
         key: `${leg.id}:${index}:${action.opportunityId}`,
         label: `Supply up to the quoted ${formattedAssetAmount(priorAction.quotedOutputAtomic, action.asset, valuations)} to Aave V3`,

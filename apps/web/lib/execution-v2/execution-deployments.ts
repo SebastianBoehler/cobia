@@ -38,6 +38,15 @@ export async function assertExecutionDeploymentsV2(
       await pin(client, PROTOCOL_REGISTRY.aaveV3.pool, "Aave Pool", blockNumber);
     } else if (isAddressEqual(
       descriptor.spender,
+      PROTOCOL_REGISTRY.curveStableSwapNg.pair.pool.address,
+    )) {
+      await Promise.all([
+        pin(client, PROTOCOL_REGISTRY.curveStableSwapNg.pair.pool, "Curve pool", blockNumber),
+        pin(client, PROTOCOL_REGISTRY.curveStableSwapNg.plainImplementation,
+          "Curve plain implementation", blockNumber),
+      ]);
+    } else if (isAddressEqual(
+      descriptor.spender,
       PROTOCOL_REGISTRY.uniswapV3.swapRouter02.address,
     )) {
       await pin(
@@ -57,6 +66,16 @@ export async function assertExecutionDeploymentsV2(
     return block.hash;
   }
   if (descriptor.kind === "swap") {
+    if (descriptor.venue === "curve-stableswap-ng") {
+      await Promise.all([
+        pin(client, assetDeployment(descriptor.tokenIn).underlying, "swap input", blockNumber),
+        pin(client, assetDeployment(descriptor.tokenOut).underlying, "swap output", blockNumber),
+        pin(client, PROTOCOL_REGISTRY.curveStableSwapNg.pair.pool, "Curve pool", blockNumber),
+        pin(client, PROTOCOL_REGISTRY.curveStableSwapNg.plainImplementation,
+          "Curve plain implementation", blockNumber),
+      ]);
+      return block.hash;
+    }
     await Promise.all([
       pin(client, assetDeployment(descriptor.tokenIn).underlying, "swap input", blockNumber),
       pin(client, assetDeployment(descriptor.tokenOut).underlying, "swap output", blockNumber),

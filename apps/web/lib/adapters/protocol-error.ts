@@ -4,6 +4,8 @@ export const PROTOCOL_INELIGIBLE_CODES = [
   "aave-reserve-paused",
   "aave-zero-scaled-amount",
   "aave-supply-cap-exceeded",
+  "curve-zero-liquidity",
+  "curve-zero-output",
   "uniswap-pool-locked",
   "uniswap-zero-liquidity",
   "uniswap-zero-output",

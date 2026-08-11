@@ -3,9 +3,9 @@ import { ADDRESSES } from "./reader.test-fixture";
 import { PROTOCOL_REGISTRY, registryHash } from "./registry";
 
 describe("X Layer protocol registry", () => {
-  it("commits the audited Aave and Uniswap deployment manifest", () => {
+  it("commits the audited Aave, Curve, and Uniswap deployment manifest", () => {
     expect(registryHash).toBe(
-      "0x57f9c21f0c77f4eb38455d3ab9d21f1c7780adddd99adaa53834d4937a2ea988",
+      "0xda032b6bb7d76dfbadbb438cc5a4f3061f7b17b33b0fb7769dcefb84b90308ad",
     );
     expect({
       chainId: PROTOCOL_REGISTRY.chainId,
@@ -22,6 +22,10 @@ describe("X Layer protocol registry", () => {
       usdt0: PROTOCOL_REGISTRY.aaveV3.assets.USDt0.underlying.address,
       usdt0Impl: PROTOCOL_REGISTRY.aaveV3.assets.USDt0.underlying.implementation.address,
       aUsdt0: PROTOCOL_REGISTRY.aaveV3.assets.USDt0.aToken.address,
+      curveFactory: PROTOCOL_REGISTRY.curveStableSwapNg.factory.address,
+      curveViews: PROTOCOL_REGISTRY.curveStableSwapNg.views.address,
+      curvePlainImplementation: PROTOCOL_REGISTRY.curveStableSwapNg.plainImplementation.address,
+      curvePool: PROTOCOL_REGISTRY.curveStableSwapNg.pair.pool.address,
       uniFactory: PROTOCOL_REGISTRY.uniswapV3.factory.address,
       uniQuoter: PROTOCOL_REGISTRY.uniswapV3.quoterV2.address,
       uniRouter: PROTOCOL_REGISTRY.uniswapV3.swapRouter02.address,
@@ -29,6 +33,7 @@ describe("X Layer protocol registry", () => {
       uniPool: PROTOCOL_REGISTRY.uniswapV3.pair.pool.address,
       fee: PROTOCOL_REGISTRY.uniswapV3.pair.fee,
       aaveAdapter: PROTOCOL_REGISTRY.aaveV3.adapterId,
+      curveAdapter: PROTOCOL_REGISTRY.curveStableSwapNg.adapterId,
       uniswapAdapter: PROTOCOL_REGISTRY.uniswapV3.adapterId,
     }).toEqual({
       chainId: 196,
@@ -40,6 +45,7 @@ describe("X Layer protocol registry", () => {
       ...ADDRESSES,
       fee: 100,
       aaveAdapter: "aave-v3@1",
+      curveAdapter: "curve-stableswap-ng@1",
       uniswapAdapter: "uniswap-v3@1",
     });
   });

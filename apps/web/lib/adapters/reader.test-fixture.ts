@@ -27,6 +27,10 @@ export const ADDRESSES = {
   uniRouter: "0x4f0C28f5926AFDA16bf2506D5D9e57Ea190f9bcA",
   uniPositionManager: "0x315e413A11AB0df498eF83873012430ca36638Ae",
   uniPool: "0x0cBe0dBE1400e57f371a38BD3b9bC80F7C3676dA",
+  curveFactory: "0x5eeE3091f747E60a045a2E715a4c71e600e31F6E",
+  curveViews: "0x506F594ceb4E33F5161139bAe3Ee911014df9f7f",
+  curvePlainImplementation: "0x87FE17697D0f14A222e8bEf386a0860eCffDD617",
+  curvePool: "0x31F066aA0A687d4F383F96a514984AF727Eb8e38",
 } as const satisfies Record<string, Address>;
 
 export const CODE_HASHES = {
@@ -47,6 +51,10 @@ export const CODE_HASHES = {
   uniRouter: "0x83ee2f04768ca84e762b139bf36844bf7efbd75b3c7cc898705169eacb9d5102",
   uniPositionManager: "0xd8339465f5c45afef4319fde20bb35cb5c5e17cf861c73b669d07ca615e3213c",
   uniPool: "0x3bcd8365275438d68771a8164c5aef769ca3693921498cdd1e85f91736fea73a",
+  curveFactory: "0xa2360ff48b83e8eeb4a633f8f4c268a62c4f23c0d2da5b673423a2b58e7a78d2",
+  curveViews: "0x34e327c9d8557aa0ef913c8972a44be8e21de2d829fcacb10237ccf8330df954",
+  curvePlainImplementation: "0xb7283520ec579d21cbcb603d7da789bccc5a7b1f48fe858af4ffd7dde9b16bc0",
+  curvePool: "0x855800c63268949eadd5206e5729c69e768f017722f275e90c4185b1fb0733bc",
 } as const satisfies Record<keyof typeof ADDRESSES, Hash>;
 
 const PROXY_IMPLEMENTATIONS = new Map<string, Address>([

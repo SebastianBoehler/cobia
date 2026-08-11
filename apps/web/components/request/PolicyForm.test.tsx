@@ -84,7 +84,7 @@ describe("PolicyForm", () => {
     expect(screen.getByText("No bridges")).toBeVisible();
     expect(screen.getByText("Outputs: USDG and USDt0")).toBeVisible();
     expect(screen.getByText(
-      "Adapters: Aave V3 supply, Uniswap V3 swap, and full-range LP",
+      "Adapters: Aave V3 supply, Curve and Uniswap V3 swaps, and full-range LP",
     )).toBeVisible();
     expect(screen.getByText("Maximum swap slippage: 0.50%")).toBeVisible();
     expect(screen.getByText("Yield horizon: 30 days")).toBeVisible();
@@ -98,7 +98,7 @@ describe("PolicyForm", () => {
     renderForm();
 
     expect(screen.getByText("10.00 USDG exact")).toBeVisible();
-    expect(screen.getByText(/may evaluate Aave V3 supply, Uniswap V3 swaps, and full-range LP positions/i))
+    expect(screen.getByText(/may evaluate Aave V3 supply, Curve and Uniswap V3 swaps, and full-range LP positions/i))
       .toBeVisible();
     expect(screen.getByText(/LP fee APY is historical and not guaranteed/i)).toBeVisible();
     expect(screen.getByText(/Buying the route does not move principal/i)).toBeVisible();
@@ -194,7 +194,7 @@ describe("PolicyForm", () => {
           "0x4ae46a509f6b1d9056937ba4500cb143933d2dc8",
           "0x779ded0c9e1022225f8e0630b35a9b54be713736",
         ],
-        allowedAdapters: ["aave-v3@1", "uniswap-v3@1"],
+        allowedAdapters: ["aave-v3@1", "curve-stableswap-ng@1", "uniswap-v3@1"],
         maxSlippageBps: 50,
         horizonDays: 30,
       },

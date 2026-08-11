@@ -10,12 +10,13 @@ read adapter is not, by itself, an executable Cobia route.
 | --- | --- | --- |
 | OKX Aave product discovery | Live in the product | Off-chain OKX estimates captured between X Layer block reads; the block references do not attest the API rate or TVL |
 | Aave reserve/oracle reader | Live V2 quote input | Direct mainnet reads at one pinned number/hash/timestamp; proxy implementations and amount-specific supply-cap arithmetic are checked |
+| Curve USDG/USDt0 swap reader | Live V2 quote input | Factory-owned StableSwap NG pool, exact token indices, balances, fee, amplification, virtual price, implementation and exact-input output at the pinned block |
 | Uniswap USDG/USDt0 swap and LP readers | Live V2 quote input | Factory-derived 0.01% pool and QuoterV2 response at the pinned snapshot block; full-range LP capture also pins a historical block, fee-growth deltas, pool balances, exact desired amounts, and minimum liquidity |
 | Portfolio token and aToken balances | Live in the product | Direct mainnet ERC-20 reads; testnet assets are payment rehearsal only |
 | V1 solver | Live in the product | One deterministic cash/Aave allocation over OKX discovery data; no independent solver competition |
-| V2 policy, snapshot, plan, quote, and purchase | Live product path | Persisted versioned artifacts; one exact conserved leg containing Aave supply, swap-to-Aave, or balance-swap plus full-range LP mint; estimated pre-gas economics only |
+| V2 policy, snapshot, plan, quote, and purchase | Live product path | Persisted versioned artifacts; one exact conserved leg containing Aave supply, Curve/Uniswap swap-to-Aave, or balance-swap plus full-range LP mint; estimated pre-gas economics only |
 | MPP/EIP-3009 reveal payment | Implemented for fixed chain 1952 lane | Pays for the private bundle, not principal execution; a funded receipt-correlation canary is still required |
-| Aave/Uniswap transaction engine | Unit/fork-tested and product-wired for guided mainnet execution | Exact approvals, SwapRouter02/Aave/position-manager calldata, receipt attribution, protocol events, owner-held LP NFT and state postconditions; one explicit buyer-wallet confirmation per transaction |
+| Aave/Curve/Uniswap transaction engine | Unit/fork-tested and product-wired for guided mainnet execution | Exact approvals, Curve exchange/SwapRouter02/Aave/position-manager calldata, receipt attribution, protocol events, owner-held LP NFT and state postconditions; one explicit buyer-wallet confirmation per transaction |
 | Purchased-route fork rehearsal | Product-visible and persisted | Buyer proof replays the exact V2 bundle at its committed snapshot block with simulated funds; historical evidence, not current-state simulation |
 | Guided purchased-route execution | Product-visible for fresh rehearsed V2 routes | Durable one-step chain-196 attempts, buyer-bound short-lived authorization, local calldata verification, recovery by exact nonce/calldata, and no automatic follow-on transaction |
 | Bounded agentic solver | Live V2 quote input | OpenAI selects only among server-built candidates; it cannot invent assets, amounts, contracts, or calldata, and the normal verifier remains authoritative |
@@ -49,7 +50,7 @@ solver may compose swaps, lending, LP positions, and conserved splits; a
 deterministic compiler resolves each action through a registered adapter and
 checks the final enforceable outcome. It never accepts model-authored calldata.
 The current V2 implementation remains narrower: one conserved leg containing
-direct Aave supply, Uniswap swap followed by Aave supply, or a one-sided balance
+direct Aave supply, Curve or Uniswap swap followed by Aave supply, or a one-sided balance
 swap followed by a fixed full-range Uniswap mint. It does not perform arbitrary
 range selection. Fee collection, rebalancing, liquidity removal, and exits
 remain unimplemented; the position NFT stays in the request owner's wallet.
@@ -68,6 +69,10 @@ and Pool contracts are upgradeable.
 | Aave V3 | Oracle | `0x91FC11136d5615575a0fC5981Ab5C0C54418E2C6` |
 | Aave V3 | USDG / aUSDG | `0x4ae46a509F6b1D9056937BA4500cb143933D2dc8` / `0x228765a3C18065C923F23a0CCb6c7cEFB3eA2223` |
 | Aave V3 | USDt0 / aUSDt0 | `0x779Ded0c9e1022225f8E0630b35a9b54bE713736` / `0xF356ae412dB5df43BD3a10746f7ad4e1C4De4297` |
+| Curve StableSwap NG | Factory | `0x5eeE3091f747E60a045a2E715a4c71e600e31F6E` |
+| Curve StableSwap NG | Views | `0x506F594ceb4E33F5161139bAe3Ee911014df9f7f` |
+| Curve StableSwap NG | Plain implementation | `0x87FE17697D0f14A222e8bEf386a0860eCffDD617` |
+| Curve StableSwap NG | USDG/USDt0 pool | `0x31F066aA0A687d4F383F96a514984AF727Eb8e38` |
 | Uniswap V3 | Factory | `0x4B2ab38DBF28D31D467aA8993f6c2585981D6804` |
 | Uniswap V3 | QuoterV2 | `0xD1b797D92d87B688193A2B976eFc8D577D204343` |
 | Uniswap V3 | SwapRouter02 | `0x4f0C28f5926AFDA16bf2506D5D9e57Ea190f9bcA` |
@@ -75,9 +80,9 @@ and Pool contracts are upgradeable.
 | Uniswap V3 | USDG/USDt0 0.01% pool | `0x0cBe0dBE1400e57f371a38BD3b9bC80F7C3676dA` |
 
 At block `67,649,362`, both Aave reserves were active, unfrozen, and
-unpaused. At nearby fixed blocks, the Uniswap pool had nonzero liquidity and
-quoted both directions. These observations are historical evidence, not a
-fresh execution guarantee. No authoritative Aave or Uniswap deployment was
+unpaused. The Curve and Uniswap pools had nonzero liquidity and quoted both
+directions. These observations are historical evidence, not a fresh execution
+guarantee. No authoritative Aave, Curve, or Uniswap deployment was
 found for X Layer testnet chain 1952.
 
 ## Integration choice matrix
@@ -90,6 +95,7 @@ surface higher.
 | Aave V3 via viem + minimal ABI | 5 | 5 | 5 | 5 | 5 | MIT source | **Use.** Fail closed on chain/hash/implementation change, reserve pause/freeze, identity mismatch, cap headroom, stale block, RPC failure, gas-estimation failure, or transaction revert |
 | Aave Kit / React surface | 4 | 3 | 3 | 3 | 4 | Open source | Defer. Current official surface is V4/API-oriented and does not establish X Layer V3 support |
 | Deprecated Aave contract helpers | 1 | 3 | 3 | 3 | 4 | Open source | Reject; the official utilities repository is archived |
+| Curve StableSwap NG via viem + minimal ABI | 4 | 5 | 5 | 5 | 5 | Curve source | **Use.** Pin factory, implementation, pool and token identities; reject index/fee/liquidity/output mismatch, stale block, RPC failure, event mismatch, or transaction revert |
 | Uniswap V3 via viem + minimal ABI | 5 | 5 | 5 | 5 | 5 | GPL/MIT protocol sources | **Use.** Factory-resolve the pool; reject code/fee/token/liquidity/lock changes, stale minimum output, RPC failure, gas-estimation failure, or transaction revert |
 | Official Uniswap V3 SDK | 5 | 4 | 3 | 4 | 5 | MIT | Useful later for multi-tick/path math; unnecessary for one direct registered pool |
 | Uniswap Smart Order Router | 5 | 3 | 2 | 3 | 5 | GPL-3.0 | Defer; materially larger dependency and routing/configuration surface |
@@ -111,7 +117,7 @@ those fields after authorization and freshness checks.
 The transaction library is deliberately narrow:
 
 1. owner-originated exact approval or a token-specific verified permit;
-2. Uniswap V3 exact-input with a signed slippage ceiling and owner recipient;
+2. Curve StableSwap NG or Uniswap V3 exact-input with a signed minimum output and owner recipient;
 3. owner-originated Aave supply with the position credited to the owner;
 4. one-sided full-range LP entry using an exact balance swap, two exact
    position-manager approvals, a signed liquidity floor, and owner NFT recipient;
@@ -131,7 +137,7 @@ before resolving its canonical receipt, events, and postconditions. It never
 accepts caller-authored calldata, relays transactions, or automatically sends a
 follow-on step.
 
-Injected-wallet approvals and Aave supply have no on-chain Cobia deadline, so
+Injected-wallet approvals, Curve exchange, and Aave supply have no on-chain Cobia deadline, so
 a wallet confirmation left open past expiry cannot be made atomic without an
 executor contract or account-level validity window. The UI instructs the buyer
 to reject stale prompts. A capped live canary remains operational deployment
@@ -171,6 +177,7 @@ Token support is verified per asset, never inferred from an interface name.
 - [Aave X Layer address book, fixed revision](https://github.com/aave-dao/aave-address-book/blob/70e2f303fe93616784148d6827df6644e5dda4db/src/AaveV3XLayer.sol)
 - [Aave V3 Pool interface](https://github.com/aave-dao/aave-v3-origin/blob/main/src/contracts/interfaces/IPool.sol)
 - [Aave V3 data-provider interface](https://github.com/aave-dao/aave-v3-origin/blob/main/src/contracts/interfaces/IPoolDataProvider.sol)
+- [Curve StableSwap NG source, fixed revision](https://github.com/curvefi/stableswap-ng/tree/2abe778f40206a6c0fd108a0a53ad3266cbedeee)
 - [Uniswap V3 X Layer deployments](https://developers.uniswap.org/docs/protocols/v3/deployments/v3-xlayer-deployments)
 - [Uniswap QuoterV2](https://github.com/Uniswap/v3-periphery/blob/main/contracts/lens/QuoterV2.sol)
 - [Uniswap SwapRouter02 interface](https://github.com/Uniswap/swap-router-contracts/blob/v1.1.0/contracts/interfaces/ISwapRouter02.sol)

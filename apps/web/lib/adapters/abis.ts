@@ -1,7 +1,8 @@
 import { parseAbi } from "viem";
 
-// Minimal interfaces from the official Aave V3 and Uniswap V3 repositories:
+// Minimal interfaces from the official Aave V3, Curve StableSwap NG, and Uniswap V3 repositories:
 // https://github.com/aave-dao/aave-v3-origin/tree/main/src/contracts/interfaces
+// https://github.com/curvefi/stableswap-ng/tree/2abe778f40206a6c0fd108a0a53ad3266cbedeee/contracts
 // https://github.com/Uniswap/v3-core/tree/main/contracts/interfaces
 // https://github.com/Uniswap/v3-periphery/tree/main/contracts/interfaces
 export const AAVE_ADDRESSES_PROVIDER_ABI = parseAbi([
@@ -58,4 +59,20 @@ export const UNISWAP_POSITION_MANAGER_ABI = parseAbi([
 
 export const UNISWAP_QUOTER_V2_ABI = parseAbi([
   "function quoteExactInputSingle((address tokenIn, address tokenOut, uint256 amountIn, uint24 fee, uint160 sqrtPriceLimitX96) params) returns (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksCrossed, uint256 gasEstimate)",
+]);
+
+export const CURVE_STABLESWAP_NG_FACTORY_ABI = parseAbi([
+  "function views_implementation() view returns (address)",
+  "function get_implementation_address(address pool) view returns (address)",
+  "function get_coins(address pool) view returns (address[])",
+  "function get_decimals(address pool) view returns (uint256[])",
+]);
+
+export const CURVE_STABLESWAP_NG_POOL_READ_ABI = parseAbi([
+  "function fee() view returns (uint256)",
+  "function A() view returns (uint256)",
+  "function balances(uint256 i) view returns (uint256)",
+  "function totalSupply() view returns (uint256)",
+  "function get_virtual_price() view returns (uint256)",
+  "function get_dy(int128 i, int128 j, uint256 dx) view returns (uint256)",
 ]);

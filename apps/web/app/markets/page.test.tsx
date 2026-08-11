@@ -34,7 +34,7 @@ describe("MarketsPage", () => {
 
     const html = renderToStaticMarkup(await MarketsPage());
 
-    expect(html).toContain("Aave V3 and Uniswap V3 opportunities");
+    expect(html).toContain("Aave V3, Curve StableSwap NG, and Uniswap V3 opportunities");
     expect(html).not.toContain("verifier-executable");
   });
 });

@@ -164,6 +164,7 @@ export async function validateTransactionStateV2(
     }
     return {
       kind: "swap",
+      venue: before.venue,
       tokenIn: before.tokenIn,
       tokenOut: before.tokenOut,
       inputSpentAtomic: before.amountInAtomic,

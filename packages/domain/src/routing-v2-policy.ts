@@ -12,7 +12,11 @@ export const MAX_ROUTE_HORIZON_DAYS = 365;
 export const MAX_ALLOWED_ROUTE_ASSETS = 8;
 export const MAX_ALLOWED_ROUTE_ADAPTERS = 8;
 
-export const ROUTE_ADAPTER_IDS = ["aave-v3@1", "uniswap-v3@1"] as const;
+export const ROUTE_ADAPTER_IDS = [
+  "aave-v3@1",
+  "curve-stableswap-ng@1",
+  "uniswap-v3@1",
+] as const;
 export const AdapterIdSchema = z.enum(ROUTE_ADAPTER_IDS);
 export type AdapterId = z.infer<typeof AdapterIdSchema>;
 

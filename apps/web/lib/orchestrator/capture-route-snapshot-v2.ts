@@ -15,13 +15,16 @@ import {
   type RegistryAsset,
 } from "../adapters/registry";
 import type { BlockReference } from "../adapters/read-client";
-import type { UniswapExactInputQuote } from "../adapters/uniswap-reader";
 import type { UniswapFullRangeState } from "../adapters/uniswap-lp-reader";
+import {
+  captureExactSwapOpportunities,
+  type ExactSwapCaptureDependencies,
+} from "./capture-exact-swaps";
 import { captureFullRangeLpOpportunity } from "./capture-uniswap-lp";
 
 const BPS_RAY = 10n ** 23n;
 
-export interface RouteSnapshotV2Dependencies {
+export interface RouteSnapshotV2Dependencies extends ExactSwapCaptureDependencies {
   getLatestBlock(): Promise<BlockReference>;
   getBlock(blockNumber: bigint): Promise<BlockReference>;
   readOraclePrices(input: { block: BlockReference }): Promise<AaveOracleSnapshot>;
@@ -30,12 +33,6 @@ export interface RouteSnapshotV2Dependencies {
     amountAtomic: bigint;
     block: BlockReference;
   }): Promise<AaveReserveState>;
-  quoteExactInput(input: {
-    tokenIn: RegistryAsset;
-    tokenOut: RegistryAsset;
-    amountInAtomic: bigint;
-    block: BlockReference;
-  }): Promise<UniswapExactInputQuote>;
   readFullRangeState(input: {
     block: BlockReference;
     lookbackBlock: BlockReference;
@@ -144,46 +141,19 @@ export async function captureRouteSnapshotV2(
   const principal = BigInt(policy.principalAtomic);
   const deployed = principal * BigInt(policy.protocolExposureBps) / 10_000n;
   const opportunities: RouteOpportunityV2[] = [];
-  let swap: UniswapExactInputQuote | undefined;
   const otherAsset = allowedAssets.find(({ address }) =>
     !isAddressEqual(address, inputAsset.address),
   );
-  if (
-    deployed > 0n && otherAsset &&
-    policy.allowedAdapters.includes("uniswap-v3@1")
-  ) {
-    try {
-      swap = await dependencies.quoteExactInput({
-        tokenIn: inputAsset.key,
-        tokenOut: otherAsset.key,
-        amountInAtomic: deployed,
-        block,
-      });
-      assertContext(swap, block);
-      if (
-        !isAddressEqual(swap.tokenIn, inputAsset.address) ||
-        !isAddressEqual(swap.tokenOut, otherAsset.address) ||
-        swap.amountInAtomic !== deployed ||
-        !isAddressEqual(swap.pool, PROTOCOL_REGISTRY.uniswapV3.pair.pool.address) ||
-        swap.fee !== PROTOCOL_REGISTRY.uniswapV3.pair.fee
-      ) {
-        throw new Error("Uniswap quote does not match the requested route");
-      }
-      opportunities.push({
-        id: `uniswap-v3:${swap.tokenIn.toLowerCase()}:${swap.tokenOut.toLowerCase()}:${swap.fee}:${swap.amountInAtomic}`,
-        kind: "uniswap-v3-exact-input",
-        adapterId: swap.adapterId,
-        tokenIn: swap.tokenIn,
-        tokenOut: swap.tokenOut,
-        feeTier: swap.fee,
-        quotedInputAtomic: swap.amountInAtomic.toString(),
-        quotedOutputAtomic: swap.amountOutAtomic.toString(),
-        estimatedGas: swap.gasEstimate.toString(),
-      });
-    } catch (error) {
-      if (!(error instanceof ProtocolIneligibleError)) throw error;
-    }
-  }
+  const swaps = await captureExactSwapOpportunities({
+    policy,
+    deployedAtomic: deployed,
+    inputAsset,
+    outputAsset: otherAsset,
+    block,
+    dependencies,
+    assertContext,
+  });
+  opportunities.push(...swaps.opportunities);
 
   if (deployed > 0n && otherAsset &&
     policy.allowedAdapters.includes("uniswap-v3@1")) {
@@ -210,9 +180,15 @@ export async function captureRouteSnapshotV2(
   }
 
   if (deployed > 0n && policy.allowedAdapters.includes("aave-v3@1")) {
-    const amounts = new Map<RegistryAsset, bigint>([[inputAsset.key, deployed]]);
-    if (swap && otherAsset) amounts.set(otherAsset.key, swap.amountOutAtomic);
-    for (const [assetKey, amountAtomic] of amounts) {
+    const amountCandidates = [
+      { asset: inputAsset.key, amountAtomic: deployed },
+      ...swaps.outputAmounts,
+    ];
+    const amounts = new Map(amountCandidates.map((candidate) => [
+      `${candidate.asset}:${candidate.amountAtomic}`,
+      candidate,
+    ]));
+    for (const { asset: assetKey, amountAtomic } of amounts.values()) {
       try {
         const reserve = await dependencies.readReserve({
           asset: assetKey,
@@ -232,7 +208,7 @@ export async function captureRouteSnapshotV2(
         const price = priceByAsset.get(reserve.asset.toLowerCase());
         if (!price) throw new Error("Aave reserve valuation is missing");
         opportunities.push({
-          id: `aave-v3:${reserve.asset.toLowerCase()}`,
+          id: `aave-v3:${reserve.asset.toLowerCase()}:${amountAtomic}`,
           kind: "aave-v3-supply",
           adapterId: reserve.adapterId,
           asset: reserve.asset,

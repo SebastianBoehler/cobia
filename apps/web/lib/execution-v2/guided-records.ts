@@ -21,6 +21,7 @@ const DataSchema = z.string().regex(/^0x(?:[0-9a-fA-F]{2})*$/)
   .transform((value) => value.toLowerCase() as Hex);
 const LabelSchema = z.enum([
   "reset-aave-allowance", "approve-aave-exact", "aave-v3-supply",
+  "reset-curve-allowance", "approve-curve-exact", "curve-stableswap-ng-exact-input",
   "reset-uniswap-allowance", "approve-uniswap-exact", "uniswap-v3-exact-input",
   "reset-position-manager-allowance", "approve-position-manager-exact",
   "uniswap-v3-full-range-mint",
@@ -33,6 +34,7 @@ const CapturedStateSchema = z.discriminatedUnion("kind", [
   }).strict(),
   z.object({
     kind: z.literal("swap"), tokenIn: AddressSchema, tokenOut: AddressSchema,
+    venue: z.enum(["uniswap-v3", "curve-stableswap-ng"]).default("uniswap-v3"),
     amountInAtomic: PositiveAtomic, minimumOutputAtomic: PositiveAtomic,
     beforeInputAtomic: Atomic, beforeOutputAtomic: Atomic,
   }).strict(),
@@ -55,6 +57,7 @@ const EvidenceSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("approval"), owner: AddressSchema, spender: AddressSchema,
     amountAtomic: Atomic }).strict(),
   z.object({ kind: z.literal("swap"), sender: AddressSchema, recipient: AddressSchema,
+    venue: z.enum(["uniswap-v3", "curve-stableswap-ng"]).default("uniswap-v3"),
     inputAtomic: PositiveAtomic, outputAtomic: PositiveAtomic }).strict(),
   z.object({ kind: z.literal("aave-supply"), suppliedAtomic: PositiveAtomic,
     mintValueAtomic: PositiveAtomic, mintBalanceIncreaseAtomic: Atomic,
@@ -68,6 +71,7 @@ const StateCheckSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("allowance"), token: AddressSchema, spender: AddressSchema,
     beforeAtomic: Atomic, afterAtomic: Atomic, expectedAtomic: Atomic }).strict(),
   z.object({ kind: z.literal("swap"), tokenIn: AddressSchema, tokenOut: AddressSchema,
+    venue: z.enum(["uniswap-v3", "curve-stableswap-ng"]).default("uniswap-v3"),
     inputSpentAtomic: PositiveAtomic, outputDeltaAtomic: PositiveAtomic,
     ownerOutputBalanceDeltaAtomic: PositiveAtomic, minimumOutputAtomic: PositiveAtomic }).strict(),
   z.object({ kind: z.literal("aave-supply"), asset: AddressSchema, aToken: AddressSchema,
@@ -116,7 +120,8 @@ function jsonAtomic<T>(value: T): T {
 
 function stepKind(label: ExecutionStepLabelV2) {
   if (label.includes("allowance") || label.startsWith("approve-")) return "approval" as const;
-  if (label === "uniswap-v3-exact-input") return "swap" as const;
+  if (label === "uniswap-v3-exact-input" ||
+    label === "curve-stableswap-ng-exact-input") return "swap" as const;
   return "supply" as const;
 }
 
