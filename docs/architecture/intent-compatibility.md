@@ -1,60 +1,87 @@
 # Cobia Intent Compatibility Boundary
 
-## Why these references matter
+## Current flow
 
-Cobia borrows the market separation used by LI.FI Intents and the Open Intents
-Framework (OIF): users state outcomes and constraints, solvers propose fills,
-an order service compares them, and deterministic infrastructure decides what
-may settle. Cobia does not claim OIF or ERC-7683 compliance in v1.
+Cobia borrows the separation between intent, quote, and validation used by
+LI.FI Intents and the Open Intents Framework (OIF), but does not claim OIF or
+ERC-7683 compliance.
 
-LI.FI currently matches user intents against solver **standing quotes**. Cobia
-v1 instead runs a request-triggered sealed competition because a yield route
-contains time-sensitive research and risk evidence. This is an explicit product
-choice, not a description of LI.FI's auction mechanism.
+The implemented flow is:
 
-## Primitive mapping
+1. A wallet signs a V2 `StablecoinPolicy` for X Layer chain `196`, including
+   exact protocol exposure, allowed assets/adapters, slippage, horizon, and
+   freshness limits.
+2. The orchestrator captures registered Aave V3 reserve/oracle state and a
+   Uniswap V3 exact-input quote at one pinned block. Ineligible opportunities
+   are omitted; RPC, registry, identity, or reorg failures fail the capture.
+3. One configured deterministic Cobia solver constructs and signs a bounded
+   `RouteBundleV2`: retain all, direct Aave supply, or one Uniswap-to-Aave leg.
+4. The verifier recomputes authorization, conservation, opportunity amounts,
+   policy limits, registry coverage, pre-gas economics, expiry, and signer,
+   then projects one sanitized public quote.
+5. An owner-bound OKX MPP/EIP-3009 payment reveals the exact signed plan.
 
-| Open-intent primitive | Cobia v1 primitive | Boundary |
+V1 OKX-derived Aave allocation artifacts remain parseable for existing rows and
+purchases, but new browser and MCP intents use V2. The product does not submit
+principal transactions. A guarded execution library is unit-tested separately;
+an opt-in, pinned X Layer mainnet-fork rehearsal has also passed capture,
+authorization, USDG approval, Uniswap USDG-to-USDt0, USDt0 approval, and Aave
+supply with receipt, event, and state checks. That isolated Anvil evidence is
+not product simulation, persisted/product execution, live mainnet principal
+execution, UI capability, or deployment proof.
+
+## Current primitive mapping
+
+| Open-intent primitive | Current Cobia primitive | Boundary |
 | --- | --- | --- |
-| Intent / order | `StablecoinPolicy` + policy commitment | Outcome and limits, not arbitrary calls |
-| Solver quote | Sanitized `RouteQuote` | Public before payment |
-| Solver fill plan | Signed `DecisionBundle` | Private until winner payment |
-| Order server | Cobia orchestrator | One block-bounded snapshot for all solvers |
-| Oracle / validation | Deterministic verifier | Recomputes constraints; an LLM cannot waive them |
-| Settlement | User-approved Aave supply | User principal stays in the wallet until execution |
-| Fulfilment evidence | Execution receipt and bundle commitment | Separate from the x402 research payment |
+| Intent / order | `StablecoinPolicyV2` + commitment | Exact same-chain outcome and limits, not arbitrary calls |
+| Solver quote | Sanitized `RouteQuoteV2` | Route authorization and estimated pre-gas APY; no private actions |
+| Solver fill plan | Signed `RouteBundleV2` | Registered opportunity references and bounded actions, hidden until reveal payment |
+| Order server | Cobia orchestrator | Captures direct registered protocol state at one pinned block |
+| Oracle / validation | Deterministic verifier | Recomputes authorization; it does not predict execution success |
+| Settlement | Not implemented | Principal remains in the wallet |
+| Fulfilment evidence | Not implemented | The OKX MPP/EIP-3009 receipt proves reveal payment only |
 
-The `0.10 USDC` x402 charge buys the winning research bundle. It is not an
-escrow, input-settler deposit, solver bond, yield guarantee, or payment of the
-user's investment principal. Unlike a cross-chain LI.FI fill, the Cobia solver
-does not front the user's USDG from its own inventory.
+The `0.10` stablecoin charge buys access to the signed deterministic allocation
+bundle. It is not an escrow deposit, solver bond, yield guarantee, settlement
+receipt, or payment of investment principal. Cobia does not front principal
+from its own inventory.
 
-## Standards posture
+## Current agent surface
 
-- OIF's modular origination, fulfilment, settlement, and rebalancing layers are
-  the intended adapter seams.
-- ERC-7683 is relevant when Cobia adds cross-chain orders. It is not needed to
-  represent the first same-chain Aave allocation.
-- EIP-7930 interoperable addresses become relevant with non-EVM or cross-chain
-  assets. V1 deliberately uses checksummed EVM addresses and chain ID `196`.
-- OIF compatibility must be proven with reference contracts and conformance
-  tests before it appears in product copy.
+The `/mcp` endpoint exposes four tools:
 
-## Agent surface
+1. `discover-yield-markets` returns explicitly informational OKX Aave estimates;
+   they are not the V2 route snapshot authority.
+2. `prepare-yield-intent` creates the same canonical unsigned V2 policy used by
+   the browser and returns its commitment.
+3. `submit-yield-intent` checks an external wallet signature and captures the
+   direct V2 snapshot before running the deterministic solver. It can truthfully
+   return zero authorized quotes.
+4. `track-yield-intent` returns lifecycle state and the sanitized quote.
 
-The `/mcp` endpoint uses the 2026-07-28 MCP transport while retaining the SDK's
-stateless legacy compatibility. The first public tools are:
+The hosted server never receives or holds the request owner's private key. It
+prepares data, returns owner signing to the wallet, and accepts only the
+resulting signature. It does hold the configured deterministic solver signing
+key used for Cobia's solver bundles; that key does not authorize request-owner
+principal transactions. The signed allocation bundle remains protected by the
+same reveal-payment boundary used by the browser.
 
-1. `discover-yield-markets` — inspect current executable X Layer markets.
-2. `prepare-yield-intent` — create an unsigned policy and commitment.
-3. `submit-yield-intent` — verify an externally signed policy and open its market.
-4. `track-yield-intent` — inspect lifecycle state and sanitized quotes.
+## Target, not implemented
 
-The hosted MCP server never holds a user's wallet key. It prepares data, hands
-signing back to the wallet, and accepts only the resulting signature. Future authenticated solver tools should add
-`get-open-intents`, `submit-bundle`, `diagnose-bundle`, and
-`get-solver-reputation`. Private route reveal remains protected by the same
-x402 endpoint used by the browser; MCP must not create a second bypass.
+- An authenticated external-solver interface could allow independent bundles
+  after signer admission, evidence provenance, and deterministic validation are
+  specified and tested.
+- OIF origination, fulfilment, settlement, and rebalancing adapters could become
+  integration seams after Cobia implements execution.
+- ERC-7683 and EIP-7930 become relevant only if cross-chain or non-EVM orders
+  are added.
+- Product-wired simulation, user-approved execution, persisted execution
+  checkpoints, and fulfilment evidence require separate implementations and
+  conformance tests.
+
+None of these target capabilities should appear as current product behavior
+until its implementation and verification exist.
 
 ## References
 
