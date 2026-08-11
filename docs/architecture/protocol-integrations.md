@@ -10,12 +10,12 @@ read adapter is not, by itself, an executable Cobia route.
 | --- | --- | --- |
 | OKX Aave product discovery | Live in the product | Off-chain OKX estimates captured between X Layer block reads; the block references do not attest the API rate or TVL |
 | Aave reserve/oracle reader | Live V2 quote input | Direct mainnet reads at one pinned number/hash/timestamp; proxy implementations and amount-specific supply-cap arithmetic are checked |
-| Uniswap USDG/USDt0 quoter | Live V2 quote input | Factory-derived 0.01% pool and QuoterV2 response at the same pinned block; quote identity and exact input are committed |
+| Uniswap USDG/USDt0 swap and LP readers | Live V2 quote input | Factory-derived 0.01% pool and QuoterV2 response at the pinned snapshot block; full-range LP capture also pins a historical block, fee-growth deltas, pool balances, exact desired amounts, and minimum liquidity |
 | Portfolio token and aToken balances | Live in the product | Direct mainnet ERC-20 reads; testnet assets are payment rehearsal only |
 | V1 solver | Live in the product | One deterministic cash/Aave allocation over OKX discovery data; no independent solver competition |
-| V2 policy, snapshot, plan, quote, and purchase | Live product path | Persisted versioned artifacts; one exact deployed leg at most; estimated pre-gas economics only |
+| V2 policy, snapshot, plan, quote, and purchase | Live product path | Persisted versioned artifacts; one exact conserved leg containing Aave supply, swap-to-Aave, or balance-swap plus full-range LP mint; estimated pre-gas economics only |
 | MPP/EIP-3009 reveal payment | Implemented for fixed chain 1952 lane | Pays for the private bundle, not principal execution; a funded receipt-correlation canary is still required |
-| Aave/Uniswap transaction engine | Unit/fork-tested and product-wired for guided mainnet execution | Exact approvals, SwapRouter02/Aave calldata, receipt attribution, protocol events, and postconditions; one explicit buyer-wallet confirmation per transaction |
+| Aave/Uniswap transaction engine | Unit/fork-tested and product-wired for guided mainnet execution | Exact approvals, SwapRouter02/Aave/position-manager calldata, receipt attribution, protocol events, owner-held LP NFT and state postconditions; one explicit buyer-wallet confirmation per transaction |
 | Purchased-route fork rehearsal | Product-visible and persisted | Buyer proof replays the exact V2 bundle at its committed snapshot block with simulated funds; historical evidence, not current-state simulation |
 | Guided purchased-route execution | Product-visible for fresh rehearsed V2 routes | Durable one-step chain-196 attempts, buyer-bound short-lived authorization, local calldata verification, recovery by exact nonce/calldata, and no automatic follow-on transaction |
 | Bounded agentic solver | Live V2 quote input | OpenAI selects only among server-built candidates; it cannot invent assets, amounts, contracts, or calldata, and the normal verifier remains authoritative |
@@ -48,12 +48,11 @@ The target solver input is a server-enumerated typed route graph. An agentic
 solver may compose swaps, lending, LP positions, and conserved splits; a
 deterministic compiler resolves each action through a registered adapter and
 checks the final enforceable outcome. It never accepts model-authored calldata.
-The current V2 implementation remains narrower: one deployed leg containing
-direct Aave supply or Uniswap swap followed by Aave supply.
-
-Concentrated-liquidity support remains a target until Cobia implements range
-selection, position-manager calldata, amount/range validation, fork simulation,
-receipt attribution, and withdrawal postconditions.
+The current V2 implementation remains narrower: one conserved leg containing
+direct Aave supply, Uniswap swap followed by Aave supply, or a one-sided balance
+swap followed by a fixed full-range Uniswap mint. It does not perform arbitrary
+range selection. Fee collection, rebalancing, liquidity removal, and exits
+remain unimplemented; the position NFT stays in the request owner's wallet.
 
 ## Verified X Layer mainnet deployments
 
@@ -72,6 +71,7 @@ and Pool contracts are upgradeable.
 | Uniswap V3 | Factory | `0x4B2ab38DBF28D31D467aA8993f6c2585981D6804` |
 | Uniswap V3 | QuoterV2 | `0xD1b797D92d87B688193A2B976eFc8D577D204343` |
 | Uniswap V3 | SwapRouter02 | `0x4f0C28f5926AFDA16bf2506D5D9e57Ea190f9bcA` |
+| Uniswap V3 | NonfungiblePositionManager | `0x315e413A11AB0df498eF83873012430ca36638Ae` |
 | Uniswap V3 | USDG/USDt0 0.01% pool | `0x0cBe0dBE1400e57f371a38BD3b9bC80F7C3676dA` |
 
 At block `67,649,362`, both Aave reserves were active, unfrozen, and
@@ -113,11 +113,13 @@ The transaction library is deliberately narrow:
 1. owner-originated exact approval or a token-specific verified permit;
 2. Uniswap V3 exact-input with a signed slippage ceiling and owner recipient;
 3. owner-originated Aave supply with the position credited to the owner;
-4. current authority, deployment identity, freshness, and gas estimation before
+4. one-sided full-range LP entry using an exact balance swap, two exact
+   position-manager approvals, a signed liquidity floor, and owner NFT recipient;
+5. current authority, deployment identity, freshness, and gas estimation before
    each wallet submission;
-5. attributed transaction/receipt and protocol events plus bounded position
+6. attributed transaction/receipt and protocol events plus bounded position
    telemetry after confirmation;
-6. structured pending/partial/failed checkpoints rather than blind retries.
+7. structured pending/partial/failed checkpoints rather than blind retries.
 
 The product uses the library for both disposable fork rehearsal and guided
 chain-196 wallet execution. Mainnet execution requires the exact purchased
@@ -146,7 +148,8 @@ to `ghcr.io` for the digest-pinned Foundry/Anvil image and
 `https://rpc.xlayer.tech` for the pinned fork state.
 
 A generic executor cannot withdraw a user's Aave position: `withdraw` burns the
-caller's aTokens. Custody, delegated withdrawal, arbitrary calls, unlimited
+caller's aTokens. It also cannot operate an LP NFT without a separately verified
+owner-approved exit design. Custody, delegated withdrawal, arbitrary calls, unlimited
 approvals, and automatic Permit2/account-abstraction paths remain out of scope.
 USDt0 advertises ERC-2612 and ERC-3009 behavior, but its ERC-5267 discovery call
 reverts; a permit path must recompute and compare its exact domain separator.
@@ -171,6 +174,7 @@ Token support is verified per asset, never inferred from an interface name.
 - [Uniswap V3 X Layer deployments](https://developers.uniswap.org/docs/protocols/v3/deployments/v3-xlayer-deployments)
 - [Uniswap QuoterV2](https://github.com/Uniswap/v3-periphery/blob/main/contracts/lens/QuoterV2.sol)
 - [Uniswap SwapRouter02 interface](https://github.com/Uniswap/swap-router-contracts/blob/v1.1.0/contracts/interfaces/ISwapRouter02.sol)
+- [Uniswap V3 NonfungiblePositionManager interface](https://github.com/Uniswap/v3-periphery/blob/main/contracts/interfaces/INonfungiblePositionManager.sol)
 - [OKX DEX quote API](https://web3.okx.com/onchainos/dev-docs/trade/dex-get-quote)
 - [OKX DEX swap API](https://web3.okx.com/onchainos/dev-docs/trade/dex-swap)
 - [OKX DEX contract boundary](https://web3.okx.com/onchainos/dev-docs/trade/dex-smart-contract)

@@ -39,7 +39,9 @@ payment configuration is unavailable; it does not substitute sample data.
 
 - V2 capture verifies chain `196`, block number/hash/timestamp, registered
   runtime and proxy implementation code, Aave reserve/oracle state, and the
-  registered Uniswap pool/quote at the same block. V1 stored rounds retain their
+  registered Uniswap pool/quote at the same block. LP candidates additionally
+  pin a historical pool block and commit full-range fee-growth observations,
+  pool balances, token amounts, and minimum liquidity. V1 stored rounds retain their
   explicitly labeled OKX-derived estimates.
 - The deterministic solver ranks exact candidates; the agentic solver may
   choose only among those server-built candidates. Cobia recomputes exact conservation,
@@ -51,16 +53,20 @@ payment configuration is unavailable; it does not substitute sample data.
   exact committed bundle in disposable X Layer mainnet-fork state and persists
   the attributed trace. A passing, still-fresh route can then enter guided X
   Layer mainnet execution. The browser independently verifies each server-built
-  transaction and OKX Wallet asks the buyer to confirm one approval, swap, or
-  supply at a time. The server never signs or relays principal transactions.
+  transaction and OKX Wallet asks the buyer to confirm one approval, swap,
+  supply, or LP mint at a time. The server never signs or relays principal transactions.
   `eth_estimateGas` remains gas preflight, not a profitability guarantee. No
   testnet Aave or Uniswap deployment is claimed.
 - Both the product rehearsal and the opt-in acceptance lane have passed direct
-  Aave and Uniswap USDG-to-USDt0-to-Aave routes with exact approvals, receipts,
-  protocol events, and state checks. Fork evidence is historical and uses
+  Aave, Uniswap-to-Aave, and one-sided full-range Uniswap LP-entry routes with
+  exact approvals, receipts, protocol events, NFT ownership, and state checks.
+  Fork evidence is historical and uses
   simulated funds; the guided wallet lane separately rechecks freshness,
   deployments, balances, gas, transaction attribution, and postconditions at
   mainnet execution time.
+  Historical LP fees are forecasts, not an enforceable yield floor. The current
+  LP adapter mints an owner-held position; collect, rebalance, remove-liquidity,
+  and exit actions remain unimplemented.
   A full testnet payment check requires a funded Agentic Wallet, OKX MPP
   credentials, treasury/signer addresses, and a deployed payment asset.
 

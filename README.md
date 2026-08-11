@@ -8,7 +8,7 @@ private signed plan is released only to the request owner after an OKX MPP
 payment.
 
 The current product is deliberately narrow: USDG/USDt0, Aave V3 supply, the
-registered Uniswap V3 0.01% pool, and two Cobia-operated solvers. The agentic
+registered Uniswap V3 0.01% swap and full-range LP entry, and two Cobia-operated solvers. The agentic
 solver may choose only among server-built candidates; it cannot invent assets,
 amounts, contracts, or calldata. V1 OKX-derived Aave allocation rounds remain
 readable for compatibility. Cobia is not yet a broad aggregator or an open
@@ -19,7 +19,7 @@ external-solver market.
 | Capability | Status |
 |---|---|
 | Wallet connection and X Layer switching | Live |
-| Direct Aave V3 reserve/oracle and Uniswap V3 quote reads | Live V2 capture at one pinned X Layer block |
+| Direct Aave V3 reserve/oracle and Uniswap V3 quote/LP reads | Live V2 capture with pinned current and historical X Layer blocks |
 | Versioned policy, snapshot, route, and quote commitments | Implemented |
 | Deterministic V2 route authorization | Implemented and recomputed before persistence/payment |
 | Bounded OpenAI route selector | Live; selects only server-enumerated candidates and signs with an independent solver key |
@@ -27,10 +27,10 @@ external-solver market.
 | MPP/EIP-3009 paid reveal | Implemented for the fixed X Layer testnet payment lane |
 | PostgreSQL request/payment/purchase history | Implemented |
 | X Layer mainnet USDt0 and Aave aToken balances | Live reads |
-| Aave V3 + Uniswap V3 route planning | Implemented for one exact exposure and at most one deployed leg |
+| Aave V3 + Uniswap V3 route planning | Implemented for one exact conserved leg: Aave supply, swap-to-Aave, or one-sided full-range LP entry |
 | Solver competition | Two Cobia-operated solvers run independently; external solver admission is not implemented |
 | Transaction construction/execution engine | Unit/fork-tested and wired as buyer-authenticated, one-step-at-a-time X Layer mainnet wallet execution |
-| X Layer mainnet-fork route rehearsal | Product-visible, persisted, and green for direct Aave and Uniswap-to-Aave purchased V2 routes |
+| X Layer mainnet-fork route rehearsal | Product-visible, persisted, and green for direct Aave, Uniswap-to-Aave, and full-range Uniswap LP-entry routes |
 | Guided X Layer mainnet execution | Product-wired for fresh, purchased, rehearsed V2 routes; every transaction requires an explicit buyer-wallet confirmation and durable receipt verification |
 | AI execution/calldata authority | Not granted; deterministic construction and verification remain authoritative |
 
@@ -40,9 +40,12 @@ principal. After a paid V2 route is unlocked, its buyer can first replay the
 exact bundle at its committed snapshot block in disposable Anvil state, then
 separately authorize guided chain-196 execution while the route remains fresh.
 The browser and server independently rebuild each step; each approval, swap,
-or supply requires its own wallet confirmation. Persisted hashes, receipts,
+supply, or LP mint requires its own wallet confirmation. Persisted hashes, receipts,
 events, and postconditions make reload recovery explicit. Fork evidence is
-historical and APY remains a forecast—not a profitability guarantee.
+historical and APY remains a forecast—not a profitability guarantee. LP fee
+APY is annualized from a historical fee-growth window; impermanent loss, depeg,
+future fees, and exit value are not guaranteed. The owner receives the LP NFT,
+but Cobia does not yet build collect, rebalance, decrease-liquidity, or exit steps.
 
 ## Trust boundary
 
