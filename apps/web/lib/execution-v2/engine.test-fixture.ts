@@ -65,6 +65,7 @@ export class ScriptedReadClient implements ExecutionReadClientV2 {
   readonly contractResponses = new Map<string, unknown>();
   readonly transactions = new Map<Hash, Omit<ExecutionTransactionV2,
     "blockNumber" | "blockHash" | "transactionIndex">>();
+  readonly blockTransactions = new Map<bigint, ExecutionTransactionV2[]>();
   readonly transactionChanges = new Map<Hash, Partial<ExecutionTransactionV2>>();
   readonly receiptChanges = new Map<Hash, Partial<ExecutionReceiptV2>>();
   readonly blockHashChanges = new Map<bigint, Hash>();
@@ -74,6 +75,7 @@ export class ScriptedReadClient implements ExecutionReadClientV2 {
   readonly swapOutputOverrides = new Map<Hash, bigint>();
   readonly aaveMintIndexOverrides = new Map<Hash, bigint>();
   readonly aaveScaledBalanceBeforeOverrides = new Map<Hash, bigint>();
+  pendingNonce = 7n;
 
   constructor(readonly events: string[]) {
     addDeployment(this.runtimeCodeHashes, this.implementationSlots, PROTOCOL_REGISTRY.aaveV3.pool);
@@ -113,13 +115,16 @@ export class ScriptedReadClient implements ExecutionReadClientV2 {
     this.receiptResponses.set(hash, responses);
   }
 
-  register(hash: Hash, request: { from: Address; to: Address; value: Hex; data: Hex }) {
+  register(hash: Hash, request: {
+    from: Address; to: Address; value: Hex; data: Hex; nonce?: Hex | bigint;
+  }) {
     this.transactions.set(hash, {
       hash,
       from: request.from,
       to: request.to,
       value: BigInt(request.value),
       input: request.data,
+      nonce: request.nonce === undefined ? 0 : Number(BigInt(request.nonce)),
     });
   }
 
@@ -130,6 +135,14 @@ export class ScriptedReadClient implements ExecutionReadClientV2 {
     if (block === undefined) throw new Error("No scripted latest block");
     this.events.push(`read:block:${block}`);
     return block;
+  }
+
+  async estimateGas() { return 21_000n; }
+
+  async getTransactionCount() { return this.pendingNonce; }
+
+  async getBlockTransactions(blockNumber: bigint) {
+    return this.blockTransactions.get(blockNumber) ?? [];
   }
 
   async getBlock({ blockNumber }: { blockNumber: bigint }) {
@@ -257,7 +270,7 @@ export class ScriptedWallet implements ExecutionWalletV2 {
     if (request.method === "eth_sendTransaction") {
       const index = this.sendCount++;
       const transaction = request.params?.[0] as {
-        from: Address; to: Address; value: Hex; data: Hex;
+        from: Address; to: Address; value: Hex; data: Hex; nonce?: Hex;
       } | undefined;
       this.events.push(`wallet:send:${transaction?.to?.toLowerCase()}`);
       if (index === this.rejectSendAt) throw new Error("wallet rejected");

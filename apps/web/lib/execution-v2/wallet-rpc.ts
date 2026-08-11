@@ -15,11 +15,12 @@ export function parseWalletHashV2(value: unknown): Hash {
   return value;
 }
 
-export function walletTransactionV2(transaction: OwnerTransactionV2) {
+export function walletTransactionV2(transaction: OwnerTransactionV2, nonce?: bigint) {
   return {
     from: transaction.from,
     to: transaction.to,
     value: "0x0" as Hex,
     data: transaction.data,
+    ...(nonce === undefined ? {} : { nonce: `0x${nonce.toString(16)}` as Hex }),
   } as const;
 }

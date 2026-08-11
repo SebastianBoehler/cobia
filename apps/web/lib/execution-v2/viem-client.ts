@@ -17,8 +17,10 @@ type ViemExecutionClient = Pick<
   | "getBlockNumber"
   | "getChainId"
   | "getCode"
+  | "estimateGas"
   | "getStorageAt"
   | "getTransaction"
+  | "getTransactionCount"
   | "getTransactionReceipt"
   | "readContract"
 >;
@@ -47,6 +49,7 @@ function transactionOutput(
     to: transaction.to,
     value: transaction.value,
     input: transaction.input,
+    nonce: transaction.nonce,
     blockNumber: transaction.blockNumber,
     blockHash: transaction.blockHash,
     transactionIndex: transaction.transactionIndex,
@@ -60,6 +63,22 @@ export function createExecutionReadClientV2(
   return {
     ...protocol,
     getBlockNumber: () => client.getBlockNumber(),
+    estimateGas: ({ from, nonce, ...request }) => {
+      if (nonce > BigInt(Number.MAX_SAFE_INTEGER)) {
+        throw new Error("Execution nonce is unsafe");
+      }
+      return client.estimateGas({ account: from, nonce: Number(nonce), ...request });
+    },
+    async getTransactionCount(address) {
+      return BigInt(await client.getTransactionCount({ address, blockTag: "pending" }));
+    },
+    async getBlockTransactions(blockNumber) {
+      const block = await client.getBlock({ blockNumber, includeTransactions: true });
+      return block.transactions
+        .filter((transaction): transaction is Exclude<typeof transaction, Hash> =>
+          typeof transaction !== "string")
+        .map(transactionOutput);
+    },
     async getReceipt(hash: Hash) {
       try {
         return receiptOutput(await client.getTransactionReceipt({ hash }));

@@ -34,6 +34,7 @@ export interface ExecutionTransactionV2 {
   to: Address | null;
   value: bigint;
   input: Hex;
+  nonce: number;
   blockNumber: bigint | null;
   blockHash: Hash | null;
   transactionIndex: number | null;
@@ -43,6 +44,15 @@ export interface ExecutionReadClientV2 extends ProtocolReadClient {
   getBlockNumber(): Promise<bigint>;
   getReceipt(hash: Hash): Promise<ExecutionReceiptV2 | undefined>;
   getTransaction(hash: Hash): Promise<ExecutionTransactionV2 | undefined>;
+  estimateGas(request: {
+    from: Address;
+    to: Address;
+    value: bigint;
+    data: Hex;
+    nonce: bigint;
+  }): Promise<bigint>;
+  getTransactionCount(address: Address): Promise<bigint>;
+  getBlockTransactions(blockNumber: bigint): Promise<ExecutionTransactionV2[]>;
   readContract(request: {
     address: Address;
     abi: Abi;
@@ -155,6 +165,7 @@ export interface ExecutionResumeCheckpointV2 {
   readonly bundleHash: Hash;
   readonly phase: "initial" | "post-swap";
   readonly authorizedAmountAtomic: bigint;
+  readonly expectedNonce?: bigint;
   readonly transaction: OwnerTransactionV2;
   readonly submitted: SubmittedOwnerTransactionV2;
   readonly capturedState: CapturedExecutionStateV2;

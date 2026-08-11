@@ -35,6 +35,8 @@ function assertAttribution(
     !isAddressEqual(transaction.to, expected.to) ||
     transaction.value !== expected.value ||
     transaction.input.toLowerCase() !== expected.data.toLowerCase() ||
+    (checkpoint.expectedNonce !== undefined &&
+      BigInt(transaction.nonce) !== checkpoint.expectedNonce) ||
     receipt.blockNumber <= checkpoint.submitted.preBlockNumber ||
     transaction.blockNumber !== receipt.blockNumber ||
     !sameHash(transaction.blockHash, receipt.blockHash) ||
