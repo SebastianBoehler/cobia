@@ -1,5 +1,5 @@
 import { allocateAtomicByBps } from "@cobia/domain";
-import { Check, CircleDollarSign, LockKeyhole, Route } from "lucide-react";
+import { Check, CircleDollarSign, Info, LockKeyhole, Route } from "lucide-react";
 import { supportedAsset } from "../../lib/chain/supported-assets";
 import { PurchasedRoutePlanV2 } from "./PurchasedRoutePlanV2";
 import type {
@@ -81,6 +81,18 @@ export function PurchasedRouteView({ route }: { route: PurchasedRoute }) {
       {v2
         ? <PurchasedRoutePlanV2 route={route} />
         : <PurchasedAllocationsV1 route={route} />}
+
+      <aside className={styles.nextStep} aria-label="Purchased quote next step">
+        <Info aria-hidden="true" size={18} />
+        <div>
+          <strong>What happens next?</strong>
+          <p>
+            This purchase unlocked a verified plan, not a transaction. Cobia has not approved,
+            swapped, or supplied your principal. The execution engine is fork-tested only, so
+            there is no safe in-app execution action yet.
+          </p>
+        </div>
+      </aside>
 
       <footer className={styles.receipt}>
         <CircleDollarSign size={16} />

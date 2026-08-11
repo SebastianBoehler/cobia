@@ -64,7 +64,7 @@ describe("PolicyForm", () => {
 
   it("keeps submission gated until the wallet and risk acknowledgement are present", async () => {
     renderForm();
-    const submit = screen.getByRole("button", { name: "Create deterministic quote" });
+    const submit = screen.getByRole("button", { name: "Open solver market" });
 
     expect(submit).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Connect wallet" }));
@@ -78,8 +78,9 @@ describe("PolicyForm", () => {
     renderForm();
     await fillRequiredFields();
 
-    expect(screen.getByText("25,000.00 USDG")).toBeVisible();
-    expect(screen.getByText("10,000.00 USDG exact")).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "Amount" })).toHaveValue("10");
+    expect(screen.getByText("10.00 USDG")).toBeVisible();
+    expect(screen.getByText("4.00 USDG exact")).toBeVisible();
     expect(screen.getByText("No bridges")).toBeVisible();
     expect(screen.getByText("Outputs: USDG and USDt0")).toBeVisible();
     expect(screen.getByText("Adapters: Aave V3 supply and Uniswap V3 swap")).toBeVisible();
@@ -88,13 +89,13 @@ describe("PolicyForm", () => {
     expect(screen.getByText("Maximum snapshot age: 300 seconds")).toBeVisible();
     expect(screen.getByText("Intent lifetime: 30 minutes")).toBeVisible();
     expect(screen.getByText("Principal stays in your wallet")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Create deterministic quote" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Open solver market" })).toBeEnabled();
   });
 
   it("describes adapter possibilities without promising a multi-protocol route", () => {
     renderForm();
 
-    expect(screen.getByText("10,000.00 USDG exact")).toBeVisible();
+    expect(screen.getByText("4.00 USDG exact")).toBeVisible();
     expect(screen.getByText(/may evaluate Aave V3 supply and Uniswap V3 swap opportunities/i))
       .toBeVisible();
     expect(screen.getByText(/principal remains unmoved/i)).toBeVisible();
@@ -114,7 +115,7 @@ describe("PolicyForm", () => {
     renderForm();
     await fillRequiredFields();
 
-    fireEvent.click(screen.getByRole("button", { name: "Create deterministic quote" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open solver market" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Live data unavailable");
     expect(screen.queryByText(/request .* opened/i)).not.toBeInTheDocument();
@@ -131,7 +132,7 @@ describe("PolicyForm", () => {
     renderForm();
     await fillRequiredFields();
 
-    fireEvent.click(screen.getByRole("button", { name: "Create deterministic quote" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open solver market" }));
 
     expect(await screen.findByRole("heading", {
       name: "Request completed without an authorized route",
@@ -152,7 +153,7 @@ describe("PolicyForm", () => {
     renderForm();
     await fillRequiredFields();
 
-    fireEvent.click(screen.getByRole("button", { name: "Create deterministic quote" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open solver market" }));
 
     expect(await screen.findByText("1 route-authorized quote is ready.")).toBeVisible();
     expect(screen.getByText("1 solver attempt failed or was rejected.")).toBeVisible();
@@ -171,9 +172,9 @@ describe("PolicyForm", () => {
     renderForm();
     await fillRequiredFields();
 
-    fireEvent.click(screen.getByRole("button", { name: "Create deterministic quote" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open solver market" }));
 
-    expect(await screen.findByText("Deterministic route quote created")).toBeVisible();
+    expect(await screen.findByText("Solver market complete")).toBeVisible();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     const [, init] = fetchMock.mock.calls[0];
     const body = JSON.parse(String(init.body));
@@ -182,7 +183,7 @@ describe("PolicyForm", () => {
       policy: {
         version: 2,
         owner,
-        principalAtomic: "25000000000",
+        principalAtomic: "10000000",
         protocolExposureBps: 4_000,
         minPreGasApyBps: 5,
         noBridges: true,

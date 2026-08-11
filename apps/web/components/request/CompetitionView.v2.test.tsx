@@ -99,7 +99,7 @@ describe("CompetitionView V2 route quote", () => {
 
     render(<WalletProvider><CompetitionView requestId={requestId} /></WalletProvider>);
 
-    expect(await screen.findByRole("heading", { name: "Deterministic X Layer route quote" }))
+    expect(await screen.findByRole("heading", { name: "Verified X Layer solver market" }))
       .toBeVisible();
     expect(screen.getByText(/Pinned Aave V3 opportunity data was read at one X Layer block/i))
       .toBeVisible();
@@ -112,7 +112,7 @@ describe("CompetitionView V2 route quote", () => {
     render(<WalletProvider><CompetitionView requestId={requestId} /></WalletProvider>);
 
     expect(await screen.findByText("deterministic-v2")).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Deterministic X Layer route quote" }))
+    expect(screen.getByRole("heading", { name: "Verified X Layer solver market" }))
       .toBeVisible();
     expect(screen.getByText("Estimated pre-gas APY")).toBeVisible();
     expect(screen.getByText("0.09%")).toBeVisible();

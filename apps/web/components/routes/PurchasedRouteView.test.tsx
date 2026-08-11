@@ -80,6 +80,8 @@ describe("PurchasedRouteView", () => {
     expect(screen.getByText("10,000 USDt0 quoted for Aave V3")).toBeVisible();
     expect(screen.getByText("0.09% expected net APY")).toBeVisible();
     expect(screen.getByText("Principal unmoved")).toBeVisible();
+    expect(screen.getByText("What happens next?")).toBeVisible();
+    expect(screen.getByText(/no safe in-app execution action yet/i)).toBeVisible();
   });
 
   it("assigns an odd-principal remainder to the displayed cash amount", () => {

@@ -48,7 +48,7 @@ function formatPrincipal(atomic: string | null, symbol: string): string {
 export function PolicyForm() {
   const wallet = useWallet();
   const [assetAddress, setAssetAddress] = useState(SUPPORTED_ASSETS[0].address);
-  const [principal, setPrincipal] = useState("25000");
+  const [principal, setPrincipal] = useState("10");
   const [exposure, setExposure] = useState("40");
   const [minimumTvl, setMinimumTvl] = useState("500000");
   const [minimumApy, setMinimumApy] = useState("0.05");
@@ -126,11 +126,11 @@ export function PolicyForm() {
         !response.ok || !payload.requestId || !payload.policyHash ||
         !Number.isInteger(payload.quoteCount) || !Number.isInteger(payload.failureCount)
       ) {
-        throw new Error(payload.message ?? "The deterministic quote could not be created.");
+        throw new Error(payload.message ?? "The solver market could not be completed.");
       }
       setCreated(payload as CreatedRequest);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "The deterministic quote could not be created.");
+      setError(cause instanceof Error ? cause.message : "The solver market could not be completed.");
     } finally {
       setPending(false);
     }
@@ -151,7 +151,7 @@ export function PolicyForm() {
         <CircleCheck aria-hidden="true" size={26} />
         <div>
           <h2>{hasAuthorizedRoute
-            ? "Deterministic route quote created"
+            ? "Solver market complete"
             : "Request completed without an authorized route"}</h2>
           {hasAuthorizedRoute ? <>
             <p>{quoteLabel}</p>
@@ -161,7 +161,7 @@ export function PolicyForm() {
         </div>
         <code>{created.policyHash}</code>
         <Link className="button button--primary" href={`/requests/${created.requestId}`}>
-          {hasAuthorizedRoute ? "Review quote" : "Review request"} <ArrowRight aria-hidden="true" size={17} />
+          {hasAuthorizedRoute ? "Review solver quotes" : "Review request"} <ArrowRight aria-hidden="true" size={17} />
         </Link>
       </section>
     );
@@ -263,7 +263,7 @@ export function PolicyForm() {
       {error ? <p role="alert" className="form-alert">{error}</p> : null}
       <button className="button button--primary button--wide" type="submit" disabled={!valid || pending}>
         {pending ? <LoaderCircle className="spin" aria-hidden="true" size={17} /> : null}
-        {pending ? "Creating quote…" : "Create deterministic quote"}
+        {pending ? "Running solvers…" : "Open solver market"}
         {!pending ? <ArrowRight aria-hidden="true" size={17} /> : null}
       </button>
       <p className="payment-note">Free request · Pay only after selecting an authorized quote</p>

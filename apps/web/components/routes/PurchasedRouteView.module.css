@@ -78,6 +78,20 @@
 .steps strong, .steps small { display: block; }
 .steps small { margin-top: 3px; color: var(--muted); }
 
+.nextStep {
+  display: flex;
+  gap: 12px;
+  margin: 22px 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--cobalt-wash);
+}
+
+.nextStep > svg { flex: 0 0 auto; margin-top: 2px; color: var(--cobalt); }
+.nextStep strong { display: block; }
+.nextStep p { margin: 4px 0 0; color: var(--muted); line-height: 1.55; }
+
 .receipt {
   flex-wrap: wrap;
   gap: 9px 18px;

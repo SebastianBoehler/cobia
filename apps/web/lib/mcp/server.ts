@@ -108,7 +108,7 @@ export function createCobiaMcpServer(dependencies: CobiaMcpDependencies): McpSer
     "track-yield-intent",
     {
       title: "Track a yield intent",
-      description: "Returns lifecycle state and the sanitized deterministic quote; the signed bundle remains hidden until payment.",
+      description: "Returns lifecycle state and sanitized solver quotes; signed bundles remain hidden until payment.",
       inputSchema: z.object({ requestId: z.string().uuid() }),
       annotations: { readOnlyHint: true, idempotentHint: true },
     },

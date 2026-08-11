@@ -82,7 +82,7 @@ export function CompetitionView({ requestId }: { requestId: string }) {
   const load = useCallback(async () => {
     const response = await fetch(`/api/requests/${requestId}`, { cache: "no-store" });
     const body = await response.json();
-    if (!response.ok) throw new Error(jsonMessage(body, "Could not load the deterministic quote."));
+    if (!response.ok) throw new Error(jsonMessage(body, "Could not load the solver market."));
     setMarket(withVisibleQuotes(body as PublicRequest));
   }, [requestId]);
 
@@ -91,7 +91,7 @@ export function CompetitionView({ requestId }: { requestId: string }) {
     fetch(`/api/requests/${requestId}`, { cache: "no-store" })
       .then(async (response) => {
         const body = await response.json();
-        if (!response.ok) throw new Error(jsonMessage(body, "Could not load the deterministic quote."));
+        if (!response.ok) throw new Error(jsonMessage(body, "Could not load the solver market."));
         return withVisibleQuotes(body as PublicRequest);
       })
       .then((body) => { if (active) setMarket(body); })
@@ -125,7 +125,7 @@ export function CompetitionView({ requestId }: { requestId: string }) {
     setPendingQuote(quoteId);
     setError(undefined);
     try {
-      if (!market) throw new Error("The deterministic quote is not loaded.");
+      if (!market) throw new Error("The solver market is not loaded.");
       if (!wallet.account) throw new Error("Connect the owner wallet to authorize this quote.");
       if (!isAddressEqual(wallet.account, market.policy.owner)) {
         throw new Error(`Connect request owner ${shortHash(market.policy.owner)} to select a quote.`);
@@ -157,7 +157,7 @@ export function CompetitionView({ requestId }: { requestId: string }) {
     setPendingQuote(quoteId);
     setError(undefined);
     try {
-      if (!market) throw new Error("The deterministic quote is not loaded.");
+      if (!market) throw new Error("The solver market is not loaded.");
       if (!wallet.account) throw new Error("Connect the owner wallet to pay and reveal this bundle.");
       if (!isAddressEqual(wallet.account, market.policy.owner)) {
         throw new Error(`Connect request owner ${shortHash(market.policy.owner)} to reveal this quote.`);
@@ -224,7 +224,7 @@ export function CompetitionView({ requestId }: { requestId: string }) {
   }
 
   if (!market && !error) {
-    return <main className={styles.loading}><LoaderCircle className="spin" /> Loading deterministic quote…</main>;
+    return <main className={styles.loading}><LoaderCircle className="spin" /> Loading solver market…</main>;
   }
   if (!market) return <main className={styles.loading} role="alert">{error}</main>;
 
@@ -233,7 +233,7 @@ export function CompetitionView({ requestId }: { requestId: string }) {
       <header className={styles.intro}>
         <h1>{market.policy.version === 1
           ? "Deterministic Aave V3 quote"
-          : "Deterministic X Layer route quote"}</h1>
+          : "Verified X Layer solver market"}</h1>
         <p>{market.policy.version === 1
           ? "Live OKX discovery was collected between X Layer block reads. APY and TVL are snapshot-derived estimates; the signed bundle is deterministically recomputed."
           : v2SnapshotDescription(market.snapshot)}</p>
@@ -258,7 +258,7 @@ export function CompetitionView({ requestId }: { requestId: string }) {
         </section>
       ) : <section className={styles.grid} aria-label={market.policy.version === 1
         ? "Deterministic Aave V3 allocation quote"
-        : "Deterministic X Layer route quote"}>
+        : "Verified X Layer solver quotes"}>
         {market.quotes.map((quote, index) => {
           const selected = market.selectedQuoteId === quote.quoteId;
           const activeQuote = isActiveRouteQuote(quote, market.freshness.observedAtSec);
