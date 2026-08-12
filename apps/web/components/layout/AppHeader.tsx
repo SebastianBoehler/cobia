@@ -16,16 +16,18 @@ export function AppHeader() {
   const pathname = usePathname() ?? "";
   return (
     <header className="app-header">
-      <CobiaLogo />
+      <div className="app-header__brand">
+        <CobiaLogo />
+        <span className="network-label" title="X Layer Mainnet">
+          <span aria-hidden="true" className="network-label__dot" />
+          X Layer
+        </span>
+      </div>
       <nav className="app-header__nav" aria-label="Primary navigation">
         {navigation.map(({ href, label, prefixes }) => {
           const active = prefixes.some((prefix) => pathname.startsWith(prefix));
           return <Link aria-current={active ? "page" : undefined} href={href} key={href}>{label}</Link>;
         })}
-        <span className="network-label">
-          <span aria-hidden="true" className="network-label__dot" />
-          X Layer Mainnet
-        </span>
       </nav>
       <div className="app-header__actions"><ThemeToggle /><WalletButton /></div>
     </header>

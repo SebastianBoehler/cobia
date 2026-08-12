@@ -11,5 +11,5 @@ export const metadata = createPageMetadata({
 });
 
 export default function ActivityPage() {
-  return <><AppHeader /><main className={styles.page}><header className={styles.heading}><h1>Proof log</h1><p>Your signed intents, purchased route proofs, payment receipts, rehearsals, and verified execution events.</p></header><ActivityView /></main></>;
+  return <><AppHeader /><main className={styles.page}><header className={styles.heading}><h1>Activity</h1><p>A chronological wallet record of purchased route proofs and verified execution events.</p></header><ActivityView /></main></>;
 }

@@ -19,8 +19,10 @@
 .empty h2 { margin: 0; font-size: 2rem; letter-spacing: -.05em; }
 .empty p { color: var(--muted); line-height: 1.6; }
 .panel { max-width: 920px; margin: 0 auto; padding: 30px; border: 1px solid var(--line); border-radius: 22px; background: var(--surface); }
+.widePanel { max-width: 1120px; padding: clamp(24px, 3vw, 38px); }
 .panelHeader { display: flex; justify-content: space-between; gap: 20px; align-items: start; }
 .panelHeader h2 { margin: 0; font-size: 1.5rem; }
+.panelHeader p { color: var(--muted); margin: 7px 0 0; }
 .rows { display: grid; gap: 0; margin-top: 24px; }
 .row { display: grid; grid-template-columns: 1.3fr 1fr auto; gap: 18px; align-items: center; padding: 17px 0; border-top: 1px solid var(--line); }
 .row strong, .row span, .row small { display: block; }
@@ -28,4 +30,43 @@
 .row small { margin-top: 4px; }
 .error { color: var(--rejected); }
 .notice { margin: 18px 0 0; padding: 12px 14px; border-radius: 10px; background: var(--cobalt-wash); color: var(--muted); font-size: .82rem; line-height: 1.5; }
-@media (max-width: 720px) { .heading, .panelHeader { align-items: start; flex-direction: column; } .row { grid-template-columns: 1fr auto; } .row > :nth-child(2) { display: none; } }
+.holdingGroup { display: grid; gap: 14px; margin-top: 32px; }
+.groupHeader { align-items: baseline; display: flex; gap: 16px; justify-content: space-between; }
+.groupHeader h3 { font-size: 1rem; margin: 0; }
+.groupHeader span { color: var(--muted); font-size: .76rem; }
+.holdingGrid { display: grid; gap: 10px; }
+.holdingCard { align-items: center; background: var(--paper); border: 1px solid transparent; border-radius: 15px; display: grid; gap: 20px; grid-template-columns: minmax(240px, 1.4fr) minmax(140px, .7fr) minmax(150px, auto); padding: 16px 18px; }
+.holdingCard:hover { border-color: var(--line); }
+.holdingIdentity { align-items: center; display: flex; gap: 14px; min-width: 0; }
+.holdingIdentity strong, .holdingIdentity small { display: block; }
+.holdingIdentity small { color: var(--muted); margin-top: 4px; }
+.holdingSource { color: var(--muted); font-size: .82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.holdingBalance { font-size: 1.05rem; font-variant-numeric: tabular-nums; letter-spacing: -.025em; text-align: right; }
+.timeline { display: grid; gap: 11px; list-style: none; margin: 28px 0 0; padding: 0; }
+.timelineItem { align-items: center; background: var(--paper); border: 1px solid transparent; border-radius: 15px; display: grid; gap: 16px; grid-template-columns: auto minmax(220px, 1fr) auto minmax(130px, auto); padding: 18px; }
+.timelineItem:hover { border-color: var(--line); }
+.timelineIcon { background: var(--cobalt-wash); border-radius: 50%; color: var(--cobalt); display: grid; height: 42px; place-items: center; width: 42px; }
+.timelineContent h3 { font-size: 1rem; margin: 0; }
+.timelineContent p, .timelineContent small { color: var(--muted); display: block; font-size: .76rem; margin: 5px 0 0; }
+.statusBadge { background: color-mix(in oklch, var(--verified) 12%, var(--surface)); border-radius: 999px; color: var(--verified); font-size: .7rem; font-weight: 720; padding: 6px 9px; text-transform: capitalize; }
+.statusFailed { background: color-mix(in oklch, var(--rejected) 11%, var(--surface)); color: var(--rejected); }
+.timelineAction { align-items: center; color: var(--cobalt); display: inline-flex; font-size: .78rem; font-weight: 670; gap: 5px; justify-self: end; }
+.timelineActionMuted { color: var(--muted); font-size: .78rem; justify-self: end; }
+@media (max-width: 720px) {
+  .heading, .panelHeader { align-items: start; flex-direction: column; }
+  .row { grid-template-columns: 1fr auto; }
+  .row > :nth-child(2) { display: none; }
+  .holdingCard { grid-template-columns: minmax(0, 1fr) auto; }
+  .holdingSource { display: none; }
+  .timelineItem { align-items: start; grid-template-columns: auto 1fr auto; }
+  .timelineAction, .timelineActionMuted { grid-column: 2 / 4; justify-self: start; }
+}
+@media (max-width: 520px) {
+  .page { padding-inline: 16px; padding-top: 42px; }
+  .widePanel { padding: 20px 16px; }
+  .holdingCard { gap: 12px; padding: 14px; }
+  .holdingBalance { font-size: .9rem; }
+  .timelineItem { padding: 14px; }
+  .statusBadge { grid-column: 2; justify-self: start; }
+  .timelineAction, .timelineActionMuted { grid-column: 2; }
+}

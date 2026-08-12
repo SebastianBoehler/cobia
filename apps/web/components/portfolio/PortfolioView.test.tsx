@@ -24,8 +24,18 @@ describe("PortfolioView", () => {
       blockNumber: "123",
       observedAt: "2026-08-11T00:00:00.000Z",
       native: { symbol: "OKB", amountAtomic: "0", formatted: "0" },
-      balances: [],
-      positions: [],
+      balances: [{
+        address: "0x2222222222222222222222222222222222222222",
+        symbol: "USDG",
+        amountAtomic: "12500000",
+        formatted: "12.5",
+      }],
+      positions: [{
+        adapterId: "aave-v3@1",
+        symbol: "aUSDG",
+        amountAtomic: "4250000",
+        formatted: "4.25",
+      }],
     })));
     const detail: Eip6963ProviderDetail = {
       info: {
@@ -60,5 +70,12 @@ describe("PortfolioView", () => {
       { cache: "no-store" },
     );
     expect(screen.queryByText(/payment rehearsal/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Wallet balances" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Protocol positions" })).toBeVisible();
+    expect(screen.getByRole("img", { name: "OKB token" })).toBeVisible();
+    expect(screen.getByRole("img", { name: "USDG token" })).toBeVisible();
+    expect(screen.getByRole("img", { name: "Aave V3" })).toBeVisible();
+    expect(screen.getByText("12.5 USDG")).toBeVisible();
+    expect(screen.getByText("4.25 aUSDG")).toBeVisible();
   });
 });

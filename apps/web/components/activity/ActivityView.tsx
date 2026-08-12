@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Activity, CircleAlert, LoaderCircle } from "lucide-react";
+import { Activity, ArrowUpRight, BadgeCheck, CircleAlert, LoaderCircle, Radio, ReceiptText, Route } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useWallet } from "../wallet/WalletProvider";
 import styles from "../product/ProductShell.module.css";
@@ -13,6 +13,32 @@ interface WalletEvent {
   routeId: string | null;
   transactionHash: string | null;
   occurredAt: string;
+}
+
+function eventTitle(kind: string): string {
+  const titles: Record<string, string> = {
+    route_revealed: "Route proof revealed",
+    execution_started: "Execution started",
+    execution_step_prepared: "Transaction prepared",
+    execution_step_armed: "Transaction ready to broadcast",
+    execution_step_submitted: "Transaction submitted",
+    execution_step_confirmed: "Transaction confirmed",
+    execution_completed: "Route execution completed",
+    execution_failed: "Route execution failed",
+    execution_reconciliation: "Execution reconciliation required",
+  };
+  return titles[kind] ?? kind.replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function EventIcon({ kind }: { kind: string }) {
+  if (kind === "route_revealed") return <ReceiptText aria-hidden="true" size={19} />;
+  if (kind.includes("completed") || kind.includes("confirmed")) return <BadgeCheck aria-hidden="true" size={19} />;
+  if (kind.includes("submitted") || kind.includes("armed")) return <Radio aria-hidden="true" size={19} />;
+  return <Route aria-hidden="true" size={19} />;
+}
+
+function statusLabel(status: string): string {
+  return status.replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase());
 }
 
 export function ActivityView() {
@@ -35,7 +61,19 @@ export function ActivityView() {
   const events = result.events;
   if (!events) return null;
   if (!events.length) return <section className={styles.empty}><Activity size={28} /><h2>No Cobia activity yet</h2><p>Your wallet has not purchased a quote.</p></section>;
-  return <section className={styles.panel}><div className={styles.panelHeader}><h2>Wallet timeline</h2><span className={styles.badge}>{events.length} event{events.length === 1 ? "" : "s"}</span></div><div className={styles.rows}>
-    {events.map((event) => <div className={styles.row} key={event.id}><div><strong>{event.kind.replaceAll("_", " ")}</strong><small>{new Date(event.occurredAt).toLocaleString()}</small></div><span>{event.status}</span>{event.routeId ? <Link href={`/routes/${event.routeId}`}>View quote</Link> : <strong>—</strong>}</div>)}
-  </div></section>;
+  return <section className={`${styles.panel} ${styles.widePanel}`}>
+    <div className={styles.panelHeader}><div><h2>Wallet timeline</h2><p>Newest verifiable wallet events appear first.</p></div><span className={styles.badge}>{events.length} event{events.length === 1 ? "" : "s"}</span></div>
+    <ol className={styles.timeline}>
+      {events.map((event) => <li className={styles.timelineItem} key={event.id}>
+        <span className={styles.timelineIcon}><EventIcon kind={event.kind} /></span>
+        <div className={styles.timelineContent}>
+          <h3>{eventTitle(event.kind)}</h3>
+          <p>{new Date(event.occurredAt).toLocaleString()}</p>
+          {event.transactionHash ? <small title={event.transactionHash}>Transaction {event.transactionHash.slice(0, 10)}…{event.transactionHash.slice(-6)}</small> : null}
+        </div>
+        <span className={`${styles.statusBadge} ${event.status === "failed" ? styles.statusFailed : ""}`}>{statusLabel(event.status)}</span>
+        {event.routeId ? <Link className={styles.timelineAction} href={`/routes/${event.routeId}`}>View route proof <ArrowUpRight aria-hidden="true" size={15} /></Link> : <span className={styles.timelineActionMuted}>No route link</span>}
+      </li>)}
+    </ol>
+  </section>;
 }

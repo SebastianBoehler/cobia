@@ -91,12 +91,13 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .brand { align-items: center; display: inline-flex; gap: 10px; font-size: 16px; font-weight: 760; letter-spacing: .19em; width: max-content; }
 .brand__mark { color: var(--cobalt); height: 28px; width: 28px; }
 .brand__mark path { fill: none; stroke: currentColor; stroke-linecap: round; stroke-width: 1.8; }
-.app-header__nav { align-items: center; display: flex; gap: 30px; font-size: 13px; color: var(--muted); }
+.app-header__brand { align-items: center; display: flex; gap: 22px; justify-self: start; }
+.app-header__nav { align-items: center; color: var(--muted); display: flex; font-size: 14px; gap: 36px; }
 .app-header__nav a { transition: color 150ms ease; }
 .app-header__nav a:hover { color: var(--ink); }
 .app-header__nav a[aria-current="page"] { color: var(--cobalt); font-weight: 650; position: relative; }
 .app-header__nav a[aria-current="page"]::after { background: var(--cobalt); bottom: -29px; content: ""; height: 2px; left: 0; position: absolute; right: 0; }
-.network-label { align-items: center; border-left: 1px solid var(--line); display: inline-flex; gap: 7px; padding-left: 28px; }
+.network-label { align-items: center; color: var(--muted); display: inline-flex; font-size: 12px; font-weight: 580; gap: 7px; white-space: nowrap; }
 .network-label__dot { background: var(--verified); border-radius: 50%; height: 8px; width: 8px; }
 .app-header__action { justify-self: end; }
 .app-header__actions { align-items: center; display: flex; gap: 10px; justify-self: end; }
@@ -175,6 +176,8 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .wallet-control__label--desktop { display: none; }
   .wallet-control__label--mobile { display: inline; }
   .theme-toggle { height: 40px; width: 40px; }
+  .app-header__brand { gap: 12px; }
+  .network-label { font-size: 0; gap: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

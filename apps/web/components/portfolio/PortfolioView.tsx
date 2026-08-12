@@ -6,6 +6,7 @@ import type { PortfolioSnapshot } from "../../lib/portfolio/read-portfolio";
 import { WalletScout } from "../scout/WalletScout";
 import { useWallet } from "../wallet/WalletProvider";
 import styles from "../product/ProductShell.module.css";
+import { PortfolioAssetMark } from "./PortfolioAssetMark";
 
 function pretty(value: string): string {
   return Number(value).toLocaleString("en-US", { maximumFractionDigits: 6 });
@@ -39,13 +40,33 @@ export function PortfolioView() {
   if (result.error) return <section className={styles.empty}><CircleAlert /><h2>Portfolio unavailable</h2><p className={styles.error}>{result.error}</p></section>;
   const snapshot = result.snapshot;
   if (!snapshot) return null;
-  return <section className={styles.panel}>
-    <div className={styles.panelHeader}><div><h2>Wallet assets</h2><p>Observed at block {snapshot.blockNumber}</p></div><span className={styles.badge}>{snapshot.networkName}</span></div>
-    <div className={styles.rows}>
-      <div className={styles.row}><div><strong>OKB</strong><small>Gas balance</small></div><span>Native asset</span><strong>{pretty(snapshot.native.formatted)}</strong></div>
-      {snapshot.balances.map((balance) => <div className={styles.row} key={balance.address}><div><strong>{balance.symbol}</strong><small>Wallet balance</small></div><span>{balance.address.slice(0, 10)}…</span><strong>{pretty(balance.formatted)}</strong></div>)}
-      {snapshot.positions.map((position) => <div className={styles.row} key={position.symbol}><div><strong>{position.symbol}</strong><small>Aave V3 supplied position</small></div><span>{position.adapterId}</span><strong>{pretty(position.formatted)}</strong></div>)}
-    </div>
+  return <section className={`${styles.panel} ${styles.widePanel}`}>
+    <div className={styles.panelHeader}><div><h2>Onchain holdings</h2><p>Fresh wallet and protocol state at block {snapshot.blockNumber}</p></div><span className={styles.badge}>{snapshot.networkName}</span></div>
+    <section className={styles.holdingGroup} aria-labelledby="wallet-balances-title">
+      <div className={styles.groupHeader}><h3 id="wallet-balances-title">Wallet balances</h3><span>{snapshot.balances.length + 1} assets</span></div>
+      <div className={styles.holdingGrid}>
+        <article className={styles.holdingCard}>
+          <div className={styles.holdingIdentity}><PortfolioAssetMark symbol="OKB" /><div><strong>OKB</strong><small>Native gas token</small></div></div>
+          <span className={styles.holdingSource}>Wallet</span>
+          <strong className={styles.holdingBalance}>{pretty(snapshot.native.formatted)} OKB</strong>
+        </article>
+        {snapshot.balances.map((balance) => <article className={styles.holdingCard} key={balance.address}>
+          <div className={styles.holdingIdentity}><PortfolioAssetMark symbol={balance.symbol} /><div><strong>{balance.symbol}</strong><small>Available to route</small></div></div>
+          <span className={styles.holdingSource} title={balance.address}>{balance.address.slice(0, 8)}…{balance.address.slice(-4)}</span>
+          <strong className={styles.holdingBalance}>{pretty(balance.formatted)} {balance.symbol}</strong>
+        </article>)}
+      </div>
+    </section>
+    <section className={styles.holdingGroup} aria-labelledby="protocol-positions-title">
+      <div className={styles.groupHeader}><h3 id="protocol-positions-title">Protocol positions</h3><span>{snapshot.positions.length} Aave V3 positions</span></div>
+      <div className={styles.holdingGrid}>
+        {snapshot.positions.map((position) => <article className={styles.holdingCard} key={position.symbol}>
+          <div className={styles.holdingIdentity}><PortfolioAssetMark symbol={position.symbol} /><div><strong>{position.symbol}</strong><small>Aave V3 supplied balance</small></div></div>
+          <span className={styles.holdingSource}>Aave V3</span>
+          <strong className={styles.holdingBalance}>{pretty(position.formatted)} {position.symbol}</strong>
+        </article>)}
+      </div>
+    </section>
     <WalletScout account={wallet.account} snapshot={snapshot} />
   </section>;
 }

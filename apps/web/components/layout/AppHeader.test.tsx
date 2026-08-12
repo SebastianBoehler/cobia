@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppHeader } from "./AppHeader";
 
@@ -20,8 +20,12 @@ describe("AppHeader", () => {
     expect(screen.queryByRole("link", { name: "Portfolio" })).not.toBeInTheDocument();
   });
 
-  it("labels the execution network as X Layer mainnet", () => {
+  it("keeps the execution network with the brand instead of the navigation", () => {
     render(<AppHeader />);
-    expect(screen.getByText("X Layer Mainnet")).toBeInTheDocument();
+    const navigation = screen.getByRole("navigation", { name: "Primary navigation" });
+    const network = screen.getByTitle("X Layer Mainnet");
+    expect(network).toHaveTextContent("X Layer");
+    expect(within(navigation).queryByText(/X Layer/)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Cobia home" }).parentElement).toContainElement(network);
   });
 });
