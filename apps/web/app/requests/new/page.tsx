@@ -6,24 +6,38 @@ export default function NewRequestPage() {
     <>
       <AppHeader />
       <main className="request-page">
-        <section className="request-page__composer" aria-labelledby="request-form-title">
-          <h1 id="request-form-title">Describe the outcome you want.</h1>
-          <p className="request-page__lede">
-            Cobia searches verified X Layer routes to reach your outcome non-custodially.
-          </p>
-          <PolicyForm />
-        </section>
-        <section className="request-page__results" aria-labelledby="route-preview-title">
-          <div className="route-empty-state">
-            <h2 id="route-preview-title">Your best route will appear here.</h2>
-            <p>Sign an outcome and Cobia will compare only routes that pass your exact policy bounds.</p>
-            <dl>
-              <div><dt>On-chain bound</dt><dd>Minimum received</dd></div>
-              <div><dt>Estimate</dt><dd>Expected result</dd></div>
-              <div><dt>Proof</dt><dd>Simulation + verifier</dd></div>
-            </dl>
+        <section className="request-page__workspace" aria-labelledby="intent-workspace-title">
+          <div className="intent-workspace">
+            <header className="intent-workspace__header">
+              <h1 id="intent-workspace-title">New intent</h1>
+              <p>Set the outcome and hard bounds. Solvers compete; Cobia verifies.</p>
+            </header>
+            <PolicyForm />
           </div>
         </section>
+        <aside className="request-page__support" aria-labelledby="intent-support-title">
+          <div className="intent-support">
+            <h2 id="intent-support-title">From intent to verified execution.</h2>
+            <p>
+              Describe the result. Cobia compares X Layer routes and rejects anything outside your
+              signed rules.
+            </p>
+            <ol className="intent-support__steps">
+              <li>
+                <strong>Set the outcome</strong>
+                <span>Choose what you send, what you want back, and the bounds that matter.</span>
+              </li>
+              <li>
+                <strong>Compare verified routes</strong>
+                <span>See the enforceable minimum separately from the forecast result.</span>
+              </li>
+              <li>
+                <strong>Stay in control</strong>
+                <span>Your wallet confirms every mainnet transaction. Cobia never holds your funds.</span>
+              </li>
+            </ol>
+          </div>
+        </aside>
       </main>
     </>
   );
