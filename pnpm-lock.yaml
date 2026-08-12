@@ -13,6 +13,9 @@ importers:
 
   .:
     devDependencies:
+      '@openzeppelin/contracts':
+        specifier: 5.6.1
+        version: 5.6.1
       tsx:
         specifier: 4.23.11
         version: 4.23.11
@@ -37,6 +40,9 @@ importers:
       '@okxweb3/mpp':
         specifier: 0.1.0
         version: 0.1.0(typescript@6.0.3)(zod@4.4.3)
+      '@web3icons/react':
+        specifier: 4.1.19
+        version: 4.1.19(react@19.2.8)
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(postgres@3.4.9)
@@ -1133,6 +1139,9 @@ packages:
   '@okxweb3/mpp@0.1.0':
     resolution: {integrity: sha512-G48SWmj7+cJdjn2AoFQQ7S2edYYAwRPvyu/BOvy8BSsGXi7zfKsgCDvuIPZWhw4TLZ7/E/rPUEkZ7QqzvG6GuQ==}
 
+  '@openzeppelin/contracts@5.6.1':
+    resolution: {integrity: sha512-Ly6SlsVJ3mj+b18W3R8gNufB7dTICT105fJhodGAGgyC2oqnBAhqSiNDJ8V8DLY05cCz81GLI0CU5vNYA1EC/w==}
+
   '@oxc-project/types@0.143.0':
     resolution: {integrity: sha512-u6JZdLBTLotrNC9Vd6vPssINdzcCzleKAH6EJKImQb7GtYvX5keN2dxkoK44stCc4tffE6QQRtZTXVSzsLUlWA==}
 
@@ -1667,6 +1676,14 @@ packages:
 
   '@vitest/utils@4.1.10':
     resolution: {integrity: sha512-fy9am/HWxbaGt/Sawrp90vt6Y6jQwf1RX77cz3uwoJwJVMli/e1IEwRPnMNJ7vKfPTwo0diXifkpPvwH9v7nGA==}
+
+  '@web3icons/common@0.11.48':
+    resolution: {integrity: sha512-n4DyN9fnf94N4XyL/iSRG9RmsgqK28OcYcPtQwj3NM0rs++bIbND4psoP1weRSVrY6wzToIcXD9THWKkHtF7BQ==}
+
+  '@web3icons/react@4.1.19':
+    resolution: {integrity: sha512-und1wyzQ1xvQczXvpfmhM/IK/t8FBaYAfMNojoYHVblirC2j/Mvg8htqXp5EueH99NNc/tcDnaYGNMy3vugUxg==}
+    peerDependencies:
+      react: ^18.0.0 || ^19.0.0
 
   abitype@1.2.3:
     resolution: {integrity: sha512-Ofer5QUnuUdTFsBRwARMoWKOH1ND5ehwYhJ3OJ/BQO+StkwQjHw0XyVh4vDttzHB7QOFhPHa/o413PJ82gU/Tg==}
@@ -4679,6 +4696,8 @@ snapshots:
       - utf-8-validate
       - zod
 
+  '@openzeppelin/contracts@5.6.1': {}
+
   '@oxc-project/types@0.143.0': {}
 
   '@pkgjs/parseargs@0.11.0':
@@ -5149,6 +5168,13 @@ snapshots:
       '@vitest/pretty-format': 4.1.10
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.1
+
+  '@web3icons/common@0.11.48': {}
+
+  '@web3icons/react@4.1.19(react@19.2.8)':
+    dependencies:
+      '@web3icons/common': 0.11.48
+      react: 19.2.8
 
   abitype@1.2.3(typescript@6.0.3)(zod@4.4.3):
     optionalDependencies:
