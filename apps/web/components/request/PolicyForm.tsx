@@ -47,6 +47,16 @@ function formatPrincipal(atomic: string | null, symbol: string): string {
   })} ${symbol}`;
 }
 
+function intentOutcome(mode: IntentMode, amount: string, asset: string, output: string): string {
+  const displayAmount = amount || "—";
+  if (mode === "Earn") {
+    return `Earn the best verified return on ${displayAmount} ${asset} within your bounds.`;
+  }
+  return mode === "Swap"
+    ? `Swap ${displayAmount} ${asset} for the most ${output} available within your slippage bound.`
+    : `Find a verified round-trip route for ${displayAmount} ${asset} that ends with more ${asset} after fees and gas.`;
+}
+
 export function PolicyForm() {
   const wallet = useWallet();
   const [mode, setMode] = useState<IntentMode>("Earn");
@@ -60,6 +70,7 @@ export function PolicyForm() {
   const [error, setError] = useState<string>();
   const [created, setCreated] = useState<CreatedRequest>();
   const asset = SUPPORTED_ASSETS.find((item) => item.address === assetAddress) ?? SUPPORTED_ASSETS[0];
+  const outputAsset = SUPPORTED_ASSETS.find((item) => item.address !== asset.address) ?? asset;
 
   const values = useMemo(() => {
     const principalAtomic = decimalToAtomic(principal, 6);
@@ -174,9 +185,7 @@ export function PolicyForm() {
       <IntentModeTabs mode={mode} onChange={setMode} />
       <div className="intent-summary">
         <span>Your intent</span>
-        <p>{mode === "Earn"
-          ? `Earn the best verified return on ${principal || "—"} ${asset.displaySymbol} within your bounds.`
-          : `${mode} intent parameters will be signed only after the atomic ${mode.toLowerCase()} policy is enabled.`}</p>
+        <p>{intentOutcome(mode, principal, asset.displaySymbol, outputAsset.displaySymbol)}</p>
       </div>
       {mode !== "Earn" ? (
         <p className="mode-notice" role="status">

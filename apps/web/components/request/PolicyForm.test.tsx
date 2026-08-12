@@ -61,16 +61,42 @@ describe("PolicyForm", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "Swap" }));
     expect(screen.getByRole("tab", { name: "Swap" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText(
+      "Swap 10 USDG for the most USDt0 available within your slippage bound.",
+    )).toBeVisible();
     expect(screen.getByRole("status")).toHaveTextContent(
       "Atomic Swap intents are not enabled yet",
     );
     expect(screen.getByRole("button", { name: "Find verified routes" })).toBeDisabled();
 
     fireEvent.click(screen.getByRole("tab", { name: "Profit" }));
+    expect(screen.getByText(
+      "Find a verified round-trip route for 10 USDG that ends with more USDG after fees and gas.",
+    )).toBeVisible();
     expect(screen.getByRole("status")).toHaveTextContent(
       "Atomic Profit intents are not enabled yet",
     );
     expect(screen.getByRole("button", { name: "Find verified routes" })).toBeDisabled();
+  });
+
+  it("updates Swap and Profit outcomes when the amount or asset changes", () => {
+    renderForm();
+    fireEvent.change(screen.getByRole("textbox", { name: "Amount" }), {
+      target: { value: "25" },
+    });
+    fireEvent.change(screen.getByRole("combobox", { name: "Asset" }), {
+      target: { value: "0x779Ded0c9e1022225f8E0630b35a9b54bE713736" },
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Swap" }));
+    expect(screen.getByText(
+      "Swap 25 USDt0 for the most USDG available within your slippage bound.",
+    )).toBeVisible();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Profit" }));
+    expect(screen.getByText(
+      "Find a verified round-trip route for 25 USDt0 that ends with more USDt0 after fees and gas.",
+    )).toBeVisible();
   });
 
   it("keeps verifier controls behind advanced settings", () => {
