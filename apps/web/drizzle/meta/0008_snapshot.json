@@ -1,0 +1,1833 @@
+{
+  "id": "06fb0be0-bea7-4c50-ab9a-2130f2797e44",
+  "prevId": "10cd1da1-b425-435b-8657-29619c6a331e",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.cobia_execution_attempts": {
+      "name": "cobia_execution_attempts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "route_id": {
+          "name": "route_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rehearsal_id": {
+          "name": "rehearsal_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rehearsal_trace_hash": {
+          "name": "rehearsal_trace_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bundle_hash": {
+          "name": "bundle_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "buyer": {
+          "name": "buyer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "execution_chain_id": {
+          "name": "execution_chain_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "cobia_execution_attempt_state",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'prepared'"
+        },
+        "proof_hash": {
+          "name": "proof_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "proof_nonce": {
+          "name": "proof_nonce",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "proof_expires_at": {
+          "name": "proof_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "next_ordinal": {
+          "name": "next_ordinal",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "failure_code": {
+          "name": "failure_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "cobia_execution_attempts_route_idx": {
+          "name": "cobia_execution_attempts_route_idx",
+          "columns": [
+            {
+              "expression": "route_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_execution_attempts_rehearsal_idx": {
+          "name": "cobia_execution_attempts_rehearsal_idx",
+          "columns": [
+            {
+              "expression": "rehearsal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_execution_attempts_proof_idx": {
+          "name": "cobia_execution_attempts_proof_idx",
+          "columns": [
+            {
+              "expression": "proof_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_execution_attempts_nonce_idx": {
+          "name": "cobia_execution_attempts_nonce_idx",
+          "columns": [
+            {
+              "expression": "proof_nonce",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_execution_attempts_buyer_idx": {
+          "name": "cobia_execution_attempts_buyer_idx",
+          "columns": [
+            {
+              "expression": "buyer",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "cobia_execution_attempts_route_id_cobia_route_purchases_id_fk": {
+          "name": "cobia_execution_attempts_route_id_cobia_route_purchases_id_fk",
+          "tableFrom": "cobia_execution_attempts",
+          "tableTo": "cobia_route_purchases",
+          "columnsFrom": [
+            "route_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "cobia_execution_attempts_rehearsal_id_cobia_execution_rehearsals_id_fk": {
+          "name": "cobia_execution_attempts_rehearsal_id_cobia_execution_rehearsals_id_fk",
+          "tableFrom": "cobia_execution_attempts",
+          "tableTo": "cobia_execution_rehearsals",
+          "columnsFrom": [
+            "rehearsal_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "cobia_execution_attempts_identity_check": {
+          "name": "cobia_execution_attempts_identity_check",
+          "value": "\n      \"cobia_execution_attempts\".\"execution_chain_id\" = 196\n      AND \"cobia_execution_attempts\".\"route_id\" = lower(\"cobia_execution_attempts\".\"route_id\")\n      AND \"cobia_execution_attempts\".\"route_id\" = \"cobia_execution_attempts\".\"bundle_hash\"\n      AND \"cobia_execution_attempts\".\"buyer\" = lower(\"cobia_execution_attempts\".\"buyer\")\n      AND \"cobia_execution_attempts\".\"rehearsal_trace_hash\" = lower(\"cobia_execution_attempts\".\"rehearsal_trace_hash\")\n      AND \"cobia_execution_attempts\".\"proof_hash\" = lower(\"cobia_execution_attempts\".\"proof_hash\")\n      AND \"cobia_execution_attempts\".\"proof_nonce\" = lower(\"cobia_execution_attempts\".\"proof_nonce\")\n      AND \"cobia_execution_attempts\".\"next_ordinal\" >= 0\n    "
+        },
+        "cobia_execution_attempts_state_check": {
+          "name": "cobia_execution_attempts_state_check",
+          "value": "\n      (\"cobia_execution_attempts\".\"state\" IN ('prepared', 'active', 'partial', 'reconcile')\n        AND \"cobia_execution_attempts\".\"completed_at\" IS NULL AND \"cobia_execution_attempts\".\"failure_code\" IS NULL)\n      OR (\"cobia_execution_attempts\".\"state\" = 'failed'\n        AND \"cobia_execution_attempts\".\"completed_at\" IS NOT NULL AND \"cobia_execution_attempts\".\"failure_code\" IS NOT NULL)\n      OR (\"cobia_execution_attempts\".\"state\" = 'complete'\n        AND \"cobia_execution_attempts\".\"completed_at\" IS NOT NULL AND \"cobia_execution_attempts\".\"failure_code\" IS NULL)\n    "
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.cobia_execution_steps": {
+      "name": "cobia_execution_steps",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "attempt_id": {
+          "name": "attempt_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ordinal": {
+          "name": "ordinal",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "cobia_execution_step_state",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'prepared'"
+        },
+        "from_address": {
+          "name": "from_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "to_address": {
+          "name": "to_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value_atomic": {
+          "name": "value_atomic",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "calldata": {
+          "name": "calldata",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "calldata_hash": {
+          "name": "calldata_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "semantic": {
+          "name": "semantic",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pre_block_number": {
+          "name": "pre_block_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pre_block_hash": {
+          "name": "pre_block_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expected_nonce": {
+          "name": "expected_nonce",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gas_estimate_atomic": {
+          "name": "gas_estimate_atomic",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "transaction_hash": {
+          "name": "transaction_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "receipt": {
+          "name": "receipt",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "evidence": {
+          "name": "evidence",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "postcondition": {
+          "name": "postcondition",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "failure_code": {
+          "name": "failure_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "prepared_at": {
+          "name": "prepared_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "submitted_at": {
+          "name": "submitted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "cobia_execution_steps_ordinal_idx": {
+          "name": "cobia_execution_steps_ordinal_idx",
+          "columns": [
+            {
+              "expression": "attempt_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ordinal",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_execution_steps_transaction_idx": {
+          "name": "cobia_execution_steps_transaction_idx",
+          "columns": [
+            {
+              "expression": "transaction_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_execution_steps_attempt_idx": {
+          "name": "cobia_execution_steps_attempt_idx",
+          "columns": [
+            {
+              "expression": "attempt_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "state",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "cobia_execution_steps_attempt_id_cobia_execution_attempts_id_fk": {
+          "name": "cobia_execution_steps_attempt_id_cobia_execution_attempts_id_fk",
+          "tableFrom": "cobia_execution_steps",
+          "tableTo": "cobia_execution_attempts",
+          "columnsFrom": [
+            "attempt_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "cobia_execution_steps_identity_check": {
+          "name": "cobia_execution_steps_identity_check",
+          "value": "\n      \"cobia_execution_steps\".\"ordinal\" >= 0\n      AND \"cobia_execution_steps\".\"kind\" IN ('approval', 'swap', 'supply')\n      AND \"cobia_execution_steps\".\"from_address\" = lower(\"cobia_execution_steps\".\"from_address\")\n      AND \"cobia_execution_steps\".\"to_address\" = lower(\"cobia_execution_steps\".\"to_address\")\n      AND \"cobia_execution_steps\".\"value_atomic\" ~ '^(0|[1-9][0-9]*)$'\n      AND \"cobia_execution_steps\".\"pre_block_number\" ~ '^(0|[1-9][0-9]*)$'\n      AND \"cobia_execution_steps\".\"expected_nonce\" ~ '^(0|[1-9][0-9]*)$'\n      AND \"cobia_execution_steps\".\"gas_estimate_atomic\" ~ '^(0|[1-9][0-9]*)$'\n      AND \"cobia_execution_steps\".\"calldata\" = lower(\"cobia_execution_steps\".\"calldata\")\n      AND \"cobia_execution_steps\".\"calldata_hash\" = lower(\"cobia_execution_steps\".\"calldata_hash\")\n      AND \"cobia_execution_steps\".\"pre_block_hash\" = lower(\"cobia_execution_steps\".\"pre_block_hash\")\n    "
+        },
+        "cobia_execution_steps_state_check": {
+          "name": "cobia_execution_steps_state_check",
+          "value": "\n      (\"cobia_execution_steps\".\"state\" = 'prepared'\n        AND \"cobia_execution_steps\".\"transaction_hash\" IS NULL AND \"cobia_execution_steps\".\"submitted_at\" IS NULL\n        AND \"cobia_execution_steps\".\"receipt\" IS NULL AND \"cobia_execution_steps\".\"evidence\" IS NULL\n        AND \"cobia_execution_steps\".\"postcondition\" IS NULL AND \"cobia_execution_steps\".\"failure_code\" IS NULL\n        AND \"cobia_execution_steps\".\"resolved_at\" IS NULL)\n      OR (\"cobia_execution_steps\".\"state\" = 'submitted'\n        AND \"cobia_execution_steps\".\"transaction_hash\" IS NOT NULL AND \"cobia_execution_steps\".\"submitted_at\" IS NOT NULL\n        AND \"cobia_execution_steps\".\"receipt\" IS NULL AND \"cobia_execution_steps\".\"evidence\" IS NULL\n        AND \"cobia_execution_steps\".\"postcondition\" IS NULL AND \"cobia_execution_steps\".\"failure_code\" IS NULL\n        AND \"cobia_execution_steps\".\"resolved_at\" IS NULL)\n      OR (\"cobia_execution_steps\".\"state\" = 'broadcasting'\n        AND \"cobia_execution_steps\".\"transaction_hash\" IS NULL AND \"cobia_execution_steps\".\"submitted_at\" IS NOT NULL\n        AND \"cobia_execution_steps\".\"receipt\" IS NULL AND \"cobia_execution_steps\".\"evidence\" IS NULL\n        AND \"cobia_execution_steps\".\"postcondition\" IS NULL AND \"cobia_execution_steps\".\"failure_code\" IS NULL\n        AND \"cobia_execution_steps\".\"resolved_at\" IS NULL)\n      OR (\"cobia_execution_steps\".\"state\" = 'confirmed'\n        AND \"cobia_execution_steps\".\"transaction_hash\" IS NOT NULL AND \"cobia_execution_steps\".\"submitted_at\" IS NOT NULL\n        AND \"cobia_execution_steps\".\"receipt\" IS NOT NULL AND \"cobia_execution_steps\".\"evidence\" IS NOT NULL\n        AND \"cobia_execution_steps\".\"postcondition\" IS NOT NULL AND \"cobia_execution_steps\".\"failure_code\" IS NULL\n        AND \"cobia_execution_steps\".\"resolved_at\" IS NOT NULL)\n      OR (\"cobia_execution_steps\".\"state\" = 'reconcile'\n        AND \"cobia_execution_steps\".\"submitted_at\" IS NOT NULL\n        AND \"cobia_execution_steps\".\"receipt\" IS NULL AND \"cobia_execution_steps\".\"evidence\" IS NULL\n        AND \"cobia_execution_steps\".\"postcondition\" IS NULL AND \"cobia_execution_steps\".\"failure_code\" IS NOT NULL\n        AND \"cobia_execution_steps\".\"resolved_at\" IS NULL)\n      OR (\"cobia_execution_steps\".\"state\" = 'failed'\n        AND \"cobia_execution_steps\".\"receipt\" IS NULL AND \"cobia_execution_steps\".\"evidence\" IS NULL\n        AND \"cobia_execution_steps\".\"postcondition\" IS NULL AND \"cobia_execution_steps\".\"failure_code\" IS NOT NULL\n        AND \"cobia_execution_steps\".\"resolved_at\" IS NOT NULL)\n    "
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.cobia_payments": {
+      "name": "cobia_payments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "request_id": {
+          "name": "request_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quote_id": {
+          "name": "quote_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "cobia_payment_state",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "payer": {
+          "name": "payer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payment_chain_id": {
+          "name": "payment_chain_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "execution_chain_id": {
+          "name": "execution_chain_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "realm": {
+          "name": "realm",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decimals": {
+          "name": "decimals",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount_atomic": {
+          "name": "amount_atomic",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recipient": {
+          "name": "recipient",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fee_payer": {
+          "name": "fee_payer",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "splits": {
+          "name": "splits",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "external_id": {
+          "name": "external_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payment_terms": {
+          "name": "payment_terms",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payment_terms_hash": {
+          "name": "payment_terms_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issued_at": {
+          "name": "issued_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reveal_proof_hash": {
+          "name": "reveal_proof_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reveal_nonce": {
+          "name": "reveal_nonce",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "proof_expires_at": {
+          "name": "proof_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "challenge_id": {
+          "name": "challenge_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "credential_hash": {
+          "name": "credential_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "authorization_valid_after": {
+          "name": "authorization_valid_after",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "receipt_header": {
+          "name": "receipt_header",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "receipt_hash": {
+          "name": "receipt_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "receipt_payload": {
+          "name": "receipt_payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "receipt_method": {
+          "name": "receipt_method",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "receipt_status": {
+          "name": "receipt_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "receipt_reference": {
+          "name": "receipt_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "receipt_timestamp": {
+          "name": "receipt_timestamp",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "receipt_chain_id": {
+          "name": "receipt_chain_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "receipt_challenge_id": {
+          "name": "receipt_challenge_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "receipt_external_id": {
+          "name": "receipt_external_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "settled_at": {
+          "name": "settled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "finalized_at": {
+          "name": "finalized_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "cobia_payments_request_idx": {
+          "name": "cobia_payments_request_idx",
+          "columns": [
+            {
+              "expression": "request_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_payments_quote_idx": {
+          "name": "cobia_payments_quote_idx",
+          "columns": [
+            {
+              "expression": "quote_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_payments_external_id_idx": {
+          "name": "cobia_payments_external_id_idx",
+          "columns": [
+            {
+              "expression": "external_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_payments_proof_idx": {
+          "name": "cobia_payments_proof_idx",
+          "columns": [
+            {
+              "expression": "reveal_proof_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_payments_nonce_idx": {
+          "name": "cobia_payments_nonce_idx",
+          "columns": [
+            {
+              "expression": "reveal_nonce",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_payments_challenge_idx": {
+          "name": "cobia_payments_challenge_idx",
+          "columns": [
+            {
+              "expression": "challenge_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_payments_credential_idx": {
+          "name": "cobia_payments_credential_idx",
+          "columns": [
+            {
+              "expression": "credential_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_payments_receipt_idx": {
+          "name": "cobia_payments_receipt_idx",
+          "columns": [
+            {
+              "expression": "receipt_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_payments_reference_idx": {
+          "name": "cobia_payments_reference_idx",
+          "columns": [
+            {
+              "expression": "receipt_reference",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "cobia_payments_request_id_cobia_requests_id_fk": {
+          "name": "cobia_payments_request_id_cobia_requests_id_fk",
+          "tableFrom": "cobia_payments",
+          "tableTo": "cobia_requests",
+          "columnsFrom": [
+            "request_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "cobia_payments_quote_id_cobia_quotes_id_fk": {
+          "name": "cobia_payments_quote_id_cobia_quotes_id_fk",
+          "tableFrom": "cobia_payments",
+          "tableTo": "cobia_quotes",
+          "columnsFrom": [
+            "quote_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "cobia_payments_support_check": {
+          "name": "cobia_payments_support_check",
+          "value": "\n      ((\"cobia_payments\".\"payment_chain_id\" = 196\n          AND lower(\"cobia_payments\".\"currency\") = '0x779ded0c9e1022225f8e0630b35a9b54be713736')\n        OR (\"cobia_payments\".\"payment_chain_id\" = 1952\n          AND lower(\"cobia_payments\".\"currency\") = '0x9e29b3aada05bf2d2c827af80bd28dc0b9b4fb0c'))\n      AND \"cobia_payments\".\"execution_chain_id\" = 196\n      AND \"cobia_payments\".\"decimals\" = 6 AND \"cobia_payments\".\"amount_atomic\" = '100000'\n      AND \"cobia_payments\".\"fee_payer\" = true\n    "
+        },
+        "cobia_payments_credential_window_check": {
+          "name": "cobia_payments_credential_window_check",
+          "value": "\n      (\"cobia_payments\".\"credential_hash\" IS NULL AND \"cobia_payments\".\"authorization_valid_after\" IS NULL)\n      OR (\"cobia_payments\".\"credential_hash\" IS NOT NULL AND \"cobia_payments\".\"authorization_valid_after\" IS NOT NULL\n        AND \"cobia_payments\".\"challenge_id\" IS NOT NULL\n        AND \"cobia_payments\".\"authorization_valid_after\" < \"cobia_payments\".\"expires_at\")\n    "
+        },
+        "cobia_payments_receipt_state_check": {
+          "name": "cobia_payments_receipt_state_check",
+          "value": "\n      (\"cobia_payments\".\"state\" = 'pending' AND \"cobia_payments\".\"receipt_header\" IS NULL\n        AND \"cobia_payments\".\"receipt_hash\" IS NULL AND \"cobia_payments\".\"receipt_payload\" IS NULL\n        AND \"cobia_payments\".\"receipt_method\" IS NULL AND \"cobia_payments\".\"receipt_status\" IS NULL\n        AND \"cobia_payments\".\"receipt_reference\" IS NULL AND \"cobia_payments\".\"receipt_timestamp\" IS NULL\n        AND \"cobia_payments\".\"receipt_chain_id\" IS NULL AND \"cobia_payments\".\"receipt_challenge_id\" IS NULL\n        AND \"cobia_payments\".\"receipt_external_id\" IS NULL AND \"cobia_payments\".\"settled_at\" IS NULL)\n      OR (\"cobia_payments\".\"state\" IN ('settled', 'finalized')\n        AND \"cobia_payments\".\"challenge_id\" IS NOT NULL AND \"cobia_payments\".\"credential_hash\" IS NOT NULL\n        AND \"cobia_payments\".\"authorization_valid_after\" IS NOT NULL\n        AND \"cobia_payments\".\"receipt_header\" IS NOT NULL AND \"cobia_payments\".\"receipt_hash\" IS NOT NULL\n        AND \"cobia_payments\".\"receipt_payload\" IS NOT NULL AND \"cobia_payments\".\"receipt_method\" = 'evm'\n        AND \"cobia_payments\".\"receipt_status\" = 'success' AND \"cobia_payments\".\"receipt_reference\" IS NOT NULL\n        AND \"cobia_payments\".\"receipt_timestamp\" IS NOT NULL\n        AND \"cobia_payments\".\"receipt_timestamp\" >= \"cobia_payments\".\"issued_at\"\n        AND \"cobia_payments\".\"receipt_timestamp\" >= \"cobia_payments\".\"authorization_valid_after\"\n        AND \"cobia_payments\".\"receipt_timestamp\" < \"cobia_payments\".\"expires_at\"\n        AND \"cobia_payments\".\"receipt_chain_id\" IS NOT NULL\n        AND \"cobia_payments\".\"receipt_chain_id\" = \"cobia_payments\".\"payment_chain_id\"\n        AND \"cobia_payments\".\"receipt_challenge_id\" IS NOT NULL\n        AND \"cobia_payments\".\"receipt_challenge_id\" = \"cobia_payments\".\"challenge_id\"\n        AND \"cobia_payments\".\"receipt_external_id\" IS NOT NULL\n        AND lower(\"cobia_payments\".\"receipt_external_id\") = lower(\"cobia_payments\".\"external_id\")\n        AND \"cobia_payments\".\"settled_at\" IS NOT NULL)\n    "
+        },
+        "cobia_payments_finalized_state_check": {
+          "name": "cobia_payments_finalized_state_check",
+          "value": "\n      (\"cobia_payments\".\"state\" = 'finalized') = (\"cobia_payments\".\"finalized_at\" IS NOT NULL)\n    "
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.cobia_markets": {
+      "name": "cobia_markets",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "execution_chain_id": {
+          "name": "execution_chain_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "asset": {
+          "name": "asset",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "cobia_markets_chain_asset_idx": {
+          "name": "cobia_markets_chain_asset_idx",
+          "columns": [
+            {
+              "expression": "execution_chain_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "asset",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "cobia_markets_identity_check": {
+          "name": "cobia_markets_identity_check",
+          "value": "\n      \"cobia_markets\".\"execution_chain_id\" = 196\n      AND \"cobia_markets\".\"asset\" ~ '^0x[0-9a-f]{40}$'\n      AND \"cobia_markets\".\"id\" = concat(\"cobia_markets\".\"execution_chain_id\", ':', \"cobia_markets\".\"asset\")\n    "
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.cobia_quotes": {
+      "name": "cobia_quotes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "request_id": {
+          "name": "request_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "solver_id": {
+          "name": "solver_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "private_bundle": {
+          "name": "private_bundle",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "verdict": {
+          "name": "verdict",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "public_quote": {
+          "name": "public_quote",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "executable": {
+          "name": "executable",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "cobia_quotes_request_idx": {
+          "name": "cobia_quotes_request_idx",
+          "columns": [
+            {
+              "expression": "request_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_quotes_request_solver_idx": {
+          "name": "cobia_quotes_request_solver_idx",
+          "columns": [
+            {
+              "expression": "request_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "solver_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "cobia_quotes_request_id_cobia_requests_id_fk": {
+          "name": "cobia_quotes_request_id_cobia_requests_id_fk",
+          "tableFrom": "cobia_quotes",
+          "tableTo": "cobia_requests",
+          "columnsFrom": [
+            "request_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.cobia_requests": {
+      "name": "cobia_requests",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "market_id": {
+          "name": "market_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "policy_hash": {
+          "name": "policy_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "policy": {
+          "name": "policy",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "snapshot": {
+          "name": "snapshot",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state": {
+          "name": "state",
+          "type": "cobia_request_state",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'open'"
+        },
+        "selected_quote_id": {
+          "name": "selected_quote_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payment_receipt_hash": {
+          "name": "payment_receipt_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "cobia_requests_market_idx": {
+          "name": "cobia_requests_market_idx",
+          "columns": [
+            {
+              "expression": "market_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_requests_policy_hash_idx": {
+          "name": "cobia_requests_policy_hash_idx",
+          "columns": [
+            {
+              "expression": "policy_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_requests_payment_receipt_idx": {
+          "name": "cobia_requests_payment_receipt_idx",
+          "columns": [
+            {
+              "expression": "payment_receipt_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "cobia_requests_market_id_cobia_markets_id_fk": {
+          "name": "cobia_requests_market_id_cobia_markets_id_fk",
+          "tableFrom": "cobia_requests",
+          "tableTo": "cobia_markets",
+          "columnsFrom": [
+            "market_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "cobia_requests_market_identity_check": {
+          "name": "cobia_requests_market_identity_check",
+          "value": "\n      \"cobia_requests\".\"market_id\" = concat(\n        (\"cobia_requests\".\"policy\"->>'executionChainId')::integer,\n        ':',\n        lower(\"cobia_requests\".\"policy\"->>'asset')\n      )\n    "
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.cobia_activity_events": {
+      "name": "cobia_activity_events",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "wallet": {
+          "name": "wallet",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "chain_id": {
+          "name": "chain_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payment_id": {
+          "name": "payment_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "route_id": {
+          "name": "route_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transaction_hash": {
+          "name": "transaction_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "detail": {
+          "name": "detail",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "cobia_activity_events_wallet_idx": {
+          "name": "cobia_activity_events_wallet_idx",
+          "columns": [
+            {
+              "expression": "wallet",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "chain_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "occurred_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_activity_events_payment_kind_idx": {
+          "name": "cobia_activity_events_payment_kind_idx",
+          "columns": [
+            {
+              "expression": "payment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "cobia_activity_events_payment_id_cobia_payments_id_fk": {
+          "name": "cobia_activity_events_payment_id_cobia_payments_id_fk",
+          "tableFrom": "cobia_activity_events",
+          "tableTo": "cobia_payments",
+          "columnsFrom": [
+            "payment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.cobia_execution_rehearsals": {
+      "name": "cobia_execution_rehearsals",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "route_id": {
+          "name": "route_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bundle_hash": {
+          "name": "bundle_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "buyer": {
+          "name": "buyer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "execution_chain_id": {
+          "name": "execution_chain_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "cobia_execution_rehearsal_state",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'running'"
+        },
+        "proof_hash": {
+          "name": "proof_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "proof_nonce": {
+          "name": "proof_nonce",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "proof_expires_at": {
+          "name": "proof_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "registry_hash": {
+          "name": "registry_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "snapshot_block_hash": {
+          "name": "snapshot_block_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "engine_version": {
+          "name": "engine_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trace_hash": {
+          "name": "trace_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trace": {
+          "name": "trace",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "failure_code": {
+          "name": "failure_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "cobia_execution_rehearsals_route_idx": {
+          "name": "cobia_execution_rehearsals_route_idx",
+          "columns": [
+            {
+              "expression": "route_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "bundle_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_execution_rehearsals_proof_idx": {
+          "name": "cobia_execution_rehearsals_proof_idx",
+          "columns": [
+            {
+              "expression": "proof_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_execution_rehearsals_nonce_idx": {
+          "name": "cobia_execution_rehearsals_nonce_idx",
+          "columns": [
+            {
+              "expression": "proof_nonce",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_execution_rehearsals_trace_idx": {
+          "name": "cobia_execution_rehearsals_trace_idx",
+          "columns": [
+            {
+              "expression": "trace_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "cobia_execution_rehearsals_route_id_cobia_route_purchases_id_fk": {
+          "name": "cobia_execution_rehearsals_route_id_cobia_route_purchases_id_fk",
+          "tableFrom": "cobia_execution_rehearsals",
+          "tableTo": "cobia_route_purchases",
+          "columnsFrom": [
+            "route_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "cobia_execution_rehearsals_identity_check": {
+          "name": "cobia_execution_rehearsals_identity_check",
+          "value": "\n      \"cobia_execution_rehearsals\".\"execution_chain_id\" = 196\n      AND lower(\"cobia_execution_rehearsals\".\"route_id\") = lower(\"cobia_execution_rehearsals\".\"bundle_hash\")\n    "
+        },
+        "cobia_execution_rehearsals_state_check": {
+          "name": "cobia_execution_rehearsals_state_check",
+          "value": "\n      (\"cobia_execution_rehearsals\".\"state\" = 'running'\n        AND \"cobia_execution_rehearsals\".\"registry_hash\" IS NULL AND \"cobia_execution_rehearsals\".\"snapshot_block_hash\" IS NULL\n        AND \"cobia_execution_rehearsals\".\"engine_version\" IS NULL AND \"cobia_execution_rehearsals\".\"trace_hash\" IS NULL\n        AND \"cobia_execution_rehearsals\".\"trace\" IS NULL AND \"cobia_execution_rehearsals\".\"failure_code\" IS NULL\n        AND \"cobia_execution_rehearsals\".\"completed_at\" IS NULL)\n      OR (\"cobia_execution_rehearsals\".\"state\" = 'passed'\n        AND \"cobia_execution_rehearsals\".\"registry_hash\" IS NOT NULL AND \"cobia_execution_rehearsals\".\"snapshot_block_hash\" IS NOT NULL\n        AND \"cobia_execution_rehearsals\".\"engine_version\" IS NOT NULL AND \"cobia_execution_rehearsals\".\"trace_hash\" IS NOT NULL\n        AND \"cobia_execution_rehearsals\".\"trace\" IS NOT NULL AND \"cobia_execution_rehearsals\".\"failure_code\" IS NULL\n        AND \"cobia_execution_rehearsals\".\"completed_at\" IS NOT NULL)\n      OR (\"cobia_execution_rehearsals\".\"state\" = 'failed'\n        AND \"cobia_execution_rehearsals\".\"registry_hash\" IS NULL AND \"cobia_execution_rehearsals\".\"snapshot_block_hash\" IS NULL\n        AND \"cobia_execution_rehearsals\".\"engine_version\" IS NULL AND \"cobia_execution_rehearsals\".\"trace_hash\" IS NULL\n        AND \"cobia_execution_rehearsals\".\"trace\" IS NULL AND \"cobia_execution_rehearsals\".\"failure_code\" IS NOT NULL\n        AND \"cobia_execution_rehearsals\".\"completed_at\" IS NOT NULL)\n    "
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.cobia_route_purchases": {
+      "name": "cobia_route_purchases",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "request_id": {
+          "name": "request_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quote_id": {
+          "name": "quote_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "buyer": {
+          "name": "buyer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "chain_id": {
+          "name": "chain_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payment_chain_id": {
+          "name": "payment_chain_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payment_id": {
+          "name": "payment_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "receipt_hash": {
+          "name": "receipt_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bundle": {
+          "name": "bundle",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "purchased_at": {
+          "name": "purchased_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "cobia_route_purchases_quote_idx": {
+          "name": "cobia_route_purchases_quote_idx",
+          "columns": [
+            {
+              "expression": "quote_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_route_purchases_receipt_idx": {
+          "name": "cobia_route_purchases_receipt_idx",
+          "columns": [
+            {
+              "expression": "receipt_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_route_purchases_payment_idx": {
+          "name": "cobia_route_purchases_payment_idx",
+          "columns": [
+            {
+              "expression": "payment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cobia_route_purchases_buyer_idx": {
+          "name": "cobia_route_purchases_buyer_idx",
+          "columns": [
+            {
+              "expression": "buyer",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "chain_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "cobia_route_purchases_request_id_cobia_requests_id_fk": {
+          "name": "cobia_route_purchases_request_id_cobia_requests_id_fk",
+          "tableFrom": "cobia_route_purchases",
+          "tableTo": "cobia_requests",
+          "columnsFrom": [
+            "request_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "cobia_route_purchases_payment_id_cobia_payments_id_fk": {
+          "name": "cobia_route_purchases_payment_id_cobia_payments_id_fk",
+          "tableFrom": "cobia_route_purchases",
+          "tableTo": "cobia_payments",
+          "columnsFrom": [
+            "payment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.cobia_execution_attempt_state": {
+      "name": "cobia_execution_attempt_state",
+      "schema": "public",
+      "values": [
+        "prepared",
+        "active",
+        "partial",
+        "reconcile",
+        "failed",
+        "complete"
+      ]
+    },
+    "public.cobia_execution_step_state": {
+      "name": "cobia_execution_step_state",
+      "schema": "public",
+      "values": [
+        "prepared",
+        "broadcasting",
+        "submitted",
+        "confirmed",
+        "reconcile",
+        "failed"
+      ]
+    },
+    "public.cobia_payment_state": {
+      "name": "cobia_payment_state",
+      "schema": "public",
+      "values": [
+        "pending",
+        "settled",
+        "finalized"
+      ]
+    },
+    "public.cobia_request_state": {
+      "name": "cobia_request_state",
+      "schema": "public",
+      "values": [
+        "open",
+        "collecting",
+        "verifying",
+        "quotes_ready",
+        "partial",
+        "selected",
+        "payment_pending",
+        "paid",
+        "revealed",
+        "executed",
+        "failed"
+      ]
+    },
+    "public.cobia_execution_rehearsal_state": {
+      "name": "cobia_execution_rehearsal_state",
+      "schema": "public",
+      "values": [
+        "running",
+        "passed",
+        "failed"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

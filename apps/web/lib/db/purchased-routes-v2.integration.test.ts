@@ -152,7 +152,7 @@ describe("V2 paid-route persistence boundaries", () => {
       reference: commitment({ receipt: crypto.randomUUID() }),
       status: "success",
       timestamp: new Date((repositoryTestNowSec + 30) * 1_000).toISOString(),
-      chainId: 1952,
+      chainId: 196,
       challengeId,
       externalId: fixture.quote.quoteId,
     })).toString("base64url");

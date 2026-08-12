@@ -28,10 +28,10 @@ function terms() {
 describe("payment terms", () => {
   it("builds the exact supported reveal agreement", () => {
     expect(terms()).toEqual({
-      version: 1,
+      version: 2,
       realm: "pay.cobia.example",
-      paymentChainId: 1952,
-      currency: "0x9e29b3AaDa05Bf2D2c827Af80Bd28Dc0b9b4FB0c",
+      paymentChainId: 196,
+      currency: "0x779Ded0c9e1022225f8E0630b35a9b54bE713736",
       decimals: 6,
       amount: "100000",
       recipient: solver,
@@ -41,6 +41,15 @@ describe("payment terms", () => {
       issuedAt,
       expiresAt: 2_000_000_000,
     });
+  });
+
+  it("keeps historical testnet agreements readable without issuing new ones", () => {
+    expect(PaymentTermsSchema.parse({
+      ...terms(),
+      version: 1,
+      paymentChainId: 1952,
+      currency: "0x9e29b3AaDa05Bf2D2c827Af80Bd28Dc0b9b4FB0c",
+    })).toMatchObject({ version: 1, paymentChainId: 1952 });
   });
 
   it("rejects a selected quote with any other price", () => {
@@ -85,8 +94,8 @@ describe("payment terms", () => {
   });
 
   it.each([
-    ["version", (value: Record<string, unknown>) => { value.version = 2; }],
-    ["payment chain", (value: Record<string, unknown>) => { value.paymentChainId = 196; }],
+    ["version", (value: Record<string, unknown>) => { value.version = 1; }],
+    ["payment chain", (value: Record<string, unknown>) => { value.paymentChainId = 1952; }],
     ["currency", (value: Record<string, unknown>) => { value.currency = "0x1111111111111111111111111111111111111111"; }],
     ["decimals", (value: Record<string, unknown>) => { value.decimals = 18; }],
     ["amount", (value: Record<string, unknown>) => { value.amount = "100001"; }],
@@ -103,7 +112,7 @@ describe("payment terms", () => {
   });
 
   it("hashes every variable agreement field deterministically", () => {
-    const expected = "0x01a19296944e696e078ecc2aa61a75ee65280389e979759381889f4616ba9b21";
+    const expected = "0x13e9ccd00061ac0174920dc03b32563b8d6d1812f9955311f8b1baa0834d6dd1";
     expect(hashPaymentTerms(terms())).toBe(expected);
 
     for (const mutation of [
@@ -120,13 +129,13 @@ describe("payment terms", () => {
   it("maps terms to an MPP charge with explicit challenge expiry", () => {
     expect(paymentTermsToChargeOptions(terms())).toEqual({
       amount: "100000",
-      currency: "0x9e29b3AaDa05Bf2D2c827Af80Bd28Dc0b9b4FB0c",
+      currency: "0x779Ded0c9e1022225f8E0630b35a9b54bE713736",
       recipient: solver,
       description: "Reveal Cobia deterministic Aave quote",
       externalId: quote.quoteId,
       expires: "2033-05-18T03:33:20.000Z",
       methodDetails: {
-        chainId: 1952,
+        chainId: 196,
         feePayer: true,
         splits: [{ amount: "10000", recipient: treasury, memo: "cobia-platform" }],
       },

@@ -19,10 +19,10 @@ const splitNonce = `0x${"02".repeat(32)}`;
 const shapedSignature = `0x${"aa".repeat(65)}`;
 
 const terms = PaymentTermsSchema.parse({
-  version: 1,
+  version: 2,
   realm: "pay.cobia.example",
-  paymentChainId: 1952,
-  currency: "0x9e29b3aada05bf2d2c827af80bd28dc0b9b4fb0c",
+  paymentChainId: 196,
+  currency: "0x779ded0c9e1022225f8e0630b35a9b54be713736",
   decimals: 6,
   amount: "100000",
   recipient: solver,
@@ -113,7 +113,7 @@ async function fixture(): Promise<MutableCredential> {
         },
       },
     },
-    source: `did:pkh:eip155:1952:${owner}`,
+    source: `did:pkh:eip155:196:${owner}`,
     payload: {
       type: "transaction",
       authorization: primary,
@@ -157,8 +157,8 @@ describe("payment credential preflight", () => {
 
   it.each([
     ["missing source", (v: MutableCredential) => { delete v.source; }],
-    ["source chain", (v: MutableCredential) => { v.source = `did:pkh:eip155:196:${owner}`; }],
-    ["source owner", (v: MutableCredential) => { v.source = "did:pkh:eip155:1952:0x4444444444444444444444444444444444444444"; }],
+    ["source chain", (v: MutableCredential) => { v.source = `did:pkh:eip155:1952:${owner}`; }],
+    ["source owner", (v: MutableCredential) => { v.source = "did:pkh:eip155:196:0x4444444444444444444444444444444444444444"; }],
     ["hash payload", (v: MutableCredential) => { v.payload = { type: "hash", hash: quoteId }; }],
     ["Permit2", (v: MutableCredential) => { v.payload.authorization = {
       type: "permit2",

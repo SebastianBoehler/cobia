@@ -12,10 +12,10 @@ read adapter is not, by itself, an executable Cobia route.
 | Aave reserve/oracle reader | Live V2 quote input | Direct mainnet reads at one pinned number/hash/timestamp; proxy implementations and amount-specific supply-cap arithmetic are checked |
 | Curve USDG/USDt0 swap reader | Live V2 quote input | Factory-owned StableSwap NG pool, exact token indices, balances, fee, amplification, virtual price, implementation and exact-input output at the pinned block |
 | Uniswap USDG/USDt0 swap and LP readers | Live V2 quote input | Factory-derived 0.01% pool and QuoterV2 response at the pinned snapshot block; full-range LP capture also pins a historical block, fee-growth deltas, pool balances, exact desired amounts, and minimum liquidity |
-| Portfolio token and aToken balances | Live in the product | Direct mainnet ERC-20 reads; testnet assets are payment rehearsal only |
+| Portfolio token and aToken balances | Live in the product | Direct X Layer mainnet ERC-20 reads |
 | V1 solver | Live in the product | One deterministic cash/Aave allocation over OKX discovery data; no independent solver competition |
 | V2 policy, snapshot, plan, quote, and purchase | Live product path | Persisted versioned artifacts; one exact conserved leg containing Aave supply, Curve/Uniswap swap-to-Aave, or balance-swap plus full-range LP mint; estimated pre-gas economics only |
-| MPP/EIP-3009 reveal payment | Implemented for fixed chain 1952 lane | Pays for the private bundle, not principal execution; a funded receipt-correlation canary is still required |
+| MPP/EIP-3009 reveal payment | Implemented for fixed chain 196 USDt0 lane | Pays for the private bundle, not principal execution; a funded receipt-correlation canary is still required |
 | Aave/Curve/Uniswap transaction engine | Unit/fork-tested and product-wired for verified stepwise mainnet execution | Exact approvals, Curve exchange/SwapRouter02/Aave/position-manager calldata, receipt attribution, protocol events, owner-held LP NFT and state postconditions; one explicit buyer-wallet confirmation per transaction |
 | Purchased-route fork rehearsal | Product-visible and persisted | Buyer proof replays the exact V2 bundle at its committed snapshot block with simulated funds; historical evidence, not current-state simulation |
 | Verified purchased-route execution | Product-visible for fresh rehearsed V2 routes | Durable one-step chain-196 attempts, buyer-bound short-lived authorization, local calldata verification, recovery by exact nonce/calldata, and no automatic follow-on transaction |

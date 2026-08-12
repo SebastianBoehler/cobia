@@ -7,7 +7,13 @@ import {
   type Hash,
 } from "viem";
 import { z } from "zod";
-import { PAYMENT_ASSET, PAYMENT_CHAIN_ID, PAYMENT_DECIMALS } from "./support";
+import {
+  LEGACY_PAYMENT_ASSET,
+  LEGACY_PAYMENT_CHAIN_ID,
+  PAYMENT_ASSET,
+  PAYMENT_CHAIN_ID,
+  PAYMENT_DECIMALS,
+} from "./support";
 
 const REVEAL_AMOUNT = "100000" as const;
 const COBIA_SPLIT_AMOUNT = "10000" as const;
@@ -20,10 +26,12 @@ const AddressSchema = z.string()
   .refine(isAddress, "Invalid EVM address")
   .transform((value) => getAddress(value));
 
-const CurrencySchema = AddressSchema.refine(
-  (value) => isAddressEqual(value, PAYMENT_ASSET),
-  "Unsupported payment asset",
-);
+function currencySchema(asset: Address) {
+  return AddressSchema.refine(
+    (value) => isAddressEqual(value, asset),
+    "Unsupported payment asset",
+  );
+}
 
 const HashSchema = z.string()
   .regex(/^0x[0-9a-fA-F]{64}$/, "Expected a 32-byte quote commitment")
@@ -35,11 +43,8 @@ const PaymentSplitSchema = z.object({
   memo: z.literal(COBIA_SPLIT_MEMO),
 }).strict();
 
-export const PaymentTermsSchema = z.object({
-  version: z.literal(1),
+const PaymentTermsBaseSchema = z.object({
   realm: z.string().trim().min(1),
-  paymentChainId: z.literal(PAYMENT_CHAIN_ID),
-  currency: CurrencySchema,
   decimals: z.literal(PAYMENT_DECIMALS),
   amount: z.literal(REVEAL_AMOUNT),
   recipient: AddressSchema,
@@ -48,7 +53,24 @@ export const PaymentTermsSchema = z.object({
   splits: z.tuple([PaymentSplitSchema]),
   issuedAt: z.number().int().nonnegative().safe(),
   expiresAt: z.number().int().positive().safe(),
-}).strict().superRefine((terms, context) => {
+}).strict();
+
+const LegacyPaymentTermsSchema = PaymentTermsBaseSchema.extend({
+  version: z.literal(1),
+  paymentChainId: z.literal(LEGACY_PAYMENT_CHAIN_ID),
+  currency: currencySchema(LEGACY_PAYMENT_ASSET),
+}).strict();
+
+const MainnetPaymentTermsSchema = PaymentTermsBaseSchema.extend({
+  version: z.literal(2),
+  paymentChainId: z.literal(PAYMENT_CHAIN_ID),
+  currency: currencySchema(PAYMENT_ASSET),
+}).strict();
+
+export const PaymentTermsSchema = z.discriminatedUnion("version", [
+  LegacyPaymentTermsSchema,
+  MainnetPaymentTermsSchema,
+]).superRefine((terms, context) => {
   if (terms.expiresAt <= terms.issuedAt) {
     context.addIssue({
       code: "custom",
@@ -85,7 +107,7 @@ interface BuildPaymentTermsInput {
 
 export function buildPaymentTerms(input: BuildPaymentTermsInput): PaymentTerms {
   return PaymentTermsSchema.parse({
-    version: 1,
+    version: 2,
     realm: input.realm,
     paymentChainId: PAYMENT_CHAIN_ID,
     currency: PAYMENT_ASSET,

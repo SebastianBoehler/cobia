@@ -5,7 +5,11 @@ import {
   type Address,
   type Hex,
 } from "viem";
-import { PAYMENT_EIP712_DOMAIN } from "./support";
+import {
+  LEGACY_PAYMENT_EIP712_DOMAIN,
+  PAYMENT_EIP712_DOMAIN,
+} from "./support";
+import type { PaymentTerms } from "./terms";
 
 export const EIP3009_AUTHORIZATION_TYPES = {
   TransferWithAuthorization: [
@@ -41,9 +45,13 @@ export interface SignedEip3009Authorization {
 export async function requireEip3009OwnerSignature(
   authorization: SignedEip3009Authorization,
   owner: Address,
+  terms: PaymentTerms,
 ): Promise<void> {
+  const domain = terms.version === 2
+    ? PAYMENT_EIP712_DOMAIN
+    : LEGACY_PAYMENT_EIP712_DOMAIN;
   const signer = await recoverTypedDataAddress({
-    domain: PAYMENT_EIP712_DOMAIN,
+    domain,
     types: EIP3009_AUTHORIZATION_TYPES,
     primaryType: "TransferWithAuthorization",
     message: {

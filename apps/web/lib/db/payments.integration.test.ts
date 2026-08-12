@@ -56,7 +56,7 @@ function receiptHeader(input: {
     reference: input.reference ?? commitment({ reference: crypto.randomUUID() }),
     status: "success",
     timestamp: input.timestamp ?? new Date((repositoryTestNowSec + 30) * 1_000).toISOString(),
-    chainId: 1952,
+    chainId: 196,
     challengeId: input.challengeId,
     externalId: input.quoteId,
   };
@@ -92,7 +92,7 @@ describe("durable payment saga", () => {
     expect(started.attempt).toMatchObject({
       state: "pending",
       payer: started.fixture.policy.owner.toLowerCase(),
-      paymentChainId: 1952,
+      paymentChainId: 196,
       executionChainId: 196,
       amountAtomic: "100000",
       paymentTermsHash: hashPaymentTerms(started.input.terms),
@@ -146,7 +146,7 @@ describe("durable payment saga", () => {
     expect(await restarted.getPaymentByRequest(first.fixture.policy.requestId)).toMatchObject({
       state: "settled",
       receiptHeader: first.rawReceipt,
-      receiptChainId: 1952,
+      receiptChainId: 196,
       receiptChallengeId: first.challengeId,
       receiptExternalId: first.fixture.quote.quoteId,
     });
@@ -256,7 +256,7 @@ describe("durable payment saga", () => {
       id: settled.fixture.quote.quoteId,
       paymentId: settled.attempt.id,
       executionChainId: 196,
-      paymentChainId: 1952,
+      paymentChainId: 196,
       buyer: settled.fixture.policy.owner.toLowerCase(),
       receiptHash: settled.attempt.receiptHash,
       bundle: settled.fixture.bundle,
@@ -274,7 +274,7 @@ describe("durable payment saga", () => {
     if (!database) throw new Error("Integration database did not start");
     const settled = await settleAttempt();
     const invalidSettled: Partial<typeof cobiaPayments.$inferInsert>[] = [
-      { receiptMethod: "bogus" }, { receiptStatus: "failed" }, { receiptChainId: 196 },
+      { receiptMethod: "bogus" }, { receiptStatus: "failed" }, { receiptChainId: 1952 },
       { receiptChainId: null }, { receiptChallengeId: "wrong" }, { receiptChallengeId: null },
       { receiptExternalId: `0x${"ff".repeat(32)}` }, { receiptExternalId: null },
       { receiptTimestamp: new Date((repositoryTestNowSec - 1) * 1_000) },

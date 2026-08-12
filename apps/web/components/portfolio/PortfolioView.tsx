@@ -23,8 +23,7 @@ export function PortfolioView() {
     if (!wallet.account) return;
     let active = true;
     const account = wallet.account;
-    const chainId = wallet.chainId === 1952 ? 1952 : 196;
-    fetch(`/api/wallets/${wallet.account}/portfolio?chainId=${chainId}`, { cache: "no-store" })
+    fetch(`/api/wallets/${wallet.account}/portfolio?chainId=196`, { cache: "no-store" })
       .then(async (response) => {
         const body = await response.json();
         if (!response.ok) throw new Error(body.message ?? "Portfolio read failed.");
@@ -42,12 +41,11 @@ export function PortfolioView() {
   if (!snapshot) return null;
   return <section className={styles.panel}>
     <div className={styles.panelHeader}><div><h2>Wallet assets</h2><p>Observed at block {snapshot.blockNumber}</p></div><span className={styles.badge}>{snapshot.networkName}</span></div>
-    {snapshot.chainId === 1952 ? <p className={styles.notice}>Testnet assets are for payment rehearsal only. V2 quote construction reads registered Aave V3, Curve StableSwap NG, and Uniswap V3 contracts at one pinned X Layer mainnet block; mainnet wallet balances personalize listings and estimates.</p> : null}
     <div className={styles.rows}>
       <div className={styles.row}><div><strong>OKB</strong><small>Gas balance</small></div><span>Native asset</span><strong>{pretty(snapshot.native.formatted)}</strong></div>
       {snapshot.balances.map((balance) => <div className={styles.row} key={balance.address}><div><strong>{balance.symbol}</strong><small>Wallet balance</small></div><span>{balance.address.slice(0, 10)}…</span><strong>{pretty(balance.formatted)}</strong></div>)}
       {snapshot.positions.map((position) => <div className={styles.row} key={position.symbol}><div><strong>{position.symbol}</strong><small>Aave V3 supplied position</small></div><span>{position.adapterId}</span><strong>{pretty(position.formatted)}</strong></div>)}
     </div>
-    {snapshot.chainId === 196 ? <WalletScout account={wallet.account} snapshot={snapshot} /> : null}
+    <WalletScout account={wallet.account} snapshot={snapshot} />
   </section>;
 }

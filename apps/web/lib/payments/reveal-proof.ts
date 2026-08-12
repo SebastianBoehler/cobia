@@ -8,7 +8,13 @@ import {
   type Hex,
 } from "viem";
 import { z } from "zod";
-import { PAYMENT_CHAIN_ID } from "./support";
+import { LEGACY_PAYMENT_CHAIN_ID, PAYMENT_CHAIN_ID } from "./support";
+
+const PaymentChainIdSchema = z.union([
+  z.literal(PAYMENT_CHAIN_ID),
+  z.literal(LEGACY_PAYMENT_CHAIN_ID),
+]);
+type PaymentChainId = z.infer<typeof PaymentChainIdSchema>;
 
 const HashSchema = z.string()
   .regex(/^0x[0-9a-fA-F]{64}$/, "Expected a 32-byte hex value")
@@ -30,7 +36,7 @@ export const RevealProofSchema = z.object({
   requestId: z.string().uuid(),
   quoteId: HashSchema,
   owner: LowercaseAddressSchema,
-  paymentChainId: z.literal(PAYMENT_CHAIN_ID),
+  paymentChainId: PaymentChainIdSchema,
   executionChainId: z.literal(196),
   paymentTermsHash: HashSchema,
   nonce: HashSchema,
@@ -44,7 +50,7 @@ export interface RevealProofContext {
   requestId: string;
   quoteId: Hash;
   owner: Address;
-  paymentChainId: typeof PAYMENT_CHAIN_ID;
+  paymentChainId: PaymentChainId;
   executionChainId: 196;
   paymentTermsHash: Hash;
   expiresAt: number;

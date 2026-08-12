@@ -77,7 +77,11 @@ export const cobiaPayments = pgTable(
     uniqueIndex("cobia_payments_receipt_idx").on(table.receiptHash),
     uniqueIndex("cobia_payments_reference_idx").on(table.receiptReference),
     check("cobia_payments_support_check", sql`
-      ${table.paymentChainId} = 1952 AND ${table.executionChainId} = 196
+      ((${table.paymentChainId} = 196
+          AND lower(${table.currency}) = '0x779ded0c9e1022225f8e0630b35a9b54be713736')
+        OR (${table.paymentChainId} = 1952
+          AND lower(${table.currency}) = '0x9e29b3aada05bf2d2c827af80bd28dc0b9b4fb0c'))
+      AND ${table.executionChainId} = 196
       AND ${table.decimals} = 6 AND ${table.amountAtomic} = '100000'
       AND ${table.feePayer} = true
     `),

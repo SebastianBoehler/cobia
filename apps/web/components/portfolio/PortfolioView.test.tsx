@@ -16,11 +16,11 @@ afterEach(() => {
 });
 
 describe("PortfolioView", () => {
-  it("distinguishes mainnet quote inputs from balance personalization", async () => {
+  it("reads the coherent mainnet portfolio even when the wallet starts on testnet", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({
       address: owner,
-      chainId: 1952,
-      networkName: "X Layer Testnet",
+      chainId: 196,
+      networkName: "X Layer Mainnet",
       blockNumber: "123",
       observedAt: "2026-08-11T00:00:00.000Z",
       native: { symbol: "OKB", amountAtomic: "0", formatted: "0" },
@@ -54,8 +54,11 @@ describe("PortfolioView", () => {
     ));
     fireEvent.click(screen.getByRole("button", { name: "Connect wallet" }));
 
-    expect(await screen.findByText(
-      "Testnet assets are for payment rehearsal only. V2 quote construction reads registered Aave V3, Curve StableSwap NG, and Uniswap V3 contracts at one pinned X Layer mainnet block; mainnet wallet balances personalize listings and estimates.",
-    )).toBeVisible();
+    expect(await screen.findByText("X Layer Mainnet")).toBeVisible();
+    expect(fetch).toHaveBeenCalledWith(
+      `/api/wallets/${owner}/portfolio?chainId=196`,
+      { cache: "no-store" },
+    );
+    expect(screen.queryByText(/payment rehearsal/i)).not.toBeInTheDocument();
   });
 });

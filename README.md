@@ -24,7 +24,7 @@ external-solver market.
 | Deterministic V2 route authorization | Implemented and recomputed before persistence/payment |
 | Bounded OpenAI route selector | Live; selects only server-enumerated candidates and signs with an independent solver key |
 | Quote selection and owner signatures | Implemented |
-| MPP/EIP-3009 paid reveal | Implemented for the fixed X Layer testnet payment lane |
+| MPP/EIP-3009 paid reveal | Implemented on X Layer mainnet with fixed USDt0 and one off-chain authorization per recipient |
 | PostgreSQL request/payment/purchase history | Implemented |
 | X Layer mainnet USDt0 and Aave aToken balances | Live reads |
 | Aave + Curve + Uniswap route planning | Implemented for one exact conserved leg: Aave supply, Curve/Uniswap swap-to-Aave, or one-sided full-range Uniswap LP entry |
@@ -70,7 +70,8 @@ targets and calldata. Well-formed bundles that reach a verifier verdict are
 saved even when authorization is rejected, but are not marketed as active
 quotes. Solver errors, timeouts, malformed bundles, identity mismatches, and
 non-actionable returns remain round failures and are not persisted as quotes.
-Payment chain and execution chain are recorded separately. The app stores
+Payment and execution both use X Layer mainnet chain 196; their chain fields
+remain separately recorded for auditability and historical receipt compatibility. The app stores
 credential hashes and receipt evidence, not raw spend-capable payment
 credentials.
 

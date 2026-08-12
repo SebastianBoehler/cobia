@@ -28,7 +28,6 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.clearAllMocks();
-  vi.unstubAllEnvs();
 });
 
 describe("mainnet portfolio", () => {
@@ -79,21 +78,5 @@ describe("mainnet portfolio", () => {
     });
 
     await expect(readPortfolio(owner, 196, "https://rpc.invalid")).rejects.toBe(rpcFailure);
-  });
-});
-
-describe("testnet portfolio", () => {
-  it("keeps payment rehearsal cash-only", async () => {
-    vi.stubEnv("PAYMENT_ASSET", "0x1111111111111111111111111111111111111111");
-
-    const snapshot = await readPortfolio(owner, 1952, "https://rpc.invalid");
-
-    expect(snapshot.balances).toEqual([{
-      address: "0x9e29b3AaDa05Bf2D2c827Af80Bd28Dc0b9b4FB0c",
-      symbol: "USDt0 test",
-      amountAtomic: "0",
-      formatted: "0",
-    }]);
-    expect(snapshot.positions).toEqual([]);
   });
 });

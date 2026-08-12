@@ -12,7 +12,7 @@ function header(overrides: Record<string, unknown> = {}): string {
     reference: lowerReference,
     status: "success",
     timestamp: "2033-05-18T03:30:00.000Z",
-    chainId: 1952,
+    chainId: 196,
     challengeId: "challenge-1",
     externalId: lowerExternalId,
     ...overrides,
@@ -28,6 +28,10 @@ describe("EVM payment receipt parsing", () => {
       reference: lowerReference,
       externalId: lowerExternalId,
     });
+  });
+
+  it("keeps a historical testnet receipt readable", () => {
+    expect(parsePaymentReceiptHeader(header({ chainId: 1952 })).chainId).toBe(1952);
   });
 
   it.each([

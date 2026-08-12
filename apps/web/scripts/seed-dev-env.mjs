@@ -43,9 +43,8 @@ COBIA_TREASURY=${wallets.treasury.address}
 COBIA_DEV_TREASURY_PRIVATE_KEY=${wallets.treasury.privateKey}
 PAYMENT_REALM=localhost:3000
 
-# X Layer RPC endpoints.
+# X Layer mainnet RPC endpoint.
 XLAYER_RPC_URL=https://rpc.xlayer.tech
-XLAYER_TESTNET_RPC_URL=https://testrpc.xlayer.tech/terigon
 `;
 }
 

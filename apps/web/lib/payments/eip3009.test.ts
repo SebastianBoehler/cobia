@@ -6,7 +6,8 @@ import { buildPaymentTerms, paymentTermsToChargeOptions } from "./terms";
 
 const owner = "0x1111111111111111111111111111111111111111";
 const other = "0x4444444444444444444444444444444444444444";
-const paymentAsset = "0x9e29b3AaDa05Bf2D2c827Af80Bd28Dc0b9b4FB0c";
+const paymentAsset = "0x779Ded0c9e1022225f8E0630b35a9b54bE713736";
+const mainnetDomainSeparator = "0xd591d9baf744328d9400b923cb02c9474d367d591ca1ab24d8c4068be527599d";
 const solver = "0x2222222222222222222222222222222222222222";
 const treasury = "0x3333333333333333333333333333333333333333";
 const signature = `0x${"ef".repeat(65)}`;
@@ -68,7 +69,7 @@ type DomainResult = Parameters<typeof encodeFunctionResult<typeof domainAbi, "ei
 function harness(
   account: `0x${string}` = owner,
   domainResult: DomainResult = [
-    "0x0f", "USD₮0", "1", 1952n, paymentAsset, `0x${"00".repeat(32)}`, [],
+    "0x0f", "USD₮0", "1", 196n, paymentAsset, `0x${"00".repeat(32)}`, [],
   ],
 ) {
   const request = vi.fn(async ({ method }: { method: string }) => {
@@ -113,7 +114,7 @@ describe("authorizePayment", () => {
     );
 
     const credential = Credential.deserialize(authorization);
-    expect(credential.source).toBe(`did:pkh:eip155:1952:${owner}`);
+    expect(credential.source).toBe(`did:pkh:eip155:196:${owner}`);
     expect(credential.payload).toMatchObject({
       type: "transaction",
       authorization: {
@@ -128,8 +129,19 @@ describe("authorizePayment", () => {
       authorization: { validAfter: string; splits: Array<{ validAfter: string }> };
     };
     expect(payload.authorization.splits[0]?.validAfter).toBe(payload.authorization.validAfter);
-    expect(test.switchChain).toHaveBeenCalledWith(1952);
+    expect(test.switchChain).toHaveBeenCalledWith(196);
     expect(test.chainRequest).toHaveBeenCalledTimes(1);
+    expect(test.request).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses the exact on-chain domain separator when ERC-5267 metadata is unavailable", async () => {
+    const test = harness();
+    test.chainRequest.mockRejectedValueOnce(new Error("execution reverted"));
+    test.chainRequest.mockResolvedValueOnce(mainnetDomainSeparator);
+
+    await authorizePayment(challengeResponse(), test.wallet, { terms, owner }, test.reader);
+
+    expect(test.chainRequest).toHaveBeenCalledTimes(2);
     expect(test.request).toHaveBeenCalledTimes(2);
   });
 
@@ -157,22 +169,22 @@ describe("authorizePayment", () => {
 
   it.each([
     ["wrong domain name", [
-      "0x0f", "Imposter", "1", 1952n, paymentAsset, `0x${"00".repeat(32)}`, [],
+      "0x0f", "Imposter", "1", 196n, paymentAsset, `0x${"00".repeat(32)}`, [],
     ]],
     ["wrong domain version", [
-      "0x0f", "USD₮0", "2", 1952n, paymentAsset, `0x${"00".repeat(32)}`, [],
+      "0x0f", "USD₮0", "2", 196n, paymentAsset, `0x${"00".repeat(32)}`, [],
     ]],
     ["salt-bearing domain", [
-      "0x1f", "USD₮0", "1", 1952n, paymentAsset, `0x${"01".repeat(32)}`, [],
+      "0x1f", "USD₮0", "1", 196n, paymentAsset, `0x${"01".repeat(32)}`, [],
     ]],
     ["domain extensions", [
-      "0x0f", "USD₮0", "1", 1952n, paymentAsset, `0x${"00".repeat(32)}`, [1n],
+      "0x0f", "USD₮0", "1", 196n, paymentAsset, `0x${"00".repeat(32)}`, [1n],
     ]],
     ["wrong domain chain", [
-      "0x0f", "USD₮0", "1", 196n, paymentAsset, `0x${"00".repeat(32)}`, [],
+      "0x0f", "USD₮0", "1", 1952n, paymentAsset, `0x${"00".repeat(32)}`, [],
     ]],
     ["wrong verifying contract", [
-      "0x0f", "USD₮0", "1", 1952n, other, `0x${"00".repeat(32)}`, [],
+      "0x0f", "USD₮0", "1", 196n, other, `0x${"00".repeat(32)}`, [],
     ]],
   ] as const)("rejects a %s before requesting a signature", async (_name, domainResult) => {
     const test = harness(owner, [...domainResult] as DomainResult);
@@ -195,7 +207,7 @@ describe("authorizePayment", () => {
     ["recipient", mutateRequest((request) => { request.recipient = other; })],
     ["external id", mutateRequest((request) => { request.externalId = `0x${"cd".repeat(32)}`; })],
     ["chain", mutateRequest((request) => {
-      (request.methodDetails as Record<string, unknown>).chainId = 196;
+      (request.methodDetails as Record<string, unknown>).chainId = 1952;
     })],
     ["fee payer", mutateRequest((request) => {
       (request.methodDetails as Record<string, unknown>).feePayer = false;

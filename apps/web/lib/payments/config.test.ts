@@ -8,20 +8,20 @@ const serverPaymentEnv = {
 };
 
 describe("payment environment", () => {
-  it("returns only the fixed X Layer testnet payment support", () => {
+  it("returns only the fixed X Layer mainnet payment support", () => {
     expect(readPaymentConfig(serverPaymentEnv)).toEqual({
       MPPX_SECRET_KEY: "m".repeat(32),
       COBIA_TREASURY: "0x3333333333333333333333333333333333333333",
       PAYMENT_REALM: "pay.cobia.example",
-      PAYMENT_CHAIN_ID: 1952,
-      PAYMENT_ASSET: "0x9e29b3AaDa05Bf2D2c827Af80Bd28Dc0b9b4FB0c",
+      PAYMENT_CHAIN_ID: 196,
+      PAYMENT_ASSET: "0x779Ded0c9e1022225f8E0630b35a9b54bE713736",
       PAYMENT_DECIMALS: 6,
     });
   });
 
   it.each([
-    ["PAYMENT_CHAIN_ID", "196"],
-    ["PAYMENT_ASSET", "0x1111111111111111111111111111111111111111"],
+    ["PAYMENT_CHAIN_ID", "1952"],
+    ["PAYMENT_ASSET", "0x9e29b3AaDa05Bf2D2c827Af80Bd28Dc0b9b4FB0c"],
   ])("rejects the legacy %s override", (name, value) => {
     expect(() => readPaymentConfig({ ...serverPaymentEnv, [name]: value }))
       .toThrow(`Missing or invalid payment configuration: ${name}`);
@@ -30,11 +30,11 @@ describe("payment environment", () => {
   it("accepts redundant legacy keys only when they match fixed support", () => {
     expect(readPaymentConfig({
       ...serverPaymentEnv,
-      PAYMENT_CHAIN_ID: "1952",
-      PAYMENT_ASSET: "0x9e29b3aada05bf2d2c827af80bd28dc0b9b4fb0c",
+      PAYMENT_CHAIN_ID: "196",
+      PAYMENT_ASSET: "0x779ded0c9e1022225f8e0630b35a9b54be713736",
     })).toMatchObject({
-      PAYMENT_CHAIN_ID: 1952,
-      PAYMENT_ASSET: "0x9e29b3AaDa05Bf2D2c827Af80Bd28Dc0b9b4FB0c",
+      PAYMENT_CHAIN_ID: 196,
+      PAYMENT_ASSET: "0x779Ded0c9e1022225f8E0630b35a9b54bE713736",
     });
   });
 
@@ -53,8 +53,8 @@ describe("payment environment", () => {
     })).toEqual({
       COBIA_TREASURY: "0x3333333333333333333333333333333333333333",
       PAYMENT_REALM: "pay.cobia.example",
-      PAYMENT_CHAIN_ID: 1952,
-      PAYMENT_ASSET: "0x9e29b3AaDa05Bf2D2c827Af80Bd28Dc0b9b4FB0c",
+      PAYMENT_CHAIN_ID: 196,
+      PAYMENT_ASSET: "0x779Ded0c9e1022225f8E0630b35a9b54bE713736",
       PAYMENT_DECIMALS: 6,
     });
   });

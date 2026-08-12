@@ -16,7 +16,7 @@ import { CompetitionView } from "./CompetitionView";
 const requestId = "550e8400-e29b-41d4-a716-446655440000";
 const quoteId: `0x${string}` = `0x${"ab".repeat(32)}`;
 const owner = "0x1111111111111111111111111111111111111111";
-const paymentAsset = "0x9e29b3AaDa05Bf2D2c827Af80Bd28Dc0b9b4FB0c";
+const paymentAsset = "0x779Ded0c9e1022225f8E0630b35a9b54bE713736";
 const treasury = "0x3333333333333333333333333333333333333333";
 const market = {
   requestId,
@@ -184,7 +184,7 @@ describe("CompetitionView", () => {
       quoteId,
       buyer: owner,
       executionChainId: 196,
-      paymentChainId: 1952,
+      paymentChainId: 196,
       receiptHash: `0x${"12".repeat(32)}`,
       purchasedAt: "2033-05-18T03:32:00.000Z",
       policy: market.policy,
@@ -207,11 +207,11 @@ describe("CompetitionView", () => {
     let marketReads = 0;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      if (url === "https://testrpc.xlayer.tech/terigon") {
+      if (url === "https://rpc.xlayer.tech") {
         return Response.json({ jsonrpc: "2.0", id: 1, result: encodeFunctionResult({
           abi: domainAbi,
           functionName: "eip712Domain",
-          result: ["0x0f", "USD₮0", "1", 1952n, paymentAsset, `0x${"00".repeat(32)}`, []],
+          result: ["0x0f", "USD₮0", "1", 196n, paymentAsset, `0x${"00".repeat(32)}`, []],
         }) });
       }
       if (!init?.method) {
@@ -249,7 +249,7 @@ describe("CompetitionView", () => {
       requestId,
       quoteId,
       owner,
-      paymentChainId: 1952,
+      paymentChainId: 196,
       executionChainId: 196,
     });
     expect(request).toHaveBeenCalledWith({

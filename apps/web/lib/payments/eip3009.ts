@@ -1,9 +1,12 @@
 import { Credential } from "@okxweb3/mpp";
 import {
   decodeFunctionResult,
+  encodeAbiParameters,
   getAddress,
   isAddressEqual,
   isHex,
+  keccak256,
+  stringToHex,
   type Address,
 } from "viem";
 import type { Eip1193Request, XLayerChainId } from "../wallet/eip1193";
@@ -35,6 +38,7 @@ const DOMAIN_ABI = [{
 }] as const;
 
 const DOMAIN_CALL = "0x84b0196e";
+const DOMAIN_SEPARATOR_CALL = "0x3644e515";
 interface WalletAccess {
   account: Address;
   request(input: Eip1193Request): Promise<unknown>;
@@ -71,7 +75,43 @@ async function tokenDomain(reader: PaymentChainReader, currency: Address, chainI
     method: "eth_call",
     params: [{ to: currency, data: DOMAIN_CALL }, "latest"],
   } as const;
-  const result = await reader.request(chainId, input);
+  let result: unknown;
+  try {
+    result = await reader.request(chainId, input);
+  } catch {
+    const separator = await reader.request(chainId, {
+      method: "eth_call",
+      params: [{ to: currency, data: DOMAIN_SEPARATOR_CALL }, "latest"],
+    });
+    const domainTypeHash = keccak256(stringToHex(
+      "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)",
+    ));
+    const expected = keccak256(encodeAbiParameters(
+      [
+        { type: "bytes32" },
+        { type: "bytes32" },
+        { type: "bytes32" },
+        { type: "uint256" },
+        { type: "address" },
+      ],
+      [
+        domainTypeHash,
+        keccak256(stringToHex(PAYMENT_EIP712_NAME)),
+        keccak256(stringToHex(PAYMENT_EIP712_VERSION)),
+        BigInt(chainId),
+        currency,
+      ],
+    ));
+    if (typeof separator !== "string" || separator.toLowerCase() !== expected.toLowerCase()) {
+      throw new Error("The payment token domain separator is unsupported.");
+    }
+    return {
+      name: PAYMENT_EIP712_NAME,
+      version: PAYMENT_EIP712_VERSION,
+      chainId,
+      verifyingContract: currency,
+    };
+  }
   if (typeof result !== "string" || !isHex(result)) {
     throw new Error("The payment token did not return EIP-712 domain metadata.");
   }

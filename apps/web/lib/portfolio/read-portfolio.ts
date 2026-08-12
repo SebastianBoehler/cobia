@@ -1,14 +1,13 @@
 import { createPublicClient, erc20Abi, formatUnits, http, type Address } from "viem";
 import { SUPPORTED_ASSETS } from "../chain/supported-assets";
-import { USDT_A_TOKEN, USDG_A_TOKEN, xLayer, xLayerTestnet } from "../chain/xlayer";
-import { PAYMENT_ASSET, PAYMENT_DECIMALS } from "../payments/support";
+import { USDT_A_TOKEN, USDG_A_TOKEN, xLayer } from "../chain/xlayer";
 
-export type PortfolioChainId = 196 | 1952;
+export type PortfolioChainId = 196;
 
 export interface PortfolioSnapshot {
   address: Address;
   chainId: PortfolioChainId;
-  networkName: "X Layer Mainnet" | "X Layer Testnet";
+  networkName: "X Layer Mainnet";
   blockNumber: string;
   observedAt: string;
   native: { symbol: "OKB"; amountAtomic: string; formatted: string };
@@ -26,38 +25,10 @@ export async function readPortfolio(
   chainId: PortfolioChainId = 196,
   rpcUrl?: string,
 ): Promise<PortfolioSnapshot> {
-  const chain = chainId === 1952 ? xLayerTestnet : xLayer;
-  const endpoint = rpcUrl ?? (chainId === 1952
-    ? process.env.XLAYER_TESTNET_RPC_URL
-    : process.env.XLAYER_RPC_URL) ?? chain.rpcUrls.default.http[0];
-  const client = createPublicClient({ chain, transport: http(endpoint, { timeout: 10_000 }) });
+  const endpoint = rpcUrl ?? process.env.XLAYER_RPC_URL ?? xLayer.rpcUrls.default.http[0];
+  const client = createPublicClient({ chain: xLayer, transport: http(endpoint, { timeout: 10_000 }) });
   const blockNumber = await client.getBlockNumber();
   const native = await client.getBalance({ address, blockNumber });
-  if (chainId === 1952) {
-    const amount = await client.readContract({
-      address: PAYMENT_ASSET,
-      abi: erc20Abi,
-      functionName: "balanceOf",
-      args: [address],
-      blockNumber,
-    });
-    return {
-      address,
-      chainId,
-      networkName: "X Layer Testnet",
-      blockNumber: blockNumber.toString(),
-      observedAt: new Date().toISOString(),
-      native: { symbol: "OKB", amountAtomic: native.toString(), formatted: formatUnits(native, 18) },
-      balances: [{
-        address: PAYMENT_ASSET,
-        symbol: "USDt0 test",
-        amountAtomic: amount.toString(),
-        formatted: formatUnits(amount, PAYMENT_DECIMALS),
-      }],
-      positions: [],
-    };
-  }
-
   const [balances, aUsdG, aUsdT0] = await Promise.all([
     Promise.all(SUPPORTED_ASSETS.map(async (asset) => ({
       asset,

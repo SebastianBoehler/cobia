@@ -107,9 +107,9 @@ export async function validatePaymentCredential(
     requirePattern(split.signature, SIGNATURE, `split ${index} signature`);
   }
 
-  await requireEip3009OwnerSignature(authorization, validated.owner);
+  await requireEip3009OwnerSignature(authorization, validated.owner, validated.terms);
   for (const split of splits) {
-    await requireEip3009OwnerSignature(split, validated.owner);
+    await requireEip3009OwnerSignature(split, validated.owner, validated.terms);
   }
 
   return {

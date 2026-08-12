@@ -47,8 +47,10 @@ payment configuration is unavailable; it does not substitute sample data.
   choose only among those server-built candidates. Cobia recomputes exact conservation,
   exposure, opportunity amounts, pre-gas economics, registry coverage, expiry,
   and signer before publishing a sanitized quote.
-- Reveal payment supports only X Layer testnet chain `1952` and its fixed
-  six-decimal USDt0 token at `0x9e29b3aada05bf2d2c827af80bd28dc0b9b4fb0c`.
+- Reveal payment and route execution both use X Layer mainnet chain `196`.
+  Payment is fixed to six-decimal USDt0 at
+  `0x779ded0c9e1022225f8e0630b35a9b54be713736`; the client verifies its
+  EIP-712 domain separator before requesting EIP-3009 signatures.
 - Purchased V2 routes first expose a buyer-authenticated action that replays the
   exact committed bundle in disposable X Layer mainnet-fork state and persists
   the attributed trace. A passing, still-fresh route can then enter verified stepwise X
@@ -56,8 +58,7 @@ payment configuration is unavailable; it does not substitute sample data.
   transaction and OKX Wallet asks the buyer to confirm one approval, swap,
   supply, or LP mint at a time. The server never signs or relays principal transactions.
   `eth_estimateGas` remains gas preflight, not a profitability guarantee. No
-  testnet Aave, Curve, or Uniswap deployment is claimed. A separate capped
-  atomic-executor contract is still an undeployed, paused-by-default beta
+  A separate capped atomic-executor contract is still an undeployed, paused-by-default beta
   foundation and is not presented as a live product action.
 - Both the product rehearsal and the opt-in acceptance lane have passed direct
   Aave, Curve/Uniswap-to-Aave, and one-sided full-range Uniswap LP-entry routes with
@@ -69,8 +70,8 @@ payment configuration is unavailable; it does not substitute sample data.
   Historical LP fees are forecasts, not an enforceable yield floor. The current
   LP adapter mints an owner-held position; collect, rebalance, remove-liquidity,
   and exit actions remain unimplemented.
-  A full testnet payment check requires a funded Agentic Wallet, OKX MPP
-  credentials, treasury/signer addresses, and a deployed payment asset.
+  A funded mainnet payment canary still requires a selected test wallet with
+  USDt0, OKX MPP credentials, and explicit approval before spending funds.
 
 ## Verification
 

@@ -1,6 +1,6 @@
 import { commitment } from "@cobia/domain";
 import { z } from "zod";
-import { PAYMENT_CHAIN_ID } from "./support";
+import { LEGACY_PAYMENT_CHAIN_ID, PAYMENT_CHAIN_ID } from "./support";
 
 const HashSchema = z.string()
   .regex(/^0x[0-9a-fA-F]{64}$/, "Expected a 32-byte hash")
@@ -11,7 +11,10 @@ export const EvmPaymentReceiptSchema = z.object({
   reference: HashSchema,
   status: z.literal("success"),
   timestamp: z.iso.datetime({ offset: true }),
-  chainId: z.literal(PAYMENT_CHAIN_ID),
+  chainId: z.union([
+    z.literal(PAYMENT_CHAIN_ID),
+    z.literal(LEGACY_PAYMENT_CHAIN_ID),
+  ]),
   challengeId: z.string().trim().min(1),
   externalId: HashSchema,
 }).strict();
