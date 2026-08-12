@@ -29,6 +29,7 @@ describe("NewRequestPage", () => {
     const globalCss = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
 
     expect(css).toContain("grid-template-columns: minmax(280px, .72fr) minmax(0, 1.48fr)");
+    expect(css).toContain("min-height: calc(100svh - 76px); width: 100%");
     expect(css).toContain(".request-page__workspace { align-items: center; display: flex; grid-area: workspace; min-width: 0;");
     expect(css).toContain("inline-size: min(100%, 860px)");
     expect(globalCss).toContain("scrollbar-gutter: stable");
