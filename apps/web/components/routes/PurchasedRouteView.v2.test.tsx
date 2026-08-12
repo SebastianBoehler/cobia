@@ -30,6 +30,9 @@ describe("PurchasedRouteView V2", () => {
 
     expect(screen.getByText("0.23% estimated pre-gas APY")).toBeVisible();
     expect(screen.getByText("Principal unmoved")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Expected wallet effect" })).toBeVisible();
+    expect(screen.getByText("Not economical at this size")).toBeVisible();
+    expect(screen.getByText(/minimum onchain outcome/i)).toBeVisible();
     const steps = screen.getAllByRole("listitem");
     expect(within(steps[0]).getByText("10.000001 USDt0 retained")).toBeVisible();
     expect(within(steps[0]).getByText(

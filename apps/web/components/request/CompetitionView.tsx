@@ -1,7 +1,7 @@
 "use client";
 
 import type { PersistedSnapshot, PersistedStablecoinPolicy } from "@cobia/domain";
-import { CircleAlert, LoaderCircle, ShieldCheck } from "lucide-react";
+import { CircleAlert, LoaderCircle } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { isAddressEqual } from "viem";
@@ -18,7 +18,7 @@ import { authorizePayment } from "../../lib/payments/eip3009";
 import { buildRevealProof, revealProofCommitment } from "../../lib/payments/reveal-proof";
 import { randomBytes32 } from "../../lib/payments/random";
 import { PaymentTermsSchema, hashPaymentTerms, type PaymentTerms } from "../../lib/payments/terms";
-import { protocolLabelV2 } from "../../lib/markets/protocol-labels";
+import type { PublicRouteSummaryV2 } from "../../lib/markets/route-summary";
 import { useWallet } from "../wallet/WalletProvider";
 import { PurchasedRouteView, type PurchasedRoute } from "../routes/PurchasedRouteView";
 import {
@@ -26,6 +26,8 @@ import {
   type PaymentRecovery,
 } from "./CompetitionQuoteCard";
 import styles from "./CompetitionView.module.css";
+import { quoteEconomics } from "./competition-economics";
+import { CompetitionMarketHeader } from "./CompetitionMarketHeader";
 
 interface PublicRequest {
   requestId: string;
@@ -38,8 +40,8 @@ interface PublicRequest {
   paymentRecovery: PaymentRecovery;
   freshness: ActiveQuoteFreshness;
   quotes: PublicRouteQuote[];
+  routeSummaries?: Record<string, PublicRouteSummaryV2>;
 }
-
 function shortHash(value: string): string {
   return `${value.slice(0, 8)}…${value.slice(-6)}`;
 }
@@ -57,18 +59,6 @@ function withVisibleQuotes(market: PublicRequest): PublicRequest {
     ...market,
     quotes: visibleRequestQuotes(market, market.freshness.observedAtSec),
   };
-}
-
-function v2SnapshotDescription(snapshot: PersistedSnapshot | null): string {
-  if (!snapshot || snapshot.version !== 2) {
-    return "Pinned X Layer opportunity data is not available yet. APY is an estimated pre-gas rate; route authorization is deterministically recomputed.";
-  }
-  const protocols = new Set(snapshot.opportunities.map(({ kind }) => protocolLabelV2(kind)));
-  if (protocols.size === 0) {
-    return "The pinned X Layer snapshot contains no eligible protocol opportunities. APY is an estimated pre-gas rate; route authorization is deterministically recomputed.";
-  }
-  const names = [...protocols].join(" and ");
-  return `Pinned ${names} opportunity data ${protocols.size === 1 ? "was" : "were"} read at one X Layer block. APY is an estimated pre-gas rate; route authorization is deterministically recomputed.`;
 }
 
 export function CompetitionView({ requestId }: { requestId: string }) {
@@ -230,20 +220,8 @@ export function CompetitionView({ requestId }: { requestId: string }) {
 
   return (
     <main className={styles.shell}>
-      <header className={styles.intro}>
-        <h1>{market.policy.version === 1
-          ? "Deterministic Aave V3 quote"
-          : "Verified X Layer solver market"}</h1>
-        <p>{market.policy.version === 1
-          ? "Live OKX discovery was collected between X Layer block reads. APY and TVL are snapshot-derived estimates; the signed bundle is deterministically recomputed."
-          : v2SnapshotDescription(market.snapshot)}</p>
-        <div className={styles.facts}>
-          <span>Intent {shortHash(requestId)}</span>
-          <span><ShieldCheck size={15} /> {market.state.replaceAll("_", " ")}</span>
-          <span>{market.snapshot ? `Block ${market.snapshot.blockNumber}` : "Snapshot pending"}</span>
-          <span>Principal unmoved</span>
-        </div>
-      </header>
+      <CompetitionMarketHeader requestId={requestId} state={market.state} policy={market.policy}
+        snapshot={market.snapshot} quotes={market.quotes} />
 
       {error ? <p className={styles.alert} role="alert"><CircleAlert size={17} /> {error}</p> : null}
       {market.quotes.length === 0 ? (
@@ -277,6 +255,13 @@ export function CompetitionView({ requestId }: { requestId: string }) {
             busy={Boolean(pendingQuote)}
             pending={pendingQuote === quote.quoteId}
             revealed={revealed}
+            summary={market.routeSummaries?.[quote.quoteId]}
+            valuations={market.snapshot?.version === 2 ? market.snapshot.valuations : undefined}
+            economics={quoteEconomics({
+              policy: market.policy,
+              snapshot: market.snapshot,
+              quote,
+            })}
             onSelect={() => select(quote.quoteId)}
             onReveal={() => reveal(quote.quoteId)}
           />;

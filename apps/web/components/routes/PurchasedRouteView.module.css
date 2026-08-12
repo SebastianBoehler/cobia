@@ -58,6 +58,47 @@
 .summary strong { font-size: 1.12rem; }
 .summary span { color: var(--muted); font-size: .88rem; }
 
+.outcome {
+  display: grid;
+  gap: 16px;
+  margin: 22px 0;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.outcomeHeader,
+.balanceFlow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.outcomeHeader span,
+.balanceFlow small,
+.outcomeMetrics dt {
+  color: var(--muted);
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.outcomeHeader h3 { margin: 4px 0 0; font-size: 1.15rem; }
+.outcomeHeader > strong { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; }
+.economicsWarning { color: var(--rejected); }
+.economicsPositive { color: var(--verified); }
+.balanceFlow { justify-content: flex-start; padding: 16px; border-radius: 13px; background: var(--cobalt-wash); }
+.balanceFlow > div { flex: 1; min-width: 0; }
+.balanceFlow strong { display: block; margin-top: 5px; font-size: .9rem; }
+.balanceFlow > svg { flex: 0 0 auto; color: var(--cobalt); }
+.outcomeMetrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; }
+.outcomeMetrics div { padding: 12px 0; border-top: 1px solid var(--line); }
+.outcomeMetrics div:nth-child(even) { padding-left: 18px; border-left: 1px solid var(--line); }
+.outcomeMetrics dd { margin: 5px 0 0; font-size: .88rem; font-weight: 650; }
+.economicsNote { margin: 0; color: var(--muted); font-size: .8rem; line-height: 1.5; }
+
 .steps {
   display: grid;
   gap: 10px;
@@ -183,4 +224,8 @@
 @media (max-width: 680px) {
   .shell { padding: 22px; border-radius: 18px; }
   .header, .summary { align-items: flex-start; flex-direction: column; }
+  .outcomeHeader, .balanceFlow { align-items: flex-start; flex-direction: column; }
+  .balanceFlow > svg { transform: rotate(90deg); }
+  .outcomeMetrics { grid-template-columns: 1fr; }
+  .outcomeMetrics div:nth-child(even) { padding-left: 0; border-left: 0; }
 }

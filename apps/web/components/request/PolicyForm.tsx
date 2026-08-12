@@ -12,6 +12,8 @@ import {
 } from "../../lib/intents/route-policy-v2";
 import { shortAddress } from "../../lib/wallet/eip1193";
 import { useWallet } from "../wallet/WalletProvider";
+import { AssetMark } from "../brand/AssetMark";
+import { IntentModeTabs, type IntentMode } from "../intents/IntentModeTabs";
 import { PolicySummary } from "./PolicySummary";
 
 interface CreatedRequest {
@@ -47,6 +49,7 @@ function formatPrincipal(atomic: string | null, symbol: string): string {
 
 export function PolicyForm() {
   const wallet = useWallet();
+  const [mode, setMode] = useState<IntentMode>("Earn");
   const [assetAddress, setAssetAddress] = useState(SUPPORTED_ASSETS[0].address);
   const [principal, setPrincipal] = useState("10");
   const [exposure, setExposure] = useState("100");
@@ -68,6 +71,7 @@ export function PolicyForm() {
   }, [exposure, minimumApy, minimumTvl, principal]);
 
   const valid =
+    mode === "Earn" &&
     wallet.account !== null &&
     values.principalAtomic !== null &&
     values.exposureBps !== null &&
@@ -169,17 +173,32 @@ export function PolicyForm() {
 
   return (
     <form className="policy-form" onSubmit={submit} noValidate>
+      <IntentModeTabs mode={mode} onChange={setMode} />
+      <div className="intent-summary">
+        <span>Your intent</span>
+        <p>{mode === "Earn"
+          ? `Earn the best verified return on ${principal || "—"} ${asset.displaySymbol} within your bounds.`
+          : `${mode} intent parameters will be signed only after the atomic ${mode.toLowerCase()} policy is enabled.`}</p>
+      </div>
+      {mode !== "Earn" ? (
+        <p className="mode-notice" role="status">
+          Atomic {mode} intents are not enabled yet. Cobia will not submit this as an Earn intent.
+        </p>
+      ) : null}
       <div className="wallet-identity">
-        <span>Wallet</span>
+        <span>Funding wallet</span>
         <strong>{wallet.account ? shortAddress(getAddress(wallet.account)) : "Connect wallet above"}</strong>
       </div>
 
       <div className="field-grid">
         <div className="field">
           <label htmlFor="asset">Asset</label>
-          <select id="asset" value={asset.address} onChange={(event) => setAssetAddress(getAddress(event.target.value))}>
-            {SUPPORTED_ASSETS.map((item) => <option value={item.address} key={item.address}>{item.displaySymbol}</option>)}
-          </select>
+          <div className="asset-select">
+            <AssetMark asset={asset.displaySymbol} size={28} />
+            <select id="asset" value={asset.address} onChange={(event) => setAssetAddress(getAddress(event.target.value))}>
+              {SUPPORTED_ASSETS.map((item) => <option value={item.address} key={item.address}>{item.displaySymbol}</option>)}
+            </select>
+          </div>
         </div>
         <div className="field">
           <label htmlFor="principal">Amount</label>
@@ -206,48 +225,49 @@ export function PolicyForm() {
       </button>
 
       {advanced ? (
-        <div className="field-grid limits-panel">
-          <div className="field field--wide">
-            <label htmlFor="exposure">Protocol exposure</label>
-            <div className="input-affix">
-              <input
-                id="exposure"
-                inputMode="decimal"
-                value={exposure}
-                onChange={(event) => setExposure(event.target.value)}
-              />
-              <span>% exact</span>
+        <div className="limits-panel">
+          <div className="field-grid">
+            <div className="field field--wide">
+              <label htmlFor="exposure">Protocol exposure</label>
+              <div className="input-affix">
+                <input
+                  id="exposure"
+                  inputMode="decimal"
+                  value={exposure}
+                  onChange={(event) => setExposure(event.target.value)}
+                />
+                <span>% exact</span>
+              </div>
+            </div>
+            <div className="field">
+              <label htmlFor="tvl">Minimum protocol TVL</label>
+              <div className="input-affix">
+                <span>$</span>
+                <input id="tvl" value={minimumTvl} onChange={(event) => setMinimumTvl(event.target.value)} />
+              </div>
+            </div>
+            <div className="field">
+              <label htmlFor="apy">Minimum estimated pre-gas APY</label>
+              <div className="input-affix">
+                <input id="apy" value={minimumApy} onChange={(event) => setMinimumApy(event.target.value)} />
+                <span>%</span>
+              </div>
             </div>
           </div>
-          <div className="field">
-            <label htmlFor="tvl">Minimum protocol TVL</label>
-            <div className="input-affix">
-              <span>$</span>
-              <input id="tvl" value={minimumTvl} onChange={(event) => setMinimumTvl(event.target.value)} />
-            </div>
-          </div>
-          <div className="field">
-            <label htmlFor="apy">Minimum estimated pre-gas APY</label>
-            <div className="input-affix">
-              <input id="apy" value={minimumApy} onChange={(event) => setMinimumApy(event.target.value)} />
-              <span>%</span>
-            </div>
-          </div>
+          <PolicySummary
+            principal={formatPrincipal(values.principalAtomic, asset.displaySymbol)}
+            exposure={`${formatPrincipal(exposureAtomic, asset.displaySymbol)} exact`}
+            minimumTvl={`$${Number(minimumTvl).toLocaleString("en-US")}`}
+            minimumPreGasApy={`${minimumApy}%`}
+            outputAssets={SUPPORTED_ASSETS.map(({ displaySymbol }) => displaySymbol).join(" and ")}
+            adapters="Aave V3 supply, Curve and Uniswap V3 swaps, and full-range LP"
+            maximumSlippage={`${(ROUTE_POLICY_V2_DEFAULTS.maxSlippageBps / 100).toFixed(2)}%`}
+            horizon={`${ROUTE_POLICY_V2_DEFAULTS.horizonDays} days`}
+            snapshotAge={`${ROUTE_POLICY_V2_DEFAULTS.maxSnapshotAgeSec} seconds`}
+            intentLifetime={`${ROUTE_POLICY_V2_DEFAULTS.deadlineLifetimeSec / 60} minutes`}
+          />
         </div>
       ) : null}
-
-      <PolicySummary
-        principal={formatPrincipal(values.principalAtomic, asset.displaySymbol)}
-        exposure={`${formatPrincipal(exposureAtomic, asset.displaySymbol)} exact`}
-        minimumTvl={`$${Number(minimumTvl).toLocaleString("en-US")}`}
-        minimumPreGasApy={`${minimumApy}%`}
-        outputAssets={SUPPORTED_ASSETS.map(({ displaySymbol }) => displaySymbol).join(" and ")}
-        adapters="Aave V3 supply, Curve and Uniswap V3 swaps, and full-range LP"
-        maximumSlippage={`${(ROUTE_POLICY_V2_DEFAULTS.maxSlippageBps / 100).toFixed(2)}%`}
-        horizon={`${ROUTE_POLICY_V2_DEFAULTS.horizonDays} days`}
-        snapshotAge={`${ROUTE_POLICY_V2_DEFAULTS.maxSnapshotAgeSec} seconds`}
-        intentLifetime={`${ROUTE_POLICY_V2_DEFAULTS.deadlineLifetimeSec / 60} minutes`}
-      />
 
       <label className="acknowledgement">
         <input
@@ -256,14 +276,14 @@ export function PolicyForm() {
           onChange={(event) => setAcknowledged(event.target.checked)}
         />
         <span>
-          I understand this snapshot-derived exact allocation may evaluate Aave V3 supply, Curve and Uniswap V3 swaps, and full-range LP positions. LP fee APY is historical and not guaranteed; swap minimums are enforced separately. Buying the route does not move principal. Mainnet execution is a separate guided flow with one explicit wallet confirmation for every transaction.
+          I understand this earn intent may route through Aave V3, Curve, Uniswap V3, or a full-range LP. APY and LP fees are estimates, not guarantees. The signed route enforces token minimums; buying the proof does not move principal.
         </span>
       </label>
 
       {error ? <p role="alert" className="form-alert">{error}</p> : null}
       <button className="button button--primary button--wide" type="submit" disabled={!valid || pending}>
         {pending ? <LoaderCircle className="spin" aria-hidden="true" size={17} /> : null}
-        {pending ? "Running solvers…" : "Open solver market"}
+        {pending ? "Searching verified routes…" : "Find verified routes"}
         {!pending ? <ArrowRight aria-hidden="true" size={17} /> : null}
       </button>
       <p className="payment-note">Free request · Pay only after selecting an authorized quote</p>

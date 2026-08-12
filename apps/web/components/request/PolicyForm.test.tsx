@@ -38,18 +38,40 @@ function renderForm(): void {
 async function fillRequiredFields(): Promise<void> {
   fireEvent.click(screen.getByRole("button", { name: "Connect wallet" }));
   await screen.findByRole("button", { name: /Phantom · 0x1111…1111/ });
-  fireEvent.click(screen.getByLabelText(/snapshot-derived exact allocation/i));
+  fireEvent.click(screen.getByLabelText(/I understand this earn intent/i));
 }
 
 describe("PolicyForm", () => {
   it("derives the owner from a wallet and lets the user choose an executable asset", () => {
     renderForm();
 
+    expect(screen.getByRole("tab", { name: "Earn" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Swap" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("tab", { name: "Profit" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByText("Earn the best verified return on 10 USDG within your bounds."))
+      .toBeVisible();
     expect(screen.queryByLabelText("Wallet address")).not.toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Asset" })).toHaveDisplayValue("USDG");
     expect(screen.getByRole("option", { name: "USDt0" })).toBeVisible();
     expect(screen.queryByLabelText("Protocol exposure")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Minimum protocol TVL")).not.toBeInTheDocument();
+  });
+
+  it("never coerces an unavailable Swap or Profit intent into the Earn policy", () => {
+    renderForm();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Swap" }));
+    expect(screen.getByRole("tab", { name: "Swap" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Atomic Swap intents are not enabled yet",
+    );
+    expect(screen.getByRole("button", { name: "Find verified routes" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Profit" }));
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Atomic Profit intents are not enabled yet",
+    );
+    expect(screen.getByRole("button", { name: "Find verified routes" })).toBeDisabled();
   });
 
   it("keeps verifier controls behind advanced settings", () => {
@@ -64,19 +86,20 @@ describe("PolicyForm", () => {
 
   it("keeps submission gated until the wallet and risk acknowledgement are present", async () => {
     renderForm();
-    const submit = screen.getByRole("button", { name: "Open solver market" });
+    const submit = screen.getByRole("button", { name: "Find verified routes" });
 
     expect(submit).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Connect wallet" }));
     await screen.findByRole("button", { name: /Phantom · 0x1111…1111/ });
     expect(submit).toBeDisabled();
-    fireEvent.click(screen.getByLabelText(/snapshot-derived exact allocation/i));
+    fireEvent.click(screen.getByLabelText(/I understand this earn intent/i));
     expect(submit).toBeEnabled();
   });
 
   it("shows the exact principal and policy boundary before submission", async () => {
     renderForm();
     await fillRequiredFields();
+    fireEvent.click(screen.getByRole("button", { name: "Advanced settings" }));
 
     expect(screen.getByRole("textbox", { name: "Amount" })).toHaveValue("10");
     expect(screen.getByText("10.00 USDG")).toBeVisible();
@@ -91,18 +114,18 @@ describe("PolicyForm", () => {
     expect(screen.getByText("Maximum snapshot age: 300 seconds")).toBeVisible();
     expect(screen.getByText("Intent lifetime: 30 minutes")).toBeVisible();
     expect(screen.getByText(/Principal stays in your wallet until separately confirmed execution/)).toBeVisible();
-    expect(screen.getByRole("button", { name: "Open solver market" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Find verified routes" })).toBeEnabled();
   });
 
   it("describes adapter possibilities without promising a multi-protocol route", () => {
     renderForm();
+    fireEvent.click(screen.getByRole("button", { name: "Advanced settings" }));
 
     expect(screen.getByText("10.00 USDG exact")).toBeVisible();
-    expect(screen.getByText(/may evaluate Aave V3 supply, Curve and Uniswap V3 swaps, and full-range LP positions/i))
+    expect(screen.getByText(/may route through Aave V3, Curve, Uniswap V3, or a full-range LP/i))
       .toBeVisible();
-    expect(screen.getByText(/LP fee APY is historical and not guaranteed/i)).toBeVisible();
-    expect(screen.getByText(/Buying the route does not move principal/i)).toBeVisible();
-    expect(screen.getByText(/one explicit wallet confirmation for every transaction/i)).toBeVisible();
+    expect(screen.getByText(/APY and LP fees are estimates, not guarantees/i)).toBeVisible();
+    expect(screen.getByText(/buying the proof does not move principal/i)).toBeVisible();
     expect(screen.getByText("Free request · Pay only after selecting an authorized quote"))
       .toBeVisible();
     expect(screen.queryByText(/paid reveal is not wired/i)).not.toBeInTheDocument();
@@ -118,7 +141,7 @@ describe("PolicyForm", () => {
     renderForm();
     await fillRequiredFields();
 
-    fireEvent.click(screen.getByRole("button", { name: "Open solver market" }));
+    fireEvent.click(screen.getByRole("button", { name: "Find verified routes" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Live data unavailable");
     expect(screen.queryByText(/request .* opened/i)).not.toBeInTheDocument();
@@ -135,7 +158,7 @@ describe("PolicyForm", () => {
     renderForm();
     await fillRequiredFields();
 
-    fireEvent.click(screen.getByRole("button", { name: "Open solver market" }));
+    fireEvent.click(screen.getByRole("button", { name: "Find verified routes" }));
 
     expect(await screen.findByRole("heading", {
       name: "Request completed without an authorized route",
@@ -156,7 +179,7 @@ describe("PolicyForm", () => {
     renderForm();
     await fillRequiredFields();
 
-    fireEvent.click(screen.getByRole("button", { name: "Open solver market" }));
+    fireEvent.click(screen.getByRole("button", { name: "Find verified routes" }));
 
     expect(await screen.findByText("1 route-authorized quote is ready.")).toBeVisible();
     expect(screen.getByText("1 solver attempt failed or was rejected.")).toBeVisible();
@@ -175,7 +198,7 @@ describe("PolicyForm", () => {
     renderForm();
     await fillRequiredFields();
 
-    fireEvent.click(screen.getByRole("button", { name: "Open solver market" }));
+    fireEvent.click(screen.getByRole("button", { name: "Find verified routes" }));
 
     expect(await screen.findByText("Solver market complete")).toBeVisible();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());

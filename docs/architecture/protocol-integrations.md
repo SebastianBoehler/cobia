@@ -16,9 +16,10 @@ read adapter is not, by itself, an executable Cobia route.
 | V1 solver | Live in the product | One deterministic cash/Aave allocation over OKX discovery data; no independent solver competition |
 | V2 policy, snapshot, plan, quote, and purchase | Live product path | Persisted versioned artifacts; one exact conserved leg containing Aave supply, Curve/Uniswap swap-to-Aave, or balance-swap plus full-range LP mint; estimated pre-gas economics only |
 | MPP/EIP-3009 reveal payment | Implemented for fixed chain 1952 lane | Pays for the private bundle, not principal execution; a funded receipt-correlation canary is still required |
-| Aave/Curve/Uniswap transaction engine | Unit/fork-tested and product-wired for guided mainnet execution | Exact approvals, Curve exchange/SwapRouter02/Aave/position-manager calldata, receipt attribution, protocol events, owner-held LP NFT and state postconditions; one explicit buyer-wallet confirmation per transaction |
+| Aave/Curve/Uniswap transaction engine | Unit/fork-tested and product-wired for verified stepwise mainnet execution | Exact approvals, Curve exchange/SwapRouter02/Aave/position-manager calldata, receipt attribution, protocol events, owner-held LP NFT and state postconditions; one explicit buyer-wallet confirmation per transaction |
 | Purchased-route fork rehearsal | Product-visible and persisted | Buyer proof replays the exact V2 bundle at its committed snapshot block with simulated funds; historical evidence, not current-state simulation |
-| Guided purchased-route execution | Product-visible for fresh rehearsed V2 routes | Durable one-step chain-196 attempts, buyer-bound short-lived authorization, local calldata verification, recovery by exact nonce/calldata, and no automatic follow-on transaction |
+| Verified purchased-route execution | Product-visible for fresh rehearsed V2 routes | Durable one-step chain-196 attempts, buyer-bound short-lived authorization, local calldata verification, recovery by exact nonce/calldata, and no automatic follow-on transaction |
+| Capped atomic executor beta | Contract and projection tests only | Starts paused, limits selected wallets and cumulative principal, and enforces verifier-signed route/output commitments; it is not deployed or product-wired |
 | Bounded agentic solver | Live V2 quote input | OpenAI selects only among server-built candidates; it cannot invent assets, amounts, contracts, or calldata, and the normal verifier remains authoritative |
 
 Production code has no sample protocol, fallback APY, or fabricated route. Unit
@@ -127,7 +128,7 @@ The transaction library is deliberately narrow:
    telemetry after confirmation;
 7. structured pending/partial/failed checkpoints rather than blind retries.
 
-The product uses the library for both disposable fork rehearsal and guided
+The product uses the library for both disposable fork rehearsal and verified stepwise
 chain-196 wallet execution. Mainnet execution requires the exact purchased
 bundle, a matching passed rehearsal, fresh deterministic authorization, current
 registry/deployment identity, sufficient token and buffered OKB gas balances,

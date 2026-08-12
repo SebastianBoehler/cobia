@@ -17,11 +17,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_ORIGIN ?? "http://localhost:3000"),
   title: {
     default: "Cobia — verified X Layer routes",
     template: "%s · Cobia",
   },
-  description: "Pinned-block Aave V3, Curve StableSwap NG, and Uniswap V3 opportunities on X Layer, deterministically authorized before paid reveal and guided mainnet execution.",
+  description: "Intent-first DeFi on X Layer: bounded solvers search Aave, Curve, and Uniswap routes, then Cobia verifies the public proof and token outcomes before mainnet execution.",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

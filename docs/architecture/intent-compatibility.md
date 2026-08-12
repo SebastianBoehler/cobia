@@ -24,7 +24,7 @@ The implemented flow is:
 
 V1 OKX-derived Aave allocation artifacts remain parseable for existing rows and
 purchases, but new browser and MCP intents use V2. Purchased V2 routes expose a
-persisted, buyer-authenticated fork rehearsal and guided owner-wallet chain-196
+persisted, buyer-authenticated fork rehearsal and verified stepwise owner-wallet chain-196
 execution while the route remains fresh. Direct Aave, Curve/Uniswap-to-Aave,
 and full-range Uniswap LP-entry routes have passed the pinned fork lane with
 receipt, event, deployment, and state checks. Fork funds and state are simulated;

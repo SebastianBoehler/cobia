@@ -83,8 +83,8 @@ describe("MainnetExecutionLedger", () => {
 
   it("makes the real-funds boundary explicit and separates authorization from sending", async () => {
     render(<MainnetExecutionLedger route={await route()} trace={trace} />);
-    expect(screen.getByText(/real X Layer mainnet funds/i)).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Start guided mainnet execution" }));
+    expect(screen.getByText(/real mainnet funds/i)).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Start verified mainnet execution" }));
     await screen.findByText("Approve Aave exact amount");
     expect(client.start).toHaveBeenCalledOnce();
     expect(client.submit).not.toHaveBeenCalled();
@@ -98,7 +98,7 @@ describe("MainnetExecutionLedger", () => {
     wallet.account = "0x9999999999999999999999999999999999999999";
     render(<MainnetExecutionLedger route={await route()} trace={trace} />);
     expect(screen.getByText(/Connect the purchasing wallet/i)).toBeVisible();
-    expect(screen.getByRole("button", { name: "Start guided mainnet execution" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Start verified mainnet execution" })).toBeDisabled();
     await waitFor(() => expect(client.start).not.toHaveBeenCalled());
   });
 });

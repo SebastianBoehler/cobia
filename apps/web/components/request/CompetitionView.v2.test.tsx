@@ -8,6 +8,7 @@ import type {
 } from "@cobia/domain";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { PublicRouteSummaryV2 } from "../../lib/markets/route-summary";
 import { WalletProvider } from "../wallet/WalletProvider";
 import { CompetitionView } from "./CompetitionView";
 
@@ -48,6 +49,19 @@ const quote: RouteQuoteV2 = {
   validUntil: nowSec + 300,
   authorization: { routeAuthorized: true, errorCodes: [] },
 };
+const routeSummary: PublicRouteSummaryV2 = {
+  version: 2,
+  inputAsset: policy.asset,
+  inputAtomic: policy.principalAtomic,
+  retainedAtomic: "15000000000",
+  horizonDays: policy.horizonDays,
+  steps: [{
+    kind: "supply",
+    protocol: "Aave V3",
+    asset: policy.asset,
+    inputAtomic: "10000000000",
+  }],
+};
 
 const aaveSnapshot: RouteSnapshotV2 = {
   version: 2,
@@ -82,6 +96,7 @@ function market(selected: boolean) {
     paymentRecovery: "none",
     freshness: { observedAtSec: nowSec, nextExpirySec: quote.validUntil },
     quotes: [quote],
+    routeSummaries: { [quoteId]: routeSummary },
   };
 }
 
@@ -99,8 +114,8 @@ describe("CompetitionView V2 route quote", () => {
 
     render(<WalletProvider><CompetitionView requestId={requestId} /></WalletProvider>);
 
-    expect(await screen.findByRole("heading", { name: "Verified X Layer solver market" }))
-      .toBeVisible();
+    expect((await screen.findAllByRole("heading", { name: "Best verified route" })).length)
+      .toBeGreaterThan(0);
     expect(screen.getByText(/Pinned Aave V3 opportunity data was read at one X Layer block/i))
       .toBeVisible();
     expect(screen.queryByText(/Uniswap V3/i)).not.toBeInTheDocument();
@@ -138,20 +153,41 @@ describe("CompetitionView V2 route quote", () => {
   });
 
   it("shows only truthful pre-gas route authorization metrics and remains selectable", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(market(false))));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({
+      ...market(false),
+      snapshot: aaveSnapshot,
+    })));
 
     render(<WalletProvider><CompetitionView requestId={requestId} /></WalletProvider>);
 
     expect(await screen.findByText("deterministic-v2")).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Verified X Layer solver market" }))
-      .toBeVisible();
-    expect(screen.getByText("Estimated pre-gas APY")).toBeVisible();
+    expect(screen.getByText(/operated by Cobia/i)).toBeVisible();
+    expect(screen.getAllByRole("heading", { name: "Best verified route" })).toHaveLength(2);
+    expect(screen.getAllByText("You commit")).toHaveLength(2);
+    expect(screen.getByText("Route outcome")).toBeVisible();
+    expect(screen.getByText("Estimated 30-day yield")).toBeVisible();
+    expect(screen.getByText("15,000 USDG stays in wallet")).toBeVisible();
+    expect(screen.getByText("Supply 10,000 USDG")).toBeVisible();
+    expect(screen.getByLabelText("Aave V3")).toBeVisible();
     expect(screen.getByText("0.09%")).toBeVisible();
-    expect(screen.getByText("Route authorization")).toBeVisible();
-    expect(screen.getByText("Authorized")).toBeVisible();
     expect(screen.queryByText("Net APY")).not.toBeInTheDocument();
     expect(screen.queryByText("Verifier score")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Select quote" })).toBeEnabled();
+  });
+
+  it("shows retail net economics instead of presenting APY alone", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({
+      ...market(false),
+      policy: { ...policy, principalAtomic: "10000000" },
+      snapshot: aaveSnapshot,
+      quotes: [{ ...quote, estimatedPreGasApyBps: 41 }],
+    })));
+
+    render(<WalletProvider><CompetitionView requestId={requestId} /></WalletProvider>);
+
+    expect(await screen.findByText("Not economical at this size")).toBeVisible();
+    expect(screen.getByText(/Estimated 30-day gross \$0\.0034/)).toBeVisible();
+    expect(screen.getByText(/reveal \$0\.10 · gas not included/i)).toBeVisible();
   });
 
   it("offers the shared paid reveal after V2 selection", async () => {
@@ -160,8 +196,10 @@ describe("CompetitionView V2 route quote", () => {
     render(<WalletProvider><CompetitionView requestId={requestId} /></WalletProvider>);
 
     expect(await screen.findByRole("button", { name: "Pay & reveal bundle" })).toBeEnabled();
-    expect(screen.getByText("One 0.10 payment · 2 wallet signatures")).toBeVisible();
-    expect(screen.getByText("0.09 to quote signer + 0.01 to Cobia")).toBeVisible();
+    screen.getByText("Verification & purchase details").click();
+    expect(screen.getByText("0.10 · 2 direct-recipient signatures")).toBeVisible();
+    expect(screen.getByText("One purchase: 0.09 signer + 0.01 Cobia")).toBeVisible();
+    expect(screen.getByText(/authorizes each recipient directly/i)).toBeVisible();
     expect(screen.queryByText(/not wired/i)).not.toBeInTheDocument();
   });
 

@@ -31,14 +31,15 @@ external-solver market.
 | Solver competition | Two Cobia-operated solvers run independently; external solver admission is not implemented |
 | Transaction construction/execution engine | Unit/fork-tested and wired as buyer-authenticated, one-step-at-a-time X Layer mainnet wallet execution |
 | X Layer mainnet-fork route rehearsal | Product-visible, persisted, and green for direct Aave, Curve/Uniswap-to-Aave, and full-range Uniswap LP-entry routes |
-| Guided X Layer mainnet execution | Product-wired for fresh, purchased, rehearsed V2 routes; every transaction requires an explicit buyer-wallet confirmation and durable receipt verification |
+| Verified stepwise X Layer mainnet execution | Product-wired for fresh, purchased, rehearsed V2 routes; every transaction requires an explicit buyer-wallet confirmation and durable receipt verification |
+| Capped atomic executor beta | Contract and route-authorization projection implemented and fuzz-tested; still paused, undeployed, and not product-wired |
 | AI execution/calldata authority | Not granted; deterministic construction and verification remain authoritative |
 
 APY and TVL are snapshot-derived estimates. A block-bounded capture does not
 turn an off-chain rate into an on-chain oracle. Buying a route does not move
 principal. After a paid V2 route is unlocked, its buyer can first replay the
 exact bundle at its committed snapshot block in disposable Anvil state, then
-separately authorize guided chain-196 execution while the route remains fresh.
+separately authorize verified stepwise chain-196 execution while the route remains fresh.
 The browser and server independently rebuild each step; each approval, swap,
 supply, or LP mint requires its own wallet confirmation. Persisted hashes, receipts,
 events, and postconditions make reload recovery explicit. Fork evidence is
@@ -61,7 +62,7 @@ flowchart LR
     Q --> P["Owner-bound MPP payment"]
     P --> R["Committed private bundle"]
     R --> F["Buyer-authenticated fork rehearsal"]
-    F --> E["Explicit guided wallet steps"]
+    F --> E["Explicit verified wallet steps"]
 ```
 
 Solvers reference only registered opportunity IDs; adapter code resolves
@@ -75,7 +76,7 @@ credentials.
 
 ## Run locally
 
-Requirements: Node.js 22.22+, pnpm 11.20.0, and PostgreSQL 16+. The isolated
+Requirements: Node.js 24+, pnpm 11.20.0, and PostgreSQL 16+. The isolated
 database-integration and fork-rehearsal lanes also require a running
 Docker-compatible container runtime.
 

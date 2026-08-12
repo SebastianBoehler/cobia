@@ -1,38 +1,29 @@
-import { LockKeyhole, Scale, Waypoints } from "lucide-react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { PolicyForm } from "@/components/request/PolicyForm";
-
-const stages = [
-  { icon: Waypoints, label: "Pinned same-block reads" },
-  { icon: Scale, label: "Aave + Curve + Uniswap quote" },
-  { icon: LockKeyhole, label: "Route authorization recomputed" },
-] as const;
 
 export default function NewRequestPage() {
   return (
     <>
       <AppHeader />
       <main className="request-page">
-        <section className="request-page__intro">
-          <h1>Set exact bounds.<br />Compare verified routes.</h1>
+        <section className="request-page__composer" aria-labelledby="request-form-title">
+          <h1 id="request-form-title">Describe the outcome you want.</h1>
           <p className="request-page__lede">
-            Cobia compares exact Aave V3 supply and Curve or Uniswap V3 swap routes from one pinned X Layer block. Paid reveal unlocks an authorized quote; a passing fresh route can then enter guided X Layer mainnet execution with one wallet confirmation per transaction.
+            Cobia searches verified X Layer routes to reach your outcome non-custodially.
           </p>
-          <ol className="request-stages">
-            {stages.map(({ icon: Icon, label }, index) => (
-              <li key={label}>
-                <span className="request-stages__node"><Icon aria-hidden="true" size={17} /></span>
-                <span><small>0{index + 1}</small>{label}</span>
-              </li>
-            ))}
-          </ol>
-        </section>
-        <section className="request-page__workspace" aria-labelledby="request-form-title">
-          <div className="workspace-heading">
-            <h2 id="request-form-title">Open solver market</h2>
-            <span className="asset-badge"><i>$</i> USDG / USDt0 · X Layer</span>
-          </div>
           <PolicyForm />
+        </section>
+        <section className="request-page__results" aria-labelledby="route-preview-title">
+          <div className="route-empty-state">
+            <span>Verified route market</span>
+            <h2 id="route-preview-title">Your best route will appear here.</h2>
+            <p>Sign an outcome and Cobia will compare only routes that pass your exact policy bounds.</p>
+            <dl>
+              <div><dt>On-chain bound</dt><dd>Minimum received</dd></div>
+              <div><dt>Estimate</dt><dd>Expected result</dd></div>
+              <div><dt>Proof</dt><dd>Simulation + verifier</dd></div>
+            </dl>
+          </div>
         </section>
       </main>
     </>

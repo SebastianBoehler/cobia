@@ -3,6 +3,7 @@ import { Check, CircleDollarSign, Info, LockKeyhole, Route } from "lucide-react"
 import { supportedAsset } from "../../lib/chain/supported-assets";
 import { PurchasedRoutePlanV2 } from "./PurchasedRoutePlanV2";
 import { PurchasedRouteExecution } from "./PurchasedRouteExecution";
+import { RouteOutcomePreview } from "./RouteOutcomePreview";
 import type {
   PurchasedRoute,
   PurchasedRouteV1,
@@ -10,6 +11,7 @@ import type {
 } from "./purchased-route";
 import { amountLabel } from "./purchased-route-format";
 import styles from "./PurchasedRouteView.module.css";
+import { ShareProofActions } from "../share/ShareProofActions";
 
 export type { PurchasedRoute } from "./purchased-route";
 
@@ -60,12 +62,12 @@ export function PurchasedRouteView({ route }: { route: PurchasedRoute }) {
   const asset = supportedAsset(route.policy.asset);
   const v2 = isPurchasedRouteV2(route);
   return (
-    <section className={styles.shell} aria-label="Purchased allocation quote">
+    <section className={styles.shell} aria-label="Purchased route">
       <header className={styles.header}>
         <div>
           <span className={styles.icon}><Route size={19} /></span>
           <div>
-            <h2>Your purchased quote</h2>
+            <h2>Your verified route</h2>
             <p>{amountLabel(BigInt(route.policy.principalAtomic), asset.decimals)} {asset.displaySymbol} · X Layer</p>
           </div>
         </div>
@@ -78,6 +80,8 @@ export function PurchasedRouteView({ route }: { route: PurchasedRoute }) {
           : `${(route.bundle.expectedNetApyBps / 100).toFixed(2)}% expected net APY`}</strong>
         <span>Quote signer: {route.bundle.solverId}</span>
       </div>
+
+      {v2 ? <RouteOutcomePreview route={route} /> : null}
 
       {v2
         ? <PurchasedRoutePlanV2 route={route} />
@@ -98,6 +102,12 @@ export function PurchasedRouteView({ route }: { route: PurchasedRoute }) {
         <span>Payment receipt {shortHash(route.receiptHash)}</span>
         <span>Bundle {shortHash(route.quoteId)}</span>
       </footer>
+      <ShareProofActions
+        requestId={route.requestId}
+        summary={v2
+          ? `${(route.bundle.estimatedPreGasApyBps / 100).toFixed(2)}% estimated pre-gas APY · route authorized`
+          : "verified route proof"}
+      />
     </section>
   );
 }

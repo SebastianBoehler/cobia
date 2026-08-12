@@ -9,7 +9,7 @@ can be executed later through separate, explicit X Layer mainnet wallet prompts.
 
 ## Local run
 
-Requirements: Node.js 22.22+, pnpm 11.20.0, and PostgreSQL 16+.
+Requirements: Node.js 24+, pnpm 11.20.0, and PostgreSQL 16+.
 
 ```bash
 pnpm install
@@ -51,17 +51,19 @@ payment configuration is unavailable; it does not substitute sample data.
   six-decimal USDt0 token at `0x9e29b3aada05bf2d2c827af80bd28dc0b9b4fb0c`.
 - Purchased V2 routes first expose a buyer-authenticated action that replays the
   exact committed bundle in disposable X Layer mainnet-fork state and persists
-  the attributed trace. A passing, still-fresh route can then enter guided X
+  the attributed trace. A passing, still-fresh route can then enter verified stepwise X
   Layer mainnet execution. The browser independently verifies each server-built
   transaction and OKX Wallet asks the buyer to confirm one approval, swap,
   supply, or LP mint at a time. The server never signs or relays principal transactions.
   `eth_estimateGas` remains gas preflight, not a profitability guarantee. No
-  testnet Aave, Curve, or Uniswap deployment is claimed.
+  testnet Aave, Curve, or Uniswap deployment is claimed. A separate capped
+  atomic-executor contract is still an undeployed, paused-by-default beta
+  foundation and is not presented as a live product action.
 - Both the product rehearsal and the opt-in acceptance lane have passed direct
   Aave, Curve/Uniswap-to-Aave, and one-sided full-range Uniswap LP-entry routes with
   exact approvals, receipts, protocol events, NFT ownership, and state checks.
   Fork evidence is historical and uses
-  simulated funds; the guided wallet lane separately rechecks freshness,
+  simulated funds; the verified stepwise wallet lane separately rechecks freshness,
   deployments, balances, gas, transaction attribution, and postconditions at
   mainnet execution time.
   Historical LP fees are forecasts, not an enforceable yield floor. The current

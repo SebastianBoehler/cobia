@@ -37,13 +37,19 @@ export function WalletButton() {
     setOpen((value) => !value);
   }
 
+  const label = wallet.account && wallet.selected
+    ? `${wallet.selected.info.name} · ${shortAddress(wallet.account)}`
+    : "Connect wallet";
+
   return (
     <div className="wallet-control">
-      <button className="button button--quiet app-header__action" type="button" onClick={toggle} aria-expanded={open}>
+      <button className="button button--quiet app-header__action" type="button" onClick={toggle}
+        aria-expanded={open} aria-label={label}>
         <Wallet aria-hidden="true" size={16} />
-        {wallet.account && wallet.selected
-          ? `${wallet.selected.info.name} · ${shortAddress(wallet.account)}`
-          : "Connect wallet"}
+        <span className="wallet-control__label--desktop" aria-hidden="true">{label}</span>
+        <span className="wallet-control__label--mobile" aria-hidden="true">
+          {wallet.account ? shortAddress(wallet.account) : "Wallet"}
+        </span>
         <ChevronDown aria-hidden="true" size={14} />
       </button>
       {open ? (

@@ -10,7 +10,7 @@ import {
   listRouteCandidateSummariesV2,
   signRouteBundleV2,
 } from "@cobia/solvers";
-import { createPublicClient, http, keccak256, toHex } from "viem";
+import { createPublicClient, http, keccak256, toHex, type Address } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { describe, expect, it } from "vitest";
 import { PROTOCOL_REGISTRY, registryHash } from "../adapters/registry";
@@ -24,40 +24,56 @@ import { runPurchasedRouteRehearsal } from "./anvil-rehearsal";
 
 const XLAYER_RPC = "https://rpc.xlayer.tech";
 const PRINCIPAL = "10000000";
+const LP_FEE_ACTIVITY_BLOCK = 67_381_839n;
 const solver = privateKeyToAccount(keccak256(toHex("cobia-purchased-route-fork-solver")));
 const buyer = privateKeyToAccount(keccak256(toHex("cobia-purchased-route-fork-buyer")));
 
 async function capturedRoute(input: {
   requestId: string;
   actionKinds: readonly string[];
+  horizonDays?: number;
+  asset?: Address;
+  blockNumber?: bigint;
 }): Promise<PurchasedRouteArtifact> {
   const client = createPublicClient({
     cacheTime: 0,
     chain: xLayer,
     transport: http(XLAYER_RPC),
   });
-  const block = await client.getBlock({ blockTag: "latest" });
-  const policy = StablecoinPolicyV2Schema.parse(buildRoutePolicyV2({
+  const block = await client.getBlock({
+    blockNumber: input.blockNumber ?? BigInt(PROTOCOL_REGISTRY.auditedAtBlock.number),
+  });
+  if (!block.hash) throw new Error("Pinned X Layer block is missing its hash");
+  const policy = StablecoinPolicyV2Schema.parse({ ...buildRoutePolicyV2({
     requestId: input.requestId,
     owner: buyer.address,
-    asset: USDG_ADDRESS,
+    asset: input.asset ?? USDG_ADDRESS,
     principalAtomic: PRINCIPAL,
     protocolExposureBps: 10_000,
     minTvlUsdE6: "1000000",
     minPreGasApyBps: 1,
     nowSec: Number(block.timestamp),
-  }));
-  const snapshot = await captureRouteSnapshotV2(
-    policy,
-    routeSnapshotDependencies(client),
-  );
+  }), horizonDays: input.horizonDays ?? 30 });
+  const dependencies = routeSnapshotDependencies(client);
+  const snapshot = await captureRouteSnapshotV2(policy, {
+    ...dependencies,
+    getLatestBlock: async () => ({
+      number: block.number,
+      hash: block.hash!,
+      timestamp: block.timestamp,
+    }),
+  });
   const nowSec = Math.floor(Date.parse(snapshot.capturedAt) / 1_000);
   const candidates = listRouteCandidateSummariesV2({ policy, snapshot, nowSec });
   const candidate = candidates.find(({ actions }) =>
     actions.length === input.actionKinds.length &&
     actions.every((action, index) => action === input.actionKinds[index]));
   if (!candidate) {
-    throw new Error(`Pinned X Layer snapshot has no ${input.actionKinds.join(" -> ")} route`);
+    const capturedKinds = snapshot.opportunities.map(({ kind }) => kind).join(", ");
+    throw new Error(
+      `Pinned X Layer snapshot has no ${input.actionKinds.join(" -> ")} route; ` +
+      `captured opportunities: ${capturedKinds || "none"}`,
+    );
   }
   const unsigned = buildSelectedRouteBundleV2(
     { policy, snapshot, nowSec },
@@ -150,6 +166,9 @@ describe("purchased V2 route execution on a pinned X Layer fork", () => {
     const route = await capturedRoute({
       requestId: "550e8400-e29b-41d4-a716-446655440093",
       actionKinds: ["uniswap-v3-balance-swap", "uniswap-v3-full-range-mint"],
+      horizonDays: 365,
+      asset: PROTOCOL_REGISTRY.aaveV3.assets.USDt0.underlying.address,
+      blockNumber: LP_FEE_ACTIVITY_BLOCK,
     });
     const trace = await runPurchasedRouteRehearsal(route);
 

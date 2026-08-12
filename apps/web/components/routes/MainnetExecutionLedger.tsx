@@ -133,8 +133,8 @@ export function MainnetExecutionLedger({
       <div className={styles.executionHeader}>
         <Landmark size={19} />
         <div>
-          <strong>Guided X Layer mainnet execution</strong>
-          <p>This path uses real X Layer mainnet funds. Every approval, swap, supply, or LP mint is a separate OKX Wallet confirmation.</p>
+          <strong>Verified X Layer mainnet execution</strong>
+          <p>Broadcast this exact route with real mainnet funds. Each state-changing transaction remains an explicit OKX Wallet confirmation.</p>
         </div>
         <span>Chain 196</span>
       </div>
@@ -187,7 +187,7 @@ export function MainnetExecutionLedger({
         <button className="button button--primary" type="button"
           disabled={pending || !buyerConnected} onClick={start}>
           {pending ? <LoaderCircle className="spin" size={16} /> : null}
-          {pending ? "Authorizing…" : "Start guided mainnet execution"}
+          {pending ? "Authorizing…" : "Start verified mainnet execution"}
         </button>
       ) : session.preparedStep && !broadcasting && !uncertain ? (
         <button className="button button--primary" type="button" disabled={pending}

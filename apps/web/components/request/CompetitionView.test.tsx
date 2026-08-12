@@ -91,6 +91,7 @@ describe("CompetitionView", () => {
 
     render(<CompetitionView requestId={requestId} />);
 
+    fireEvent.click(await screen.findByText("Verification & purchase details"));
     expect(await screen.findByText("Unassessed")).toBeVisible();
   });
 
@@ -133,9 +134,10 @@ describe("CompetitionView", () => {
 
     render(<CompetitionView requestId={requestId} />);
 
-    expect(await screen.findByText("Operated by Cobia")).toBeVisible();
-    expect(screen.getByText("One 0.10 payment · 2 wallet signatures")).toBeVisible();
-    expect(screen.getByText("0.09 to quote signer + 0.01 to Cobia")).toBeVisible();
+    expect(await screen.findByText(/operated by Cobia/i)).toBeVisible();
+    fireEvent.click(screen.getByText("Verification & purchase details"));
+    expect(screen.getByText("0.10 · 2 direct-recipient signatures")).toBeVisible();
+    expect(screen.getByText("One purchase: 0.09 signer + 0.01 Cobia")).toBeVisible();
   });
 
   it("signs one owner proof and replays its exact body with an EIP-3009 credential", async () => {
@@ -235,7 +237,7 @@ describe("CompetitionView", () => {
     await screen.findByRole("button", { name: /Phantom · 0x1111…1111/ });
     fireEvent.click(await screen.findByRole("button", { name: "Resume payment" }));
 
-    expect(await screen.findByText("Your purchased quote")).toBeVisible();
+    expect(await screen.findByText("Your verified route")).toBeVisible();
     const revealPosts = fetchMock.mock.calls.filter(([input, init]) =>
       String(input).endsWith(`/quotes/${quoteId}/reveal`) && init?.method === "POST");
     expect(revealPosts).toHaveLength(2);
