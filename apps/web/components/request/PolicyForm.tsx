@@ -55,7 +55,6 @@ export function PolicyForm() {
   const [exposure, setExposure] = useState("100");
   const [minimumTvl, setMinimumTvl] = useState("500000");
   const [minimumApy, setMinimumApy] = useState("0.05");
-  const [acknowledged, setAcknowledged] = useState(false);
   const [advanced, setAdvanced] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
@@ -77,8 +76,7 @@ export function PolicyForm() {
     values.exposureBps !== null &&
     values.exposureBps > 0 &&
     values.minTvlUsdE6 !== null &&
-    values.minPreGasApyBps !== null &&
-    acknowledged;
+    values.minPreGasApyBps !== null;
   const exposureAtomic = values.principalAtomic
     ? ((BigInt(values.principalAtomic) * BigInt(values.exposureBps ?? 0)) / 10_000n).toString()
     : null;
@@ -269,23 +267,16 @@ export function PolicyForm() {
         </div>
       ) : null}
 
-      <label className="acknowledgement">
-        <input
-          type="checkbox"
-          checked={acknowledged}
-          onChange={(event) => setAcknowledged(event.target.checked)}
-        />
-        <span>
-          I understand this earn intent may route through Aave V3, Curve, Uniswap V3, or a full-range LP. APY and LP fees are estimates, not guarantees. The signed route enforces token minimums; buying the proof does not move principal.
-        </span>
-      </label>
-
       {error ? <p role="alert" className="form-alert">{error}</p> : null}
       <button className="button button--primary button--wide" type="submit" disabled={!valid || pending}>
         {pending ? <LoaderCircle className="spin" aria-hidden="true" size={17} /> : null}
         {pending ? "Searching verified routes…" : "Find verified routes"}
         {!pending ? <ArrowRight aria-hidden="true" size={17} /> : null}
       </button>
+      <p className="terms-notice">
+        By finding routes, you accept the <Link href="/terms">Terms</Link>. APY and LP fees are estimates,
+        not guarantees. No funds move until a separate wallet confirmation.
+      </p>
       <p className="payment-note">Free request · Pay only after selecting an authorized quote</p>
     </form>
   );

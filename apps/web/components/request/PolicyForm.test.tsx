@@ -38,7 +38,6 @@ function renderForm(): void {
 async function fillRequiredFields(): Promise<void> {
   fireEvent.click(screen.getByRole("button", { name: "Connect wallet" }));
   await screen.findByRole("button", { name: /Phantom · 0x1111…1111/ });
-  fireEvent.click(screen.getByLabelText(/I understand this earn intent/i));
 }
 
 describe("PolicyForm", () => {
@@ -84,16 +83,18 @@ describe("PolicyForm", () => {
     expect(screen.getByLabelText("Minimum estimated pre-gas APY")).toHaveValue("0.05");
   });
 
-  it("keeps submission gated until the wallet and risk acknowledgement are present", async () => {
+  it("gates submission on the wallet without a blocking disclosure checkbox", async () => {
     renderForm();
     const submit = screen.getByRole("button", { name: "Find verified routes" });
 
     expect(submit).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Connect wallet" }));
     await screen.findByRole("button", { name: /Phantom · 0x1111…1111/ });
-    expect(submit).toBeDisabled();
-    fireEvent.click(screen.getByLabelText(/I understand this earn intent/i));
     expect(submit).toBeEnabled();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    const termsLink = screen.getByRole("link", { name: "Terms" });
+    expect(termsLink).toHaveAttribute("href", "/terms");
+    expect(termsLink.parentElement).toHaveTextContent(/estimates, not guarantees/i);
   });
 
   it("shows the exact principal and policy boundary before submission", async () => {
@@ -122,10 +123,8 @@ describe("PolicyForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "Advanced settings" }));
 
     expect(screen.getByText("10.00 USDG exact")).toBeVisible();
-    expect(screen.getByText(/may route through Aave V3, Curve, Uniswap V3, or a full-range LP/i))
-      .toBeVisible();
     expect(screen.getByText(/APY and LP fees are estimates, not guarantees/i)).toBeVisible();
-    expect(screen.getByText(/buying the proof does not move principal/i)).toBeVisible();
+    expect(screen.getByText(/No funds move until a separate wallet confirmation/i)).toBeVisible();
     expect(screen.getByText("Free request · Pay only after selecting an authorized quote"))
       .toBeVisible();
     expect(screen.queryByText(/paid reveal is not wired/i)).not.toBeInTheDocument();

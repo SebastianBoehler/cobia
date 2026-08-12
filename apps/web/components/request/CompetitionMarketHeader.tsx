@@ -36,7 +36,6 @@ export function CompetitionMarketHeader({
   return (
     <header className={styles.intro}>
       <div>
-        <span className={styles.eyebrow}>Solver market · X Layer</span>
         <h1>{quotes.length > 0 ? "Best verified route" : "Route search complete"}</h1>
         <p>{policy.version === 1
           ? "The signed Aave allocation was recomputed from its pinned snapshot."

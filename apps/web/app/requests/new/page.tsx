@@ -15,7 +15,6 @@ export default function NewRequestPage() {
         </section>
         <section className="request-page__results" aria-labelledby="route-preview-title">
           <div className="route-empty-state">
-            <span>Verified route market</span>
             <h2 id="route-preview-title">Your best route will appear here.</h2>
             <p>Sign an outcome and Cobia will compare only routes that pass your exact policy bounds.</p>
             <dl>
