@@ -48,4 +48,40 @@ describe("public V2 route summary", () => {
       }),
     ]);
   });
+
+  it("projects both bounded swaps in a Profit round trip", async () => {
+    const { bundle } = await createRepositoryFixtureV2({
+      principalAtomic: "10000000",
+      protocolExposureBps: 10_000,
+    });
+    const leg = bundle.routePlan.legs[0]!;
+    const first = leg.actions[0];
+    if (first.kind !== "uniswap-v3-exact-input") throw new Error("Expected swap fixture");
+    const roundTrip = {
+      ...bundle,
+      routePlan: {
+        ...bundle.routePlan,
+        legs: [{ ...leg, actions: [first, {
+          ...first,
+          opportunityId: "return-quote",
+          consume: "exact" as const,
+          inputAtomic: first.minimumOutputAtomic,
+          tokenIn: first.tokenOut,
+          tokenOut: first.tokenIn,
+          quotedOutputAtomic: "10100000",
+          minimumOutputAtomic: "10010000",
+        }] }],
+      },
+    } as typeof bundle;
+
+    expect(projectPublicRouteSummaryV2(roundTrip).steps).toEqual([
+      expect.objectContaining({ kind: "swap", inputAtomic: "10000000" }),
+      expect.objectContaining({
+        kind: "swap",
+        inputAtomic: first.minimumOutputAtomic,
+        quotedOutputAtomic: "10100000",
+        minimumOutputAtomic: "10010000",
+      }),
+    ]);
+  });
 });

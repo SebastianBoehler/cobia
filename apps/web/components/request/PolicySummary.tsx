@@ -1,14 +1,11 @@
 import { Check, ShieldCheck, Wallet } from "lucide-react";
 
 interface PolicySummaryProps {
-  principal: string;
-  exposure: string;
-  minimumTvl: string;
-  minimumPreGasApy: string;
+  metrics: readonly { label: string; value: string }[];
   outputAssets: string;
   adapters: string;
   maximumSlippage: string;
-  horizon: string;
+  horizon?: string;
   snapshotAge: string;
   intentLifetime: string;
 }
@@ -19,7 +16,9 @@ export function PolicySummary(props: PolicySummaryProps) {
     { icon: ShieldCheck, label: `Outputs: ${props.outputAssets}` },
     { icon: ShieldCheck, label: `Adapters: ${props.adapters}` },
     { icon: ShieldCheck, label: `Maximum swap slippage: ${props.maximumSlippage}` },
-    { icon: ShieldCheck, label: `Yield horizon: ${props.horizon}` },
+    ...(props.horizon
+      ? [{ icon: ShieldCheck, label: `Yield horizon: ${props.horizon}` }]
+      : []),
     { icon: ShieldCheck, label: `Maximum snapshot age: ${props.snapshotAge}` },
     { icon: ShieldCheck, label: `Intent lifetime: ${props.intentLifetime}` },
     { icon: ShieldCheck, label: "Deterministic recomputation" },
@@ -32,22 +31,10 @@ export function PolicySummary(props: PolicySummaryProps) {
         <span className="status-dot">Ready to sign</span>
       </div>
       <dl className="policy-receipt__metrics">
-        <div>
-          <dt>Principal</dt>
-          <dd>{props.principal}</dd>
-        </div>
-        <div>
-          <dt>Protocol exposure</dt>
-          <dd>{props.exposure}</dd>
-        </div>
-        <div>
-          <dt>Minimum Aave reserve TVL</dt>
-          <dd>{props.minimumTvl}</dd>
-        </div>
-        <div>
-          <dt>Minimum pre-gas APY</dt>
-          <dd>{props.minimumPreGasApy}</dd>
-        </div>
+        {props.metrics.map(({ label, value }) => <div key={label}>
+          <dt>{label}</dt>
+          <dd>{value}</dd>
+        </div>)}
       </dl>
       <ul className="policy-receipt__constraints">
         {constraints.map(({ icon: Icon, label }) => (

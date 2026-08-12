@@ -190,6 +190,50 @@ describe("CompetitionView V2 route quote", () => {
     expect(screen.getByText(/reveal \$0\.10 · gas not included/i)).toBeVisible();
   });
 
+  it("presents a Swap as a bounded token outcome rather than zero yield", async () => {
+    const outputAsset = policy.allowedOutputAssets[1];
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({
+      ...market(false),
+      policy: {
+        ...policy,
+        protocolExposureBps: 10_000,
+        minPreGasApyBps: 0,
+        objective: { kind: "swap", outputAsset, minimumOutputAtomic: "9950000" },
+      },
+      snapshot: {
+        ...aaveSnapshot,
+        valuations: [...aaveSnapshot.valuations, {
+          asset: outputAsset, decimals: 6, priceUsdE8: "100000000",
+        }],
+      },
+      quotes: [{ ...quote, estimatedPreGasApyBps: 0 }],
+      routeSummaries: { [quoteId]: {
+        version: 2,
+        inputAsset: policy.asset,
+        inputAtomic: "10000000",
+        retainedAtomic: "0",
+        horizonDays: 30,
+        steps: [{
+          kind: "swap",
+          protocol: "Uniswap V3",
+          tokenIn: policy.asset,
+          tokenOut: outputAsset,
+          inputAtomic: "10000000",
+          quotedOutputAtomic: "9990000",
+          minimumOutputAtomic: "9950000",
+        }],
+      } },
+    })));
+
+    render(<WalletProvider><CompetitionView requestId={requestId} /></WalletProvider>);
+
+    expect(await screen.findByText("Minimum received")).toBeVisible();
+    expect(screen.getAllByText("9.95 USDt0").length).toBeGreaterThan(0);
+    expect(screen.getByText(/Expected 9\.99 USDt0/)).toBeVisible();
+    expect(screen.queryByText(/Estimated 30-day yield/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Not economical at this size")).not.toBeInTheDocument();
+  });
+
   it("offers the shared paid reveal after V2 selection", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(market(true))));
 

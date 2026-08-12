@@ -1,4 +1,4 @@
-import { allocateAtomicByBps } from "@cobia/domain";
+import { allocateAtomicByBps, routeObjectiveV2 } from "@cobia/domain";
 import { Check, CircleDollarSign, Info, LockKeyhole, Route } from "lucide-react";
 import { supportedAsset } from "../../lib/chain/supported-assets";
 import { PurchasedRoutePlanV2 } from "./PurchasedRoutePlanV2";
@@ -61,6 +61,14 @@ function isPurchasedRouteV2(route: PurchasedRoute): route is PurchasedRouteV2 {
 export function PurchasedRouteView({ route }: { route: PurchasedRoute }) {
   const asset = supportedAsset(route.policy.asset);
   const v2 = isPurchasedRouteV2(route);
+  const objective = v2 ? routeObjectiveV2(route.policy) : undefined;
+  const v2Summary = objective?.kind === "swap"
+    ? "Bounded atomic swap"
+    : objective?.kind === "profit"
+      ? "Bounded atomic profit route"
+      : v2
+        ? `${(route.bundle.estimatedPreGasApyBps / 100).toFixed(2)}% estimated pre-gas APY`
+        : undefined;
   return (
     <section className={styles.shell} aria-label="Purchased route">
       <header className={styles.header}>
@@ -76,7 +84,7 @@ export function PurchasedRouteView({ route }: { route: PurchasedRoute }) {
 
       <div className={styles.summary}>
         <strong>{v2
-          ? `${(route.bundle.estimatedPreGasApyBps / 100).toFixed(2)}% estimated pre-gas APY`
+          ? v2Summary
           : `${(route.bundle.expectedNetApyBps / 100).toFixed(2)}% expected net APY`}</strong>
         <span>Quote signer: {route.bundle.solverId}</span>
       </div>
@@ -105,7 +113,9 @@ export function PurchasedRouteView({ route }: { route: PurchasedRoute }) {
       <ShareProofActions
         requestId={route.requestId}
         summary={v2
-          ? `${(route.bundle.estimatedPreGasApyBps / 100).toFixed(2)}% estimated pre-gas APY · route authorized`
+          ? objective?.kind === "earn"
+            ? `${(route.bundle.estimatedPreGasApyBps / 100).toFixed(2)}% estimated pre-gas APY · route authorized`
+            : `${objective?.kind === "swap" ? "Atomic swap" : "Profit route"} · signed minimum · route authorized`
           : "verified route proof"}
       />
     </section>

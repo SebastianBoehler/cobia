@@ -2,10 +2,12 @@
 
 import "@testing-library/jest-dom/vitest";
 import { StablecoinPolicyV2Schema } from "@cobia/domain";
-import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 import { createRepositoryFixtureV2 } from "../../lib/db/repository-test-fixtures";
 import { PurchasedRouteView, type PurchasedRoute } from "./PurchasedRouteView";
+
+afterEach(cleanup);
 
 describe("PurchasedRouteView V2", () => {
   it("explains retained capital and renders ordered adapter actions", async () => {
@@ -100,6 +102,56 @@ describe("PurchasedRouteView V2", () => {
     expect(screen.getByText(
       "Swap 15 USDt0 for at least 1.4 0x999999…999999 via Uniswap V3",
     )).toBeVisible();
+  });
+
+  it("presents a purchased Swap as a bounded balance change rather than yield", async () => {
+    const fixture = await createRepositoryFixtureV2({
+      principalAtomic: "10000000",
+      protocolExposureBps: 10_000,
+    });
+    const leg = fixture.bundle.routePlan.legs[0]!;
+    const first = leg.actions[0];
+    if (first.kind !== "uniswap-v3-exact-input") throw new Error("Expected swap fixture");
+    const route = {
+      id: fixture.quote.quoteId,
+      requestId: fixture.policy.requestId,
+      quoteId: fixture.quote.quoteId,
+      buyer: fixture.policy.owner,
+      executionChainId: 196,
+      paymentChainId: 1952,
+      receiptHash: `0x${"cd".repeat(32)}`,
+      purchasedAt: "2026-08-10T19:00:00.000Z",
+      policy: StablecoinPolicyV2Schema.parse({
+        ...fixture.policy,
+        protocolExposureBps: 10_000,
+        minPreGasApyBps: 0,
+        objective: {
+          kind: "swap",
+          outputAsset: first.tokenOut,
+          minimumOutputAtomic: first.minimumOutputAtomic,
+        },
+      }),
+      snapshot: fixture.snapshot,
+      bundle: {
+        ...fixture.bundle,
+        estimatedPreGasApyBps: 0,
+        routePlan: {
+          ...fixture.bundle.routePlan,
+          retainedAtomic: "0",
+          legs: [{ ...leg, inputAtomic: "10000000", actions: [first] }],
+        },
+      },
+      rehearsalRealm: "localhost:3000",
+      rehearsal: null,
+    } as PurchasedRoute;
+
+    render(<PurchasedRouteView route={route} />);
+
+    expect(screen.getByText("Bounded atomic swap")).toBeVisible();
+    expect(screen.getByText(/At least .* USDG received/)).toBeVisible();
+    expect(screen.getAllByText(/Expected .* USDG in wallet/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/estimated pre-gas APY/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Not economical at this size")).not.toBeInTheDocument();
   });
 
   it("presents a one-sided LP route and labels fee APY as historical", async () => {

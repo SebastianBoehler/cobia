@@ -55,6 +55,21 @@ function outcomeLabel(summary: PublicRouteSummaryV2, valuations: readonly AssetV
   return `At least ${formattedAssetAmount(last.minimumOutputAtomic, last.tokenOut, valuations)}`;
 }
 
+function atomicOutcome(
+  summary: PublicRouteSummaryV2 | undefined,
+  valuations: readonly AssetValuationV2[] | undefined,
+) {
+  const last = summary?.steps.at(-1);
+  if (!summary || !valuations || last?.kind !== "swap") return null;
+  return {
+    label: last.tokenOut.toLowerCase() === summary.inputAsset.toLowerCase()
+      ? "Minimum final balance"
+      : "Minimum received",
+    minimum: formattedAssetAmount(last.minimumOutputAtomic, last.tokenOut, valuations),
+    expected: formattedAssetAmount(last.quotedOutputAtomic, last.tokenOut, valuations),
+  };
+}
+
 function QuoteAction(props: CompetitionQuoteCardProps) {
   const authorized = props.quote.version === 1
     ? props.quote.verification.executable
@@ -88,6 +103,7 @@ function QuoteAction(props: CompetitionQuoteCardProps) {
 
 export function CompetitionQuoteCard(props: CompetitionQuoteCardProps) {
   const { quote, summary, valuations } = props;
+  const boundedOutcome = atomicOutcome(summary, valuations);
   const errorCodes = quote.version === 1
     ? quote.verification.errorCodes
     : quote.authorization.errorCodes;
@@ -126,16 +142,20 @@ export function CompetitionQuoteCard(props: CompetitionQuoteCardProps) {
             ? outcomeLabel(summary, valuations)
             : quote.version === 2 ? "Authorized route" : "Recomputed allocation"}</dd>
         </div>
-        <div>
+        {boundedOutcome ? <div>
+          <dt>{boundedOutcome.label}</dt>
+          <dd className={styles.estimate}>{boundedOutcome.minimum}</dd>
+          <small>Expected {boundedOutcome.expected} · gas excluded</small>
+        </div> : <div>
           <dt>Estimated {summary?.horizonDays ?? props.economics?.horizonDays ?? 30}-day yield</dt>
           <dd className={styles.estimate}>{(apyBps / 100).toFixed(2)}%</dd>
           <small>{props.economics
             ? `${formatUsdE8(props.economics.estimatedGrossYieldUsdE8)} gross · gas excluded`
             : "Estimated APY · gas excluded"}</small>
-        </div>
+        </div>}
       </dl>
 
-      {props.economics?.status === "not-economical" ? (
+      {!boundedOutcome && props.economics?.status === "not-economical" ? (
         <p className={styles.economicsWarning}>
           <strong>Not economical at this size</strong>
           <span>Estimated {props.economics.horizonDays}-day gross {formatUsdE8(props.economics.estimatedGrossYieldUsdE8)} · reveal {formatUsdE8(props.economics.revealFeeUsdE8)} · gas not included</span>

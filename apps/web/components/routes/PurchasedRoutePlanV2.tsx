@@ -19,14 +19,14 @@ function actionSteps(
     if (action.kind === "uniswap-v3-exact-input") {
       return {
         key: `${leg.id}:${index}:${action.opportunityId}`,
-        label: `Swap ${formattedAssetAmount(leg.inputAtomic, action.tokenIn, valuations)} for at least ${formattedAssetAmount(action.minimumOutputAtomic, action.tokenOut, valuations)} via Uniswap V3`,
+        label: `Swap ${formattedAssetAmount(action.inputAtomic ?? leg.inputAtomic, action.tokenIn, valuations)} for at least ${formattedAssetAmount(action.minimumOutputAtomic, action.tokenOut, valuations)} via Uniswap V3`,
         detail: `Quoted output ${formattedAssetAmount(action.quotedOutputAtomic, action.tokenOut, valuations)} · ${action.opportunityId}`,
       };
     }
     if (action.kind === "curve-stableswap-ng-exact-input") {
       return {
         key: `${leg.id}:${index}:${action.opportunityId}`,
-        label: `Swap ${formattedAssetAmount(leg.inputAtomic, action.tokenIn, valuations)} for at least ${formattedAssetAmount(action.minimumOutputAtomic, action.tokenOut, valuations)} via Curve StableSwap NG`,
+        label: `Swap ${formattedAssetAmount(action.inputAtomic ?? leg.inputAtomic, action.tokenIn, valuations)} for at least ${formattedAssetAmount(action.minimumOutputAtomic, action.tokenOut, valuations)} via Curve StableSwap NG`,
         detail: `Quoted output ${formattedAssetAmount(action.quotedOutputAtomic, action.tokenOut, valuations)} · ${action.opportunityId}`,
       };
     }

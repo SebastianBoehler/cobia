@@ -1,6 +1,6 @@
-.request-page { display: grid; grid-template-areas: "support workspace"; grid-template-columns: minmax(280px, .72fr) minmax(620px, 1.48fr); margin: 0 auto; max-width: 1540px; min-height: calc(100svh - 76px); }
-.request-page__workspace { align-items: center; display: flex; grid-area: workspace; padding: clamp(28px, 4vw, 60px); }
-.intent-workspace { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow); margin: 0 auto; max-width: 860px; padding: clamp(24px, 3.5vw, 44px); width: 100%; }
+.request-page { display: grid; grid-template-areas: "support workspace"; grid-template-columns: minmax(280px, .72fr) minmax(0, 1.48fr); margin: 0 auto; max-width: 1540px; min-height: calc(100svh - 76px); }
+.request-page__workspace { align-items: center; display: flex; grid-area: workspace; min-width: 0; padding: clamp(28px, 4vw, 60px); }
+.intent-workspace { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow); inline-size: min(100%, 860px); margin: 0 auto; padding: clamp(24px, 3.5vw, 44px); }
 .intent-workspace__header { border-bottom: 1px solid var(--line); padding-bottom: 22px; }
 .intent-workspace__header h1 { font-size: clamp(28px, 3vw, 40px); font-weight: 630; letter-spacing: -.05em; line-height: 1; margin: 0 0 10px; }
 .intent-workspace__header p { color: var(--muted); line-height: 1.5; margin: 0; text-wrap: pretty; }

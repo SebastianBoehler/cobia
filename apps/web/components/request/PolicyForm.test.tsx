@@ -56,27 +56,24 @@ describe("PolicyForm", () => {
     expect(screen.queryByLabelText("Minimum protocol TVL")).not.toBeInTheDocument();
   });
 
-  it("never coerces an unavailable Swap or Profit intent into the Earn policy", () => {
+  it("enables Swap and Profit without coercing either into Earn", async () => {
     renderForm();
+    await fillRequiredFields();
 
     fireEvent.click(screen.getByRole("tab", { name: "Swap" }));
     expect(screen.getByRole("tab", { name: "Swap" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByText(
       "Swap 10 USDG for the most USDt0 available within your slippage bound.",
     )).toBeVisible();
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Atomic Swap intents are not enabled yet",
-    );
-    expect(screen.getByRole("button", { name: "Find verified routes" })).toBeDisabled();
+    expect(screen.queryByText(/not enabled yet/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Find verified routes" })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("tab", { name: "Profit" }));
     expect(screen.getByText(
       "Find a verified round-trip route for 10 USDG that ends with more USDG after fees and gas.",
     )).toBeVisible();
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Atomic Profit intents are not enabled yet",
-    );
-    expect(screen.getByRole("button", { name: "Find verified routes" })).toBeDisabled();
+    expect(screen.queryByText(/not enabled yet/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Find verified routes" })).toBeEnabled();
   });
 
   it("updates Swap and Profit outcomes when the amount or asset changes", () => {
@@ -248,6 +245,40 @@ describe("PolicyForm", () => {
       },
     });
     expect(body.policy).not.toHaveProperty("maxProtocolExposureBps");
+    expect(providerRequest).toHaveBeenCalledWith({
+      method: "personal_sign",
+      params: [commitment(body.policy), owner],
+    });
+  });
+
+  it.each([
+    ["Swap", {
+      kind: "swap",
+      outputAsset: "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+      minimumOutputAtomic: "9950000",
+    }],
+    ["Profit", { kind: "profit", minimumFinalAtomic: "10010000" }],
+  ] as const)("signs and submits an atomic %s objective", async (mode, objective) => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({
+      requestId: "550e8400-e29b-41d4-a716-446655440000",
+      policyHash: `0x${"ab".repeat(32)}`,
+      quoteCount: 1,
+      failureCount: 0,
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    renderForm();
+    await fillRequiredFields();
+    fireEvent.click(screen.getByRole("tab", { name: mode }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Find verified routes" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1].body));
+    expect(body.policy).toMatchObject({
+      protocolExposureBps: 10_000,
+      minPreGasApyBps: 0,
+      objective,
+    });
     expect(providerRequest).toHaveBeenCalledWith({
       method: "personal_sign",
       params: [commitment(body.policy), owner],

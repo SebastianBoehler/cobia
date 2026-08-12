@@ -1,4 +1,5 @@
 import { ArrowRight, CircleAlert, ShieldCheck } from "lucide-react";
+import { routeObjectiveV2 } from "@cobia/domain";
 import { formatUsdE8, projectRouteEconomicsForHorizon } from "../../lib/markets/route-economics";
 import type { PurchasedRouteV2 } from "./purchased-route";
 import { formattedAssetAmount } from "./purchased-route-format";
@@ -37,10 +38,29 @@ function positionOutcome(route: PurchasedRouteV2): PositionOutcome {
       minimum: `Liquidity ≥ ${second.minimumLiquidity}`,
     };
   }
+  const finalSwap = (second?.kind === "uniswap-v3-exact-input" ||
+    second?.kind === "curve-stableswap-ng-exact-input")
+    ? second
+    : (first.kind === "uniswap-v3-exact-input" ||
+      first.kind === "curve-stableswap-ng-exact-input") && !second
+      ? first
+      : undefined;
+  if (finalSwap) {
+    return {
+      expected: `Expected ${formattedAssetAmount(
+        finalSwap.quotedOutputAtomic, finalSwap.tokenOut, valuations,
+      )} in wallet`,
+      minimum: `At least ${formattedAssetAmount(
+        finalSwap.minimumOutputAtomic, finalSwap.tokenOut, valuations,
+      )} received`,
+    };
+  }
   return { expected: "Bounded protocol position", minimum: "Signed route constraints" };
 }
 
 export function RouteOutcomePreview({ route }: { route: PurchasedRouteV2 }) {
+  const objective = routeObjectiveV2(route.policy);
+  const atomicOutcome = objective.kind !== "earn";
   const valuation = route.snapshot.valuations.find(({ asset }) =>
     asset.toLowerCase() === route.policy.asset.toLowerCase());
   if (!valuation) return null;
@@ -69,11 +89,11 @@ export function RouteOutcomePreview({ route }: { route: PurchasedRouteV2 }) {
           <span>Balance simulation</span>
           <h3 id="route-outcome-title">Expected wallet effect</h3>
         </div>
-        <strong className={economics.status === "not-economical"
+        <strong className={!atomicOutcome && economics.status === "not-economical"
           ? styles.economicsWarning : styles.economicsPositive}>
-          {economics.status === "not-economical"
+          {!atomicOutcome && economics.status === "not-economical"
             ? <CircleAlert size={14} /> : <ShieldCheck size={14} />}
-          {economics.status === "not-economical"
+          {atomicOutcome ? "Signed bound enforced" : economics.status === "not-economical"
             ? "Not economical at this size" : "Positive before gas"}
         </strong>
       </div>
@@ -85,15 +105,22 @@ export function RouteOutcomePreview({ route }: { route: PurchasedRouteV2 }) {
       <dl className={styles.outcomeMetrics}>
         <div><dt>Minimum onchain outcome</dt><dd>{outcome.minimum}</dd></div>
         <div><dt>Retained in wallet</dt><dd>{retained}</dd></div>
-        <div><dt>{route.bundle.routePlan.horizonDays}-day estimated gross yield</dt><dd>{formatUsdE8(economics.estimatedGrossYieldUsdE8)}</dd></div>
-        <div><dt>Reveal fee</dt><dd>{formatUsdE8(economics.revealFeeUsdE8)}</dd></div>
+        {atomicOutcome ? <>
+          <div><dt>Forecast result</dt><dd>{outcome.expected}</dd></div>
+          <div><dt>Execution</dt><dd>Final simulation required</dd></div>
+        </> : <>
+          <div><dt>{route.bundle.routePlan.horizonDays}-day estimated gross yield</dt><dd>{formatUsdE8(economics.estimatedGrossYieldUsdE8)}</dd></div>
+          <div><dt>Reveal fee</dt><dd>{formatUsdE8(economics.revealFeeUsdE8)}</dd></div>
+        </>}
       </dl>
-      <p className={styles.economicsNote}>
+      {atomicOutcome ? <p className={styles.economicsNote}>
+        The minimum is encoded in the signed route. The forecast is re-simulated before your wallet can submit it.
+      </p> : <p className={styles.economicsNote}>
         Net before gas {formatUsdE8(economics.netBeforeGasUsdE8)}. Gas is estimated again before execution.
         {economics.breakEvenPrincipalUsdE8
           ? ` Break-even principal before gas is about ${formatUsdE8(economics.breakEvenPrincipalUsdE8)} at this rate and horizon.`
           : " This route has no positive yield estimate."}
-      </p>
+      </p>}
     </section>
   );
 }

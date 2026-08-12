@@ -96,6 +96,19 @@ export function projectPublicRouteSummaryV2(
         asset: second.asset,
         inputAtomic: first.quotedOutputAtomic,
       });
+    } else if (second?.kind === "uniswap-v3-exact-input" ||
+      second?.kind === "curve-stableswap-ng-exact-input") {
+      steps.push({
+        kind: "swap",
+        protocol: second.kind === "curve-stableswap-ng-exact-input"
+          ? "Curve StableSwap NG"
+          : "Uniswap V3",
+        tokenIn: second.tokenIn,
+        tokenOut: second.tokenOut,
+        inputAtomic: second.inputAtomic ?? first.minimumOutputAtomic,
+        quotedOutputAtomic: second.quotedOutputAtomic,
+        minimumOutputAtomic: second.minimumOutputAtomic,
+      });
     }
   }
   return {
