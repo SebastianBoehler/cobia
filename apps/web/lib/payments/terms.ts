@@ -95,6 +95,12 @@ export const PaymentTermsSchema = z.discriminatedUnion("version", [
 });
 
 export type PaymentTerms = z.infer<typeof PaymentTermsSchema>;
+export type CurrentPaymentTerms = Extract<PaymentTerms, { version: 2 }>;
+
+export function isCurrentPaymentTerms(value: unknown): value is CurrentPaymentTerms {
+  const parsed = PaymentTermsSchema.safeParse(value);
+  return parsed.success && parsed.data.version === 2;
+}
 
 interface BuildPaymentTermsInput {
   quote: Pick<RouteQuote, "quoteId" | "priceAtomic">;

@@ -12,12 +12,6 @@ const CHAINS = {
     rpcUrls: ["https://rpc.xlayer.tech"],
     blockExplorerUrls: ["https://www.okx.com/web3/explorer/xlayer"],
   },
-  1952: {
-    chainId: "0x7a0",
-    chainName: "X Layer Testnet",
-    rpcUrls: ["https://testrpc.xlayer.tech/terigon"],
-    blockExplorerUrls: ["https://www.okx.com/web3/explorer/xlayer-test"],
-  },
 } as const;
 
 interface WalletSession {

@@ -24,7 +24,7 @@ import {
   paidRevealStep,
 } from "@/lib/payments/reveal-error";
 import { createPaymentServer } from "@/lib/payments/server";
-import { hashPaymentTerms, paymentTermsToChargeOptions } from "@/lib/payments/terms";
+import { hashPaymentTerms, isCurrentPaymentTerms, paymentTermsToChargeOptions } from "@/lib/payments/terms";
 import { getPaymentRepository, getRequestRepository } from "@/lib/runtime/market";
 
 export const runtime = "nodejs";
@@ -113,6 +113,12 @@ export async function POST(
       expiresAt: terms.expiresAt,
     } as const;
     const recovering = storedAttempt?.state === "settled" || storedAttempt?.state === "finalized";
+    if (storedAttempt && !isCurrentPaymentTerms(terms) && !recovering) {
+      throw new PaidRevealClientError(
+        "PAYMENT_RECONCILIATION_REQUIRED",
+        "Historical testnet payments are read-only and cannot be resumed.",
+      );
+    }
     // Recovery reauthorizes access to a paid artifact; it never reopens settlement.
     const proof = await paidRevealStep(
       "INVALID_REVEAL_PROOF",

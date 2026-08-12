@@ -2,7 +2,12 @@ import { Challenge, Credential } from "@okxweb3/mpp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { encodeFunctionResult } from "viem";
 import { authorizePayment } from "./eip3009";
-import { buildPaymentTerms, paymentTermsToChargeOptions } from "./terms";
+import {
+  buildPaymentTerms,
+  PaymentTermsSchema,
+  paymentTermsToChargeOptions,
+} from "./terms";
+import { LEGACY_PAYMENT_ASSET } from "./support";
 
 const owner = "0x1111111111111111111111111111111111111111";
 const other = "0x4444444444444444444444444444444444444444";
@@ -20,6 +25,12 @@ const terms = buildPaymentTerms({
   realm: "pay.cobia.example",
   issuedAt,
   cutoff: issuedAt + 300,
+});
+const legacyTerms = PaymentTermsSchema.parse({
+  ...terms,
+  version: 1,
+  paymentChainId: 1952,
+  currency: LEGACY_PAYMENT_ASSET,
 });
 
 const domainAbi = [{
@@ -40,8 +51,11 @@ const domainAbi = [{
 
 type ChallengeValue = Parameters<typeof Challenge.serialize>[0];
 
-function challengeResponse(mutate?: (value: ChallengeValue) => void): Response {
-  const options = paymentTermsToChargeOptions(terms);
+function challengeResponse(
+  mutate?: (value: ChallengeValue) => void,
+  paymentTerms = terms,
+): Response {
+  const options = paymentTermsToChargeOptions(paymentTerms);
   const value: ChallengeValue = {
     id: "challenge-1",
     realm: terms.realm,
@@ -162,6 +176,19 @@ describe("authorizePayment", () => {
       { terms, owner },
       test.reader,
     )).rejects.toThrow("policy owner");
+    expect(test.switchChain).not.toHaveBeenCalled();
+    expect(test.chainRequest).not.toHaveBeenCalled();
+    expect(test.request).not.toHaveBeenCalled();
+  });
+
+  it("keeps historical testnet payment terms read-only", async () => {
+    const test = harness();
+    await expect(authorizePayment(
+      challengeResponse(undefined, legacyTerms),
+      test.wallet,
+      { terms: legacyTerms, owner },
+      test.reader,
+    )).rejects.toThrow("Historical testnet payment terms are read-only");
     expect(test.switchChain).not.toHaveBeenCalled();
     expect(test.chainRequest).not.toHaveBeenCalled();
     expect(test.request).not.toHaveBeenCalled();

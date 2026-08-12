@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { activeQuoteFreshness } from "@/lib/markets/active-quotes";
 import { readPaymentTermsConfig } from "@/lib/payments/config";
 import { buildContextPaymentTerms } from "@/lib/payments/payment-context";
+import { isCurrentPaymentTerms } from "@/lib/payments/terms";
 import { getPaymentRepository, getRequestRepository } from "@/lib/runtime/market";
 
 export const runtime = "nodejs";
@@ -23,8 +24,11 @@ export async function GET(
     let attempt: Awaited<ReturnType<ReturnType<typeof getPaymentRepository>["getPaymentByRequest"]>>;
     if (result.state === "payment_pending" || result.state === "paid") {
       attempt = await getPaymentRepository().getPaymentByRequest(id);
+      const currentTerms = isCurrentPaymentTerms(attempt?.paymentTerms);
       if (result.state === "payment_pending") {
-        paymentRecovery = attempt?.state === "pending" && !attempt.credentialHash
+        paymentRecovery = attempt?.state === "pending"
+          && !attempt.credentialHash
+          && currentTerms
           ? "resume"
           : "reconcile";
       } else {
@@ -33,7 +37,9 @@ export async function GET(
           : "reconcile";
       }
     }
-    let paymentTerms = attempt?.paymentTerms;
+    let paymentTerms = paymentRecovery === "resume" || paymentRecovery === "recover"
+      ? attempt?.paymentTerms
+      : undefined;
     if (
       result.selectedQuoteId
       && !result.purchasedRouteId

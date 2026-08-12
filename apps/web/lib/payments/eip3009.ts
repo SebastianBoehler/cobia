@@ -16,6 +16,7 @@ import {
 } from "./challenge";
 import { EIP3009_RPC_TYPES } from "./eip3009-authorization";
 import { randomBytes32 } from "./random";
+import { isCurrentPaymentTerms } from "./terms";
 import {
   PAYMENT_EIP712_NAME,
   PAYMENT_EIP712_VERSION,
@@ -51,7 +52,6 @@ export interface PaymentChainReader {
 
 const PAYMENT_RPC_URLS: Record<XLayerChainId, string> = {
   196: "https://rpc.xlayer.tech",
-  1952: "https://testrpc.xlayer.tech/terigon",
 };
 
 const publicChainReader: PaymentChainReader = {
@@ -165,6 +165,9 @@ export async function authorizePayment(
   if (!expected) throw new Error("Expected payment terms are required");
   const now = Math.floor(Date.now() / 1_000);
   const validated = validatePaymentChallenge(response, expected, now);
+  if (!isCurrentPaymentTerms(validated.terms)) {
+    throw new Error("Historical testnet payment terms are read-only");
+  }
   if (!isAddressEqual(wallet.account, validated.owner)) {
     throw new Error("Payment wallet must be the policy owner");
   }

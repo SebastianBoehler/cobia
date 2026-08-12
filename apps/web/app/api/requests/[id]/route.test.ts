@@ -1,13 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  createRepositoryFixture,
-  createRepositoryFixtureV2,
-  repositoryTestNowSec,
-} from "../../../../lib/db/repository-test-fixtures";
-import {
-  buildContextPaymentTerms,
-  type AuthoritativePaymentContext,
-} from "../../../../lib/payments/payment-context";
+import { createRepositoryFixture, createRepositoryFixtureV2, repositoryTestNowSec } from "../../../../lib/db/repository-test-fixtures";
+import { buildContextPaymentTerms, type AuthoritativePaymentContext } from "../../../../lib/payments/payment-context";
+import { PaymentTermsSchema } from "../../../../lib/payments/terms";
+import { LEGACY_PAYMENT_ASSET } from "../../../../lib/payments/support";
 
 const state = vi.hoisted(() => ({
   publicRequest: undefined as unknown,
@@ -56,6 +51,7 @@ vi.mock("@/lib/payments/config", () => ({
 
 vi.mock("@/lib/payments/payment-context", async () =>
   import("../../../../lib/payments/payment-context"));
+vi.mock("@/lib/payments/terms", async () => import("../../../../lib/payments/terms"));
 vi.mock("@/lib/markets/active-quotes", async () =>
   import("../../../../lib/markets/active-quotes"));
 
@@ -210,10 +206,17 @@ describe("public request payment terms", () => {
       purchasedRouteId: null,
       quotes: [fixture.quote],
     };
-    state.paymentAttempt = { state: "pending", credentialHash };
     state.paymentContext = {
       ...fixture,
       quoteCreatedAt: new Date(repositoryTestNowSec * 1_000),
+    };
+    state.paymentAttempt = {
+      state: "pending",
+      credentialHash,
+      paymentTerms: buildContextPaymentTerms(state.paymentContext as AuthoritativePaymentContext, {
+        COBIA_TREASURY: "0x3333333333333333333333333333333333333333",
+        PAYMENT_REALM: "pay.cobia.example",
+      }),
     };
 
     const response = await GET(new Request("https://cobia.example"), {
@@ -223,6 +226,38 @@ describe("public request payment terms", () => {
     expect(response.status).toBe(200);
     expect((await response.json()).paymentRecovery).toBe(expectedRecovery);
     expect(state.paymentCalls).toBe(1);
+  });
+
+  it("keeps a legacy testnet payment attempt in read-only reconciliation", async () => {
+    const fixture = await createRepositoryFixture();
+    vi.spyOn(Date, "now").mockReturnValue(repositoryTestNowSec * 1_000);
+    state.publicRequest = { requestId: fixture.policy.requestId, state: "payment_pending",
+      policy: fixture.policy, snapshot: fixture.snapshot, selectedQuoteId: fixture.quote.quoteId,
+      purchasedRouteId: null, quotes: [fixture.quote] };
+    const currentTerms = buildContextPaymentTerms({
+      ...fixture,
+      quoteCreatedAt: new Date(repositoryTestNowSec * 1_000),
+    }, {
+      COBIA_TREASURY: "0x3333333333333333333333333333333333333333",
+      PAYMENT_REALM: "pay.cobia.example",
+    });
+    state.paymentAttempt = { state: "pending", credentialHash: null,
+      paymentTerms: PaymentTermsSchema.parse({
+        ...currentTerms,
+        version: 1,
+        paymentChainId: 1952,
+        currency: LEGACY_PAYMENT_ASSET,
+      }),
+    };
+
+    const response = await GET(new Request("https://cobia.example"), {
+      params: Promise.resolve({ id: fixture.policy.requestId }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.paymentRecovery).toBe("reconcile");
+    expect(body).not.toHaveProperty("paymentTerms");
   });
 
   it("marks a settled paid request as recoverable without exposing payment data", async () => {
