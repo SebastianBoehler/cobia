@@ -4,8 +4,14 @@ import styles from "@/components/product/ProductShell.module.css";
 import { getMarketRepository } from "@/lib/runtime/market";
 import { currentUnixSeconds } from "@/lib/time";
 import Link from "next/link";
+import { createPageMetadata } from "../site-metadata";
 
 export const dynamic = "force-dynamic";
+export const metadata = createPageMetadata({
+  title: "Verified Route Markets",
+  description: "Explore active and historical X Layer solver markets with public route proofs and clearly separated estimates.",
+  path: "/markets",
+});
 
 export default async function MarketsPage() {
   const markets = await getMarketRepository().listMarkets(currentUnixSeconds());

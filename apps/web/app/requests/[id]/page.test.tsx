@@ -12,7 +12,15 @@ describe("public intent metadata", () => {
 
     expect(metadata.title).toBe("X Layer solver intent 550e8400");
     expect(metadata.description).toContain("public solver proof");
-    expect(metadata.openGraph).toMatchObject({ type: "website" });
-    expect(metadata.twitter).toMatchObject({ card: "summary_large_image" });
+    expect(metadata.openGraph).toMatchObject({
+      type: "website",
+      url: "/requests/550e8400-e29b-41d4-a716-446655440000",
+      images: [{ url: "/opengraph-image", width: 1200, height: 630 }],
+    });
+    expect(metadata.twitter).toMatchObject({
+      card: "summary_large_image",
+      creator: "@Cobia_Web3",
+      images: ["/opengraph-image"],
+    });
   });
 });

@@ -1,5 +1,12 @@
 import { AppHeader } from "@/components/layout/AppHeader";
 import { PolicyForm } from "@/components/request/PolicyForm";
+import { createPageMetadata } from "../../site-metadata";
+
+export const metadata = createPageMetadata({
+  title: "Create a DeFi Intent",
+  description: "Set your outcome and hard bounds, then compare verified X Layer routes proposed by competing solvers.",
+  path: "/requests/new",
+});
 
 export default function NewRequestPage() {
   return (

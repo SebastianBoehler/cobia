@@ -4,8 +4,21 @@ import { MarketDetailView } from "@/components/markets/MarketDetailView";
 import styles from "@/components/product/ProductShell.module.css";
 import { getMarketRepository } from "@/lib/runtime/market";
 import { currentUnixSeconds } from "@/lib/time";
+import type { Metadata } from "next";
+import { createPageMetadata } from "../../site-metadata";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(
+  context: PageProps<"/markets/[marketId]">,
+): Promise<Metadata> {
+  const { marketId } = await context.params;
+  return createPageMetadata({
+    title: "Verified Solver Market",
+    description: "Inspect the public history, active quote, route proof, and bounded outcome for this X Layer solver market.",
+    path: `/markets/${marketId}`,
+  });
+}
 
 export default async function MarketPage(context: PageProps<"/markets/[marketId]">) {
   const { marketId } = await context.params;

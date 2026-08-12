@@ -1,5 +1,12 @@
 import Link from "next/link";
 import { AppHeader } from "@/components/layout/AppHeader";
+import { createPageMetadata } from "../site-metadata";
+
+export const metadata = createPageMetadata({
+  title: "Terms of Use",
+  description: "Terms for Cobia's non-custodial X Layer route search, verification, simulation, reveal, and execution service.",
+  path: "/terms",
+});
 
 export default function TermsPage() {
   return <>

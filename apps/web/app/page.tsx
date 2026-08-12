@@ -2,6 +2,13 @@ import { ArrowRight, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { RouteCanvas } from "@/components/brand/RouteCanvas";
 import { AppHeader } from "@/components/layout/AppHeader";
+import { createPageMetadata } from "./site-metadata";
+
+export const metadata = createPageMetadata({
+  title: "Verified DeFi Routes on X Layer",
+  description: "Turn bounded DeFi intents into verified X Layer routes: solvers propose, Cobia verifies, and your wallet executes.",
+  path: "/",
+});
 
 export default function Home() {
   return (
