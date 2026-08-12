@@ -18,6 +18,7 @@
     "@cobia/solvers": "workspace:*",
     "@modelcontextprotocol/server": "2.0.0",
     "@okxweb3/mpp": "0.1.0",
+    "@vercel/speed-insights": "^2.0.0",
     "@web3icons/react": "4.1.19",
     "drizzle-orm": "0.45.2",
     "lucide-react": "1.30.0",

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { WalletProvider } from "@/components/wallet/WalletProvider";
 import "./globals.css";
 import "./styles/landing.css";
@@ -36,7 +37,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col"><WalletProvider>{children}</WalletProvider></body>
+      <body className="min-h-full flex flex-col">
+        <WalletProvider>{children}</WalletProvider>
+        <SpeedInsights />
+      </body>
     </html>
   );
 }
