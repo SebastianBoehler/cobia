@@ -2,6 +2,7 @@ import { isAddressEqual } from "viem";
 import { buildInitialRouteTransactionsV2 } from "./build-initial";
 import { buildPostSwapSupplyTransactionsV2 } from "./build-post-swap";
 import { buildPostSwapLiquidityTransactionsV2 } from "./build-post-swap-lp";
+import { buildPostSwapReturnTransactionsV2 } from "./build-post-swap-return";
 import type { VerifiedExecutionInputV2 } from "./execution-context";
 import type {
   CapturedExecutionStateV2,
@@ -112,6 +113,17 @@ function authorizedTransactions(
   }
   if (first?.kind !== "uniswap-v3-exact-input" &&
     first?.kind !== "curve-stableswap-ng-exact-input") return [];
+  const second = verified.bundle.routePlan.legs[0]?.actions[1];
+  if ((second?.kind === "uniswap-v3-exact-input" ||
+    second?.kind === "curve-stableswap-ng-exact-input") && second.inputAtomic) {
+    if (checkpoint.authorizedAmountAtomic !== BigInt(second.inputAtomic)) return [];
+    return buildPostSwapReturnTransactionsV2({
+      ...verified,
+      nowSec: 0,
+      observedOutputBalanceDeltaAtomic: checkpoint.authorizedAmountAtomic,
+      currentAllowanceAtomic: allowanceBefore(checkpoint),
+    }).transactions;
+  }
   const minimum = BigInt(first.minimumOutputAtomic);
   const quoted = BigInt(first.quotedOutputAtomic);
   if (checkpoint.authorizedAmountAtomic < minimum ||

@@ -97,9 +97,8 @@ export function buildInitialRouteTransactionsV2(
     };
   }
 
-  if (!second) throw new Error("Execution swap must be followed by a protocol action");
   const pair = registeredSwapPair(first.tokenIn, first.tokenOut);
-  if (second.kind === "aave-v3-supply") registeredExecutionAsset(second.asset);
+  if (second?.kind === "aave-v3-supply") registeredExecutionAsset(second.asset);
   const innerSwap = encodeFunctionData({
     abi: SWAP_ROUTER02_ABI,
     functionName: "exactInputSingle",

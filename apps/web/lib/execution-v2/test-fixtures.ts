@@ -150,7 +150,7 @@ export const executionPolicy: StablecoinPolicyV2 = {
   horizonDays: directPlan.horizonDays,
 };
 
-const executionSnapshot: RouteSnapshotV2 = RouteSnapshotV2Schema.parse({
+export const executionSnapshot: RouteSnapshotV2 = RouteSnapshotV2Schema.parse({
   version: 2,
   requestId,
   chainId: 196,
@@ -233,21 +233,25 @@ const executionSnapshot: RouteSnapshotV2 = RouteSnapshotV2Schema.parse({
   ],
 });
 
-export async function verifiedExecutionInput(rawPlan: unknown = directPlan) {
+export async function verifiedExecutionInput(
+  rawPlan: unknown = directPlan,
+  policy: StablecoinPolicyV2 = executionPolicy,
+  snapshot: RouteSnapshotV2 = executionSnapshot,
+) {
   const routePlan: RoutePlanV2 = RoutePlanV2Schema.parse(rawPlan);
   const unsigned: Omit<RouteBundleV2, "signature"> = {
     version: 2,
     requestId,
     solverId: "execution-test-solver",
     solverAddress: solver.address.toLowerCase() as Address,
-    policyHash: commitment(executionPolicy),
-    snapshotHash: commitment(executionSnapshot),
+    policyHash: commitment(policy),
+    snapshotHash: commitment(snapshot),
     routePlan,
     evidence: [],
     riskFlags: [],
     estimatedPreGasApyBps: estimateRouteEconomicsV2(
-      executionPolicy,
-      executionSnapshot,
+      policy,
+      snapshot,
       routePlan,
     ).estimatedPreGasApyBps,
     validUntil: DEADLINE_SEC,
@@ -255,8 +259,8 @@ export async function verifiedExecutionInput(rawPlan: unknown = directPlan) {
   const signature = await solver.signMessage({ message: { raw: commitment(unsigned) } });
   const bundle: RouteBundleV2 = { ...unsigned, signature };
   const verdict = await verifyRouteBundleV2(
-    executionPolicy,
-    executionSnapshot,
+    policy,
+    snapshot,
     bundle,
     solver.address,
     { expectedAdapterRegistryHash: registryHash },
@@ -265,5 +269,5 @@ export async function verifiedExecutionInput(rawPlan: unknown = directPlan) {
   if (!verdict.routeAuthorized) {
     throw new Error(`Execution fixture was not authorized: ${verdict.errorCodes.join(",")}`);
   }
-  return { policy: executionPolicy, bundle, verdict };
+  return { policy, bundle, verdict };
 }

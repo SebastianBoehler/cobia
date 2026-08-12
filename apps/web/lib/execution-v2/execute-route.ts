@@ -123,6 +123,15 @@ export async function executeRoutePlanV2(
   const swap = initial.confirmed.at(-1);
   try {
     if (swap?.stateCheck.kind !== "swap") throw new Error("Swap evidence was not captured");
+    const second = context.routePlan.legs[0]!.actions[1];
+    if (!second) {
+      return {
+        status: "success",
+        chainId: EXECUTION_CHAIN_ID,
+        owner: context.owner,
+        transactions: initial.confirmed,
+      };
+    }
     const outputAsset = first.kind === "curve-stableswap-ng-exact-input"
       ? registeredCurveSwap(
         first.tokenIn,
@@ -132,7 +141,6 @@ export async function executeRoutePlanV2(
         first.outputIndex,
       ).output
       : registeredSwapPair(first.tokenIn, first.tokenOut).output;
-    const second = context.routePlan.legs[0]!.actions[1];
     if (first.kind === "uniswap-v3-balance-swap" &&
       second?.kind !== "uniswap-v3-full-range-mint") {
       throw new Error("LP route is missing its mint action");
@@ -159,7 +167,11 @@ export async function executeRoutePlanV2(
         input.readClient,
         outputAsset.address,
         context.owner,
-        PROTOCOL_REGISTRY.aaveV3.pool.address,
+        second.kind === "uniswap-v3-exact-input"
+          ? PROTOCOL_REGISTRY.uniswapV3.swapRouter02.address
+          : second.kind === "curve-stableswap-ng-exact-input"
+            ? PROTOCOL_REGISTRY.curveStableSwapNg.pair.pool.address
+            : PROTOCOL_REGISTRY.aaveV3.pool.address,
         swap.blockNumber,
       );
     const postSwap = await machine.executePostSwap(

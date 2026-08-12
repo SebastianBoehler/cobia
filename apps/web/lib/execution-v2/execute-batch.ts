@@ -2,6 +2,7 @@ import { isAddressEqual } from "viem";
 import { buildInitialRouteTransactionsV2 } from "./build-initial";
 import { buildPostSwapSupplyTransactionsV2 } from "./build-post-swap";
 import { buildPostSwapLiquidityTransactionsV2 } from "./build-post-swap-lp";
+import { buildPostSwapReturnTransactionsV2 } from "./build-post-swap-return";
 import {
   assertExecutionBlockHashV2,
   assertExecutionDeploymentsV2,
@@ -219,6 +220,9 @@ export function createRouteExecutionMachineV2(
       });
       try {
         const first = context.routePlan.legs[0]?.actions[0];
+        const second = context.routePlan.legs[0]?.actions[1];
+        const isReturnSwap = second?.kind === "uniswap-v3-exact-input" ||
+          second?.kind === "curve-stableswap-ng-exact-input";
         const batch = first?.kind === "uniswap-v3-balance-swap"
           ? (() => {
             if (typeof currentAllowances === "bigint") {
@@ -232,7 +236,19 @@ export function createRouteExecutionMachineV2(
               currentToken1AllowanceAtomic: currentAllowances.token1Atomic,
             });
           })()
-          : (() => {
+          : isReturnSwap
+            ? (() => {
+              if (typeof currentAllowances !== "bigint") {
+                throw new Error("Profit continuation requires one swap allowance");
+              }
+              return buildPostSwapReturnTransactionsV2({
+                ...verified,
+                nowSec: input.nowSec(),
+                observedOutputBalanceDeltaAtomic: reservation.outputDeltaAtomic,
+                currentAllowanceAtomic: currentAllowances,
+              });
+            })()
+            : (() => {
             if (typeof currentAllowances !== "bigint") {
               throw new Error("Aave continuation requires one pool allowance");
             }
@@ -246,7 +262,7 @@ export function createRouteExecutionMachineV2(
         return executeBatch(
           batch.transactions,
           "post-swap",
-          reservation.outputDeltaAtomic,
+          isReturnSwap ? undefined : reservation.outputDeltaAtomic,
         ).then(
           (result) => {
             swapCapabilities.settleBatch(reservation, result);
