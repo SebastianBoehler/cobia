@@ -70,7 +70,7 @@ describe("PolicyForm", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "Profit" }));
     expect(screen.getByText(
-      "Find a verified round-trip route for 10 USDG that ends with more USDG after fees and gas.",
+      "Find a verified round-trip route for 10 USDG that ends with more USDG before gas. Gas is checked separately before execution.",
     )).toBeVisible();
     expect(screen.queryByText(/not enabled yet/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Find verified routes" })).toBeEnabled();
@@ -92,7 +92,7 @@ describe("PolicyForm", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "Profit" }));
     expect(screen.getByText(
-      "Find a verified round-trip route for 25 USDt0 that ends with more USDt0 after fees and gas.",
+      "Find a verified round-trip route for 25 USDt0 that ends with more USDt0 before gas. Gas is checked separately before execution.",
     )).toBeVisible();
   });
 

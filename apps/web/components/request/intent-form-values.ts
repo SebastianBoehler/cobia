@@ -40,7 +40,7 @@ export function intentOutcome(
   }
   return mode === "Swap"
     ? `Swap ${displayAmount} ${asset} for the most ${output} available within your slippage bound.`
-    : `Find a verified round-trip route for ${displayAmount} ${asset} that ends with more ${asset} after fees and gas.`;
+    : `Find a verified round-trip route for ${displayAmount} ${asset} that ends with more ${asset} before gas. Gas is checked separately before execution.`;
 }
 
 function ceilDiv(numerator: bigint, denominator: bigint): bigint {
