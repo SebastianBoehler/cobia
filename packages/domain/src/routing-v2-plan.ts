@@ -26,7 +26,8 @@ export const UniswapV3ExactInputActionV2Schema = z
   .object({
     kind: z.literal("uniswap-v3-exact-input"),
     opportunityId: OpportunityReferenceSchema,
-    consume: z.literal("all"),
+    consume: z.union([z.literal("all"), z.literal("exact")]),
+    inputAtomic: PositiveAtomicAmountSchema.optional(),
     tokenIn: RouteAddressV2Schema,
     tokenOut: RouteAddressV2Schema,
     quotedOutputAtomic: PositiveAtomicAmountSchema,
@@ -54,7 +55,8 @@ export const CurveStableSwapNgExactInputActionV2Schema = z
   .object({
     kind: z.literal("curve-stableswap-ng-exact-input"),
     opportunityId: OpportunityReferenceSchema,
-    consume: z.literal("all"),
+    consume: z.union([z.literal("all"), z.literal("exact")]),
+    inputAtomic: PositiveAtomicAmountSchema.optional(),
     pool: RouteAddressV2Schema,
     tokenIn: RouteAddressV2Schema,
     tokenOut: RouteAddressV2Schema,
@@ -147,12 +149,18 @@ export const UniswapV3FullRangeMintActionV2Schema = z
   });
 
 const DirectSupplyActionsSchema = z.tuple([AaveV3SupplyActionV2Schema]);
+const ExactSwapActionSchema = z.union([
+  CurveStableSwapNgExactInputActionV2Schema,
+  UniswapV3ExactInputActionV2Schema,
+]);
+const TerminalSwapActionsSchema = z.tuple([ExactSwapActionSchema]);
 const SwapThenSupplyActionsSchema = z.tuple([
-  z.union([
-    CurveStableSwapNgExactInputActionV2Schema,
-    UniswapV3ExactInputActionV2Schema,
-  ]),
+  ExactSwapActionSchema,
   AaveV3SupplyActionV2Schema,
+]);
+const RoundTripSwapActionsSchema = z.tuple([
+  ExactSwapActionSchema,
+  ExactSwapActionSchema,
 ]);
 const BalanceSwapThenMintActionsSchema = z.tuple([
   UniswapV3BalanceSwapActionV2Schema,
@@ -165,7 +173,9 @@ export const RouteLegV2Schema = z
     inputAtomic: PositiveAtomicAmountSchema,
     actions: z.union([
       DirectSupplyActionsSchema,
+      TerminalSwapActionsSchema,
       SwapThenSupplyActionsSchema,
+      RoundTripSwapActionsSchema,
       BalanceSwapThenMintActionsSchema,
     ]),
   })
@@ -241,12 +251,34 @@ export const RoutePlanV2Schema = z
         }
         return;
       }
-      if (!second || !isAddressEqual(first.tokenIn, plan.inputAsset)) {
+      if (!isAddressEqual(first.tokenIn, plan.inputAsset)) {
         context.addIssue({
           code: "custom",
           path: ["legs", index, "actions"],
           message: "Swap legs must consume the route input asset",
         });
+      }
+      if (first.consume !== "all" ||
+        (first.inputAtomic !== undefined && first.inputAtomic !== leg.inputAtomic)) {
+        context.addIssue({
+          code: "custom",
+          path: ["legs", index, "actions", 0],
+          message: "The first exact-input swap must consume the complete route leg",
+        });
+      }
+      if (second?.kind === "uniswap-v3-exact-input" ||
+        second?.kind === "curve-stableswap-ng-exact-input") {
+        if (second.consume !== "exact" || !second.inputAtomic ||
+          BigInt(second.inputAtomic) > BigInt(first.minimumOutputAtomic) ||
+          !isAddressEqual(second.tokenIn, first.tokenOut) ||
+          !isAddressEqual(second.tokenOut, plan.inputAsset)) {
+          context.addIssue({
+            code: "custom",
+            path: ["legs", index, "actions", 1],
+            message: "A round trip must use a conservatively funded exact return swap",
+          });
+        }
+        return;
       }
       if (second?.kind === "aave-v3-supply" &&
         !isAddressEqual(first.tokenOut, second.asset)) {

@@ -1,4 +1,8 @@
-import { StablecoinPolicyV2Schema, type StablecoinPolicyV2 } from "@cobia/domain";
+import {
+  StablecoinPolicyV2Schema,
+  type RouteObjectiveV2,
+  type StablecoinPolicyV2,
+} from "@cobia/domain";
 import type { Address } from "viem";
 import { SUPPORTED_ASSETS } from "../chain/supported-assets";
 
@@ -10,11 +14,13 @@ interface RoutePolicyV2Input {
   protocolExposureBps: number;
   minTvlUsdE6: string;
   minPreGasApyBps: number;
+  objective?: RouteObjectiveV2;
   nowSec: number;
 }
 
 export const ProductRoutePolicyV2Schema = StablecoinPolicyV2Schema.refine(
-  ({ minPreGasApyBps }) => minPreGasApyBps >= 1,
+  ({ minPreGasApyBps, objective }) =>
+    objective?.kind === "swap" || objective?.kind === "profit" || minPreGasApyBps >= 1,
   {
     path: ["minPreGasApyBps"],
     message: "Minimum pre-gas APY must be positive",
@@ -55,5 +61,6 @@ export function buildRoutePolicyV2(input: RoutePolicyV2Input): StablecoinPolicyV
     allowedAdapters: [...ROUTE_POLICY_V2_DEFAULTS.allowedAdapters],
     maxSlippageBps: ROUTE_POLICY_V2_DEFAULTS.maxSlippageBps,
     horizonDays: ROUTE_POLICY_V2_DEFAULTS.horizonDays,
+    ...(input.objective ? { objective: input.objective } : {}),
   });
 }

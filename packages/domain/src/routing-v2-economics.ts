@@ -1,6 +1,6 @@
 import { isAddressEqual } from "viem";
 import type { RoutePlanV2 } from "./routing-v2-plan";
-import type { StablecoinPolicyV2 } from "./routing-v2-policy";
+import { routeObjectiveV2, type StablecoinPolicyV2 } from "./routing-v2-policy";
 import type {
   AssetValuationV2,
   RouteOpportunityV2,
@@ -79,6 +79,34 @@ function computeRouteEconomicsV2(
   const [first, second] = leg.actions;
   const deployedValue = atomicUsdE8(leg.inputAtomic, inputValuation);
   let gainNumerator: bigint;
+
+  const objective = routeObjectiveV2(policy);
+  if (objective.kind === "swap") {
+    if ((first.kind !== "uniswap-v3-exact-input" &&
+      first.kind !== "curve-stableswap-ng-exact-input") || second) {
+      throw new Error("Swap objective requires one terminal swap");
+    }
+    requireOpportunity(snapshot, first.opportunityId, first.kind);
+    return {
+      economics: { estimatedPreGasApyBps: 0, positiveGain: true },
+      annualizedGainNumerator: 0n,
+    };
+  }
+  if (objective.kind === "profit") {
+    if ((first.kind !== "uniswap-v3-exact-input" &&
+      first.kind !== "curve-stableswap-ng-exact-input") ||
+      (second?.kind !== "uniswap-v3-exact-input" &&
+        second?.kind !== "curve-stableswap-ng-exact-input")) {
+      throw new Error("Profit objective requires a bounded round trip");
+    }
+    requireOpportunity(snapshot, first.opportunityId, first.kind);
+    requireOpportunity(snapshot, second.opportunityId, second.kind);
+    const finalValue = atomicUsdE8(second.quotedOutputAtomic, inputValuation);
+    return {
+      economics: { estimatedPreGasApyBps: 0, positiveGain: finalValue > principalValue },
+      annualizedGainNumerator: (finalValue - principalValue) * BPS_SCALE * DAYS_PER_YEAR,
+    };
+  }
 
   if (first.kind === "aave-v3-supply") {
     const supply = requireOpportunity(snapshot, first.opportunityId, first.kind);

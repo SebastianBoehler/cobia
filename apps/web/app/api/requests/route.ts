@@ -48,7 +48,7 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({
       code: invalid ? "INVALID_INTENT" : invalidSignature ? "INVALID_SIGNATURE" : "MARKET_UNAVAILABLE",
       message: invalid
-        ? "The yield intent is invalid."
+        ? "The signed intent is invalid."
         : invalidSignature
           ? "The owner signature is invalid."
           : "The route market is temporarily unavailable.",

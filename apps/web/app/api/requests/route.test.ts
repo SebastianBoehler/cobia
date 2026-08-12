@@ -107,7 +107,7 @@ describe("request creation policy deadline", () => {
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({
       code: "INVALID_INTENT",
-      message: "The yield intent is invalid.",
+      message: "The signed intent is invalid.",
       requestId: "unparsed",
     });
   });
@@ -171,6 +171,34 @@ describe("request creation policy deadline", () => {
       code: "INVALID_INTENT",
       requestId,
     });
+  });
+
+  it("accepts a zero APY floor only for an explicit bounded Swap objective", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(nowSec * 1_000);
+    const policy = {
+      ...basePolicyV2,
+      protocolExposureBps: 10_000,
+      minPreGasApyBps: 0,
+      objective: {
+        kind: "swap" as const,
+        outputAsset: basePolicyV2.allowedOutputAssets[1],
+        minimumOutputAtomic: "24875000000",
+      },
+      deadline: nowSec + 300,
+    };
+    const ownerSignature = await account.signMessage({
+      message: { raw: commitment(policy) },
+    });
+
+    const response = await POST(new Request("https://cobia.example/api/requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ policy, ownerSignature }),
+    }));
+
+    expect(response.status).toBe(201);
+    expect(openQuoteMarketMock).toHaveBeenCalledWith(policy);
   });
 
   it("applies the V2 deadline parser at ingress", async () => {

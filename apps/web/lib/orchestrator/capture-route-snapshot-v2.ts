@@ -1,6 +1,7 @@
 import {
   RouteSnapshotV2Schema,
   StablecoinPolicyV2Schema,
+  routeObjectiveV2,
   type RouteOpportunityV2,
   type RouteSnapshotV2,
   type StablecoinPolicyV2,
@@ -23,6 +24,11 @@ import {
 import { captureFullRangeLpOpportunity } from "./capture-uniswap-lp";
 
 const BPS_RAY = 10n ** 23n;
+const BPS_SCALE = 10_000n;
+
+function minimumAfterSlippage(value: bigint, slippageBps: number): bigint {
+  return (value * BigInt(10_000 - slippageBps) + BPS_SCALE - 1n) / BPS_SCALE;
+}
 
 export interface RouteSnapshotV2Dependencies extends ExactSwapCaptureDependencies {
   getLatestBlock(): Promise<BlockReference>;
@@ -154,6 +160,22 @@ export async function captureRouteSnapshotV2(
     assertContext,
   });
   opportunities.push(...swaps.opportunities);
+  if (routeObjectiveV2(policy).kind === "profit" && otherAsset) {
+    const reverseInputs = new Set(swaps.outputAmounts.map(({ amountAtomic }) =>
+      minimumAfterSlippage(amountAtomic, policy.maxSlippageBps)));
+    for (const amountAtomic of reverseInputs) {
+      const reverse = await captureExactSwapOpportunities({
+        policy,
+        deployedAtomic: amountAtomic,
+        inputAsset: otherAsset,
+        outputAsset: inputAsset,
+        block,
+        dependencies,
+        assertContext,
+      });
+      opportunities.push(...reverse.opportunities);
+    }
+  }
 
   if (deployed > 0n && otherAsset &&
     policy.allowedAdapters.includes("uniswap-v3@1")) {

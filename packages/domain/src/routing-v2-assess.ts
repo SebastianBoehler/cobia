@@ -2,6 +2,7 @@ import { isAddressEqual, type Address, type Hash } from "viem";
 import { commitment } from "./canonical";
 import type { RouteBundleV2 } from "./routing-v2-bundle";
 import type { StablecoinPolicyV2 } from "./routing-v2-policy";
+import { assessRouteObjectiveV2 } from "./routing-v2-objective-assess";
 import type {
   RouteOpportunityV2,
   RouteSnapshotV2,
@@ -25,7 +26,9 @@ export type RoutePolicyErrorCodeV2 =
   | "OPPORTUNITY_QUOTE_MISMATCH"
   | "OPPORTUNITY_AMOUNT_MISMATCH"
   | "TVL_BELOW_MINIMUM"
-  | "SLIPPAGE_LIMIT_EXCEEDED";
+  | "SLIPPAGE_LIMIT_EXCEEDED"
+  | "OBJECTIVE_ROUTE_MISMATCH"
+  | "OBJECTIVE_MINIMUM_NOT_MET";
 
 export interface RouteAuthorizationAssessmentV2 {
   authorizationValid: boolean;
@@ -260,6 +263,10 @@ export function assessRouteAuthorizationV2(
         errors,
       );
     }
+  }
+
+  for (const code of assessRouteObjectiveV2(policy, snapshot, plan)) {
+    add(errors, code);
   }
 
   return { authorizationValid: errors.length === 0, errorCodes: errors };

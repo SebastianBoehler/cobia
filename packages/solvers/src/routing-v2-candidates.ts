@@ -5,8 +5,10 @@ import {
   type RoutePlanV2,
   type RouteSnapshotV2,
   type StablecoinPolicyV2,
+  routeObjectiveV2,
 } from "@cobia/domain";
 import { isAddressEqual, type Address } from "viem";
+import { objectiveRouteCandidatesV2 } from "./routing-v2-objective-candidates";
 
 const BPS_SCALE = 10_000n;
 
@@ -41,6 +43,9 @@ export function routeCandidatesV2(
   policy: StablecoinPolicyV2,
   snapshot: RouteSnapshotV2,
 ): RouteCandidateV2[] {
+  if (routeObjectiveV2(policy).kind !== "earn") {
+    return objectiveRouteCandidatesV2(policy, snapshot);
+  }
   const principal = BigInt(policy.principalAtomic);
   const deployed = principal * BigInt(policy.protocolExposureBps) / BPS_SCALE;
   const retained = principal - deployed;

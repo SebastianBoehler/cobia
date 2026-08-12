@@ -44,4 +44,42 @@ describe("buildRoutePolicyV2", () => {
       nowSec: 1_900_000_000,
     })).toThrow("Minimum pre-gas APY must be positive");
   });
+
+  it("builds an atomic Swap policy without applying Earn APY semantics", () => {
+    const policy = buildRoutePolicyV2({
+      requestId: "550e8400-e29b-41d4-a716-446655440000",
+      owner: "0x1111111111111111111111111111111111111111",
+      asset: SUPPORTED_ASSETS[0].address,
+      principalAtomic: "10000000",
+      protocolExposureBps: 10_000,
+      minTvlUsdE6: "0",
+      minPreGasApyBps: 0,
+      objective: {
+        kind: "swap",
+        outputAsset: SUPPORTED_ASSETS[1].address,
+        minimumOutputAtomic: "9950000",
+      },
+      nowSec: 1_900_000_000,
+    });
+
+    expect(policy.objective).toEqual({
+      kind: "swap",
+      outputAsset: SUPPORTED_ASSETS[1].address.toLowerCase(),
+      minimumOutputAtomic: "9950000",
+    });
+  });
+
+  it("builds an atomic Profit policy with a strictly higher final balance", () => {
+    expect(buildRoutePolicyV2({
+      requestId: "550e8400-e29b-41d4-a716-446655440000",
+      owner: "0x1111111111111111111111111111111111111111",
+      asset: SUPPORTED_ASSETS[0].address,
+      principalAtomic: "10000000",
+      protocolExposureBps: 10_000,
+      minTvlUsdE6: "0",
+      minPreGasApyBps: 0,
+      objective: { kind: "profit", minimumFinalAtomic: "10010000" },
+      nowSec: 1_900_000_000,
+    }).objective).toEqual({ kind: "profit", minimumFinalAtomic: "10010000" });
+  });
 });
