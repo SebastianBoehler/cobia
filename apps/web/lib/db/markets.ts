@@ -138,6 +138,20 @@ export function createMarketRepository(db: CobiaDatabase) {
     }).filter(({ attempt }) => attempt.quoteEligibility === "active");
   }
 
+  async function mostRecentAttempts() {
+    return db.selectDistinctOn([cobiaRequests.marketId], {
+      ...attemptColumns,
+      marketId: cobiaRequests.marketId,
+      asset: cobiaMarkets.asset,
+    }).from(cobiaRequests)
+      .innerJoin(cobiaMarkets, eq(cobiaMarkets.id, cobiaRequests.marketId))
+      .orderBy(
+        cobiaRequests.marketId,
+        desc(cobiaRequests.createdAt),
+        desc(cobiaRequests.id),
+      );
+  }
+
   async function attemptPage(marketId: string, page: MarketHistoryPage) {
     const limit = historyLimit(page.limit);
     const cursor = decodeCursor(page.cursor);
@@ -236,16 +250,25 @@ export function createMarketRepository(db: CobiaDatabase) {
 
   return {
     async listMarkets(nowSec: number): Promise<StoredMarketSummary[]> {
-      const active = await activeAttempts(nowSec);
+      const recentRows = await mostRecentAttempts();
+      const marketIds = recentRows.map(({ marketId }) => marketId);
+      const [active, countRows, recentAttempts] = await Promise.all([
+        activeAttempts(nowSec),
+        counts(marketIds),
+        projectAttempts(recentRows, nowSec),
+      ]);
       const latest = new Map<string, (typeof active)[number]>();
       for (const row of active) if (!latest.has(row.marketId)) latest.set(row.marketId, row);
-      const countRows = await counts([...latest.keys()]);
-      return [...latest.values()].map((row) => ({
+      const recentByRequestId = new Map(
+        recentAttempts.map((attempt) => [attempt.requestId, attempt]),
+      );
+      return recentRows.map((row) => ({
         id: row.marketId,
         executionChainId: 196,
-        asset: row.asset,
+        asset: marketAddress(row.asset),
         ...countRows.get(row.marketId)!,
-        latestActiveAttempt: row.attempt,
+        latestActiveAttempt: latest.get(row.marketId)?.attempt ?? null,
+        mostRecentAttempt: recentByRequestId.get(row.requestId)!,
       }));
     },
     resolveMarket,

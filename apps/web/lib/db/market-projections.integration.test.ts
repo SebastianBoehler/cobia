@@ -93,6 +93,28 @@ describe("market public projections", () => {
     expect(JSON.stringify(summaries[0])).not.toMatch(/privateBundle|verdict/);
   });
 
+  it("keeps a market discoverable after its last published quote expires", async () => {
+    if (!database) throw new Error("Integration database did not start");
+    const expired = await persistQuote(true);
+
+    const summaries = await createMarketRepository(database.db).listMarkets(repositoryTestNowSec);
+
+    expect(summaries).toEqual([
+      expect.objectContaining({
+        id: `196:${expired.policy.asset.toLowerCase()}`,
+        latestActiveAttempt: null,
+        mostRecentAttempt: expect.objectContaining({
+          requestId: expired.policy.requestId,
+          quoteEligibility: "inactive",
+          quotes: [expect.objectContaining({ quoteId: expired.quote.quoteId })],
+        }),
+        requestAttemptCount: 1,
+        quoteBearingAttemptCount: 1,
+      }),
+    ]);
+    expect(JSON.stringify(summaries[0])).not.toMatch(/privateBundle|verdict/);
+  });
+
   it("paginates public attempt history by createdAt and requestId", async () => {
     if (!database) throw new Error("Integration database did not start");
     const first = await persistQuote();
@@ -133,7 +155,17 @@ describe("market public projections", () => {
     const repository = createMarketRepository(database.db);
     const marketId = `196:${fixture.policy.asset.toLowerCase()}`;
 
-    expect(await repository.listMarkets(repositoryTestNowSec)).toEqual([]);
+    expect(await repository.listMarkets(repositoryTestNowSec)).toEqual([
+      expect.objectContaining({
+        id: marketId,
+        latestActiveAttempt: null,
+        mostRecentAttempt: expect.objectContaining({
+          requestId: fixture.policy.requestId,
+          lifecycle: "running",
+          quoteEligibility: "none",
+        }),
+      }),
+    ]);
     expect((await repository.resolveMarket(marketId, repositoryTestNowSec))?.market)
       .toMatchObject({
         requestAttemptCount: 1,

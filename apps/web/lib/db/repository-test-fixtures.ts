@@ -87,25 +87,40 @@ export async function createRepositoryFixture({
   return { policy, snapshot, bundle, verdict, quote };
 }
 
-export async function createRepositoryFixtureV2() {
+export async function createRepositoryFixtureV2({
+  principalAtomic = "25000001",
+  protocolExposureBps = 6_000,
+  preferredRoute,
+}: {
+  principalAtomic?: string;
+  protocolExposureBps?: number;
+  preferredRoute?: "direct" | "uniswap" | "curve";
+} = {}) {
   const requestId = crypto.randomUUID();
   const usdg = USDG_ADDRESS.toLowerCase() as Address;
   const usdt0 = USDT_ADDRESS.toLowerCase() as Address;
+  const deployedAtomic = (
+    BigInt(principalAtomic) * BigInt(protocolExposureBps) / 10_000n
+  ).toString();
+  const usesCurve = preferredRoute === "curve";
+  const allowedAdapters = usesCurve
+    ? ["aave-v3@1", "curve-stableswap-ng@1"] as const
+    : ["aave-v3@1", "uniswap-v3@1"] as const;
   const policy: StablecoinPolicyV2 = {
     version: 2,
     requestId,
     owner: repositoryTestAccount.address,
     executionChainId: 196,
     asset: usdt0,
-    principalAtomic: "25000001",
-    protocolExposureBps: 6_000,
+    principalAtomic,
+    protocolExposureBps,
     minTvlUsdE6: "1000000",
     minPreGasApyBps: 0,
     maxSnapshotAgeSec: 300,
     deadline: 2_000_000_000,
     noBridges: true,
     allowedOutputAssets: [usdg, usdt0],
-    allowedAdapters: ["aave-v3@1", "uniswap-v3@1"],
+    allowedAdapters: [...allowedAdapters],
     maxSlippageBps: 100,
     horizonDays: 30,
   };
@@ -117,7 +132,7 @@ export async function createRepositoryFixtureV2() {
     blockHash: `0x${"bc".repeat(32)}`,
     capturedAt: "2026-08-09T10:00:00.000Z",
     adapterRegistryHash: registryHash,
-    scannedAdapters: ["aave-v3@1", "uniswap-v3@1"],
+    scannedAdapters: [...allowedAdapters],
     valuations: [
       { asset: usdg, decimals: 6, priceUsdE8: "100000000" },
       { asset: usdt0, decimals: 6, priceUsdE8: "100000000" },
@@ -128,20 +143,32 @@ export async function createRepositoryFixtureV2() {
         kind: "aave-v3-supply",
         adapterId: "aave-v3@1",
         asset: usdt0,
-        supplyRateBps: 26,
+        supplyRateBps: preferredRoute === "direct" ? 50 : 26,
         tvlUsdE6: "500000000000",
         availableLiquidityAtomic: "0",
-        validatedSupplyAtomic: "15000000",
+        validatedSupplyAtomic: deployedAtomic,
       },
-      {
+      usesCurve ? {
+        id: "curve:usdt0-usdg",
+        kind: "curve-stableswap-ng-exact-input" as const,
+        adapterId: "curve-stableswap-ng@1" as const,
+        pool: "0x31F066aA0A687d4F383F96a514984AF727Eb8e38" as Address,
+        tokenIn: usdt0,
+        tokenOut: usdg,
+        inputIndex: 1 as const,
+        outputIndex: 0 as const,
+        fee: "1000000",
+        quotedInputAtomic: deployedAtomic,
+        quotedOutputAtomic: deployedAtomic,
+      } : {
         id: "uniswap:usdt0-usdg",
-        kind: "uniswap-v3-exact-input",
-        adapterId: "uniswap-v3@1",
+        kind: "uniswap-v3-exact-input" as const,
+        adapterId: "uniswap-v3@1" as const,
         tokenIn: usdt0,
         tokenOut: usdg,
         feeTier: 100,
-        quotedInputAtomic: "15000000",
-        quotedOutputAtomic: "15000000",
+        quotedInputAtomic: deployedAtomic,
+        quotedOutputAtomic: deployedAtomic,
         estimatedGas: "100000",
       },
       {
@@ -152,7 +179,7 @@ export async function createRepositoryFixtureV2() {
         supplyRateBps: 39,
         tvlUsdE6: "500000000000",
         availableLiquidityAtomic: "0",
-        validatedSupplyAtomic: "15000000",
+        validatedSupplyAtomic: deployedAtomic,
       },
     ],
   };

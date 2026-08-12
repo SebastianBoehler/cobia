@@ -3,6 +3,7 @@
 import { CircleAlert, LoaderCircle, WalletCards } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { PortfolioSnapshot } from "../../lib/portfolio/read-portfolio";
+import { WalletScout } from "../scout/WalletScout";
 import { useWallet } from "../wallet/WalletProvider";
 import styles from "../product/ProductShell.module.css";
 
@@ -47,5 +48,6 @@ export function PortfolioView() {
       {snapshot.balances.map((balance) => <div className={styles.row} key={balance.address}><div><strong>{balance.symbol}</strong><small>Wallet balance</small></div><span>{balance.address.slice(0, 10)}…</span><strong>{pretty(balance.formatted)}</strong></div>)}
       {snapshot.positions.map((position) => <div className={styles.row} key={position.symbol}><div><strong>{position.symbol}</strong><small>Aave V3 supplied position</small></div><span>{position.adapterId}</span><strong>{pretty(position.formatted)}</strong></div>)}
     </div>
+    {snapshot.chainId === 196 ? <WalletScout account={wallet.account} snapshot={snapshot} /> : null}
   </section>;
 }

@@ -19,7 +19,7 @@ export default async function MarketPage(context: PageProps<"/markets/[marketId]
       ? "The latest request attempt is still running."
       : "No current quote is available. Create a fresh request before relying on historical output.";
   return <><AppHeader /><main className={styles.page}>
-    <header className={styles.heading}><h1>Allocation quote</h1><p>{description} Route execution and simulation are not implemented.</p></header>
+    <header className={styles.heading}><h1>Solver route</h1><p>{description} Purchased V2 routes can be rehearsed on a fork and executed on X Layer with explicit wallet confirmation.</p></header>
     <MarketDetailView market={market} />
   </main></>;
 }

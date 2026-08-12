@@ -25,7 +25,9 @@ describe("MarketsPage", () => {
 
     const html = renderToStaticMarkup(await MarketsPage());
 
-    expect(html).toContain("<h2>No active quotes</h2>");
+    expect(html).toContain("<h1>Route markets</h1>");
+    expect(html).toContain("<h2>No solver markets yet</h2>");
+    expect(html).toContain("Create an intent");
     expect(html).not.toContain("No stored quotes yet");
   });
 
@@ -34,7 +36,8 @@ describe("MarketsPage", () => {
 
     const html = renderToStaticMarkup(await MarketsPage());
 
-    expect(html).toContain("Aave V3, Curve StableSwap NG, and Uniswap V3 opportunities");
+    expect(html).toContain("Aave V3, Curve StableSwap NG, and Uniswap V3 liquidity");
+    expect(html).toContain("Live quotes rank first");
     expect(html).not.toContain("verifier-executable");
   });
 });

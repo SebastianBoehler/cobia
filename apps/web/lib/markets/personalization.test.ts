@@ -16,6 +16,7 @@ function market(id: string, asset: `0x${string}`, apy: number): StoredMarketSumm
     executionChainId: 196,
     asset,
     latestActiveAttempt: round,
+    mostRecentAttempt: round,
     requestAttemptCount: 1,
     quoteBearingAttemptCount: 1,
   };
@@ -50,9 +51,19 @@ describe("market personalization", () => {
   it("ranks V2 markets by estimated pre-gas APY", () => {
     const lower = market("lower", assetA, 100);
     const higher = market("higher", assetB, 900);
-    lower.latestActiveAttempt.quotes = [routeQuote(100)];
-    higher.latestActiveAttempt.quotes = [routeQuote(900)];
+    lower.latestActiveAttempt!.quotes = [routeQuote(100)];
+    higher.latestActiveAttempt!.quotes = [routeQuote(900)];
 
     expect(rankMarkets([lower, higher], new Map())[0]?.id).toBe("higher");
+  });
+
+  it("ranks a live route before a funded historical market", () => {
+    const historical = market("historical", assetA, 900);
+    historical.latestActiveAttempt = null;
+    historical.mostRecentAttempt.quoteEligibility = "inactive";
+    const live = market("live", assetB, 100);
+
+    expect(rankMarkets([historical, live], new Map([[assetA, 25]]))[0]?.id)
+      .toBe("live");
   });
 });

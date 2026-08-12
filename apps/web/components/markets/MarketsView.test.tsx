@@ -59,6 +59,7 @@ describe("MarketsView", () => {
       executionChainId: 196,
       asset: active.policy.asset,
       latestActiveAttempt: active,
+      mostRecentAttempt: active,
       requestAttemptCount: 2,
       quoteBearingAttemptCount: 2,
     };
@@ -119,6 +120,7 @@ describe("MarketsView", () => {
       executionChainId: 196,
       asset: active.policy.asset,
       latestActiveAttempt: active,
+      mostRecentAttempt: active,
       requestAttemptCount: 1,
       quoteBearingAttemptCount: 1,
     };
@@ -131,5 +133,30 @@ describe("MarketsView", () => {
     )).toBeVisible();
     expect(screen.getByText(/40% signed protocol exposure/)).toBeVisible();
     expect(screen.queryByText(/net APY/i)).not.toBeInTheDocument();
+  });
+
+  it("shows the latest historical route when no live quote remains", () => {
+    const historical = {
+      ...currentAttempt(),
+      quoteEligibility: "inactive" as const,
+    };
+    const market: StoredMarketSummary = {
+      id: marketId,
+      executionChainId: 196,
+      asset: historical.policy.asset,
+      latestActiveAttempt: null,
+      mostRecentAttempt: historical,
+      requestAttemptCount: 3,
+      quoteBearingAttemptCount: 3,
+    };
+
+    render(<WalletProvider><MarketsView markets={[market]} /></WalletProvider>);
+
+    expect(screen.getByText("historical")).toBeVisible();
+    expect(screen.getByText(/Last authorized estimate/)).toBeVisible();
+    expect(screen.getByRole("link", { name: "Review route history" }))
+      .toHaveAttribute("href", `/markets/${marketId}`);
+    expect(screen.queryByRole("link", { name: "View live quote" }))
+      .not.toBeInTheDocument();
   });
 });

@@ -3,15 +3,16 @@ import { MarketsView } from "@/components/markets/MarketsView";
 import styles from "@/components/product/ProductShell.module.css";
 import { getMarketRepository } from "@/lib/runtime/market";
 import { currentUnixSeconds } from "@/lib/time";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default async function MarketsPage() {
   const markets = await getMarketRepository().listMarkets(currentUnixSeconds());
   return <><AppHeader /><main className={styles.page}>
-    <header className={styles.heading}><h1>Allocation quotes</h1><p>Current eligible allocation quotes from snapshot-derived Aave V3, Curve StableSwap NG, and Uniswap V3 opportunities. Yield semantics are labeled per quote; eligibility expires with each quote.</p></header>
+    <header className={styles.heading}><h1>Route markets</h1><p>Explore live, solving, and historical routes across Aave V3, Curve StableSwap NG, and Uniswap V3 liquidity. Live quotes rank first; historical estimates stay visible but cannot be selected as current.</p></header>
     {markets.length ? <MarketsView markets={markets} /> : (
-      <section className={styles.empty}><h2>No active quotes</h2><p>No stored quote is currently eligible. Create a request to produce a fresh deterministic allocation quote.</p></section>
+      <section className={styles.empty}><h2>No solver markets yet</h2><p>Create an intent to run solvers against a fresh X Layer snapshot. The resulting market will remain discoverable after its quote expires.</p><Link className="button button--primary" href="/requests/new">Create an intent</Link></section>
     )}
   </main></>;
 }

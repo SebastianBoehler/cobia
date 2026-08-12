@@ -33,7 +33,8 @@ interface MarketIdentity {
 }
 
 export interface StoredMarketSummary extends MarketIdentity, MarketCounts {
-  latestActiveAttempt: MarketAttempt;
+  latestActiveAttempt: MarketAttempt | null;
+  mostRecentAttempt: MarketAttempt;
 }
 
 export interface StoredMarketDetail extends MarketIdentity, MarketCounts {

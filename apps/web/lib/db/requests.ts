@@ -8,21 +8,17 @@ import {
   type RouteVerificationVerdictV2,
 } from "@cobia/domain";
 import { and, eq, inArray } from "drizzle-orm";
-import {
-  isActiveRequestState,
-  visibleRequestQuotes,
-} from "../markets/active-quotes";
 import type { CobiaDatabase } from "./client";
 import { marketIdentity, verifyStoredMarketIdentity } from "./market-identity";
 import {
   parsePersistedPolicy,
-  parsePersistedSnapshot,
   parsePublicPersistedQuote,
   validatePersistedRoundArtifacts,
   validateRoundArtifacts,
   validateSnapshotArtifact,
 } from "./persisted-round";
-import { cobiaMarkets, cobiaQuotes, cobiaRequests, cobiaRoutePurchases } from "./schema";
+import { readPublicRequest } from "./public-request";
+import { cobiaMarkets, cobiaQuotes, cobiaRequests } from "./schema";
 
 const selectableStates = ["quotes_ready", "partial"] as const;
 
@@ -179,38 +175,7 @@ export function createRequestRepository(db: CobiaDatabase) {
       requestId: string,
       nowSec = Math.floor(Date.now() / 1_000),
     ) {
-      const request = await db.query.cobiaRequests.findFirst({
-        where: eq(cobiaRequests.id, requestId),
-      });
-      if (!request) return undefined;
-      const purchase = ["paid", "revealed", "executed"].includes(request.state)
-        ? await db.query.cobiaRoutePurchases.findFirst({
-            columns: { id: true },
-            where: eq(cobiaRoutePurchases.requestId, requestId),
-          })
-        : undefined;
-      const storedQuotes = await db.query.cobiaQuotes.findMany({
-        columns: { executable: true, publicQuote: true },
-        where: eq(cobiaQuotes.requestId, requestId),
-      });
-      const quotes = storedQuotes
-        .filter(({ executable }) => !isActiveRequestState(request.state) || executable)
-        .map(({ publicQuote }) => parsePublicPersistedQuote(publicQuote));
-      return {
-        requestId: request.id,
-        state: request.state,
-        policy: parsePersistedPolicy(request.policy),
-        snapshot: request.snapshot ? parsePersistedSnapshot(request.snapshot) : null,
-        selectedQuoteId: request.selectedQuoteId,
-        purchasedRouteId: purchase?.id ?? (
-          ["revealed", "executed"].includes(request.state) ? request.selectedQuoteId : null
-        ),
-        quotes: visibleRequestQuotes({
-          state: request.state,
-          selectedQuoteId: request.selectedQuoteId,
-          quotes,
-        }, nowSec),
-      };
+      return readPublicRequest(db, requestId, nowSec);
     },
 
     async selectQuote(requestId: string, quoteId: string, nowSec: number): Promise<void> {

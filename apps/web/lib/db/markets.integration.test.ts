@@ -99,15 +99,34 @@ describe("market persistence boundary", () => {
       .toBeUndefined();
   });
 
-  it("lists only executable unexpired quotes while retaining audit rows", async () => {
+  it("lists every market while keeping only unexpired quotes live", async () => {
     if (!database) throw new Error("Integration database did not start");
     const eligible = await persistFixture("eligible");
     const expired = await persistFixture("expired", USDT_ADDRESS);
     const rejected = await persistFixture("rejected", "0x3333333333333333333333333333333333333333");
     const repository = createRequestRepository(database.db);
 
-    expect((await createMarketRepository(database.db).listMarkets(repositoryTestNowSec))
-      .map(({ id }) => id)).toEqual([`196:${eligible.policy.asset.toLowerCase()}`]);
+    const markets = await createMarketRepository(database.db).listMarkets(repositoryTestNowSec);
+    expect(markets.map(({ id }) => id).sort()).toEqual([
+      `196:${eligible.policy.asset.toLowerCase()}`,
+      `196:${expired.policy.asset.toLowerCase()}`,
+      `196:${rejected.policy.asset.toLowerCase()}`,
+    ].sort());
+    expect(markets.find(({ id }) => id.endsWith(eligible.policy.asset.toLowerCase())))
+      .toMatchObject({ latestActiveAttempt: { requestId: eligible.policy.requestId } });
+    expect(markets.find(({ id }) => id.endsWith(expired.policy.asset.toLowerCase())))
+      .toMatchObject({
+        latestActiveAttempt: null,
+        mostRecentAttempt: {
+          quoteEligibility: "inactive",
+          quotes: [{ quoteId: expired.quote.quoteId }],
+        },
+      });
+    expect(markets.find(({ id }) => id.endsWith(rejected.policy.asset.toLowerCase())))
+      .toMatchObject({
+        latestActiveAttempt: null,
+        mostRecentAttempt: { quoteEligibility: "none", quotes: [] },
+      });
     expect((await repository.getPublicRequest(expired.policy.requestId, repositoryTestNowSec))
       ?.quotes).toEqual([]);
     expect((await repository.getPublicRequest(rejected.policy.requestId, repositoryTestNowSec))
