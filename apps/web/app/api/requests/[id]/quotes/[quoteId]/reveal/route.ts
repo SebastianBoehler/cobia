@@ -5,6 +5,7 @@ import { isAddress, isAddressEqual, type Hash, type Hex } from "viem";
 import { z } from "zod";
 import { validatePurchasedRouteIntegrity } from "@/lib/db/purchased-route-artifact";
 import { validatePaymentCredential } from "@/lib/payments/credential";
+import { readPaymentBalanceStatus } from "@/lib/payments/payment-balance";
 import { readPaymentConfig } from "@/lib/payments/config";
 import {
   buildContextPaymentTerms,
@@ -225,6 +226,24 @@ export async function POST(
         Math.floor(Date.now() / 1_000),
       ),
     );
+    if (!isCurrentPaymentTerms(terms)) {
+      throw new PaidRevealClientError(
+        "PAYMENT_RECONCILIATION_REQUIRED",
+        "Historical testnet payments are read-only and cannot be resumed.",
+      );
+    }
+
+    const balance = await paidRevealStep(
+      "PAYMENT_BALANCE_UNAVAILABLE",
+      "Cobia could not verify the USDt0 payment balance on X Layer Mainnet. Try again before signing.",
+      () => readPaymentBalanceStatus(paymentContext.policy.owner, terms),
+    );
+    if (!balance.sufficient) {
+      throw new PaidRevealClientError(
+        "PAYMENT_BALANCE_INSUFFICIENT",
+        "Insufficient USDt0 balance on X Layer Mainnet. Fund 0.10 USDt0 before paying.",
+      );
+    }
 
     paymentConfig ??= readPaymentConfig();
     const payment = createPaymentServer(terms.realm, paymentConfig.MPPX_SECRET_KEY);

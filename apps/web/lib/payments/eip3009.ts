@@ -16,6 +16,12 @@ import {
 } from "./challenge";
 import { EIP3009_RPC_TYPES } from "./eip3009-authorization";
 import { randomBytes32 } from "./random";
+import {
+  insufficientPaymentBalanceMessage,
+  publicPaymentChainReader,
+  readPaymentBalanceStatus,
+  type PaymentChainReader,
+} from "./payment-balance";
 import { isCurrentPaymentTerms } from "./terms";
 import {
   PAYMENT_EIP712_NAME,
@@ -45,30 +51,6 @@ interface WalletAccess {
   request(input: Eip1193Request): Promise<unknown>;
   switchChain(chainId: XLayerChainId): Promise<void>;
 }
-
-export interface PaymentChainReader {
-  request(chainId: XLayerChainId, input: Eip1193Request): Promise<unknown>;
-}
-
-const PAYMENT_RPC_URLS: Record<XLayerChainId, string> = {
-  196: "https://rpc.xlayer.tech",
-};
-
-const publicChainReader: PaymentChainReader = {
-  async request(chainId, input) {
-    const response = await fetch(PAYMENT_RPC_URLS[chainId], {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, ...input }),
-      signal: AbortSignal.timeout(10_000),
-    });
-    const body = await response.json() as { result?: unknown; error?: { message?: string } };
-    if (!response.ok || body.error || !("result" in body)) {
-      throw new Error(body.error?.message ?? "X Layer RPC could not read the payment token.");
-    }
-    return body.result;
-  },
-};
 
 async function tokenDomain(reader: PaymentChainReader, currency: Address, chainId: XLayerChainId) {
   const input = {
@@ -160,7 +142,7 @@ export async function authorizePayment(
   response: Response,
   wallet: WalletAccess,
   expected?: ExpectedPaymentAuthorization,
-  reader: PaymentChainReader = publicChainReader,
+  reader: PaymentChainReader = publicPaymentChainReader,
 ): Promise<string> {
   if (!expected) throw new Error("Expected payment terms are required");
   const now = Math.floor(Date.now() / 1_000);
@@ -174,6 +156,17 @@ export async function authorizePayment(
 
   const chainId = validated.terms.paymentChainId;
   await wallet.switchChain(chainId);
+  let balance;
+  try {
+    balance = await readPaymentBalanceStatus(validated.owner, validated.terms, reader);
+  } catch {
+    throw new Error(
+      "Cobia could not verify your USDt0 balance on X Layer Mainnet. Check your RPC connection and try again.",
+    );
+  }
+  if (!balance.sufficient) {
+    throw new Error(insufficientPaymentBalanceMessage(balance, validated.terms.decimals));
+  }
   const domain = await tokenDomain(reader, validated.currency, chainId);
   const validAfter = Math.max(0, now - 60).toString();
   const validBefore = validated.terms.expiresAt.toString();

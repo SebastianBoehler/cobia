@@ -9,6 +9,7 @@ vi.mock("@/lib/runtime/market", () => ({
   getPaymentRepository: () => ({}),
 }));
 vi.mock("@/lib/payments/credential", () => ({ validatePaymentCredential: vi.fn() }));
+vi.mock("@/lib/payments/payment-balance", () => ({ readPaymentBalanceStatus: vi.fn() }));
 vi.mock("@/lib/payments/config", () => ({ readPaymentConfig: vi.fn() }));
 vi.mock("@/lib/db/purchased-route-artifact", async () =>
   import("../../../../../../../lib/db/purchased-route-artifact"));

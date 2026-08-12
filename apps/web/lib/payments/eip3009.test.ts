@@ -48,6 +48,13 @@ const domainAbi = [{
     { name: "extensions", type: "uint256[]" },
   ],
 }] as const;
+const balanceAbi = [{
+  type: "function",
+  name: "balanceOf",
+  stateMutability: "view",
+  inputs: [{ name: "account", type: "address" }],
+  outputs: [{ name: "balance", type: "uint256" }],
+}] as const;
 
 type ChallengeValue = Parameters<typeof Challenge.serialize>[0];
 
@@ -85,17 +92,20 @@ function harness(
   domainResult: DomainResult = [
     "0x0f", "USD₮0", "1", 196n, paymentAsset, `0x${"00".repeat(32)}`, [],
   ],
+  balance = 100_000n,
 ) {
   const request = vi.fn(async ({ method }: { method: string }) => {
     if (method === "eth_signTypedData_v4") return signature;
     throw new Error(`Unexpected wallet method ${method}`);
   });
   const switchChain = vi.fn().mockResolvedValue(undefined);
-  const chainRequest = vi.fn(async () => encodeFunctionResult({
-    abi: domainAbi,
-    functionName: "eip712Domain",
-    result: domainResult,
-  }));
+  const chainRequest = vi.fn(async (_chainId: number, input: unknown) => {
+    const call = (input as { params?: readonly unknown[] }).params?.[0] as { data?: string } | undefined;
+    if (call?.data?.startsWith("0x70a08231")) {
+      return encodeFunctionResult({ abi: balanceAbi, functionName: "balanceOf", result: balance });
+    }
+    return encodeFunctionResult({ abi: domainAbi, functionName: "eip712Domain", result: domainResult });
+  });
   return {
     wallet: { account, request, switchChain },
     reader: { request: chainRequest },
@@ -144,18 +154,36 @@ describe("authorizePayment", () => {
     };
     expect(payload.authorization.splits[0]?.validAfter).toBe(payload.authorization.validAfter);
     expect(test.switchChain).toHaveBeenCalledWith(196);
-    expect(test.chainRequest).toHaveBeenCalledTimes(1);
+    expect(test.chainRequest).toHaveBeenCalledTimes(2);
     expect(test.request).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects an insufficient mainnet payment-token balance before requesting signatures", async () => {
+    const test = harness(owner, undefined, 0n);
+
+    await expect(authorizePayment(
+      challengeResponse(),
+      test.wallet,
+      { terms, owner },
+      test.reader,
+    )).rejects.toThrow("0.00 USDt0 available, 0.10 required");
+
+    expect(test.switchChain).toHaveBeenCalledWith(196);
+    expect(test.request).not.toHaveBeenCalled();
   });
 
   it("uses the exact on-chain domain separator when ERC-5267 metadata is unavailable", async () => {
     const test = harness();
-    test.chainRequest.mockRejectedValueOnce(new Error("execution reverted"));
-    test.chainRequest.mockResolvedValueOnce(mainnetDomainSeparator);
+    test.chainRequest
+      .mockResolvedValueOnce(encodeFunctionResult({
+        abi: balanceAbi, functionName: "balanceOf", result: 100_000n,
+      }))
+      .mockRejectedValueOnce(new Error("execution reverted"))
+      .mockResolvedValueOnce(mainnetDomainSeparator);
 
     await authorizePayment(challengeResponse(), test.wallet, { terms, owner }, test.reader);
 
-    expect(test.chainRequest).toHaveBeenCalledTimes(2);
+    expect(test.chainRequest).toHaveBeenCalledTimes(3);
     expect(test.request).toHaveBeenCalledTimes(2);
   });
 

@@ -52,6 +52,9 @@ vi.mock("@/lib/payments/config", () => ({
 vi.mock("@/lib/payments/credential", () => ({
   validatePaymentCredential: () => { throw new Error("Recovery must not validate a credential"); },
 }));
+vi.mock("@/lib/payments/payment-balance", () => ({
+  readPaymentBalanceStatus: () => { throw new Error("Recovery must not read a payment balance"); },
+}));
 vi.mock("@/lib/payments/server", () => ({
   createPaymentServer: () => { throw new Error("Recovery must not call the payment server"); },
 }));

@@ -6,15 +6,13 @@ import { buildRevealProof, revealProofCommitment } from "../../../../../../../li
 import { buildContextPaymentTerms } from "../../../../../../../lib/payments/payment-context";
 import { hashPaymentTerms } from "../../../../../../../lib/payments/terms";
 const state = vi.hoisted(() => ({
-  attempt: {} as Record<string, unknown>, challengeId: "challenge-1",
-  advanceAfterCredentialToSec: 0, advanceAfterProofToSec: 0,
+  attempt: {} as Record<string, unknown>, challengeId: "challenge-1", advanceAfterCredentialToSec: 0,
+  advanceAfterProofToSec: 0, balanceCalls: 0, balanceRejected: false,
   beginCalls: 0, bindCalls: 0, boundChallenge: "", chargeCalls: 0, credentialBindCalls: 0,
-  context: undefined as unknown, existing: undefined as unknown,
-  advanceAtContextCall: 0, advanceToSec: 0, contextCalls: 0,
-  configCalls: 0, configRejected: false, paymentConfig: undefined as unknown,
-  credentialCalls: 0, credentialRejected: false, finalizeCalls: 0,
-  options: undefined as unknown,
-  proofCalls: 0, recordCalls: 0, realm: "", rawReceipt: "",
+  context: undefined as unknown, existing: undefined as unknown, advanceAtContextCall: 0,
+  advanceToSec: 0, contextCalls: 0, configCalls: 0, configRejected: false,
+  paymentConfig: undefined as unknown, credentialCalls: 0, credentialRejected: false, finalizeCalls: 0,
+  options: undefined as unknown, proofCalls: 0, recordCalls: 0, realm: "", rawReceipt: "",
 }));
 const config = {
   MPPX_SECRET_KEY: "m".repeat(32), COBIA_TREASURY: "0x3333333333333333333333333333333333333333" as const,
@@ -56,6 +54,12 @@ vi.mock("@/lib/payments/credential", () => ({
       authorization: { validAfter: `${repositoryTestNowSec - 60}` },
       authorizationHeader: request.headers.get("authorization") };
   },
+}));
+vi.mock("@/lib/payments/payment-balance", () => ({
+  readPaymentBalanceStatus: async () => (state.balanceCalls += 1, {
+    available: state.balanceRejected ? 0n : 100_000n,
+    required: 100_000n, sufficient: !state.balanceRejected,
+  }),
 }));
 vi.mock("@/lib/payments/server", () => ({
   createPaymentServer: (realm: string) => {
@@ -144,13 +148,10 @@ async function setup() {
     paymentChainId: terms.paymentChainId, executionChainId: fixture.policy.executionChainId,
     paymentTermsHash: hashPaymentTerms(terms), nonce: commitment({ nonce: "route-test" }), expiresAt: terms.expiresAt,
   });
-  const receipt = {
-    method: "evm", reference: commitment({ reference: "route-test" }), status: "success",
-    timestamp: new Date((repositoryTestNowSec + 30) * 1_000).toISOString(),
-    chainId: 1952, challengeId: state.challengeId, externalId: fixture.quote.quoteId,
-  };
-  state.context = context;
-  state.existing = undefined;
+  const receipt = { method: "evm", reference: commitment({ reference: "route-test" }), status: "success",
+    timestamp: new Date((repositoryTestNowSec + 30) * 1_000).toISOString(), chainId: 1952,
+    challengeId: state.challengeId, externalId: fixture.quote.quoteId };
+  state.context = context; state.existing = undefined;
   state.rawReceipt = Buffer.from(JSON.stringify(receipt)).toString("base64url");
   state.attempt = {
     id: crypto.randomUUID(), state: "pending", challengeId: state.challengeId,
@@ -175,7 +176,7 @@ describe("paid reveal orchestration", () => {
     vi.setSystemTime(repositoryTestNowSec * 1_000);
     Object.assign(state, {
       advanceAfterCredentialToSec: 0, advanceAfterProofToSec: 0,
-      advanceAtContextCall: 0, advanceToSec: 0,
+      advanceAtContextCall: 0, advanceToSec: 0, balanceCalls: 0, balanceRejected: false,
       beginCalls: 0, bindCalls: 0, boundChallenge: "", chargeCalls: 0,
       challengeId: "challenge-1", contextCalls: 0, credentialCalls: 0,
       configCalls: 0, configRejected: false, paymentConfig: undefined,
@@ -199,8 +200,7 @@ describe("paid reveal orchestration", () => {
   });
   it("preflights the credential, settles, persists the receipt, and finalizes", async () => {
     const input = await setup();
-    const response = await post(input, true);
-    const body = await response.json();
+    const response = await post(input, true); const body = await response.json();
     expect(response.status, JSON.stringify(body)).toBe(200);
     expect(response.headers.get("Payment-Receipt")).toBe(state.rawReceipt);
     expect(body.route).toMatchObject({
@@ -220,6 +220,14 @@ describe("paid reveal orchestration", () => {
     expect(JSON.stringify(body)).not.toContain("credential rejected");
     expect([state.credentialCalls, state.chargeCalls, state.recordCalls, state.finalizeCalls])
       .toEqual([1, 0, 0, 0]);
+  });
+  it("rejects insufficient payment funds before binding a credential or calling the provider", async () => {
+    const input = await setup(); state.balanceRejected = true;
+    const response = await post(input, true); const body = await response.json();
+    expect([response.status, body.code, body.message]).toEqual([409, "PAYMENT_BALANCE_INSUFFICIENT",
+      "Insufficient USDt0 balance on X Layer Mainnet. Fund 0.10 USDt0 before paying."]);
+    expect([state.balanceCalls, state.credentialBindCalls, state.chargeCalls])
+      .toEqual([1, 0, 0]);
   });
   it("rejects a non-executable context before persisting a payment attempt", async () => {
     const input = await setup();
@@ -271,23 +279,17 @@ describe("paid reveal orchestration", () => {
   });
   it("reauthenticates an expired stored settlement without charging again", async () => {
     const input = await setup();
-    state.attempt = {
-      ...state.attempt,
-      state: "settled",
-      receiptHeader: state.rawReceipt,
+    state.attempt = { ...state.attempt, state: "settled", receiptHeader: state.rawReceipt,
       receiptTimestamp: new Date((repositoryTestNowSec + 30) * 1_000),
     };
-    state.existing = state.attempt;
-    vi.setSystemTime(input.proof.expiresAt * 1_000);
+    state.existing = state.attempt; vi.setSystemTime(input.proof.expiresAt * 1_000);
     input.body.proof = { ...input.proof, expiresAt: input.proof.expiresAt + 300 };
-    state.configRejected = true;
-    state.advanceAtContextCall = 1;
+    state.configRejected = true; state.advanceAtContextCall = 1;
     state.advanceToSec = input.body.proof.expiresAt;
     const staleResponse = await post(input);
     expect({ status: staleResponse.status, finalize: state.finalizeCalls })
       .toEqual({ status: 409, finalize: 0 });
-    state.contextCalls = 0;
-    state.advanceAtContextCall = 0;
+    state.contextCalls = 0; state.advanceAtContextCall = 0;
     vi.setSystemTime(input.proof.expiresAt * 1_000);
     input.body.proof = { ...input.body.proof, expiresAt: input.proof.expiresAt + 240 };
     const response = await post(input);
