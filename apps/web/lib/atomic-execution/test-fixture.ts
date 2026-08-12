@@ -11,35 +11,62 @@ import { registryHash } from "../adapters/registry";
 import {
   DEADLINE_SEC,
   NOW_SEC,
+  curvePlan,
   directPlan,
   executionPolicy,
   executionSnapshot,
+  swapPlan,
+  usdg,
   usdt0,
 } from "../execution-v2/test-fixtures";
 
 const solver = privateKeyToAccount(`0x${"41".repeat(32)}`);
 const deployedAtomic = "10000000";
+const quotedOutputAtomic = "9999000";
+const minimumOutputAtomic = "9949005";
 
-export async function verifiedAtomicFixture() {
+export async function verifiedAtomicFixture(
+  kind: "direct" | "curve" | "uniswap" = "direct",
+) {
   const policy = {
     ...executionPolicy,
     protocolExposureBps: 1_000,
   };
+  const sourcePlan = kind === "curve" ? curvePlan
+    : kind === "uniswap" ? swapPlan : directPlan;
   const routePlan: RoutePlanV2 = RoutePlanV2Schema.parse({
-    ...directPlan,
+    ...sourcePlan,
     retainedAtomic: "90000000",
     legs: [{
-      ...directPlan.legs[0],
+      ...sourcePlan.legs[0],
       inputAtomic: deployedAtomic,
+      actions: sourcePlan.legs[0].actions.map((action) =>
+        action.kind === "curve-stableswap-ng-exact-input" ||
+          action.kind === "uniswap-v3-exact-input"
+          ? { ...action, quotedOutputAtomic, minimumOutputAtomic }
+          : action),
     }],
   });
   const snapshot = {
     ...executionSnapshot,
     opportunities: executionSnapshot.opportunities.map((opportunity) =>
-      opportunity.kind === "aave-v3-supply" &&
-        opportunity.asset.toLowerCase() === usdt0.toLowerCase()
-        ? { ...opportunity, validatedSupplyAtomic: deployedAtomic }
-        : opportunity),
+      opportunity.kind === "aave-v3-supply"
+        ? {
+            ...opportunity,
+            validatedSupplyAtomic: opportunity.asset.toLowerCase() === usdt0.toLowerCase()
+              ? deployedAtomic
+              : opportunity.asset.toLowerCase() === usdg.toLowerCase()
+                ? quotedOutputAtomic
+                : opportunity.validatedSupplyAtomic,
+          }
+        : opportunity.kind === "curve-stableswap-ng-exact-input" ||
+            opportunity.kind === "uniswap-v3-exact-input"
+          ? {
+              ...opportunity,
+              quotedInputAtomic: deployedAtomic,
+              quotedOutputAtomic,
+            }
+          : opportunity),
   };
   const unsigned: Omit<RouteBundleV2, "signature"> = {
     version: 2,

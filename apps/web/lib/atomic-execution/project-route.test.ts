@@ -1,7 +1,11 @@
-import { decodeFunctionData, zeroAddress } from "viem";
+import { decodeFunctionData, isAddressEqual, zeroAddress } from "viem";
 import { describe, expect, it } from "vitest";
 import { PROTOCOL_REGISTRY } from "../adapters/registry";
-import { AAVE_POOL_SUPPLY_ABI } from "../execution-v2/abis";
+import {
+  AAVE_POOL_SUPPLY_ABI,
+  CURVE_STABLESWAP_NG_EXCHANGE_ABI,
+  SWAP_ROUTER02_ABI,
+} from "../execution-v2/abis";
 import { NOW_SEC, usdt0 } from "../execution-v2/test-fixtures";
 import { projectAtomicRouteV1 } from "./project-route";
 import { verifiedAtomicFixture } from "./test-fixture";
@@ -47,6 +51,46 @@ describe("projectAtomicRouteV1", () => {
       args: [usdt0, 10_000_000n, fixture.policy.owner, 0],
     });
   });
+
+  it.each(["curve", "uniswap"] as const)(
+    "projects %s output to the executor and supplies the signed minimum",
+    async (kind) => {
+      const fixture = await verifiedAtomicFixture(kind);
+      const projected = projectAtomicRouteV1({
+        ...fixture,
+        executor,
+        simulationHash,
+        nonce,
+        nowSec: NOW_SEC,
+      });
+      expect(projected.route.steps).toHaveLength(2);
+      expect(projected.route.steps[1]).toMatchObject({
+        target: PROTOCOL_REGISTRY.aaveV3.pool.address,
+        spendAmount: 9_949_005n,
+      });
+      expect(projected.route.constraints[0].minimumIncrease).toBe(9_949_004n);
+
+      if (kind === "curve") {
+        const decoded = decodeFunctionData({
+          abi: CURVE_STABLESWAP_NG_EXCHANGE_ABI,
+          data: projected.route.steps[0].data,
+        });
+        expect(decoded.args?.at(-1)).toSatisfy((receiver: string) =>
+          isAddressEqual(receiver as `0x${string}`, executor));
+      } else {
+        const outer = decodeFunctionData({
+          abi: SWAP_ROUTER02_ABI,
+          data: projected.route.steps[0].data,
+        });
+        const calls = outer.args?.[1] as readonly `0x${string}`[];
+        const inner = decodeFunctionData({
+          abi: SWAP_ROUTER02_ABI,
+          data: calls[0],
+        });
+        expect(inner.args?.[0]).toMatchObject({ recipient: executor });
+      }
+    },
+  );
 
   it("rejects mismatched verified artifacts and unsafe projection fields", async () => {
     const fixture = await verifiedAtomicFixture();

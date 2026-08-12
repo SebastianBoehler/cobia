@@ -10,18 +10,14 @@ import {
   type StablecoinPolicyV2,
 } from "@cobia/domain";
 import {
-  encodeFunctionData,
   getAddress,
   isAddress,
   isAddressEqual,
-  keccak256,
-  stringToHex,
   zeroAddress,
   type Address,
   type Hex,
 } from "viem";
-import { PROTOCOL_REGISTRY } from "../adapters/registry";
-import { AAVE_POOL_SUPPLY_ABI } from "../execution-v2/abis";
+import { projectAtomicStepsV1 } from "./project-steps";
 import { hashAtomicRouteV1 } from "./route-hash";
 import {
   ATOMIC_EXECUTION_CHAIN_ID,
@@ -59,13 +55,6 @@ function safeNow(value: unknown): number {
   return value;
 }
 
-function registeredAaveAsset(asset: Address) {
-  const registered = Object.values(PROTOCOL_REGISTRY.aaveV3.assets).find((candidate) =>
-    isAddressEqual(candidate.underlying.address, asset));
-  if (!registered) throw new Error("Atomic input asset is not registered");
-  return registered;
-}
-
 export function assertProjectedAtomicRouteV1(
   projected: ProjectedAtomicRouteV1,
 ): void {
@@ -101,33 +90,21 @@ export function projectAtomicRouteV1(
   const simulationHash = nonzeroHash(input.simulationHash, "Simulation hash");
   const nonce = nonzeroHash(input.nonce, "Atomic nonce");
   const [leg] = bundle.routePlan.legs;
-  const [action, secondAction] = leg?.actions ?? [];
-  if (!leg || secondAction || action?.kind !== "aave-v3-supply") {
-    throw new Error("Atomic V1 projection currently supports direct Aave supply only");
-  }
+  if (!leg) throw new Error("Atomic execution requires one deployed route leg");
   const inputAmount = BigInt(leg.inputAtomic);
   if (inputAmount <= 1n || inputAmount > ATOMIC_ROUTE_CAP ||
-    !isAddressEqual(action.asset, policy.asset) ||
     !isAddressEqual(bundle.routePlan.inputAsset, policy.asset)) {
-    throw new Error("Atomic direct-supply amount or asset is invalid");
+    throw new Error("Atomic input amount or asset is invalid");
   }
-  const asset = registeredAaveAsset(policy.asset);
-  const step = Object.freeze({
-    adapterId: keccak256(stringToHex(PROTOCOL_REGISTRY.aaveV3.adapterId)),
-    target: PROTOCOL_REGISTRY.aaveV3.pool.address,
-    spendToken: policy.asset,
-    spendAmount: inputAmount,
-    data: encodeFunctionData({
-      abi: AAVE_POOL_SUPPLY_ABI,
-      functionName: "supply",
-      args: [asset.underlying.address, inputAmount, policy.owner, 0],
-    }),
+  const projection = projectAtomicStepsV1({
+    leg,
+    inputAsset: policy.asset,
+    owner: policy.owner,
+    executor: getAddress(input.executor),
+    deadline: bundle.validUntil,
   });
-  const constraint = Object.freeze({
-    token: asset.aToken.address,
-    account: policy.owner,
-    minimumIncrease: inputAmount - 1n,
-  });
+  const steps = Object.freeze(projection.steps.map((step) => Object.freeze(step)));
+  const constraint = Object.freeze(projection.constraint);
   const route: AtomicExecutionRouteV1 = {
     policyHash: bundle.policyHash,
     snapshotHash: bundle.snapshotHash,
@@ -139,7 +116,7 @@ export function projectAtomicRouteV1(
     inputAmount,
     deadline: bundle.validUntil,
     nonce,
-    steps: Object.freeze([step]),
+    steps,
     constraints: Object.freeze([constraint]),
   };
   route.routeHash = hashAtomicRouteV1(route);

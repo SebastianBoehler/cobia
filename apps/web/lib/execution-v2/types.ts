@@ -3,6 +3,7 @@ import type { Address, Hex } from "viem";
 export const EXECUTION_CHAIN_ID = 196 as const;
 
 export type ExecutionStepLabelV2 =
+  | "cobia-atomic-route-v1"
   | "reset-aave-allowance"
   | "approve-aave-exact"
   | "aave-v3-supply"

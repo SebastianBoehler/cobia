@@ -14,6 +14,7 @@ import type { PurchasedRouteV2 } from "./purchased-route";
 import styles from "./PurchasedRouteView.module.css";
 
 const labels = {
+  "cobia-atomic-route-v1": "Execute verified atomic route",
   "reset-aave-allowance": "Reset Aave allowance",
   "approve-aave-exact": "Approve Aave exact amount",
   "aave-v3-supply": "Supply to Aave V3",
