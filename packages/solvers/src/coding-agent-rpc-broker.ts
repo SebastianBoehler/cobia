@@ -4,6 +4,8 @@ const READ_METHODS = new Set([
   "eth_getbalance",
   "eth_getcode",
   "eth_getlogs",
+  "eth_gettransactioncount",
+  "eth_getproof",
   "eth_getstorageat",
   "eth_call",
 ]);
@@ -27,7 +29,7 @@ function pinnedBlockParam(method: string, params: readonly unknown[], block: str
     }
     return [params[0], block];
   }
-  if (["eth_getbalance", "eth_getcode", "eth_getstorageat"].includes(method)) {
+  if (["eth_getbalance", "eth_getcode", "eth_getstorageat", "eth_gettransactioncount"].includes(method)) {
     const addressParams = method === "eth_getstorageat" ? 2 : 1;
     if (params.length !== addressParams + 1) {
       throw new Error(`Invalid ${method} parameters`);
@@ -42,7 +44,13 @@ function pinnedBlockParam(method: string, params: readonly unknown[], block: str
     if (params.length !== 1 || !params[0] || typeof params[0] !== "object") {
       throw new Error("Invalid eth_getLogs parameters");
     }
-    return [{ ...(params[0] as Record<string, unknown>), toBlock: block }];
+    return [{ ...(params[0] as Record<string, unknown>), fromBlock: block, toBlock: block }];
+  }
+  if (method === "eth_getproof") {
+    if (params.length !== 3 || !Array.isArray(params[1])) {
+      throw new Error("Invalid eth_getProof parameters");
+    }
+    return [params[0], params[1], block];
   }
   if (method === "eth_chainid" && params.length !== 0) {
     throw new Error("Invalid eth_chainId parameters");

@@ -153,7 +153,13 @@ export async function replayCapabilityProgramOnForkV1(input: {
   })));
   return {
     reproduced: true,
-    traceHash: commitment(receipts.map(({ transactionHash, status }) => ({ transactionHash, status }))),
+    traceHash: commitment({
+      actions: input.compiled.map(({ target, data }) => ({ target, data })),
+      receipts: receipts.map(({ status, logs: receiptLogs }) => ({
+        status,
+        logs: receiptLogs.map(({ address, data, topics }) => ({ address, data, topics: [...topics] })),
+      })),
+    }),
     stateDiffHash: commitment(balanceDeltas),
     eventsHash: commitment(logs),
     balanceDeltas,

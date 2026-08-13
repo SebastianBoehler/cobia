@@ -68,7 +68,7 @@ export async function handleCodingAgentRpcProxy(
   } catch {
     return error(null, "Agent program job is invalid", 400);
   }
-  if (meta.sandboxName !== `cobia-${jobId}`) {
+  if (meta.sandboxName !== `cobia-${jobId}` && meta.sandboxName !== `cobia-replay-${jobId}`) {
     return error(null, "Sandbox is not bound to this job", 403);
   }
   const job = await dependencies.readJob(jobId);
