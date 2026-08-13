@@ -6,6 +6,17 @@ import {CobiaRiskManagerV1} from "../src/CobiaRiskManagerV1.sol";
 import {ExecutorV2TestBase} from "./utils/ExecutorV2TestBase.sol";
 
 contract CobiaExecutorV2SecurityTest is ExecutorV2TestBase {
+    function test_doesNotSweepPreExistingExecutorBalances() public {
+        input.mint(address(executor), 777);
+        CobiaExecutorV2.ExecutionProgramV2 memory value = program(1_000);
+        CobiaExecutorV2.VerifierAuthorizationV2 memory auth = authorization(value);
+
+        executeAsOwner(value, auth);
+
+        assert(input.balanceOf(address(executor)) == 777);
+        assert(input.balanceOf(OWNER) == 99_999_000);
+    }
+
     function test_rejectsWrongCallerChainSignerAndChangedCommitment() public {
         CobiaExecutorV2.ExecutionProgramV2 memory value = program(1);
         CobiaExecutorV2.VerifierAuthorizationV2 memory auth = authorization(value);

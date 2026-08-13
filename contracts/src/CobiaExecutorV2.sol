@@ -72,6 +72,7 @@ contract CobiaExecutorV2 is EIP712, ReentrancyGuard {
 
     error AuthorizationMismatch();
     error DeadlineExpired();
+    error ExecutorBalanceConsumed();
     error FinalBalanceBelowMinimum();
     error InvalidProgram();
     error NonceAlreadyUsed();
@@ -112,11 +113,12 @@ contract CobiaExecutorV2 is EIP712, ReentrancyGuard {
         riskManager.consume(program.owner, program.inputToken, program.inputAmount);
 
         uint256[] memory beforeBalances = _constraintBalances(program);
+        uint256[] memory beforeRefundBalances = _refundBalances(program.refundTokens);
         IERC20(program.inputToken).safeTransferFrom(program.owner, address(this), program.inputAmount);
         for (uint256 index; index < program.actions.length; ++index) {
             _executeAction(program.actions[index]);
         }
-        _refund(program.owner, program.refundTokens);
+        _refund(program.owner, program.refundTokens, beforeRefundBalances);
         _assertConstraints(program, beforeBalances);
         emit ProgramExecuted(
             program.owner, program.canonicalProgramHash, executionProgramHash(program), program.simulationHash
@@ -243,11 +245,20 @@ contract CobiaExecutorV2 is EIP712, ReentrancyGuard {
         }
     }
 
-    function _refund(address owner, address[] calldata tokens) private {
+    function _refundBalances(address[] calldata tokens) private view returns (uint256[] memory balances) {
+        balances = new uint256[](tokens.length);
+        for (uint256 index; index < tokens.length; ++index) {
+            balances[index] = IERC20(tokens[index]).balanceOf(address(this));
+        }
+    }
+
+    function _refund(address owner, address[] calldata tokens, uint256[] memory beforeBalances) private {
         for (uint256 index; index < tokens.length; ++index) {
             IERC20 token = IERC20(tokens[index]);
             uint256 balance = token.balanceOf(address(this));
-            if (balance > 0) token.safeTransfer(owner, balance);
+            if (balance < beforeBalances[index]) revert ExecutorBalanceConsumed();
+            uint256 refundable = balance - beforeBalances[index];
+            if (refundable > 0) token.safeTransfer(owner, refundable);
         }
     }
 
