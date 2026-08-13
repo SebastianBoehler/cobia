@@ -1,4 +1,4 @@
-import { erc20Abi, getAddress, isAddressEqual, type Address, type Hash } from "viem";
+import { erc20Abi, getAddress, type Address, type Hash } from "viem";
 import { PROTOCOL_REGISTRY } from "../adapters/registry";
 
 export interface CapabilityPortfolioReadV1 {

@@ -3,7 +3,7 @@
 import { CircleCheck, LoaderCircle, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { isAddressEqual, type Address, type Hash, type Hex } from "viem";
-import { buildAgentExecutionAccessProof, type AgentExecutionAccessProof } from "../../lib/coding-agent-sandbox/execution-access";
+import { buildAgentExecutionAccessProof } from "../../lib/coding-agent-sandbox/execution-access";
 import { randomBytes32 } from "../../lib/payments/random";
 import { shortAddress } from "../../lib/wallet/eip1193";
 import { useWallet } from "../wallet/WalletProvider";

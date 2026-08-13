@@ -1,7 +1,6 @@
 import {
   CapabilityProgramV1Schema,
   type CapabilityModuleV1,
-  type CapabilityProgramV1,
 } from "@cobia/solvers";
 import { decodeFunctionData } from "viem";
 import { describe, expect, it } from "vitest";

@@ -3,7 +3,7 @@ import {
   runCapabilitySandboxV1,
   verifyCapabilityProgramV1,
 } from "@cobia/solvers";
-import { createPublicClient, http, type Address } from "viem";
+import { createPublicClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { xLayer } from "../chain/xlayer";
 import { productionCapabilityManifestV1 } from "../capabilities/manifest";

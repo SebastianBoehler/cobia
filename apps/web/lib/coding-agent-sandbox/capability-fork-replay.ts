@@ -10,7 +10,6 @@ import {
   getAddress,
   isAddressEqual,
   isHash,
-  toHex,
   type Address,
   type Hash,
 } from "viem";

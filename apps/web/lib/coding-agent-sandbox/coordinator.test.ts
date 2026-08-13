@@ -18,7 +18,7 @@ function repository() {
   return {
     create: vi.fn(async () => ({ id: "job-1", state: "queued" })),
     start: vi.fn(async () => ({ id: "job-1", state: "running" })),
-    append: vi.fn(async (_id: string, _kind: string, _payload: unknown) => ({})),
+    append: vi.fn(async () => ({})),
     markVerified: vi.fn(async () => ({ id: "job-1", state: "verified" })),
     markAttested: vi.fn(async () => ({ id: "job-1", state: "attested" })),
     reject: vi.fn(async () => ({ id: "job-1", state: "rejected" })),
