@@ -46,7 +46,7 @@ export interface CoordinateCapabilityInputV1 {
 
 export interface CoordinateCapabilityDependenciesV1 {
   programs: AgentProgramStore;
-  runSandbox(input: CoordinateCapabilityInputV1): Promise<{
+  runSandbox(input: CoordinateCapabilityInputV1, jobId: string): Promise<{
     program: CapabilityProgramV1;
     evidence: CapabilityProgramEvidenceV1;
     provenance: CapabilitySandboxProvenanceV1;
@@ -84,7 +84,7 @@ export async function coordinateCapabilityProgramV1(
   await dependencies.programs.start(job.id);
   let stage = "SANDBOX";
   try {
-    const generated = await dependencies.runSandbox(input);
+    const generated = await dependencies.runSandbox(input, job.id);
     await dependencies.programs.append(job.id, "program", generated.program);
     await dependencies.programs.append(job.id, "evidence", generated.evidence);
     await dependencies.programs.append(job.id, "provenance", generated.provenance);

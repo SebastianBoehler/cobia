@@ -138,7 +138,7 @@ export function createRequestRepository(db: CobiaDatabase) {
 
     async finishMarket(
       requestId: string,
-      state: "quotes_ready" | "partial" | "failed",
+      state: "quotes_ready" | "agent_ready" | "partial" | "failed",
     ): Promise<void> {
       requireUpdated(
         await db

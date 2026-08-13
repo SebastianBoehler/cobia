@@ -35,7 +35,7 @@ describe("agent program audit repository", () => {
     await programs.start(queued.id);
 
     for (const kind of ["program", "evidence", "provenance", "verdict", "replay", "execution"] as const) {
-      const payload = { kind, requestId: input.requestId };
+      const payload = { kind, requestId: input.requestId, ...(kind === "execution" ? { inputAmount: 10n } : {}) };
       const artifact = await programs.append(queued.id, kind, payload);
       expect(await programs.append(queued.id, kind, payload)).toEqual(artifact);
       await expect(programs.append(queued.id, kind, { changed: true }))
@@ -50,6 +50,8 @@ describe("agent program audit repository", () => {
     expect((await programs.get(queued.id))?.artifacts.map(({ kind }) => kind)).toEqual([
       "program", "evidence", "provenance", "verdict", "replay", "execution", "authorization",
     ]);
+    expect((await programs.get(queued.id))?.artifacts.find(({ kind }) => kind === "execution")?.payload)
+      .toMatchObject({ inputAmount: "10" });
   });
 
   it("records a verifier rejection without manufacturing executable artifacts", async () => {

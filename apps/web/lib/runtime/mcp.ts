@@ -35,7 +35,11 @@ export function createMcpDependencies() {
     async submitIntent(policy: Parameters<typeof openQuoteMarket>[0], ownerSignature: `0x${string}`) {
       await verifyPolicyOwnerSignature(policy, ownerSignature);
       const result = await openQuoteMarket(policy);
-      return {
+      return "jobId" in result ? {
+        requestId: policy.requestId,
+        agentProgramId: result.jobId,
+        state: "attested" as const,
+      } : {
         requestId: policy.requestId,
         quoteCount: result.quotes.length,
         failureCount: result.failures.length,

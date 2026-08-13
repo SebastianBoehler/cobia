@@ -3,7 +3,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { getAddress, type Address, type Hash } from "viem";
 import { z } from "zod";
 import type { CobiaDatabase } from "./client";
-import { cobiaAgentArtifacts, cobiaAgentPrograms } from "./schema";
+import { cobiaAgentArtifacts, cobiaAgentPrograms, cobiaRequests } from "./schema";
 
 const HashSchema = z.string().regex(/^0x[0-9a-fA-F]{64}$/).transform(
   (value) => value.toLowerCase() as Hash,
@@ -19,10 +19,25 @@ const CreateSchema = z.object({
 }).strict();
 const KindSchema = z.enum([
   "program", "evidence", "provenance", "verdict", "replay", "execution", "authorization",
+  "receipt",
 ]);
 const VERIFIED_KINDS = new Set([
   "program", "evidence", "provenance", "verdict", "replay", "execution",
 ]);
+
+function jsonArtifact(value: unknown): unknown {
+  if (typeof value === "bigint") return value.toString();
+  if (Array.isArray(value)) return value.map(jsonArtifact);
+  if (value && typeof value === "object") {
+    if (Object.getPrototypeOf(value) !== Object.prototype) {
+      throw new Error("Agent artifacts must use plain JSON objects");
+    }
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, jsonArtifact(entry)]));
+  }
+  if (value === null || typeof value === "string" || typeof value === "boolean" ||
+    (typeof value === "number" && Number.isSafeInteger(value))) return value;
+  throw new Error("Agent artifact is not canonical JSON");
+}
 
 function row<T>(rows: T[], message: string): T {
   const value = rows[0];
@@ -69,7 +84,8 @@ export function createAgentProgramRepository(db: CobiaDatabase) {
 
     async append(id: string, kindValue: z.input<typeof KindSchema>, payload: unknown) {
       const kind = KindSchema.parse(kindValue);
-      const artifactHash = commitment(payload);
+      const canonicalPayload = jsonArtifact(payload);
+      const artifactHash = commitment(canonicalPayload);
       return db.transaction(async (tx) => {
         const job = row(await tx.select().from(cobiaAgentPrograms)
           .where(eq(cobiaAgentPrograms.id, id)).for("update"), "Agent program job is unavailable");
@@ -80,10 +96,11 @@ export function createAgentProgramRepository(db: CobiaDatabase) {
           if (existing.artifactHash !== artifactHash) throw new Error("Agent artifact conflicts");
           return existing;
         }
-        const allowed = job.state === "running" || (job.state === "verified" && kind === "authorization");
+        const allowed = job.state === "running" || (job.state === "verified" && kind === "authorization") ||
+          (job.state === "attested" && kind === "receipt");
         if (!allowed) throw new Error("Agent program job cannot accept this artifact");
         return row(await tx.insert(cobiaAgentArtifacts).values({
-          programId: id, kind, artifactHash, payload,
+          programId: id, kind, artifactHash, payload: canonicalPayload,
         }).returning(), "Agent artifact was not stored");
       });
     },
@@ -147,6 +164,29 @@ export function createAgentProgramRepository(db: CobiaDatabase) {
         columns: { state: true, blockNumber: true },
         where: eq(cobiaAgentPrograms.id, id),
       }) ?? null;
+    },
+
+    async getByRequestId(requestId: string) {
+      return await db.query.cobiaAgentPrograms.findFirst({
+        where: eq(cobiaAgentPrograms.requestId, requestId),
+      }) ?? null;
+    },
+
+    async getExecutionContext(id: string) {
+      const job = await db.query.cobiaAgentPrograms.findFirst({
+        where: eq(cobiaAgentPrograms.id, id),
+      });
+      if (!job) return null;
+      const request = await db.query.cobiaRequests.findFirst({
+        columns: { policy: true, snapshot: true },
+        where: eq(cobiaRequests.id, job.requestId),
+      });
+      if (!request?.snapshot) throw new Error("Agent program request context is unavailable");
+      const artifacts = await db.query.cobiaAgentArtifacts.findMany({
+        where: eq(cobiaAgentArtifacts.programId, id),
+        orderBy: [asc(cobiaAgentArtifacts.id)],
+      });
+      return { ...job, policy: request.policy, snapshot: request.snapshot, artifacts };
     },
   };
 }

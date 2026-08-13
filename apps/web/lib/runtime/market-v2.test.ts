@@ -1,71 +1,20 @@
 import type { StablecoinPolicyV2 } from "@cobia/domain";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { registryHash } from "../adapters/registry";
+import { describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => {
-  const repository = {
-    createRequest: vi.fn(async () => undefined),
-    saveSnapshot: vi.fn(async () => undefined),
-    saveQuote: vi.fn(async () => undefined),
-    finishMarket: vi.fn(async () => undefined),
-    failRequest: vi.fn(async () => undefined),
-  };
-  return {
-    repository,
-    captureRouteSnapshotV2: vi.fn(async () => ({ snapshot: "v2" })),
-    createLiveDependencies: vi.fn(() => ({ reads: "live" })),
-    createV2Solver: vi.fn(() => ({ id: "deterministic-v2" })),
-    createAgenticSolver: vi.fn(() => ({ id: "agentic-v2" })),
-    createAdvisor: vi.fn(() => ({ choose: vi.fn() })),
-    createOkxClient: vi.fn(),
-    readOkxCredentials: vi.fn(),
-    runRouteMarketV2: vi.fn(async (_policy, dependencies) => {
-      const snapshot = await dependencies.captureSnapshot(_policy);
-      await dependencies.saveSnapshot(snapshot);
-      await dependencies.saveQuote({ bundle: true }, { routeAuthorized: true }, { quote: true });
-      await dependencies.finish("quotes_ready");
-      return { quotes: [{ version: 2 }], failures: [] };
-    }),
-  };
-});
+const mocks = vi.hoisted(() => ({
+  requests: { kind: "requests" },
+  programs: { kind: "programs" },
+  openCodingAgentMarketV2: vi.fn(async () => ({ jobId: "job-1" })),
+}));
 
-vi.mock("../db/client", () => ({
-  createDatabase: () => ({ db: { kind: "test-db" } }),
-}));
-vi.mock("../db/requests", () => ({
-  createRequestRepository: () => mocks.repository,
-}));
+vi.mock("../db/client", () => ({ createDatabase: () => ({ db: { kind: "test-db" } }) }));
+vi.mock("../db/requests", () => ({ createRequestRepository: () => mocks.requests }));
+vi.mock("../db/agent-programs", () => ({ createAgentProgramRepository: () => mocks.programs }));
 vi.mock("../env", () => ({
   readDatabaseUrl: () => "postgresql://test:test@localhost:5432/cobia",
-  readMarketConfig: () => ({
-    DATABASE_URL: "postgresql://test:test@localhost:5432/cobia",
-    DETERMINISTIC_SOLVER_PRIVATE_KEY: `0x${"11".repeat(32)}`,
-    XLAYER_RPC_URL: "https://rpc.xlayer.example",
-  }),
-  readAgenticSolverConfig: () => ({
-    OPENAI_API_KEY: "test-openai-key",
-    OPENAI_SOLVER_MODEL: "gpt-test",
-    AI_SOLVER_PRIVATE_KEY: `0x${"22".repeat(32)}`,
-  }),
-  readOkxCredentials: mocks.readOkxCredentials,
 }));
-vi.mock("../okx/client", () => ({ createOkxClient: mocks.createOkxClient }));
-vi.mock("../orchestrator/capture-route-snapshot-v2", () => ({
-  captureRouteSnapshotV2: mocks.captureRouteSnapshotV2,
-}));
-vi.mock("../orchestrator/route-snapshot-client", () => ({
-  createLiveRouteSnapshotDependencies: mocks.createLiveDependencies,
-}));
-vi.mock("../orchestrator/run-route-market-v2", () => ({
-  runRouteMarketV2: mocks.runRouteMarketV2,
-}));
-vi.mock("../agentic/openai-route-advisor", () => ({
-  createOpenAiRouteAdvisor: mocks.createAdvisor,
-}));
-vi.mock("@cobia/solvers", async (importOriginal) => ({
-  ...await importOriginal<typeof import("@cobia/solvers")>(),
-  createDeterministicRouteSolverV2: mocks.createV2Solver,
-  createAgenticRouteSolverV2: mocks.createAgenticSolver,
+vi.mock("./coding-agent", () => ({
+  openCodingAgentMarketV2: mocks.openCodingAgentMarketV2,
 }));
 
 import { openQuoteMarket } from "./market";
@@ -93,42 +42,11 @@ const policy: StablecoinPolicyV2 = {
 };
 
 describe("V2 market runtime", () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it("runs deterministic and bounded agentic solvers over one pinned snapshot", async () => {
-    const result = await openQuoteMarket(policy);
-
-    expect(result).toEqual({ quotes: [{ version: 2 }], failures: [] });
-    expect(mocks.repository.createRequest).toHaveBeenCalledWith(policy);
-    expect(mocks.createLiveDependencies).toHaveBeenCalledWith("https://rpc.xlayer.example");
-    expect(mocks.captureRouteSnapshotV2).toHaveBeenCalledWith(policy, { reads: "live" });
-    expect(mocks.createV2Solver).toHaveBeenCalledWith(expect.objectContaining({
-      solverId: "deterministic-v2",
-      expectedAdapterRegistryHash: registryHash,
-    }));
-    expect(mocks.createAdvisor).toHaveBeenCalledWith({
-      apiKey: "test-openai-key",
-      model: "gpt-test",
+  it("uses only the open coding-agent path with no deterministic fallback", async () => {
+    await expect(openQuoteMarket(policy)).resolves.toEqual({ jobId: "job-1" });
+    expect(mocks.openCodingAgentMarketV2).toHaveBeenCalledWith(policy, {
+      requests: mocks.requests,
+      programs: mocks.programs,
     });
-    expect(mocks.createAgenticSolver).toHaveBeenCalledWith(expect.objectContaining({
-      solverId: "agentic-v2",
-      advisor: { choose: expect.any(Function) },
-      expectedAdapterRegistryHash: registryHash,
-    }));
-    expect(mocks.runRouteMarketV2).toHaveBeenCalledWith(policy, expect.objectContaining({
-      solvers: [{ id: "deterministic-v2" }, { id: "agentic-v2" }],
-      expectedAdapterRegistryHash: registryHash,
-      quotePriceAtomic: "100000",
-    }));
-    expect(mocks.repository.saveSnapshot).toHaveBeenCalledWith(policy.requestId, { snapshot: "v2" });
-    expect(mocks.repository.saveQuote).toHaveBeenCalledWith(
-      policy.requestId,
-      { bundle: true },
-      { routeAuthorized: true },
-      { quote: true },
-    );
-    expect(mocks.repository.finishMarket).toHaveBeenCalledWith(policy.requestId, "quotes_ready");
-    expect(mocks.readOkxCredentials).not.toHaveBeenCalled();
-    expect(mocks.createOkxClient).not.toHaveBeenCalled();
   });
 });

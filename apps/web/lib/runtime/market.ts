@@ -6,8 +6,6 @@ import {
   type StablecoinPolicyV2,
 } from "@cobia/domain";
 import {
-  createAgenticRouteSolverV2,
-  createDeterministicRouteSolverV2,
   createDeterministicSolver,
 } from "@cobia/solvers";
 import { privateKeyToAccount } from "viem/accounts";
@@ -22,19 +20,14 @@ import { createRehearsalRepository } from "../db/rehearsals";
 import { createExecutionRepository } from "../db/executions";
 import { createAgentProgramRepository } from "../db/agent-programs";
 import {
-  readAgenticSolverConfig,
   readDatabaseUrl,
   readMarketConfig,
   readOkxCredentials,
 } from "../env";
-import { createOpenAiRouteAdvisor } from "../agentic/openai-route-advisor";
 import { createOkxClient } from "../okx/client";
-import { registryHash } from "../adapters/registry";
-import { captureRouteSnapshotV2 } from "../orchestrator/capture-route-snapshot-v2";
 import { captureSnapshot } from "../orchestrator/capture-snapshot";
-import { createLiveRouteSnapshotDependencies } from "../orchestrator/route-snapshot-client";
-import { runRouteMarketV2 } from "../orchestrator/run-route-market-v2";
 import { runQuoteMarket } from "../orchestrator/run-market";
+import { openCodingAgentMarketV2 } from "./coding-agent";
 
 let repository: ReturnType<typeof createRequestRepository> | undefined;
 let activityRepository: ReturnType<typeof createActivityRepository> | undefined;
@@ -126,43 +119,10 @@ async function openQuoteMarketV1(policy: StablecoinPolicy) {
 }
 
 async function openQuoteMarketV2(policy: StablecoinPolicyV2) {
-  const config = readMarketConfig();
-  const agenticConfig = readAgenticSolverConfig();
-  const requests = getRequestRepository();
-  const snapshotDependencies = createLiveRouteSnapshotDependencies(
-    config.XLAYER_RPC_URL,
-  );
-  const deterministicSolver = createDeterministicRouteSolverV2({
-    solverId: "deterministic-v2",
-    account: privateKeyToAccount(config.DETERMINISTIC_SOLVER_PRIVATE_KEY),
-    expectedAdapterRegistryHash: registryHash,
+  return openCodingAgentMarketV2(policy, {
+    requests: getRequestRepository(),
+    programs: getAgentProgramRepository(),
   });
-  const agenticSolver = createAgenticRouteSolverV2({
-    solverId: "agentic-v2",
-    account: privateKeyToAccount(agenticConfig.AI_SOLVER_PRIVATE_KEY),
-    expectedAdapterRegistryHash: registryHash,
-    advisor: createOpenAiRouteAdvisor({
-      apiKey: agenticConfig.OPENAI_API_KEY,
-      model: agenticConfig.OPENAI_SOLVER_MODEL,
-    }),
-  });
-  await requests.createRequest(policy);
-  try {
-    return await runRouteMarketV2(policy, {
-      captureSnapshot: (input) => captureRouteSnapshotV2(input, snapshotDependencies),
-      solvers: [deterministicSolver, agenticSolver],
-      saveSnapshot: (snapshot) => requests.saveSnapshot(policy.requestId, snapshot),
-      saveQuote: (bundle, verdict, quote) =>
-        requests.saveQuote(policy.requestId, bundle, verdict, quote),
-      finish: (state) => requests.finishMarket(policy.requestId, state),
-      expectedAdapterRegistryHash: registryHash,
-      nowSec: () => Math.floor(Date.now() / 1_000),
-      quotePriceAtomic: "100000",
-    });
-  } catch (error) {
-    await requests.failRequest(policy.requestId);
-    throw error;
-  }
 }
 
 export function openQuoteMarket(policy: PersistedStablecoinPolicy) {

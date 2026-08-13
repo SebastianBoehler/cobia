@@ -13,6 +13,7 @@ import { openQuoteMarket } from "@/lib/runtime/market";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 const RequestBodySchema = z.object({
   policy: PersistedStablecoinPolicySchema,
@@ -36,11 +37,13 @@ export async function POST(request: Request): Promise<Response> {
       throw new InvalidOwnerSignatureError();
     }
     const result = await openQuoteMarket(policy);
+    const counts = "jobId" in result
+      ? { quoteCount: 0, failureCount: 0, agentProgramId: result.jobId }
+      : { quoteCount: result.quotes.length, failureCount: result.failures.length };
     return NextResponse.json({
       requestId,
       policyHash: commitment(policy),
-      quoteCount: result.quotes.length,
-      failureCount: result.failures.length,
+      ...counts,
     }, { status: 201 });
   } catch (error) {
     const invalid = error instanceof z.ZodError;

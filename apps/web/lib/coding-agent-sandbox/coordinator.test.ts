@@ -68,6 +68,7 @@ describe("coding-agent capability coordinator", () => {
     expect(deps.programs.append.mock.calls.map((call) => call[1])).toEqual([
       "program", "evidence", "provenance", "verdict", "replay", "execution", "authorization",
     ]);
+    expect(deps.runSandbox).toHaveBeenCalledWith(input, "job-1");
     expect(deps.programs.markVerified).toHaveBeenCalledBefore(deps.attest);
     expect(deps.attest).toHaveBeenCalledWith({ execution, program, evidence });
     expect(deps.programs.markAttested).toHaveBeenCalledAfter(deps.attest);

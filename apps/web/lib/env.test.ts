@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   readAgenticSolverConfig,
   readCodingAgentRpcProxyConfig,
+  readCodingAgentRuntimeConfig,
   readExecutionSessionSecret,
   readMarketConfig,
 } from "./env";
@@ -65,5 +66,27 @@ describe("market environment", () => {
       VERCEL_PROJECT_ID: "prj_1",
       XLAYER_RPC_URL: "https://rpc.example",
     })).toThrow("CODING_AGENT_PUBLIC_ORIGIN");
+  });
+
+  it("separates verifier attestation from wallet authority", () => {
+    const verifier = keccak256(toHex("cobia-verifier"));
+    expect(readCodingAgentRuntimeConfig({
+      OPENAI_API_KEY: "test-key",
+      OPENAI_CODING_AGENT_MODEL: "gpt-test",
+      COBIA_EXECUTOR_V2_ADDRESS: "0x1111111111111111111111111111111111111111",
+      COBIA_EXECUTOR_V2_CODE_HASH: `0x${"22".repeat(32)}`,
+      COBIA_VERIFIER_PRIVATE_KEY: verifier,
+      CODING_AGENT_PUBLIC_ORIGIN: "https://cobia.example",
+    })).toMatchObject({
+      COBIA_VERIFIER_PRIVATE_KEY: verifier,
+      XLAYER_RPC_URL: "https://rpc.xlayer.tech",
+    });
+    expect(() => readCodingAgentRuntimeConfig({
+      OPENAI_API_KEY: "test-key",
+      OPENAI_CODING_AGENT_MODEL: "gpt-test",
+      COBIA_EXECUTOR_V2_ADDRESS: "0x1111111111111111111111111111111111111111",
+      COBIA_EXECUTOR_V2_CODE_HASH: `0x${"22".repeat(32)}`,
+      CODING_AGENT_PUBLIC_ORIGIN: "https://cobia.example",
+    })).toThrow("COBIA_VERIFIER_PRIVATE_KEY");
   });
 });

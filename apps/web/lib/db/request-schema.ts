@@ -25,6 +25,7 @@ export const requestState = pgEnum("cobia_request_state", [
   "collecting",
   "verifying",
   "quotes_ready",
+  "agent_ready",
   "partial",
   "selected",
   "payment_pending",

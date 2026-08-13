@@ -20,6 +20,7 @@ export const agentProgramState = pgEnum("cobia_agent_program_state", [
 
 export const agentArtifactKind = pgEnum("cobia_agent_artifact_kind", [
   "program", "evidence", "provenance", "verdict", "replay", "execution", "authorization",
+  "receipt",
 ]);
 
 export const cobiaAgentPrograms = pgTable("cobia_agent_programs", {
