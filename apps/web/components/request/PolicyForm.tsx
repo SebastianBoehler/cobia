@@ -129,7 +129,8 @@ export function PolicyForm() {
       };
       if (
         !response.ok || !payload.requestId || !payload.policyHash ||
-        !Number.isInteger(payload.quoteCount) || !Number.isInteger(payload.failureCount)
+        (!payload.agentProgramId &&
+          (!Number.isInteger(payload.quoteCount) || !Number.isInteger(payload.failureCount)))
       ) {
         throw new Error(payload.message ?? "The solver market could not be completed.");
       }
@@ -250,7 +251,7 @@ export function PolicyForm() {
       {error ? <p role="alert" className="form-alert">{error}</p> : null}
       <button className="button button--primary button--wide" type="submit" disabled={!valid || pending}>
         {pending ? <LoaderCircle className="spin" aria-hidden="true" size={17} /> : null}
-        {pending ? "Searching verified routes…" : "Find verified routes"}
+        {pending ? "Running isolated coding agent…" : "Find verified routes"}
         {!pending ? <ArrowRight aria-hidden="true" size={17} /> : null}
       </button>
       <p className="terms-notice">

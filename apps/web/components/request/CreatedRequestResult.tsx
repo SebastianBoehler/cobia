@@ -6,9 +6,25 @@ export interface CreatedRequest {
   policyHash: string;
   quoteCount: number;
   failureCount: number;
+  agentProgramId?: string;
 }
 
 export function CreatedRequestResult({ created }: { created: CreatedRequest }) {
+  if (created.agentProgramId) return (
+    <section className="request-created" aria-live="polite">
+      <CircleCheck aria-hidden="true" size={26} />
+      <div>
+        <h2>Coding-agent program verified</h2>
+        <p>The isolated agent authored a program and the independent verifier reproduced it on a fresh X Layer fork.</p>
+        <p>Your principal has not moved.</p>
+      </div>
+      <code>{created.policyHash}</code>
+      <Link className="button button--primary" href={`/programs/${created.agentProgramId}`}>
+        Review verified program
+        <ArrowRight aria-hidden="true" size={17} />
+      </Link>
+    </section>
+  );
   const hasAuthorizedRoute = created.quoteCount > 0;
   const quoteLabel = `${created.quoteCount} route-authorized quote${
     created.quoteCount === 1 ? " is" : "s are"
