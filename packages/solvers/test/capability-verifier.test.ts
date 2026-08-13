@@ -132,6 +132,7 @@ describe("generic capability verifier", () => {
     expect(result.accepted).toBe(true);
     expect(result.errorCodes).toEqual([]);
     expect(result.compiled).toHaveLength(1);
+    expect(result.replay).toMatchObject({ reproduced: true });
     expect(reproduce).toHaveBeenCalledOnce();
   });
 

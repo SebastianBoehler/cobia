@@ -116,6 +116,7 @@ export async function verifyCapabilityProgramV1(input: VerifyCapabilityProgramIn
   accepted: boolean;
   errorCodes: CapabilityProgramRejectionCode[];
   compiled: CompiledCapabilityActionV1[];
+  replay?: CapabilityReplayResultV1;
 }> {
   let program: ReturnType<typeof CapabilityProgramV1Schema.parse>;
   let evidence: CapabilityProgramEvidenceV1;
@@ -192,9 +193,18 @@ export async function verifyCapabilityProgramV1(input: VerifyCapabilityProgramIn
   } catch {
     errors.add("TARGET_CODE_MISMATCH");
   }
+  let replay: CapabilityReplayResultV1 | undefined;
   if (errors.size === 0) {
-    const replay = await input.replay({ compiled, evidence });
-    if (!sameReplay(evidence, replay)) errors.add("REPLAY_MISMATCH");
+    replay = await input.replay({ compiled, evidence });
+    if (!sameReplay(evidence, replay)) {
+      replay = undefined;
+      errors.add("REPLAY_MISMATCH");
+    }
   }
-  return { accepted: errors.size === 0, errorCodes: [...errors].sort(), compiled };
+  return {
+    accepted: errors.size === 0,
+    errorCodes: [...errors].sort(),
+    compiled,
+    ...(replay ? { replay } : {}),
+  };
 }
