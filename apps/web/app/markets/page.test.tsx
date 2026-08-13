@@ -31,13 +31,13 @@ describe("MarketsPage", () => {
     expect(html).not.toContain("No stored quotes yet");
   });
 
-  it("does not describe mixed V1/V2 market eligibility as route execution", async () => {
+  it("separates live solver results from non-executable past discoveries", async () => {
     listMarkets.mockResolvedValue([{}]);
 
     const html = renderToStaticMarkup(await MarketsPage());
 
-    expect(html).toContain("Aave V3, Curve StableSwap NG, and Uniswap V3 liquidity");
-    expect(html).toContain("Live quotes rank first");
-    expect(html).not.toContain("verifier-executable");
+    expect(html).toContain("live solver results and past discoveries");
+    expect(html).toContain("cannot be selected or executed");
+    expect(html).toContain("fresh wallet-specific intent and verification");
   });
 });

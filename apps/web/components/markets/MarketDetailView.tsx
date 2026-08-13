@@ -18,7 +18,7 @@ import styles from "../product/ProductShell.module.css";
 function attemptLabel(attempt: MarketAttempt): string {
   if (attempt.lifecycle === "running") return "Running";
   if (attempt.lifecycle === "failed") return "Failed";
-  return attempt.quoteEligibility === "active" ? "Current" : "Completed";
+  return attempt.quoteEligibility === "active" ? "Live" : "Past discovery";
 }
 
 export function MarketDetailView({ market }: { market: StoredMarketDetail }) {
@@ -47,7 +47,7 @@ export function MarketDetailView({ market }: { market: StoredMarketDetail }) {
   const amount = balance ?? reference;
   const heading = active
     ? "Current eligible quote"
-    : primary.lifecycle === "running" ? "Request attempt running" : "Most recent request attempt";
+    : primary.lifecycle === "running" ? "Request attempt running" : "Past discovery";
   const history = market.attempts.filter(({ requestId }) => requestId !== primary.requestId);
   return <section className={styles.panel}>
     <div className={styles.panelHeader}><div><h2>{heading}</h2><p>{balance === undefined ? "Reference amount" : "Your available balance"}: {amount.toLocaleString("en-US", { maximumFractionDigits: 6 })} {asset.displaySymbol} · {market.requestAttemptCount} request attempt{market.requestAttemptCount === 1 ? "" : "s"} · {market.quoteBearingAttemptCount} with quotes</p></div><span className={styles.badge}>{attemptLabel(primary)}</span></div>

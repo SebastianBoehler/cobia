@@ -10,6 +10,7 @@ const navigation = [
   { href: "/requests/new", label: "New intent", prefixes: ["/requests", "/routes"] },
   { href: "/portfolio", label: "Positions", prefixes: ["/portfolio"] },
   { href: "/activity", label: "Activity", prefixes: ["/activity"] },
+  { href: "/markets", label: "Solver market", prefixes: ["/markets"] },
 ] as const;
 
 export function AppHeader() {

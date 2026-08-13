@@ -48,7 +48,7 @@ export function MarketCard({ market, walletBalance }: {
       <div className={styles.cardHead}>
         <div><h2>{asset.displaySymbol} route market</h2><p>X Layer · {market.requestAttemptCount} request attempt{market.requestAttemptCount === 1 ? "" : "s"} · {market.quoteBearingAttemptCount} with quotes</p></div>
         <span className={`${styles.badge} ${live ? "" : styles.historical}`}>
-          {live ? "live" : "historical"}
+          {live ? "Live" : "Past discovery"}
         </span>
       </div>
       <div className={styles.metric}>
@@ -62,7 +62,7 @@ export function MarketCard({ market, walletBalance }: {
         <span>Risk grade {riskGradeLabel(leader.riskGrade)}</span>
       </div>
       <Link className={`button button--quiet ${styles.buttonLink}`} href={`/markets/${market.id}`}>
-        {live ? "View quote" : "Review route history"}
+        {live ? "View quote" : "Review past discovery"}
       </Link>
     </article>
   );

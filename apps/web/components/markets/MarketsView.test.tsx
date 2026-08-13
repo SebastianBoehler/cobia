@@ -152,11 +152,11 @@ describe("MarketsView", () => {
 
     render(<WalletProvider><MarketsView markets={[market]} /></WalletProvider>);
 
-    expect(screen.getByText("historical")).toBeVisible();
+    expect(screen.getByText("Past discovery")).toBeVisible();
     expect(screen.getByText(/Last authorized estimate/)).toBeVisible();
-    expect(screen.getByRole("link", { name: "Review route history" }))
+    expect(screen.getByRole("link", { name: "Review past discovery" }))
       .toHaveAttribute("href", `/markets/${marketId}`);
-    expect(screen.queryByRole("link", { name: "View live quote" }))
+    expect(screen.queryByRole("link", { name: /View quote|execution/i }))
       .not.toBeInTheDocument();
   });
 });

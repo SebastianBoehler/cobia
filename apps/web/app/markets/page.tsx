@@ -16,7 +16,7 @@ export const metadata = createPageMetadata({
 export default async function MarketsPage() {
   const markets = await getMarketRepository().listMarkets(currentUnixSeconds());
   return <><AppHeader /><main className={styles.page}>
-    <header className={styles.heading}><h1>Route markets</h1><p>Explore live, solving, and historical routes across Aave V3, Curve StableSwap NG, and Uniswap V3 liquidity. Live quotes rank first; historical estimates stay visible but cannot be selected as current.</p></header>
+    <header className={styles.heading}><h1>Route markets</h1><p>Explore live solver results and past discoveries on X Layer. A past discovery is research history only: it cannot be selected or executed, and using the idea requires a fresh wallet-specific intent and verification.</p></header>
     {markets.length ? <MarketsView markets={markets} /> : (
       <section className={styles.empty}><h2>No solver markets yet</h2><p>Create an intent to run solvers against a fresh X Layer snapshot. The resulting market will remain discoverable after its quote expires.</p><Link className="button button--primary" href="/requests/new">Create an intent</Link></section>
     )}
