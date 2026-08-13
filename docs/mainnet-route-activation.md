@@ -75,6 +75,18 @@ are not implemented in this release slice.
 1. Review the final diff, dependency audit, migrations, contract tests, unit/
    integration/fork suites, Node 24 typecheck/lint/build, and sandbox egress tests.
 2. Obtain explicit authorization for the chain-196 deployment transactions.
+   After `pnpm contracts:test`, generate the unsigned, nonce-bound transaction
+   plan with:
+
+   ```bash
+   pnpm executor:plan -- \
+     --deployer 0xDEPLOYER --nonce CURRENT_NONCE \
+     --owner 0xSAFE --verifier 0xVERIFIER \
+     --canary-wallet 0xCANARY
+   ```
+
+   The command has no signer or broadcast method. It emits three CREATE inputs,
+   the immediately restrictive proposal batch, and a separate activation batch.
 3. Deploy paused, verify source and bytecode, record code hashes, and configure
    only restrictive state.
 4. Schedule capped/open-wallet risk changes, wait the full delay, inspect state,

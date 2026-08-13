@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "pnpm --filter @cobia/web dev",
     "contracts:test": "scripts/forge.sh test",
+    "executor:plan": "pnpm --filter @cobia/web exec tsx scripts/prepare-agent-executor-deployment.ts",
     "env:dev": "node apps/web/scripts/seed-dev-env.mjs",
     "build": "pnpm -r --if-present build",
     "lint": "pnpm -r --if-present lint",
