@@ -6,6 +6,7 @@ import {CobiaExecutorV1} from "../../src/CobiaExecutorV1.sol";
 
 interface ExecutorVm {
     function addr(uint256 privateKey) external returns (address);
+    function etch(address target, bytes calldata code) external;
     function expectRevert(bytes4 revertData) external;
     function prank(address sender) external;
     function sign(uint256 privateKey, bytes32 digest)
@@ -81,6 +82,11 @@ contract MockProtocol {
     ) external {
         input.transferFrom(msg.sender, address(this), amount - 1);
         receipt.mint(beneficiary, amount - 1);
+    }
+
+    function profitableRoundTrip(MockToken token, uint256 amount) external {
+        token.transferFrom(msg.sender, address(this), amount);
+        token.mint(msg.sender, amount + 1);
     }
 
     function callExecutor(address target, bytes calldata payload) external {

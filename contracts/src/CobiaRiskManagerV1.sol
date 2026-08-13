@@ -62,8 +62,7 @@ contract CobiaRiskManagerV1 is Ownable2Step {
     mapping(address token => Limits limits) public tokenLimits;
     mapping(address token => PendingLimits pending) public pendingToken;
     mapping(address token => PendingLimits pending) public pendingLimits;
-    mapping(address wallet => mapping(address token => mapping(uint64 day => uint256 amount)))
-        public walletDailyInput;
+    mapping(address wallet => mapping(address token => mapping(uint64 day => uint256 amount))) public walletDailyInput;
     mapping(address token => uint256 amount) public cumulativeInput;
 
     uint64 public openAccessAfter;
@@ -147,8 +146,10 @@ contract CobiaRiskManagerV1 is Ownable2Step {
     function reduceLimits(address token, Limits calldata limits) external onlyOwner {
         _validateTokenAndLimits(token, limits);
         Limits memory current = tokenLimits[token];
-        if (limits.maxRoute > current.maxRoute || limits.maxWalletDaily > current.maxWalletDaily
-            || limits.maxCumulative > current.maxCumulative) revert NotRiskReduction();
+        if (
+            limits.maxRoute > current.maxRoute || limits.maxWalletDaily > current.maxWalletDaily
+                || limits.maxCumulative > current.maxCumulative
+        ) revert NotRiskReduction();
         delete pendingLimits[token];
         tokenLimits[token] = limits;
         emit LimitsActivated(token, limits);
@@ -238,8 +239,9 @@ contract CobiaRiskManagerV1 is Ownable2Step {
     }
 
     function _validateTokenAndLimits(address token, Limits calldata limits) private pure {
-        if (token == address(0) || limits.maxRoute == 0 || limits.maxWalletDaily == 0
-            || limits.maxCumulative == 0 || limits.maxRoute > limits.maxWalletDaily
-            || limits.maxWalletDaily > limits.maxCumulative) revert InvalidConfiguration();
+        if (
+            token == address(0) || limits.maxRoute == 0 || limits.maxWalletDaily == 0 || limits.maxCumulative == 0
+                || limits.maxRoute > limits.maxWalletDaily || limits.maxWalletDaily > limits.maxCumulative
+        ) revert InvalidConfiguration();
     }
 }

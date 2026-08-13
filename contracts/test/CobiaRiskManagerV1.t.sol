@@ -11,8 +11,7 @@ interface RiskVm {
 }
 
 contract CobiaRiskManagerV1Test {
-    RiskVm private constant vm =
-        RiskVm(address(uint160(uint256(keccak256("hevm cheat code")))));
+    RiskVm private constant vm = RiskVm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     address private constant EXECUTOR = address(0xE0);
     address private constant VERIFIER = address(0xA11CE);
