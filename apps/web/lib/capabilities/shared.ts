@@ -5,8 +5,10 @@ import { z } from "zod";
 export const AddressSchema = z.string().refine(isAddress).transform((value) => getAddress(value));
 export const PositiveAtomicSchema = z.string().regex(/^[1-9][0-9]*$/);
 const ManifestSchema = z.object({
+  version: z.literal(1),
+  chainId: z.literal(196),
   registryHash: z.string().regex(/^0x[0-9a-fA-F]{64}$/),
-}).strict();
+}).passthrough();
 
 export function assertProductionManifest(input: unknown, expectedHash: string): void {
   const manifest = ManifestSchema.parse(input);

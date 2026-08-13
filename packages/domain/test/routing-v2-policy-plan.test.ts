@@ -53,6 +53,19 @@ describe("V2 policy and route boundaries", () => {
     ).toBe(false);
   });
 
+  it("allows future canonical adapter identifiers without changing the policy schema", () => {
+    expect(StablecoinPolicyV2Schema.safeParse({
+      ...policyV2,
+      allowedAdapters: ["aave-v3@1", "compound-v3@2"],
+    }).success).toBe(true);
+    for (const invalid of ["Compound-v3@2", "compound-v3", "compound:v3:2", "compound-v3@0"]) {
+      expect(StablecoinPolicyV2Schema.safeParse({
+        ...policyV2,
+        allowedAdapters: [invalid],
+      }).success).toBe(false);
+    }
+  });
+
   it("rejects duplicate output authorization and unknown fields", () => {
     expect(
       StablecoinPolicyV2Schema.safeParse({

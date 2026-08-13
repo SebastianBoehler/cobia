@@ -17,7 +17,9 @@ export const ROUTE_ADAPTER_IDS = [
   "curve-stableswap-ng@1",
   "uniswap-v3@1",
 ] as const;
-export const AdapterIdSchema = z.enum(ROUTE_ADAPTER_IDS);
+export const AdapterIdSchema = z.string()
+  .regex(/^[a-z0-9]+(?:[._-][a-z0-9]+)*@[1-9][0-9]*$/)
+  .max(128);
 export type AdapterId = z.infer<typeof AdapterIdSchema>;
 
 function isSortedUnique(values: readonly string[]): boolean {

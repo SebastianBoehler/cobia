@@ -13,6 +13,7 @@ import {
 } from "../execution-v2/abis";
 import { aaveSupplyCapabilityV1 } from "./aave-supply";
 import { curveExactInputCapabilityV1 } from "./curve-exact-input";
+import { productionCapabilityManifestV1 } from "./manifest";
 import { productionCapabilityRegistryV1 } from "./registry";
 import { uniswapExactInputCapabilityV1 } from "./uniswap-exact-input";
 
@@ -55,7 +56,7 @@ function compile<T>(module: CapabilityModuleV1<T>, parameters: unknown) {
     program,
     actionIndex: 0,
     parameters: parsed,
-    manifest: { registryHash },
+    manifest: productionCapabilityManifestV1(),
   });
 }
 
