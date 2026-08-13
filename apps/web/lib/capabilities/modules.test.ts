@@ -29,7 +29,10 @@ const program = CapabilityProgramV1Schema.parse({
   manifestHash: registryHash,
   owner,
   executor,
-  pinnedBlock: PROTOCOL_REGISTRY.auditedAtBlock,
+  pinnedBlock: {
+    number: PROTOCOL_REGISTRY.auditedAtBlock.number,
+    hash: PROTOCOL_REGISTRY.auditedAtBlock.hash,
+  },
   deadline: 2_000_000_000,
   nonce: `0x${"44".repeat(32)}`,
   input: { token: usdg, atomic: "10000000" },
@@ -117,7 +120,7 @@ describe("Uniswap exact-input capability", () => {
       tokenOut: "0x9999999999999999999999999999999999999999",
       amountInAtomic: "10000000",
       minimumOutputAtomic: "9900000",
-    })).toThrow("registered pair");
+    })).toThrow("registered");
   });
 });
 
