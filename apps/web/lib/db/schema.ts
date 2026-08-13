@@ -17,11 +17,18 @@ import {
   executionAttemptState,
   executionStepState,
 } from "./execution-schema";
+import {
+  agentArtifactKind,
+  agentProgramState,
+  cobiaAgentArtifacts,
+  cobiaAgentPrograms,
+} from "./agent-program-schema";
 
 export * from "./execution-schema";
 export * from "./payment-schema";
 export * from "./request-schema";
 export * from "./route-schema";
+export * from "./agent-program-schema";
 
 export const cobiaSchema = {
   cobiaMarkets,
@@ -33,11 +40,15 @@ export const cobiaSchema = {
   cobiaExecutionAttempts,
   cobiaExecutionSteps,
   cobiaActivityEvents,
+  cobiaAgentPrograms,
+  cobiaAgentArtifacts,
   requestState,
   paymentState,
   executionRehearsalState,
   executionAttemptState,
   executionStepState,
+  agentProgramState,
+  agentArtifactKind,
 };
 
 export type CobiaRequestState = (typeof requestState.enumValues)[number];
