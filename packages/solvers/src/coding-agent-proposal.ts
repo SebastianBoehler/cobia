@@ -67,9 +67,30 @@ export const CodingAgentSimulationEvidenceV1Schema = z.object({
   deployments: z.array(DeploymentIdentitySchema).max(64),
 }).strict();
 
+const BalanceDeltaSchema = z.object({
+  token: AddressSchema,
+  account: AddressSchema,
+  beforeAtomic: AtomicSchema,
+  afterAtomic: AtomicSchema,
+}).strict();
+
+export const CapabilityProgramEvidenceV1Schema = z.object({
+  version: z.literal(1),
+  programHash: HashSchema,
+  chainId: z.literal(196),
+  blockNumber: BlockNumberSchema,
+  blockHash: HashSchema,
+  traceHash: HashSchema,
+  stateDiffHash: HashSchema,
+  eventsHash: HashSchema,
+  balanceDeltas: z.array(BalanceDeltaSchema).max(32),
+  deployments: z.array(DeploymentIdentitySchema).max(64),
+}).strict();
+
 export type CodingAgentProposalV1 = z.infer<typeof CodingAgentProposalV1Schema>;
 export type TrustedDeploymentManifestV1 = z.infer<typeof TrustedDeploymentManifestV1Schema>;
 export type CodingAgentSimulationEvidenceV1 = z.infer<typeof CodingAgentSimulationEvidenceV1Schema>;
+export type CapabilityProgramEvidenceV1 = z.infer<typeof CapabilityProgramEvidenceV1Schema>;
 
 export function codingAgentProposalCommitment(input: unknown): Hash {
   return commitment(CodingAgentProposalV1Schema.parse(input));

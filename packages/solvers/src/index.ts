@@ -6,6 +6,8 @@ export * from "./coding-agent-verifier";
 export * from "./capabilities/program";
 export * from "./capabilities/module";
 export * from "./capabilities/registry";
+export * from "./capabilities/asset-flow";
+export * from "./capabilities/verifier";
 export * from "./deterministic";
 export * from "./routing-v2";
 export * from "./sign";

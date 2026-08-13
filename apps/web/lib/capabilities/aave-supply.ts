@@ -21,6 +21,7 @@ type Parameters = z.infer<typeof ParametersSchema>;
 export const aaveSupplyCapabilityV1: CapabilityModuleV1<Parameters> = {
   id: "aave-v3.supply",
   version: 1,
+  policyAdapterId: "aave-v3@1",
   parseParameters: (input) => ParametersSchema.parse(input),
   compile({ program, parameters, manifest }) {
     assertProductionManifest(manifest, program.manifestHash);

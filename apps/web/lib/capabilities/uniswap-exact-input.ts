@@ -23,6 +23,7 @@ type Parameters = z.infer<typeof ParametersSchema>;
 export const uniswapExactInputCapabilityV1: CapabilityModuleV1<Parameters> = {
   id: "uniswap-v3.exact-input",
   version: 1,
+  policyAdapterId: "uniswap-v3@1",
   parseParameters: (input) => ParametersSchema.parse(input),
   compile({ program, parameters, manifest }) {
     assertProductionManifest(manifest, program.manifestHash);

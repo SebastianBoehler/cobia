@@ -50,6 +50,7 @@ export interface CapabilityFindingV1 {
 export interface CapabilityModuleV1<T> {
   readonly id: string;
   readonly version: number;
+  readonly policyAdapterId?: string;
   parseParameters(input: unknown): T;
   compile(input: CapabilityCompileInputV1<T>): CompiledCapabilityActionV1;
   verifyEvidence(input: CapabilityEvidenceInputV1<T>): CapabilityFindingV1[];
