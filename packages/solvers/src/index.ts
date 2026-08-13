@@ -8,6 +8,7 @@ export * from "./capabilities/module";
 export * from "./capabilities/registry";
 export * from "./capabilities/asset-flow";
 export * from "./capabilities/verifier";
+export * from "./capabilities/sandbox-runner";
 export * from "./deterministic";
 export * from "./routing-v2";
 export * from "./sign";

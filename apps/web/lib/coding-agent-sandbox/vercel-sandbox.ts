@@ -10,6 +10,11 @@ const SANDBOX_HOSTS = [
   "aave.com",
 ] as const;
 
+interface NetworkRule {
+  match: { method: string[]; path: { exact: string } };
+  forwardURL: string;
+}
+
 type SandboxHandle = {
   writeFiles(files: { path: string; content: string }[]): Promise<void>;
   runCommand(input: { cmd: string; args?: string[]; timeoutMs?: number }): Promise<{
@@ -26,7 +31,7 @@ interface VercelSandboxOptions {
   timeout: number;
   persistent: false;
   resources: { vcpus: 2 };
-  networkPolicy: { allow: string[] };
+  networkPolicy: { allow: Record<string, NetworkRule[] | never[]> };
   env: { COBIA_READ_RPC_BROKER_URL: string };
 }
 
@@ -43,7 +48,15 @@ export async function startVercelCodingAgentSandbox(input: {
     timeout: SANDBOX_TIMEOUT_MS,
     persistent: false,
     resources: { vcpus: 2 },
-    networkPolicy: { allow: [...SANDBOX_HOSTS, broker.hostname] },
+    networkPolicy: {
+      allow: {
+        ...Object.fromEntries(SANDBOX_HOSTS.map((host) => [host, []])),
+        [broker.hostname]: [{
+          match: { method: ["POST"], path: { exact: broker.pathname } },
+          forwardURL: input.brokerUrl,
+        }],
+      },
+    },
     env: { COBIA_READ_RPC_BROKER_URL: input.brokerUrl },
   };
   const create = input.create ?? (async (value: VercelSandboxOptions) =>
