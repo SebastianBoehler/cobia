@@ -2,7 +2,7 @@ import { Sandbox } from "@vercel/sandbox";
 import type { CodingAgentSandboxV1 } from "@cobia/solvers";
 
 const SANDBOX_TIMEOUT_MS = 300_000;
-const SANDBOX_HOSTS = [
+const SANDBOX_SOURCE_HOSTS = [
   "registry.npmjs.org",
   "github.com",
   "raw.githubusercontent.com",
@@ -11,8 +11,8 @@ const SANDBOX_HOSTS = [
 ] as const;
 
 interface NetworkRule {
-  match: { method: string[]; path: { exact: string } };
-  forwardURL: string;
+  match: { method: string[]; path?: { exact: string } };
+  forwardURL?: string;
 }
 
 type SandboxHandle = {
@@ -56,7 +56,9 @@ export async function startVercelCodingAgentSandbox(input: {
     resources: { vcpus: 2 },
     networkPolicy: {
       allow: {
-        ...Object.fromEntries(SANDBOX_HOSTS.map((host) => [host, []])),
+        ...Object.fromEntries(SANDBOX_SOURCE_HOSTS.map((host) => [host, [{
+          match: { method: ["GET"] },
+        }]])),
         [broker.hostname]: [{
           match: { method: ["POST"], path: { exact: broker.pathname } },
           forwardURL: input.brokerUrl,

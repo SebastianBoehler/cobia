@@ -26,8 +26,8 @@ describe("Vercel coding-agent sandbox", () => {
       resources: { vcpus: 2 },
       env: { COBIA_READ_RPC_BROKER_URL: "https://broker.cobia.example/rpc" },
       networkPolicy: { allow: expect.objectContaining({
-        "registry.npmjs.org": [],
-        "github.com": [],
+        "registry.npmjs.org": [{ match: { method: ["GET"] } }],
+        "github.com": [{ match: { method: ["GET"] } }],
         "broker.cobia.example": [expect.objectContaining({
           match: { method: ["POST"], path: { exact: "/rpc" } },
           forwardURL: "https://broker.cobia.example/rpc",
@@ -37,6 +37,7 @@ describe("Vercel coding-agent sandbox", () => {
     const serialized = JSON.stringify(options);
     expect(serialized).not.toContain("Authorization");
     expect(serialized).not.toContain("apiKey");
+    expect(serialized).not.toContain('"*"');
     await sandbox.stop();
   });
 
