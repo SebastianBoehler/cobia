@@ -5,6 +5,7 @@ describe("Vercel coding-agent sandbox", () => {
   it("creates a non-persistent microVM with only the broker and documented source hosts", async () => {
     let options: unknown;
     const sandbox = await startVercelCodingAgentSandbox({
+      jobId: "550e8400-e29b-41d4-a716-446655440000",
       brokerUrl: "https://broker.cobia.example/rpc",
       create: async (input) => {
         options = input;
@@ -18,6 +19,7 @@ describe("Vercel coding-agent sandbox", () => {
     });
 
     expect(options).toMatchObject({
+      name: "cobia-550e8400-e29b-41d4-a716-446655440000",
       runtime: "node24",
       persistent: false,
       timeout: 300_000,
@@ -40,6 +42,7 @@ describe("Vercel coding-agent sandbox", () => {
 
   it("marks symlinked artifacts so the core runner refuses them", async () => {
     const sandbox = await startVercelCodingAgentSandbox({
+      jobId: "550e8400-e29b-41d4-a716-446655440000",
       brokerUrl: "https://broker.cobia.example/rpc",
       create: async () => ({
         writeFiles: async () => undefined,

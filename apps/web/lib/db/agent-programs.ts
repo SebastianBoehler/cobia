@@ -141,6 +141,13 @@ export function createAgentProgramRepository(db: CobiaDatabase) {
       });
       return { ...job, artifacts };
     },
+
+    async getBrokerAnchor(id: string) {
+      return await db.query.cobiaAgentPrograms.findFirst({
+        columns: { state: true, blockNumber: true },
+        where: eq(cobiaAgentPrograms.id, id),
+      }) ?? null;
+    },
   };
 }
 

@@ -2,6 +2,7 @@ import { keccak256, toHex } from "viem";
 import { describe, expect, it } from "vitest";
 import {
   readAgenticSolverConfig,
+  readCodingAgentRpcProxyConfig,
   readExecutionSessionSecret,
   readMarketConfig,
 } from "./env";
@@ -44,5 +45,25 @@ describe("market environment", () => {
     expect(readExecutionSessionSecret({ EXECUTION_SESSION_SECRET: secret })).toBe(secret);
     expect(() => readExecutionSessionSecret({ EXECUTION_SESSION_SECRET: "short" }))
       .toThrow("EXECUTION_SESSION_SECRET");
+  });
+
+  it("requires an exact Vercel identity and public origin for the sandbox RPC proxy", () => {
+    expect(readCodingAgentRpcProxyConfig({
+      CODING_AGENT_PUBLIC_ORIGIN: "https://cobia.example",
+      VERCEL_TEAM_ID: "team_1",
+      VERCEL_PROJECT_ID: "prj_1",
+      XLAYER_RPC_URL: "https://rpc.example/secret",
+    })).toEqual({
+      CODING_AGENT_PUBLIC_ORIGIN: "https://cobia.example",
+      VERCEL_TEAM_ID: "team_1",
+      VERCEL_PROJECT_ID: "prj_1",
+      XLAYER_RPC_URL: "https://rpc.example/secret",
+    });
+    expect(() => readCodingAgentRpcProxyConfig({
+      CODING_AGENT_PUBLIC_ORIGIN: "http://cobia.example",
+      VERCEL_TEAM_ID: "team_1",
+      VERCEL_PROJECT_ID: "prj_1",
+      XLAYER_RPC_URL: "https://rpc.example",
+    })).toThrow("CODING_AGENT_PUBLIC_ORIGIN");
   });
 });

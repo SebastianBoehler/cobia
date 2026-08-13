@@ -27,6 +27,7 @@ type SandboxHandle = {
 };
 
 interface VercelSandboxOptions {
+  name: string;
   runtime: "node24";
   timeout: number;
   persistent: false;
@@ -36,14 +37,19 @@ interface VercelSandboxOptions {
 }
 
 export async function startVercelCodingAgentSandbox(input: {
+  jobId: string;
   brokerUrl: string;
   create?: (options: VercelSandboxOptions) => Promise<SandboxHandle>;
 }): Promise<CodingAgentSandboxV1> {
+  if (!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(input.jobId)) {
+    throw new Error("Coding-agent job ID is invalid");
+  }
   const broker = new URL(input.brokerUrl);
   if (broker.protocol !== "https:" || broker.username || broker.password) {
     throw new Error("Coding-agent broker must be a credential-free HTTPS URL");
   }
   const options: VercelSandboxOptions = {
+    name: `cobia-${input.jobId.toLowerCase()}`,
     runtime: "node24",
     timeout: SANDBOX_TIMEOUT_MS,
     persistent: false,

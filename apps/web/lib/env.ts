@@ -37,6 +37,13 @@ const AgenticSolverEnvSchema = z.object({
     .transform((value) => value as Hex),
 });
 
+const CodingAgentRpcProxyEnvSchema = z.object({
+  CODING_AGENT_PUBLIC_ORIGIN: z.url().refine((value) => new URL(value).protocol === "https:"),
+  VERCEL_TEAM_ID: z.string().min(1),
+  VERCEL_PROJECT_ID: z.string().min(1),
+  XLAYER_RPC_URL: z.url().refine((value) => new URL(value).protocol === "https:"),
+});
+
 export function readDatabaseUrl(
   source: Record<string, string | undefined> = process.env,
 ): string {
@@ -63,6 +70,17 @@ export function readAgenticSolverConfig(
   if (!parsed.success) {
     const invalid = parsed.error.issues.map((issue) => issue.path.join(".")).join(", ");
     throw new Error(`Missing or invalid agentic solver configuration: ${invalid}`);
+  }
+  return parsed.data;
+}
+
+export function readCodingAgentRpcProxyConfig(
+  source: Record<string, string | undefined> = process.env,
+) {
+  const parsed = CodingAgentRpcProxyEnvSchema.safeParse(source);
+  if (!parsed.success) {
+    const invalid = parsed.error.issues.map((issue) => issue.path.join(".")).join(", ");
+    throw new Error(`Missing or invalid coding-agent RPC proxy configuration: ${invalid}`);
   }
   return parsed.data;
 }
