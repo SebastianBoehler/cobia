@@ -1,83 +1,123 @@
 # Coding-agent sandbox v1
 
-## Scope
+## Implemented boundary
 
-This is a deliberately narrow vertical slice for X Layer mainnet (`196`). It
-does not replace deterministic-v2 or the existing buyer-wallet execution lane.
-It accepts an agent-authored unsigned program only for an ERC-20 `approve`
-followed by an Aave V3 `supply`; every target is supplied by a verifier-owned
-deployment/capability manifest. Curve, Uniswap, LP, flash-loan, lending exit,
-staking, bridge, and arbitrary-call composition are not capabilities of v1.
+New V2 intents use a genuine coding-agent path. The input is a canonical signed
+policy, wallet address, public balances/allowances/positions, trusted deployment
+manifest, and pinned X Layer mainnet (`196`) block. The agent receives no private
+key, seed phrase, wallet provider, database URL, production RPC credential, or
+production send method.
 
-The input task contains only the canonical policy, wallet address, public
-portfolio state, trusted manifest, and pinned snapshot block. It has no private
-key, seed phrase, wallet provider, transaction API, database URL, production RPC
-URL, or environment inherited from Cobia.
+Generation is open-world; authorization is closed-world. The sandbox can install
+packages, retrieve allowlisted official sources, write route-search code, and run
+tools in its disposable filesystem. A generated action becomes executable only
+when a verifier-owned capability module can parse its typed parameters, compile
+its exact calldata, and check its semantics. An ABI or agent claim is not trust
+evidence.
 
-## Data flow
+The initial capability manifest contains modular Aave V3 supply, Curve
+StableSwap NG exact-input, and Uniswap V3 exact-input capabilities. This is the
+first useful slice, not a claim of whole-chain support. Adding staking, lending
+withdrawal, LP lifecycle, flash loans, or another protocol requires a new trusted
+module and adversarial fork coverage; generic `call` is not admitted.
+
+## Data and authority flow
 
 ```mermaid
 flowchart LR
-  A[Canonical policy + public state + pinned block] --> B[Ephemeral Vercel Sandbox]
-  B -->|unsigned proposal + run provenance| C[Trusted verifier]
-  D[Credential-bearing mainnet RPC] --> E[Read-only pinned broker]
-  E --> B
-  C --> F[Fresh disposable Anvil fork replay]
-  F --> C
-  C -->|exact verified program only| G[Existing user-wallet execution]
+  I[Signed policy + public state + pinned block] --> S[Ephemeral Vercel Sandbox]
+  R[Credential RPC] --> B[Authenticated pinned read broker]
+  B --> S
+  S --> P[Unsigned capability program + evidence + provenance]
+  P --> V[Trusted compiler and deterministic verifier]
+  V --> F[Fresh disposable Anvil replay]
+  F --> V
+  V --> A[Exact verifier attestation]
+  A --> W[Owner wallet confirmation]
+  W --> X[Governed atomic executor]
 ```
 
-The sandbox can install dependencies and run arbitrary code within its own
-microVM. Its network policy allows only the task-specific read broker plus the
-small official/docs package-host allowlist. The browser wallet is never exposed
-to it. The configured broker normalizes requests into a small allowlist and
-pins stateful reads to the snapshot block; it rejects all `eth_send*`, signing,
-`wallet_*`, `personal_*`, malformed, and unlisted RPC methods.
+The model API key remains in the coordinator and is used only for the model
+request; it never enters sandbox commands or files. The broker URL is
+credential-free and bound to the exact Vercel team, project, host, sandbox name,
+job UUID, running state, and pinned block. It rejects JSON-RPC batches,
+credential-bearing requests, malformed method names, all `eth_send*`, signing,
+`wallet_*`, `personal_*`, pending state, and unlisted methods. Allowed stateful
+reads are rewritten to the pinned block.
 
-`@vercel/sandbox` is the chosen worker substrate: Vercel documents Firecracker
-microVM isolation, ephemeral filesystems, command/file APIs, resource limits,
-and explicit egress policy. The app adapter uses a non-persistent `node24`
-sandbox, two vCPUs, a five-minute ceiling, no exposed ports, and a
-credential-free broker URL. An authenticated broker deployment is still an
-activation prerequisite; this branch intentionally adds no public route that
-could launch an unbounded paid agent job.
+The runtime uses non-persistent Node 24 sandboxes, two vCPUs, a five-minute
+timeout, no public ports, and an explicit egress allowlist. One sandbox runs the
+agent; a distinct sandbox installs pinned Anvil 1.7.1 and performs trusted replay.
+Only the disposable fork permits impersonation and `eth_sendTransaction`.
 
-## Independent verification
+## Verification and execution
 
-The agent outputs a canonical proposal, never an authorization decision. The
-trusted verifier checks the policy commitment, owner, chain, deadline, snapshot
-freshness, target code identity, proxy implementation identity, selector
-semantics, zero native value, bounded approval, Aave asset/amount/recipient,
-and policy-derived minimum final balance. It then compares the supplied
-simulation evidence with a second replay's receipts, trace hash, state-diff
-hash, final balances, and deployment identities.
+The verifier checks the policy and program commitments, owner, chain, input
+amount, objective, deadline, block anchor and freshness, allowed capability
+namespace, typed parameters, selectors, native values, spend and allowance
+bounds, recipients, final-balance constraints, asset conservation, deployment
+runtime hashes, and proxy implementation identities. It then requires a second
+fork replay to reproduce the evidence commitments and observed balance deltas.
 
-The replay is permitted to mutate only an isolated Anvil fork. It impersonates
-the address only inside that fork and uses `anvil_setBalance`,
-`anvil_impersonateAccount`, `eth_sendTransaction`, and
-`anvil_stopImpersonatingAccount`; no code path sends a principal transaction to
-X Layer mainnet. The production lane remains the existing per-transaction user
-wallet confirmation flow and must rebuild/recheck the verified sequence before
-asking the wallet to sign.
+Accepted programs are persisted as immutable artifacts: program, agent evidence,
+provenance, verifier verdict, trusted replay, projected execution, authorization,
+and eventual receipt. Provenance captures model response IDs, dependency
+versions, fetched source hashes, generated-file hashes, commands, exit codes, and
+stdout/stderr hashes. Safe relative paths are required and symbolic-link outputs
+are rejected.
 
-## Evidence and provenance
+The coding agent never decides safety and never signs. After verification, the
+trusted coordinator signs only the exact EIP-712 executor authorization. Before
+the UI offers execution, the server rechecks chain 196, executor code hash, risk
+manager pause state, verifier signer, owner authorization, token enablement,
+per-route cap, immutable artifacts, deadline, and snapshot freshness. The owner
+wallet confirms bounded ERC-20 approvals and then the exact atomic executor call.
+The receipt is accepted only when its from/to/value/input and `ProgramExecuted`
+commitment match.
 
-The runner records command stdout/stderr hashes, declared commands, dependency
-versions, source URL/content hashes, and hashes of generated files. Output and
-declared paths are constrained to relative workspace paths; symbolic-link
-artifacts are rejected. Provenance helps reproduce a run but is not proof of
-safety. ABI or documentation retrieval likewise does not establish a target's
-semantic authority; the manifest and verifier do.
+## Threat model
 
-## Residual limitations before beta activation
+- Prompt or package compromise is contained by a disposable microVM, bounded
+  commands/time/resources, no inherited secrets, no exposed port, and egress
+  allowlisting.
+- RPC method casing, malformed encoding, batching, signing, wallet methods, sends,
+  credentials, stale jobs, wrong sandbox identities, chain mismatch, and unpinned
+  reads fail closed.
+- Path traversal and symbolic-link artifact substitution fail closed; stored
+  artifact hashes are recomputed before execution.
+- Agent evidence, ABI, docs, and simulations are untrusted until independently
+  compiled, identity-checked, and reproduced.
+- Proxy upgrades, code changes, reorg/stale anchors, expanded target/value/
+  recipient/allowance, insufficient final balances, and asset-flow violations
+  produce explicit rejection or execution-unavailable errors.
+- The executor snapshots its prior token balances and rejects routes that consume
+  them, so one user cannot sweep or subsidize execution with stranded funds.
 
-- Connect a privileged, authenticated broker/proxy to the Vercel sandbox egress
-  policy; do not expose the upstream RPC URL to a sandbox or browser.
-- Provision a pinned coding-agent command/model credential broker and run the
-  opt-in real X Layer fork acceptance case with a wallet that has the stated
-  public USDG balance. No paid model invocation is performed by this change.
-- Add each future protocol action with decoder, identity checks, event/state
-  postconditions, and adversarial fork tests before adding it to the manifest.
-- Deploy a bounded on-chain executor before claiming atomic multi-protocol
-  final-balance enforcement. Async bridges cannot share that guarantee; future
-  APY, LP fees, and impermanent loss remain forecasts, not enforced returns.
+## Guarantees and non-guarantees
+
+The executor can atomically enforce deadline, authorized targets, route caps, and
+minimum final token balances for synchronous EVM actions. Asynchronous bridges
+cannot share that guarantee. Future APY, future LP fees, impermanent loss, and
+future asset prices cannot be guaranteed. Flash-loan research may run only on a
+fork and can be admitted later only with verified atomic repayment and final
+profit bounds.
+
+## Remaining activation work
+
+1. Deploy and independently review `CobiaRiskManagerV1` and `CobiaExecutorV2` on
+   chain 196, record exact addresses/code hashes, configure verifier and token
+   limits, wait through delayed risk increases, and keep the system paused until
+   the canary gate. This needs separate mainnet deployment authorization.
+2. Configure production Sandbox/OIDC/model/RPC variables, apply migrations, and
+   run one real production-coordinator generation plus fresh replay without a
+   mainnet principal transaction.
+3. Run a selected-wallet retail-size canary with the exact UI-visible program,
+   approvals, gas bound, code identities, and receipt attribution; pause on any
+   discrepancy.
+4. Move long-lived competition orchestration to a queue/worker before adding
+   timed multi-solver windows. The current synchronous job is bounded to five
+   minutes but is not a recurring auction worker.
+5. Add authenticated community solver registration, replaceable immutable
+   submission revisions, deterministic current-only ranking, withdrawal, rate
+   limits/bonds, and abuse controls. Historical results remain `Past discovery`
+   and can only seed a fresh intent.

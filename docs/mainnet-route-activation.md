@@ -1,91 +1,86 @@
-# Mainnet route activation boundary
+# Mainnet agent-program activation
 
-This document distinguishes the user-facing X Layer route path that is live
-today from the coding-agent sandbox lane that is implemented but not activated.
-It is an activation checklist, not a claim that arbitrary calls are safe.
+This is the release gate for X Layer mainnet (`196`). Implementation in the
+repository is not evidence that the production contracts or environment are
+active.
 
-## Available on `https://cobia-web.vercel.app`
+## Implemented
 
-- A connected EIP-6963 wallet can open `/portfolio` and read its X Layer
-  mainnet (`196`) balances and registered Aave V3 positions at a coherent block.
-- A signed request can receive deterministic and bounded-agentic V2 quotes over
-  registered Aave V3, Curve StableSwap NG, and Uniswap V3 capabilities.
-- A purchased V2 route is read only by its owner, rehearsed on an isolated fork,
-  then executed by the owner wallet one prepared transaction at a time. The
-  server never receives a wallet key or broadcasts a principal transaction.
-- The V2 plan is intentionally finite: direct supply, one swap, swap then
-  supply, a constrained round trip, or one-sided Uniswap LP preparation. It is
-  not a generic multi-protocol program.
+- New V2 requests launch one open coding-agent sandbox job with canonical policy,
+  address-only public wallet state, trusted manifest, and a pinned block.
+- The agent has a temporary shell/filesystem, Node/TypeScript and package access,
+  official-source egress, and a credential-free pinned read broker. It has no
+  private key, browser wallet, unrestricted RPC, or production send method.
+- The protocol-neutral program schema accepts typed capability namespaces. The
+  trusted production registry currently compiles Aave supply and Curve/Uniswap
+  exact-input actions; unsupported namespaces reject with no fallback.
+- Independent verification covers policy, chain, block/freshness, target and
+  proxy identities, selectors, value, assets, amounts, owner/recipient, deadline,
+  conservation, objective/final balances, and exact fresh-fork reproduction.
+- The governed executor and risk manager enforce verifier authorization, owner,
+  deadline, allowed targets/selectors, token and route limits, and final balances
+  atomically. Contract tests cover pause, delayed risk increases, replay,
+  tampering, limits, target denial, and pre-existing executor balances.
+- The product has owner-only execution preparation, live contract preflight,
+  exact wallet confirmations, on-chain receipt attribution, and a public program
+  view. Expired programs are shown only as `Past discovery` with no execution
+  control.
 
-For the first self-custodial use, connect the intended wallet at `/portfolio`,
-create an intent at `/requests/new`, select and reveal an eligible quote, open
-its private route page, run the fork rehearsal, and review every transaction in
-the wallet. Do not approve an expired route or a transaction whose wallet view
-does not match the prepared step.
+## Production release gates
 
-## Coding-agent sandbox status
+| Gate | Required evidence | Current repository state |
+|---|---|---|
+| Contract review | independent source and bytecode review | not externally reviewed |
+| Deploy risk manager/executor | chain-196 receipts and verified source | requires explicit mainnet deployment authorization |
+| Configure restrictions | paused start, verifier, tokens, route/daily/cumulative caps, targets/selectors | deployment script/runbook still required |
+| Wait delayed increases | on-chain timestamps and executed changes | cannot begin before deployment |
+| Production environment | exact executor address/hash, verifier, OIDC identity, public origin, model, RPC | schema implemented; values not yet verified |
+| Database | migrations 0009-0011 applied and checked | migrations implemented; production apply pending |
+| Agent canary | real production sandbox + pinned replay, no principal send | pending deployed environment |
+| Wallet canary | selected owner, retail amount, exact receipts and state deltas | requires separate explicit transaction approval |
+| Monitoring | pause authority, alerts, receipt/reconciliation checks | pause controls implemented; operational alerts pending |
 
-The sandbox vertical slice has these implemented safeguards:
+No release test may broadcast a principal transaction. Deployment/configuration
+transactions and a later wallet canary are separate approvals.
 
-- canonical policy, public address-only portfolio, trusted deployment manifest,
-  and pinned X Layer block as its inputs;
-- ephemeral Vercel Sandbox execution with declared dependency/source/command
-  provenance and a credential-free, read-only RPC broker;
-- rejection of signing, wallet, and transaction-send RPC methods, including
-  method-normalization bypass attempts;
-- an independent proposal verifier and a fresh Anvil fork replay that must
-  reproduce deployment identities, trace, state-diff, and balance commitments.
+## Competition and marketplace
 
-Its current accepted capability is deliberately only `approve` plus Aave V3
-`supply` for a registered asset. The sandbox has no public API endpoint, agent
-model orchestration, production RPC credential, browser wallet handle, or
-server-side principal signer. A coding-agent proposal therefore cannot yet be
-selected, purchased, or executed by the production UI.
+The market projection already ranks only currently eligible quotes. Once a quote
+or verified program expires, it is labeled `Past discovery`; it cannot be
+selected or executed. A historical idea can only prefill a new intent whose
+wallet state, block, calldata, evidence, and authorization are regenerated.
 
-## Exact work before an agent-authored mainnet route
+The intended timed competition model is:
 
-1. Run the sandbox in a dedicated worker with an authenticated coordinator,
-   private read-only RPC broker, bounded model command, job queue, retention
-   policy, and audit store. Do not run arbitrary package installation or Anvil
-   inside a Vercel request handler.
-2. Persist the canonical proposal, sandbox provenance, verifier verdict, and
-   fresh replay artifact as a new private route type. Bind its policy, wallet,
-   block, and manifest commitments to the existing reveal and execution
-   authority records.
-3. Add one capability at a time to the verifier. Each needs a strict calldata
-   decoder, deployment/proxy identity rules, pre/post-state invariants, event
-   assertions, adversarial tests, and a real pinned-fork test. Start with the
-   existing Curve or Uniswap exact-input route; do not admit generic `call`.
-4. Project verified agent proposals into the guided execution path only when
-   every generated transaction is reconstructible from verifier-owned typed
-   data. The browser signs the exact reconstructed transactions individually.
-5. For atomic multi-protocol guarantees, deploy and independently review the
-   paused `CobiaExecutorV1` plus its registry. Configure selected-wallet access,
-   fixed 10 USD cap, signer/rotation policy, monitoring, and an emergency pause.
-   Deployment and unpausing require separate explicit approval; neither happens
-   as a release test.
-6. Run one selected-wallet 10 USD canary only after displaying the exact owner,
-   tokens, targets, selectors, values, allowance bounds, deadline, maximum OKB
-   gas, code identities, trace, state deltas, and postconditions. Re-pause on
-   any discrepancy. No bridge, future APY, LP fee, or impermanent-loss claim is
-   an atomic guarantee.
+1. A signed intent opens a fixed window, such as five minutes.
+2. Cobia-operated and admitted community solvers may abstain, submit, or replace
+   their own result with a new immutable revision while the window is open.
+3. Every revision has its own pinned block, program/evidence commitments, verifier
+   verdict, freshness window, and deterministic score. Replacement supersedes
+   display eligibility; it never mutates prior evidence.
+4. Only current independently verified revisions rank. Expired, withdrawn,
+   rejected, reorged, or superseded revisions remain auditable history and have
+   no selection/execution API.
+5. Closing the competition freezes the winning revision. Execution still runs a
+   fresh preflight and requires the owner wallet.
 
-Until step 4, “AI-generated route” means a sandboxed research proposal that
-the verifier may reject, not an executable user offer. Until step 5, a V2
-multi-step route is guided and wallet-confirmed rather than one atomic
-transaction.
+Continuous showcase discovery is a separate workload: solvers may publish useful
+verified strategies without a user request, but those are always templates or
+past observations—not wallet-specific executable quotes. Community admission,
+revision storage, worker scheduling, anti-spam/bonding, and continuous discovery
+are not implemented in this release slice.
 
-## Competition mode design
+## First activation sequence
 
-A future five-minute intent auction should use a stable signed policy plus
-versioned quote epochs. Solvers may abstain, submit a replacement quote, or
-withdraw an unpurchased quote. Every replacement receives a new snapshot,
-bundle commitment, validity window, and independent verification; it never
-edits an already revealed or purchased route. A deterministic score ranks only
-currently valid verified quotes, while the user chooses the final quote.
-
-Charge the user for the selected/revealed route, not for unobservable solver
-iterations. If a time-based listing or solver fee is introduced, put its maximum
-and expiry in the signed policy and show it before the auction opens. Solver
-costs and models remain their own competition; they are not a reason to weaken
-the verifier.
+1. Review the final diff, dependency audit, migrations, contract tests, unit/
+   integration/fork suites, Node 24 typecheck/lint/build, and sandbox egress tests.
+2. Obtain explicit authorization for the chain-196 deployment transactions.
+3. Deploy paused, verify source and bytecode, record code hashes, and configure
+   only restrictive state.
+4. Schedule capped/open-wallet risk changes, wait the full delay, inspect state,
+   then enable the selected canary wallet or capped open mode.
+5. Apply database migrations and production environment values, deploy the web
+   app, and run API/UI plus agent/fork smoke tests without moving principal.
+6. Obtain separate approval for one retail wallet canary. Confirm every approval
+   and the atomic call in the wallet, attribute its receipt, then decide whether
+   to remain active or pause.

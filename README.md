@@ -1,18 +1,17 @@
 # Cobia
 
-Cobia is a verified DeFi quote and paid-route market for X Layer. A wallet signs
-an exact stablecoin intent, Cobia captures Aave V3, Curve StableSwap NG, and Uniswap V3 opportunity
-data at one pinned block, deterministic and bounded agentic solvers propose
-routes, and an independent verifier recomputes authorization before publication. The
-private signed plan is released only to the request owner after an OKX MPP
-payment.
+Cobia is a verified DeFi intent system for X Layer. A wallet signs an exact
+stablecoin policy, Cobia captures public wallet and protocol state at one pinned
+block, and a coding agent researches and simulates an unsigned typed capability
+program inside an isolated sandbox. A separate trusted verifier compiles the
+capabilities, checks policy and deployment identities, and reproduces the result
+on a fresh fork before any wallet execution is offered.
 
-The current product is deliberately narrow: USDG/USDt0, Aave V3 supply, the
-registered Curve StableSwap NG and Uniswap V3 0.01% swaps, full-range Uniswap LP entry, and two Cobia-operated solvers. The agentic
-solver may choose only among server-built candidates; it cannot invent assets,
-amounts, contracts, or calldata. V1 OKX-derived Aave allocation rounds remain
-readable for compatibility. Cobia is not yet a broad aggregator or an open
-external-solver market.
+Generation is open-world, but production authorization is closed-world. The
+first verifier-owned modules are USDG/USDt0 Aave V3 supply and registered Curve
+StableSwap NG or Uniswap V3 exact-input swaps. Unsupported capabilities reject;
+there is no raw-calldata or deterministic V2 fallback. V1 allocation rounds
+remain readable as a control. Cobia is not yet an open external-solver network.
 
 ## Current truth
 
@@ -21,19 +20,20 @@ external-solver market.
 | Wallet connection and X Layer switching | Live |
 | Direct Aave V3 reserve/oracle, Curve swap, and Uniswap V3 quote/LP reads | Live V2 capture with pinned current and historical X Layer blocks |
 | Versioned policy, snapshot, route, and quote commitments | Implemented |
-| Deterministic V2 route authorization | Implemented and recomputed before persistence/payment |
-| Bounded OpenAI route selector | Live; selects only server-enumerated candidates and signs with an independent solver key |
+| Coding-agent V2 generation | Implemented with an ephemeral Node 24 Vercel Sandbox, bounded shell loop, explicit egress, and provenance capture; production activation pending |
+| Independent capability verification | Implemented for typed registered Aave supply and Curve/Uniswap exact-input modules; unsupported actions fail closed |
 | Quote selection and owner signatures | Implemented |
 | MPP/EIP-3009 paid reveal | Implemented on X Layer mainnet with fixed USDt0 and one off-chain authorization per recipient |
 | PostgreSQL request/payment/purchase history | Implemented |
 | X Layer mainnet USDt0 and Aave aToken balances | Live reads |
 | Aave + Curve + Uniswap route planning | Implemented for one exact conserved leg: Aave supply, Curve/Uniswap swap-to-Aave, or one-sided full-range Uniswap LP entry |
-| Solver competition | Two Cobia-operated solvers run independently; external solver admission is not implemented |
+| Solver competition | Historical quote markets exist; replaceable timed V2 submissions and external/community solver admission are not implemented |
 | Transaction construction/execution engine | Unit/fork-tested and wired as buyer-authenticated, one-step-at-a-time X Layer mainnet wallet execution |
 | X Layer mainnet-fork route rehearsal | Product-visible, persisted, and green for direct Aave, Curve/Uniswap-to-Aave, and full-range Uniswap LP-entry routes |
 | Verified stepwise X Layer mainnet execution | Product-wired for fresh, purchased, rehearsed V2 routes; every transaction requires an explicit buyer-wallet confirmation and durable receipt verification |
-| Capped atomic executor beta | Contract and route-authorization projection implemented and fuzz-tested; still paused, undeployed, and not product-wired |
-| AI execution/calldata authority | Not granted; deterministic construction and verification remain authoritative |
+| Capped atomic executor beta | Governed risk manager and protocol-neutral executor are implemented and tested; deployment, delayed activation, and exact code-hash configuration remain |
+| Agent-program wallet execution | Owner-authenticated preparation, live executor preflight, exact wallet calls, and receipt attribution are implemented; unavailable until executor activation |
+| AI execution/calldata authority | Never granted: verifier-owned capability modules compile calldata and the owner wallet alone signs production transactions |
 
 APY and TVL are snapshot-derived estimates. A block-bounded capture does not
 turn an off-chain rate into an on-chain oracle. Buying a route does not move
@@ -54,22 +54,19 @@ but Cobia does not yet build collect, rebalance, decrease-liquidity, or exit ste
 flowchart LR
     W["Owner wallet"] --> I["Signed stablecoin intent"]
     I --> S["Pinned Aave + Curve + Uniswap snapshot"]
-    S --> D["Deterministic solver"]
-    S --> A["Bounded agentic selector"]
-    D --> V["Pure verifier"]
-    A --> V
-    V --> Q["Sanitized public quote"]
-    Q --> P["Owner-bound MPP payment"]
-    P --> R["Committed private bundle"]
-    R --> F["Buyer-authenticated fork rehearsal"]
-    F --> E["Explicit verified wallet steps"]
+    S --> A["Ephemeral coding-agent sandbox"]
+    A --> P["Unsigned typed capability program"]
+    P --> V["Independent compiler + verifier"]
+    V --> F["Fresh pinned-fork replay"]
+    F --> T["Verifier attestation"]
+    T --> E["Exact owner-wallet execution"]
 ```
 
-Solvers reference only registered opportunity IDs; adapter code resolves
-targets and calldata. Well-formed bundles that reach a verifier verdict are
-saved even when authorization is rejected, but are not marketed as active
-quotes. Solver errors, timeouts, malformed bundles, identity mismatches, and
-non-actionable returns remain round failures and are not persisted as quotes.
+The agent may discover arbitrary protocols and write arbitrary research code,
+but executable calldata exists only when a verifier-owned capability module
+understands its semantics and deployment identities. Rejected programs are
+retained as evidence, never exposed as executable. Expired findings are labeled
+`Past discovery`; they require a new wallet-specific intent and fresh verification.
 Payment and execution both use X Layer mainnet chain 196; their chain fields
 remain separately recorded for auditability and historical receipt compatibility. The app stores
 credential hashes and receipt evidence, not raw spend-capable payment
