@@ -31,11 +31,11 @@ active.
 | Gate | Required evidence | Current repository state |
 |---|---|---|
 | Contract review | independent source and bytecode review | not externally reviewed |
-| Deploy risk manager/executor | chain-196 receipts and verified source | requires explicit mainnet deployment authorization |
-| Configure restrictions | paused start, verifier, tokens, route/daily/cumulative caps, targets/selectors | deployment script/runbook still required |
-| Wait delayed increases | on-chain timestamps and executed changes | cannot begin before deployment |
+| Deploy risk manager/executor | chain-196 receipts and verified source | deployed; receipts and local bytecode evidence recorded, explorer source verification pending |
+| Configure restrictions | paused start, verifier, tokens, route/daily/cumulative caps, targets/selectors | proposals executed; everything remains paused/inactive |
+| Wait delayed increases | on-chain timestamps and executed changes | eligible no earlier than 2026-08-17 18:17:40 UTC; activation not executed |
 | Production environment | exact executor address/hash, verifier, OIDC identity, public origin, model, RPC | schema implemented; values not yet verified |
-| Database | migrations 0009-0011 applied and checked | migrations implemented; production apply pending |
+| Database | migrations 0009-0011 applied and checked | production migrations applied; post-release read check pending |
 | Agent canary | real production sandbox + pinned replay, no principal send | pending deployed environment |
 | Wallet canary | selected owner, retail amount, exact receipts and state deltas | requires separate explicit transaction approval |
 | Monitoring | pause authority, alerts, receipt/reconciliation checks | pause controls implemented; operational alerts pending |
