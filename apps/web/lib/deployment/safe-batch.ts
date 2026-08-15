@@ -44,7 +44,8 @@ function serialize(value: JsonValue): string {
 
 /** Applies the checksum algorithm used by Safe Transaction Builder 2.1.0. */
 export function addSafeBatchChecksum(batch: SafeBatchFile): SafeBatchFile {
-  const { checksum: _checksum, ...meta } = batch.meta;
+  const meta = { ...batch.meta };
+  delete meta.checksum;
   const serialized = serialize({
     ...batch,
     meta: { ...meta, name: null },
