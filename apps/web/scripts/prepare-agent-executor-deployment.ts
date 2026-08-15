@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { getAddress, isAddress, toFunctionSelector, type Abi, type Hex } from "viem";
 import { PROTOCOL_REGISTRY } from "../lib/adapters/registry";
 import { buildAgentExecutorDeploymentPlanV1 } from "../lib/deployment/agent-executor-plan";
+import { buildSafeBatch } from "../lib/deployment/safe-batch";
 
 interface ArtifactFile { abi: Abi; bytecode: { object: Hex } }
 
@@ -11,6 +12,12 @@ function argument(name: string): string {
   const value = index >= 0 ? process.argv[index + 1] : undefined;
   if (!value || value.startsWith("--")) throw new Error(`Missing --${name}`);
   return value;
+}
+
+function optionalArgument(name: string): string | undefined {
+  const index = process.argv.indexOf(`--${name}`);
+  const value = index >= 0 ? process.argv[index + 1] : undefined;
+  return value && !value.startsWith("--") ? value : undefined;
 }
 
 function address(name: string) {
@@ -72,4 +79,27 @@ const plan = buildAgentExecutorDeploymentPlanV1({
   })),
 });
 
-process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
+const format = optionalArgument("format") ?? "plan";
+if (format === "plan") {
+  process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
+} else if (format === "safe-batches") {
+  const createdAt = Number(argument("created-at"));
+  process.stdout.write(`${JSON.stringify({
+    proposals: buildSafeBatch({
+      safe: plan.owner,
+      name: "Cobia Executor V2 proposals",
+      description: "Pauses the registry and starts the 48-hour capability, token, canary, and unpause delays.",
+      createdAt,
+      transactions: plan.proposalTransactions,
+    }),
+    activation: buildSafeBatch({
+      safe: plan.owner,
+      name: "Cobia Executor V2 activation",
+      description: "Activates the exact delayed proposals and unpauses the registry after independent re-verification.",
+      createdAt,
+      transactions: plan.activationTransactions,
+    }),
+  }, null, 2)}\n`);
+} else {
+  throw new Error(`Unsupported --format ${format}`);
+}
