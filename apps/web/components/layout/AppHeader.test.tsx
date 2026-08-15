@@ -29,4 +29,11 @@ describe("AppHeader", () => {
     expect(within(navigation).queryByText(/X Layer/)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Cobia home" }).parentElement).toContainElement(network);
   });
+
+  it("gives every primary destination a compact mobile tab icon", () => {
+    render(<AppHeader />);
+    const navigation = screen.getByRole("navigation", { name: "Primary navigation" });
+
+    expect(navigation.querySelectorAll(".app-header__nav-icon")).toHaveLength(4);
+  });
 });

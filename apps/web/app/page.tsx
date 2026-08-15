@@ -1,59 +1,124 @@
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import {
+  ArrowRight,
+  Blocks,
+  CheckCircle2,
+  Code2,
+  KeyRound,
+  ShieldCheck,
+  WalletCards,
+} from "lucide-react";
 import Link from "next/link";
-import { RouteCanvas } from "@/components/brand/RouteCanvas";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { createPageMetadata } from "./site-metadata";
 
 export const metadata = createPageMetadata({
   title: "Verified DeFi Routes on X Layer",
-  description: "Turn bounded DeFi intents into verified X Layer routes: solvers propose, Cobia verifies, and your wallet executes.",
+  description: "State the wallet outcome you want. Solvers search, Cobia independently verifies, and you decide whether to execute.",
   path: "/",
 });
+
+const proofPoints = [
+  { icon: Blocks, label: "Fresh-fork simulation" },
+  { icon: ShieldCheck, label: "Independent verification" },
+  { icon: WalletCards, label: "Wallet-only signing" },
+] as const;
+
+const flow = [
+  ["Solvers search", "Eligible solvers can propose a route or decline."],
+  ["Cobia verifies", "The exact program must reproduce on a fresh fork."],
+  ["You approve", "Your wallet reviews and signs the verified calls."],
+] as const;
 
 export default function Home() {
   return (
     <>
       <AppHeader />
-      <main>
-        <section className="home-hero">
+      <main className="home">
+        <section className="home-hero" aria-labelledby="home-title">
           <div className="home-hero__copy">
-            <h1>Your intent in. The best verified route out.</h1>
+            <p className="home-eyebrow"><span aria-hidden="true" /> X Layer intent execution</p>
+            <h1 id="home-title">State the outcome.<br /><span>Cobia finds the route.</span></h1>
             <p className="home-hero__intro">
-              Ask for the best stablecoin outcome. Cobia searches registered X Layer DeFi routes, simulates each candidate, and verifies token minimums before your wallet can execute it.
+              Tell Cobia what your wallet should end with and the limits it must respect. Solvers
+              search, an independent verifier checks the exact program, and you decide whether to sign.
             </p>
             <div className="home-hero__actions">
               <Link className="button button--primary" href="/requests/new">
-                Create an intent <ArrowRight aria-hidden="true" size={17} />
+                Create an intent <ArrowRight aria-hidden="true" size={17} strokeWidth={2} />
               </Link>
-              <Link className="text-link" href="/markets">Explore verified routes</Link>
+              <Link className="text-link" href="/markets">Browse solver market</Link>
             </div>
-            <div className="home-hero__boundary">
-              <CheckCircle2 aria-hidden="true" size={17} />
-              Self-custodial by design: solvers propose, Cobia verifies, your wallet executes.
-            </div>
+            <ul className="home-proof" aria-label="Execution guarantees">
+              {proofPoints.map(({ icon: Icon, label }) => (
+                <li key={label}><Icon aria-hidden="true" size={16} strokeWidth={1.8} />{label}</li>
+              ))}
+            </ul>
           </div>
-          <RouteCanvas />
+
+          <article className="intent-example" aria-labelledby="example-intent-title">
+            <header className="intent-example__header">
+              <div><p>Example intent</p><span>X Layer · 5 minute market</span></div>
+              <span className="intent-example__status">Example only</span>
+            </header>
+            <div className="intent-example__statement">
+              <p>Maximize my final balance</p>
+              <h2 id="example-intent-title">10 USDG <ArrowRight aria-hidden="true" size={22} /> USDt0</h2>
+              <span>Find the highest verified outcome without crossing my minimum.</span>
+            </div>
+            <dl className="intent-example__bounds">
+              <div><dt>You send</dt><dd>10 USDG</dd></div>
+              <div><dt>Minimum outcome</dt><dd>10.04 USDt0</dd></div>
+              <div><dt>Time live</dt><dd>5 minutes</dd></div>
+              <div><dt>Signer</dt><dd>Your wallet</dd></div>
+            </dl>
+            <ol className="intent-example__flow">
+              {flow.map(([title, description], index) => (
+                <li key={title}>
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <div><strong>{title}</strong><p>{description}</p></div>
+                </li>
+              ))}
+            </ol>
+            <footer><CheckCircle2 aria-hidden="true" size={15} /> Example request · not a live quote</footer>
+          </article>
         </section>
 
-        <section className="mechanism" id="mechanism">
-          <header className="section-heading">
-            <h2>Live data in. Verified solver routes out.</h2>
+        <section className="home-mechanism" aria-labelledby="mechanism-title">
+          <header className="home-section-heading">
+            <p className="home-eyebrow">One clear contract</p>
+            <h2 id="mechanism-title">Creative route search.<br />Conservative execution.</h2>
+            <p>The solver explores broadly inside a disposable blockchain lab. The verifier decides narrowly from canonical evidence.</p>
           </header>
-          <ol className="mechanism__steps">
-            <li><span>01</span><h3>Request</h3><p>Define principal, exposure, liquidity, freshness, and route limits.</p></li>
-            <li><span>02</span><h3>Capture</h3><p>Read Aave reserve/oracle state and the registered Uniswap quote at one pinned block.</p></li>
-            <li><span>03</span><h3>Solve</h3><p>Let deterministic and bounded agentic solvers choose among exact direct-supply or swap-to-supply candidates.</p></li>
-            <li><span>04</span><h3>Recompute</h3><p>Recompute the signed bundle&apos;s amounts, APY, limits, and signer.</p></li>
-            <li><span>05</span><h3>Pay + reveal</h3><p>Pay 0.10 stablecoin through OKX MPP to reveal the signed bundle. Principal remains unmoved.</p></li>
-            <li><span>06</span><h3>Execute</h3><p>Cobia rebuilds every call and wallet confirms every transaction against fresh bounds.</p></li>
-          </ol>
+          <div className="home-mechanism__grid">
+            <article><span>01</span><h3>Publish hard bounds</h3><p>Sign the asset, amount, deadline, permitted targets, and minimum final balance—not a route chosen in advance.</p></article>
+            <article><span>02</span><h3>Search in isolation</h3><p>Solvers can write code, use protocol tooling, and test compositions. They never receive your key or a production send method.</p></article>
+            <article><span>03</span><h3>Execute exact calls</h3><p>Cobia replays the proposal and checks every target, approval, recipient, deadline, and balance before your wallet can sign.</p></article>
+          </div>
         </section>
 
-        <section className="closing-cta">
-          <h2>Define the outcome.<br />Let solvers compete.</h2>
-          <Link className="button button--paper" href="/requests/new">
-            Create an intent <ArrowRight aria-hidden="true" size={17} />
-          </Link>
+        <section className="agent-boundary" aria-labelledby="agent-boundary-title">
+          <div className="agent-boundary__intro">
+            <p className="home-eyebrow">The trust boundary</p>
+            <h2 id="agent-boundary-title">The agent can explore.<br />It cannot touch your keys.</h2>
+            <p>Agent-authored means creative provenance. Independently verified means eligible for your review. They are never the same claim.</p>
+          </div>
+          <div className="agent-boundary__cards">
+            <article>
+              <Code2 aria-hidden="true" size={22} strokeWidth={1.8} />
+              <h3>Inside the sandbox</h3>
+              <ul><li>Write and run route-search code</li><li>Read pinned public chain state</li><li>Broadcast only to a disposable fork</li></ul>
+            </article>
+            <article>
+              <KeyRound aria-hidden="true" size={22} strokeWidth={1.8} />
+              <h3>Outside the sandbox</h3>
+              <ul><li>The agent never receives your private key</li><li>It cannot call a production send RPC</li><li>It cannot approve its own proposal</li></ul>
+            </article>
+          </div>
+        </section>
+
+        <section className="home-cta">
+          <div><p className="home-eyebrow">Start with the outcome</p><h2>What should your wallet end with?</h2></div>
+          <Link className="button button--paper" href="/requests/new">Create an intent <ArrowRight aria-hidden="true" size={17} /></Link>
         </section>
       </main>
     </>

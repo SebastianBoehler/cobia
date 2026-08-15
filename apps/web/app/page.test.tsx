@@ -2,20 +2,31 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/layout/AppHeader", () => ({ AppHeader: () => null }));
-vi.mock("@/components/brand/RouteCanvas", () => ({ RouteCanvas: () => null }));
 
 import Home from "./page";
 
 describe("home conversion path", () => {
-  it("starts the intent flow before offering route discovery", () => {
+  it("starts with the outcome and labels the example as a non-quote", () => {
     const html = renderToStaticMarkup(<Home />);
     const createIndex = html.indexOf("Create an intent");
-    const exploreIndex = html.indexOf("Explore verified routes");
+    const exploreIndex = html.indexOf("Browse solver market");
 
     expect(createIndex).toBeGreaterThan(-1);
     expect(exploreIndex).toBeGreaterThan(createIndex);
     expect(html).toContain('href="/requests/new"');
-    expect(html).toContain("Execute");
-    expect(html).toContain("wallet confirms every transaction");
+    expect(html).toContain("State the outcome");
+    expect(html).toContain("Example intent");
+    expect(html).toContain("Example request · not a live quote");
+    expect(html).not.toContain("10.08");
+  });
+
+  it("keeps solver creativity separate from verification and wallet approval", () => {
+    const html = renderToStaticMarkup(<Home />);
+
+    expect(html).toContain("Solvers search");
+    expect(html).toContain("Cobia verifies");
+    expect(html).toContain("You approve");
+    expect(html).toContain("never receives your private key");
+    expect(html).toContain("Broadcast only to a disposable fork");
   });
 });
