@@ -1,17 +1,33 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { getAgentProgramRepository } from "@/lib/runtime/market";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const ProgramIdSchema = z.uuid();
+
+function json(body: unknown, status = 200): Response {
+  return NextResponse.json(body, {
+    status,
+    headers: { "Cache-Control": "no-store" },
+  });
+}
 
 export async function GET(
   _request: Request,
   context: RouteContext<"/api/agent-programs/[programId]">,
 ) {
   const { programId } = await context.params;
+  if (!ProgramIdSchema.safeParse(programId).success) {
+    return json({
+      code: "INVALID_PROGRAM_ID",
+      message: "Agent program id is invalid.",
+    }, 400);
+  }
   try {
     const result = await getAgentProgramRepository().getExecutionContext(programId);
-    if (!result) return NextResponse.json({ code: "NOT_FOUND", message: "Agent program not found." }, { status: 404 });
+    if (!result) return json({ code: "NOT_FOUND", message: "Agent program not found." }, 404);
     const byKind = new Map(result.artifacts.map(({ kind, payload }) => [kind, payload]));
     const policy = result.policy as { deadline?: number; maxSnapshotAgeSec?: number };
     const snapshot = result.snapshot as { capturedAt?: string };
@@ -21,7 +37,7 @@ export async function GET(
     const nowSec = Math.floor(Date.now() / 1_000);
     const live = result.state === "attested" && typeof policy.deadline === "number" &&
       nowSec < policy.deadline && nowSec <= freshUntil;
-    return NextResponse.json({
+    return json({
       id: result.id,
       requestId: result.requestId,
       state: result.state,
@@ -38,11 +54,11 @@ export async function GET(
       receipt: byKind.get("receipt") ?? null,
       validity: live ? "live" : "past-discovery",
       executable: live,
-    }, { headers: { "Cache-Control": "no-store" } });
-  } catch (error) {
-    return NextResponse.json({
+    });
+  } catch {
+    return json({
       code: "READ_FAILED",
-      message: error instanceof Error ? error.message : "Could not read agent program.",
-    }, { status: 503 });
+      message: "Could not read agent program.",
+    }, 503);
   }
 }
