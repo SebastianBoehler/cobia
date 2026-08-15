@@ -36,7 +36,6 @@ export default function Home() {
       <main className="home">
         <section className="home-hero" aria-labelledby="home-title">
           <div className="home-hero__copy">
-            <p className="home-eyebrow"><span aria-hidden="true" /> X Layer intent execution</p>
             <h1 id="home-title">State the outcome.<br /><span>Cobia finds the route.</span></h1>
             <p className="home-hero__intro">
               Tell Cobia what your wallet should end with and the limits it must respect. Solvers
@@ -85,7 +84,6 @@ export default function Home() {
 
         <section className="home-mechanism" aria-labelledby="mechanism-title">
           <header className="home-section-heading">
-            <p className="home-eyebrow">One clear contract</p>
             <h2 id="mechanism-title">Creative route search.<br />Conservative execution.</h2>
             <p>The solver explores broadly inside a disposable blockchain lab. The verifier decides narrowly from canonical evidence.</p>
           </header>
@@ -98,7 +96,6 @@ export default function Home() {
 
         <section className="agent-boundary" aria-labelledby="agent-boundary-title">
           <div className="agent-boundary__intro">
-            <p className="home-eyebrow">The trust boundary</p>
             <h2 id="agent-boundary-title">The agent can explore.<br />It cannot touch your keys.</h2>
             <p>Agent-authored means creative provenance. Independently verified means eligible for your review. They are never the same claim.</p>
           </div>
@@ -117,7 +114,7 @@ export default function Home() {
         </section>
 
         <section className="home-cta">
-          <div><p className="home-eyebrow">Start with the outcome</p><h2>What should your wallet end with?</h2></div>
+          <h2>What should your wallet end with?</h2>
           <Link className="button button--paper" href="/requests/new">Create an intent <ArrowRight aria-hidden="true" size={17} /></Link>
         </section>
       </main>

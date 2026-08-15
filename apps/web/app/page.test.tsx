@@ -17,6 +17,7 @@ describe("home conversion path", () => {
     expect(html).toContain("State the outcome");
     expect(html).toContain("Example intent");
     expect(html).toContain("Example request · not a live quote");
+    expect(html).not.toContain("home-eyebrow");
     expect(html).not.toContain("10.08");
   });
 
