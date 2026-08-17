@@ -19,6 +19,10 @@ import { createPageMetadata, SITE_ORIGIN } from "./site-metadata";
 const appDirectory = join(process.cwd(), "app");
 
 describe("site metadata", () => {
+  it("uses the public Cobia domain as the canonical origin", () => {
+    expect(SITE_ORIGIN).toBe("https://getcobia.com");
+  });
+
   it("publishes a complete Cobia social and search identity", () => {
     expect(metadata).toMatchObject({
       applicationName: "Cobia",

@@ -38,7 +38,7 @@ export default function OpenGraphImage() {
       </div>
       <div style={{ display: "flex", fontSize: 25, justifyContent: "space-between" }}>
         <span>Solvers propose · Cobia verifies · your wallet executes</span>
-        <span style={{ color: "#3655ff", fontWeight: 700 }}>cobia-web.vercel.app</span>
+        <span style={{ color: "#3655ff", fontWeight: 700 }}>getcobia.com</span>
       </div>
     </div>,
     size,

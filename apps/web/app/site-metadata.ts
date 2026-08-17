@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const SITE_NAME = "Cobia";
 export const SITE_DESCRIPTION = "Set bounded DeFi intents, compare verified Aave, Curve, and Uniswap routes, and execute non-custodially on X Layer.";
-export const SITE_ORIGIN = process.env.NEXT_PUBLIC_APP_ORIGIN ?? "http://localhost:3000";
+export const SITE_ORIGIN = process.env.NEXT_PUBLIC_APP_ORIGIN ?? "https://getcobia.com";
 export const SOCIAL_IMAGE = {
   url: "/opengraph-image",
   width: 1200,
