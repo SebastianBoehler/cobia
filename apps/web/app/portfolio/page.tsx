@@ -11,5 +11,5 @@ export const metadata = createPageMetadata({
 });
 
 export default function PortfolioPage() {
-  return <><AppHeader /><main className={styles.page}><header className={styles.heading}><h1>Positions</h1><p>Your available X Layer balances and direct protocol positions, read together at one explicit block.</p></header><PortfolioView /></main></>;
+  return <><AppHeader /><main className={styles.page} id="main-content"><header className={styles.heading}><h1>Positions</h1><p>Your available X Layer balances and direct protocol positions, read together at one explicit block.</p></header><PortfolioView /></main></>;
 }

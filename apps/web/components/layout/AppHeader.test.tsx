@@ -10,6 +10,15 @@ vi.mock("next/navigation", () => ({ usePathname: () => "/requests/new" }));
 afterEach(cleanup);
 
 describe("AppHeader", () => {
+  it("offers a keyboard shortcut past repeated navigation", () => {
+    render(<AppHeader />);
+
+    expect(screen.getByRole("link", { name: "Skip to content" })).toHaveAttribute(
+      "href",
+      "#main-content",
+    );
+  });
+
   it("links to intent, portfolio, activity, and the solver marketplace", () => {
     render(<AppHeader />);
     expect(screen.getByRole("link", { name: "New intent" })).toHaveAttribute("href", "/requests/new");

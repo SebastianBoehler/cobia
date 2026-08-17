@@ -46,9 +46,9 @@ export function RouteAccessView({ routeId }: { routeId: string }) {
     }
   }
 
-  if (route) return <main className={styles.page}><PurchasedRouteView route={route} /></main>;
+  if (route) return <main className={styles.page} id="main-content"><PurchasedRouteView route={route} /></main>;
   return (
-    <main className={styles.page}>
+    <main className={styles.page} id="main-content">
       <section className={styles.gate}>
         <span><LockKeyhole size={21} /></span>
         <h1>Unlock your purchased quote</h1>

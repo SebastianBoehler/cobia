@@ -214,12 +214,12 @@ export function CompetitionView({ requestId }: { requestId: string }) {
   }
 
   if (!market && !error) {
-    return <main className={styles.loading}><LoaderCircle className="spin" /> Loading solver market…</main>;
+    return <main className={styles.loading} id="main-content"><LoaderCircle className="spin" /> Loading solver market…</main>;
   }
-  if (!market) return <main className={styles.loading} role="alert">{error}</main>;
+  if (!market) return <main className={styles.loading} id="main-content" role="alert">{error}</main>;
 
   return (
-    <main className={styles.shell}>
+    <main className={styles.shell} id="main-content">
       <CompetitionMarketHeader requestId={requestId} state={market.state} policy={market.policy}
         snapshot={market.snapshot} quotes={market.quotes} />
 

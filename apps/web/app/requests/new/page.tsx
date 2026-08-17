@@ -12,7 +12,7 @@ export default function NewRequestPage() {
   return (
     <>
       <AppHeader />
-      <main className="request-page">
+      <main className="request-page" id="main-content">
         <section className="request-page__workspace" aria-labelledby="intent-workspace-title">
           <div className="intent-workspace">
             <header className="intent-workspace__header">

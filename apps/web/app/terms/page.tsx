@@ -11,7 +11,7 @@ export const metadata = createPageMetadata({
 export default function TermsPage() {
   return <>
     <AppHeader />
-    <main className="legal-page">
+    <main className="legal-page" id="main-content">
       <header>
         <h1>Terms of use</h1>
         <p>Effective August 12, 2026</p>

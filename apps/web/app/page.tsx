@@ -2,9 +2,12 @@ import {
   ArrowRight,
   Blocks,
   CheckCircle2,
+  CirclePlus,
+  Clock3,
   Code2,
   KeyRound,
   ShieldCheck,
+  Store,
   WalletCards,
 } from "lucide-react";
 import Link from "next/link";
@@ -29,11 +32,18 @@ const flow = [
   ["You approve", "Your wallet reviews and signs the verified calls."],
 ] as const;
 
+const productLinks = [
+  { href: "/requests/new", icon: CirclePlus, title: "Create an intent", description: "Describe the wallet outcome and hard limits." },
+  { href: "/portfolio", icon: WalletCards, title: "View positions", description: "Read balances and protocol positions at one block." },
+  { href: "/activity", icon: Clock3, title: "Review activity", description: "Follow purchased proofs and execution receipts." },
+  { href: "/markets", icon: Store, title: "Explore solver markets", description: "Compare live requests and valid proposals." },
+] as const;
+
 export default function Home() {
   return (
     <>
       <AppHeader />
-      <main className="home">
+      <main className="home" id="main-content">
         <section className="home-hero" aria-labelledby="home-title">
           <div className="home-hero__copy">
             <h1 id="home-title">State the outcome.<br /><span>Cobia finds the route.</span></h1>
@@ -81,6 +91,16 @@ export default function Home() {
             <footer><CheckCircle2 aria-hidden="true" size={15} /> Example request · not a live quote</footer>
           </article>
         </section>
+
+        <nav className="home-product-nav" aria-label="Cobia product">
+          {productLinks.map(({ href, icon: Icon, title, description }) => (
+            <Link href={href} key={href}>
+              <Icon aria-hidden="true" size={20} strokeWidth={1.8} />
+              <span><strong>{title}</strong><small>{description}</small></span>
+              <ArrowRight aria-hidden="true" className="home-product-nav__arrow" size={17} />
+            </Link>
+          ))}
+        </nav>
 
         <section className="home-mechanism" aria-labelledby="mechanism-title">
           <header className="home-section-heading">

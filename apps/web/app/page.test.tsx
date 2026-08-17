@@ -30,4 +30,15 @@ describe("home conversion path", () => {
     expect(html).toContain("never receives your private key");
     expect(html).toContain("Broadcast only to a disposable fork");
   });
+
+  it("makes the wallet product visible before technical architecture", () => {
+    const html = renderToStaticMarkup(<Home />);
+    const positionsIndex = html.indexOf("View positions");
+    const activityIndex = html.indexOf("Review activity");
+    const architectureIndex = html.indexOf("Creative route search");
+
+    expect(positionsIndex).toBeGreaterThan(-1);
+    expect(activityIndex).toBeGreaterThan(positionsIndex);
+    expect(architectureIndex).toBeGreaterThan(activityIndex);
+  });
 });
