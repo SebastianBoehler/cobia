@@ -71,6 +71,17 @@ function sameDeployment(left: CapabilityDeploymentV1, right: CapabilityDeploymen
         left.implementation.runtimeCodeHash === right.implementation.runtimeCodeHash);
 }
 
+function mergeDeployment(
+  left: CapabilityDeploymentV1,
+  right: CapabilityDeploymentV1,
+): CapabilityDeploymentV1 {
+  if (!isAddressEqual(left.address, right.address) || left.runtimeCodeHash !== right.runtimeCodeHash ||
+    (left.implementation && right.implementation && !sameDeployment(left, right))) {
+    throw new Error("deployment identity conflict");
+  }
+  return left.implementation ? left : right;
+}
+
 function requiredDeployments(
   actions: readonly CompiledCapabilityActionV1[],
   program: ReturnType<typeof CapabilityProgramV2Schema.parse>,
@@ -83,8 +94,7 @@ function requiredDeployments(
   for (const value of values) {
     const key = value.address.toLowerCase();
     const current = byAddress.get(key);
-    if (current && !sameDeployment(current, value)) throw new Error("deployment identity conflict");
-    byAddress.set(key, value);
+    byAddress.set(key, current ? mergeDeployment(current, value) : value);
   }
   return [...byAddress.values()];
 }

@@ -1,8 +1,8 @@
 import { Sandbox } from "@vercel/sandbox";
-import { decodeFunctionResult, encodeFunctionData, erc20Abi, getAddress, isHash, keccak256 } from "viem";
+import { decodeFunctionResult, encodeFunctionData, erc20Abi, getAddress, isHash, isHex, keccak256, toHex } from "viem";
 import type { Address, Hash, Hex } from "viem";
 import { EIP1967_IMPLEMENTATION_SLOT } from "../adapters/read-client";
-import type { CapabilityForkReplayReadV1 } from "./capability-fork-replay";
+import type { CapabilityForkReplayReadV2 } from "./capability-fork-replay-v2";
 
 const ANVIL_VERSION = "1.7.1";
 const RPC_SCRIPT = [
@@ -101,7 +101,9 @@ export async function startVercelAnvilForkV1(input: {
   return { rpc, stop: () => sandbox.stop(), read: createForkRead(rpc) };
 }
 
-function createForkRead(rpc: (method: string, params?: readonly unknown[]) => Promise<unknown>): CapabilityForkReplayReadV1 {
+export const startVercelAnvilForkV2 = startVercelAnvilForkV1;
+
+function createForkRead(rpc: (method: string, params?: readonly unknown[]) => Promise<unknown>): CapabilityForkReplayReadV2 {
   const balanceOf = async (token: Address, account: Address) => {
     const result = await rpc("eth_call", [{
       to: token, data: encodeFunctionData({ abi: erc20Abi, functionName: "balanceOf", args: [account] }),
@@ -121,6 +123,11 @@ function createForkRead(rpc: (method: string, params?: readonly unknown[]) => Pr
       return { ...(value.hash && isHash(value.hash) ? { hash: value.hash } : {}) };
     },
     getBalanceOf: balanceOf,
+    async staticCall({ target, data, gasLimit }) {
+      const result = await rpc("eth_call", [{ to: target, data, gas: toHex(gasLimit) }, "latest"]);
+      if (typeof result !== "string" || !isHex(result)) throw new Error("Fork static call response is invalid");
+      return result;
+    },
     async waitForReceipt(hash) {
       for (let attempt = 0; attempt < 100; ++attempt) {
         const receipt = await rpc("eth_getTransactionReceipt", [hash]) as null | {
