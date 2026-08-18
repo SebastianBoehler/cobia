@@ -3,7 +3,7 @@ import { SITE_ORIGIN } from "./site-metadata";
 
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: { userAgent: "*", allow: "/", disallow: ["/api/", "/routes/"] },
+    rules: { userAgent: "*", allow: "/", disallow: ["/api/", "/programs/"] },
     sitemap: `${SITE_ORIGIN}/sitemap.xml`,
     host: SITE_ORIGIN,
   };

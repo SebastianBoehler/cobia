@@ -1,6 +1,6 @@
 "use client";
 
-import { CirclePlus, Clock3, House, Store, WalletCards } from "lucide-react";
+import { CirclePlus, Clock3, Compass, House, WalletCards } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CobiaLogo } from "../brand/CobiaLogo";
@@ -9,15 +9,15 @@ import { useWallet } from "../wallet/WalletProvider";
 import { ThemeToggle } from "./ThemeToggle";
 
 const navigation = [
-  { href: "/requests/new", icon: CirclePlus, label: "New intent", prefixes: ["/requests", "/routes"] },
-  { href: "/portfolio", icon: WalletCards, label: "Positions", prefixes: ["/portfolio"] },
+  { href: "/intents/new", icon: CirclePlus, label: "Intent", prefixes: ["/intents", "/programs"] },
+  { href: "/portfolio", icon: WalletCards, label: "Portfolio", prefixes: ["/portfolio"] },
   { href: "/activity", icon: Clock3, label: "Activity", prefixes: ["/activity"] },
-  { href: "/markets", icon: Store, label: "Solver market", prefixes: ["/markets"] },
+  { href: "/discover", icon: Compass, label: "Discover", prefixes: ["/discover", "/solvers"] },
 ] as const;
 
 const testnetNavigation = [
   { href: "/", icon: House, label: "Testnet home", prefixes: ["/"] },
-  { href: "/portfolio", icon: WalletCards, label: "Positions", prefixes: ["/portfolio"] },
+  { href: "/portfolio", icon: WalletCards, label: "Portfolio", prefixes: ["/portfolio"] },
 ] as const;
 
 export function AppHeader() {

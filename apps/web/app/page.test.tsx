@@ -10,19 +10,18 @@ vi.mock("@/lib/network/site-network-server", () => ({
 import Home from "./page";
 
 describe("home conversion path", () => {
-  it("starts with the outcome and labels the example as a non-quote", async () => {
+  it("starts with a general goal and one canonical intent action", async () => {
     const html = renderToStaticMarkup(await Home());
     const createIndex = html.indexOf("Create an intent");
-    const exploreIndex = html.indexOf("Browse solver market");
+    const exploreIndex = html.indexOf("Explore challenges");
 
     expect(createIndex).toBeGreaterThan(-1);
     expect(exploreIndex).toBeGreaterThan(createIndex);
-    expect(html).toContain('href="/requests/new"');
-    expect(html).toContain("State the outcome");
-    expect(html).toContain("Example intent");
-    expect(html).toContain("Example request · not a live quote");
+    expect(html).toContain('href="/intents/new"');
+    expect(html).toContain("What should happen onchain?");
+    expect(html).toContain("Solvers may submit, revise, or abstain");
     expect(html).not.toContain("home-eyebrow");
-    expect(html).not.toContain("10.08");
+    expect(html).not.toMatch(/Earn|Swap|Profit/);
   });
 
   it("keeps solver creativity separate from verification and wallet approval", async () => {
@@ -35,14 +34,29 @@ describe("home conversion path", () => {
     expect(html).toContain("Broadcast only to a disposable fork");
   });
 
-  it("makes the wallet product visible before technical architecture", async () => {
+  it("makes the wallet product and competition model visible before architecture", async () => {
     const html = renderToStaticMarkup(await Home());
-    const positionsIndex = html.indexOf("View positions");
-    const activityIndex = html.indexOf("Review activity");
-    const architectureIndex = html.indexOf("Creative route search");
+    const portfolioIndex = html.indexOf("Portfolio");
+    const activityIndex = html.indexOf("Activity");
+    const standingIndex = html.indexOf("Standing challenges");
+    const architectureIndex = html.indexOf("Creative search");
 
-    expect(positionsIndex).toBeGreaterThan(-1);
-    expect(activityIndex).toBeGreaterThan(positionsIndex);
-    expect(architectureIndex).toBeGreaterThan(activityIndex);
+    expect(portfolioIndex).toBeGreaterThan(-1);
+    expect(activityIndex).toBeGreaterThan(portfolioIndex);
+    expect(standingIndex).toBeGreaterThan(activityIndex);
+    expect(architectureIndex).toBeGreaterThan(standingIndex);
+  });
+
+  it("labels live and future domains without pretending future capabilities exist", async () => {
+    const html = renderToStaticMarkup(await Home());
+
+    expect(html).toContain("Investments");
+    expect(html).toContain("Exact-input swaps and Aave supply");
+    expect(html).toContain("Live capability");
+    expect(html).toContain("Shopping and x402");
+    expect(html).toContain("Requires capability");
+    expect(html).toContain("Subscriptions");
+    expect(html).toContain("Tokenized real-world assets");
+    expect(html).toContain('href="/solvers"');
   });
 });

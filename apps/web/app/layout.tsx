@@ -7,6 +7,8 @@ import { getSiteNetwork } from "@/lib/network/site-network-server";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_ORIGIN, SOCIAL_IMAGE } from "./site-metadata";
 import "./globals.css";
 import "./styles/landing.css";
+import "./styles/intent-v2.css";
+import "./styles/directory.css";
 import "./styles/request.css";
 
 const geistSans = Geist({
@@ -23,11 +25,11 @@ const mainnetMetadata: Metadata = {
   metadataBase: new URL(SITE_ORIGIN),
   applicationName: SITE_NAME,
   title: {
-    default: "Cobia — Verified DeFi Routes on X Layer",
+    default: "Cobia — Verified onchain intents",
     template: "%s · Cobia",
   },
   description: SITE_DESCRIPTION,
-  keywords: ["X Layer", "DeFi intents", "DeFi solver", "yield routes", "Aave V3", "Curve", "Uniswap V3", "non-custodial DeFi"],
+  keywords: ["X Layer", "onchain intents", "solver competition", "verified execution", "non-custodial", "coding agent"],
   authors: [{ name: SITE_NAME, url: SITE_ORIGIN }],
   creator: SITE_NAME,
   publisher: SITE_NAME,
@@ -38,7 +40,7 @@ const mainnetMetadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: SITE_NAME,
-    title: "Cobia — Verified DeFi Routes on X Layer",
+    title: "Cobia — Verified onchain intents",
     description: SITE_DESCRIPTION,
     url: "/",
     images: [SOCIAL_IMAGE],
@@ -47,7 +49,7 @@ const mainnetMetadata: Metadata = {
     card: "summary_large_image",
     site: "@Cobia_Web3",
     creator: "@Cobia_Web3",
-    title: "Cobia — Verified DeFi Routes on X Layer",
+    title: "Cobia — Verified onchain intents",
     description: SITE_DESCRIPTION,
     images: [SOCIAL_IMAGE.url],
   },

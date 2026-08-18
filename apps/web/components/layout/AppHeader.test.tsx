@@ -7,7 +7,7 @@ import { AppHeader } from "./AppHeader";
 import { WalletProvider } from "../wallet/WalletProvider";
 
 vi.mock("../wallet/WalletButton", () => ({ WalletButton: () => <button>Connect wallet</button> }));
-vi.mock("next/navigation", () => ({ usePathname: () => "/requests/new" }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/intents/new" }));
 afterEach(cleanup);
 
 describe("AppHeader", () => {
@@ -20,15 +20,14 @@ describe("AppHeader", () => {
     );
   });
 
-  it("links to intent, portfolio, activity, and the solver marketplace", () => {
+  it("links to intent, portfolio, activity, and discovery", () => {
     render(<AppHeader />);
-    expect(screen.getByRole("link", { name: "New intent" })).toHaveAttribute("href", "/requests/new");
-    expect(screen.getByRole("link", { name: "New intent" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: "Positions" })).toHaveAttribute("href", "/portfolio");
+    expect(screen.getByRole("link", { name: "Intent" })).toHaveAttribute("href", "/intents/new");
+    expect(screen.getByRole("link", { name: "Intent" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Portfolio" })).toHaveAttribute("href", "/portfolio");
     expect(screen.getByRole("link", { name: "Activity" })).toHaveAttribute("href", "/activity");
-    expect(screen.getByRole("link", { name: "Solver market" })).toHaveAttribute("href", "/markets");
-    expect(screen.queryByRole("link", { name: "Explore" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Portfolio" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Discover" })).toHaveAttribute("href", "/discover");
+    expect(screen.queryByRole("link", { name: "Solver market" })).not.toBeInTheDocument();
   });
 
   it("keeps the execution network with the brand instead of the navigation", () => {
@@ -51,9 +50,9 @@ describe("AppHeader", () => {
     render(<WalletProvider targetChainId={1952}><AppHeader /></WalletProvider>);
 
     expect(screen.getByTitle("X Layer Testnet")).toHaveTextContent("Testnet");
-    expect(screen.getByRole("link", { name: "Positions" })).toBeVisible();
-    expect(screen.queryByRole("link", { name: "New intent" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Portfolio" })).toBeVisible();
+    expect(screen.queryByRole("link", { name: "Intent" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Activity" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Solver market" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Discover" })).not.toBeInTheDocument();
   });
 });

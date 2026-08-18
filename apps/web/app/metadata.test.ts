@@ -31,7 +31,7 @@ describe("site metadata", () => {
     expect(metadata).toMatchObject({
       applicationName: "Cobia",
       title: {
-        default: "Cobia — Verified DeFi Routes on X Layer",
+        default: "Cobia — Verified onchain intents",
         template: "%s · Cobia",
       },
       openGraph: {
@@ -71,7 +71,7 @@ describe("site metadata", () => {
 
   it("exposes crawl rules without indexing APIs or purchased bundles", () => {
     expect(robots()).toEqual({
-      rules: { userAgent: "*", allow: "/", disallow: ["/api/", "/routes/"] },
+      rules: { userAgent: "*", allow: "/", disallow: ["/api/", "/programs/"] },
       sitemap: `${SITE_ORIGIN}/sitemap.xml`,
       host: SITE_ORIGIN,
     });
@@ -80,8 +80,9 @@ describe("site metadata", () => {
   it("lists the stable public product pages in the sitemap", () => {
     expect(sitemap().map(({ url }) => url)).toEqual([
       `${SITE_ORIGIN}/`,
-      `${SITE_ORIGIN}/requests/new`,
-      `${SITE_ORIGIN}/markets`,
+      `${SITE_ORIGIN}/intents/new`,
+      `${SITE_ORIGIN}/discover`,
+      `${SITE_ORIGIN}/solvers`,
       `${SITE_ORIGIN}/terms`,
     ]);
   });
@@ -89,9 +90,9 @@ describe("site metadata", () => {
   it("describes the installable Cobia experience", () => {
     const appManifest = manifest();
     expect(appManifest).toMatchObject({
-      name: "Cobia — Verified DeFi Routes on X Layer",
+      name: "Cobia — Verified onchain intents",
       short_name: "Cobia",
-      start_url: "/requests/new",
+      start_url: "/intents/new",
       display: "standalone",
       theme_color: "#3655ff",
     });

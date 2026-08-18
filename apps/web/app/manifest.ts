@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Cobia — Verified DeFi Routes on X Layer",
+    name: "Cobia — Verified onchain intents",
     short_name: "Cobia",
-    description: "Set bounded DeFi intents, compare verified routes, and execute non-custodially on X Layer.",
-    start_url: "/requests/new",
+    description: "Describe a bounded onchain outcome and review independently verified solver programs.",
+    start_url: "/intents/new",
     display: "standalone",
     background_color: "#f6faf6",
     theme_color: "#3655ff",
