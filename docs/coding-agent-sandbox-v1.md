@@ -2,7 +2,7 @@
 
 ## Implemented boundary
 
-New V2 intents use a genuine coding-agent path. The input is a canonical signed
+General on-chain intents use a genuine coding-agent path. The input is a canonical signed
 policy, wallet address, public balances/allowances/positions, trusted deployment
 manifest, and pinned X Layer mainnet (`196`) block. The agent receives no private
 key, seed phrase, wallet provider, database URL, production RPC credential, or
@@ -15,7 +15,7 @@ when a verifier-owned capability module can parse its typed parameters, compile
 its exact calldata, and check its semantics. An ABI or agent claim is not trust
 evidence.
 
-The initial capability manifest contains modular Aave V3 supply, Curve
+The current capability manifest contains modular Aave V3 supply, Curve
 StableSwap NG exact-input, and Uniswap V3 exact-input capabilities. This is the
 first useful slice, not a claim of whole-chain support. Adding staking, lending
 withdrawal, LP lifecycle, flash loans, or another protocol requires a new trusted
@@ -63,17 +63,38 @@ Accepted programs are persisted as immutable artifacts: program, agent evidence,
 provenance, verifier verdict, trusted replay, projected execution, authorization,
 and eventual receipt. Provenance captures model response IDs, dependency
 versions, fetched source hashes, generated-file hashes, commands, exit codes, and
-stdout/stderr hashes. Safe relative paths are required and symbolic-link outputs
-are rejected.
+stdout/stderr hashes. Safe relative paths are required; artifacts are read once
+with no-follow semantics and bounded size, so traversal and symbolic-link output
+substitution fail closed.
 
 The coding agent never decides safety and never signs. After verification, the
 trusted coordinator signs only the exact EIP-712 executor authorization. Before
 the UI offers execution, the server rechecks chain 196, executor code hash, risk
-manager pause state, verifier signer, owner authorization, token enablement,
+manager and capability-registry pause state, verifier signer, owner authorization, token enablement,
 per-route cap, immutable artifacts, deadline, and snapshot freshness. The owner
 wallet confirms bounded ERC-20 approvals and then the exact atomic executor call.
 The receipt is accepted only when its from/to/value/input and `ProgramExecuted`
 commitment match.
+
+The route itself is one transaction and therefore rolls back atomically. An
+ERC-20 approval may still be a preceding owner transaction. OKX Wallet documents
+EIP-5792 `wallet_sendCalls` with `atomicRequired: true`, but Cobia will not switch
+to wallet batching until its X Layer sender semantics and receipt attribution are
+proven against this executor. There is no sequential fallback hidden behind an
+"atomic batch" label.
+
+OKX gas subsidy is a different product boundary. Its current X Layer payment
+flow uses EIP-3009 or Permit2 credentials and a facilitator for supported
+USDG/USD₮0 payment settlement. It does not make arbitrary DeFi executor calls
+gasless. Cobia therefore requires OKB for general mainnet execution and reserves
+"gasless" for a separately verified payment capability.
+
+The current synchronous web slice fails closed within bounded stages: the
+coding-agent microVM has a 170-second lifetime with a 160-second model/shell
+budget, and the separate fresh-fork microVM has a 100-second lifetime. This
+leaves cleanup and persistence headroom under the 300-second route ceiling.
+Long-term solver hosting and queue topology are intentionally deferred; these
+limits describe the implemented path, not a commitment to its final host.
 
 ## Threat model
 
@@ -104,10 +125,10 @@ profit bounds.
 
 ## Remaining activation work
 
-1. Complete independent review of the deployed chain-196 registry, risk manager,
-   and executor, then regenerate and execute the delayed Safe activation batch
-   only after the fork and canary gates. The contracts remain paused and this
-   still needs separate mainnet activation authorization.
+1. Complete the delayed Safe activation for the deployed V3 risk manager
+   `0xc69A…1ded` and executor `0xa31d…31A0`. Both creations and identities were
+   independently reproduced, but the controls remain paused until the proposal,
+   48-hour delay, activation, and final read-back finish.
 2. Configure production Sandbox/OIDC/model/RPC variables, apply migrations, and
    run one real production-coordinator generation plus fresh replay without a
    mainnet principal transaction.
@@ -121,3 +142,9 @@ profit bounds.
    submission revisions, deterministic current-only ranking, withdrawal, rate
    limits/bonds, and abuse controls. Historical results remain `Past discovery`
    and can only seed a fresh intent.
+
+## Relevant OKX primary documentation
+
+- [OKX Wallet EIP-5792 provider API](https://web3.okx.com/ua/onchainos/dev-docs/sdks/chains/evm/provider)
+- [X Layer payment networks and subsidized assets](https://web3.okx.com/es-es/onchainos/dev-docs/payments/supported-networks)
+- [One-time X Layer payment API](https://web3.okx.com/cs/onchainos/dev-docs/payments/api-agent-onetime)

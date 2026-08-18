@@ -1,6 +1,6 @@
 # X Layer protocol integration boundary
 
-Snapshot: 11 August 2026. Technical claims below use official source trees,
+Snapshot: 18 August 2026. Technical claims below use official source trees,
 deployment registries, and block-pinned X Layer reads. A deployed contract or
 read adapter is not, by itself, an executable Cobia route.
 
@@ -19,8 +19,9 @@ read adapter is not, by itself, an executable Cobia route.
 | Aave/Curve/Uniswap transaction engine | Unit/fork-tested and product-wired for verified stepwise mainnet execution | Exact approvals, Curve exchange/SwapRouter02/Aave/position-manager calldata, receipt attribution, protocol events, owner-held LP NFT and state postconditions; one explicit buyer-wallet confirmation per transaction |
 | Purchased-route fork rehearsal | Product-visible and persisted | Buyer proof replays the exact V2 bundle at its committed snapshot block with simulated funds; historical evidence, not current-state simulation |
 | Verified purchased-route execution | Product-visible for fresh rehearsed V2 routes | Durable one-step chain-196 attempts, buyer-bound short-lived authorization, local calldata verification, recovery by exact nonce/calldata, and no automatic follow-on transaction |
-| Capped atomic executor beta | Contract and projection tests only | Starts paused, limits selected wallets and cumulative principal, and enforces verifier-signed route/output commitments; it is not deployed or product-wired |
-| Bounded agentic solver | Live V2 quote input | OpenAI selects only among server-built candidates; it cannot invent assets, amounts, contracts, or calldata, and the normal verifier remains authoritative |
+| Capped atomic Executor V3 beta | Deployed paused and product-wired | Limits selected wallets and cumulative principal and enforces verifier-signed targets, static predicates, deadlines, and final balances; activation and canary remain pending |
+| Coding-agent sandbox solver | Implemented general-intent path | Writes and runs route-search code in an isolated Vercel Sandbox, but can emit only typed capability programs; an independent compiler, verifier, and fresh fork remain authoritative |
+| Bounded agentic selector | Retained control lane | Selects only among server-built V2 candidates; it is not presented as the coding-agent architecture |
 
 Production code has no sample protocol, fallback APY, or fabricated route. Unit
 tests use deterministic read/wallet clients; each explicit database integration

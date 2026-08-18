@@ -6,7 +6,7 @@ active.
 
 ## Implemented
 
-- New V2 requests launch one open coding-agent sandbox job with canonical policy,
+- General requests launch one open coding-agent sandbox job with canonical policy,
   address-only public wallet state, trusted manifest, and a pinned block.
 - The agent has a temporary shell/filesystem, Node/TypeScript and package access,
   official-source egress, and a credential-free pinned read broker. It has no
@@ -31,11 +31,11 @@ active.
 | Gate | Required evidence | Current repository state |
 |---|---|---|
 | Contract review | independent source and bytecode review | not externally reviewed |
-| Deploy risk manager/executor | chain-196 receipts and verified source | deployed; receipts and local bytecode evidence recorded, explorer source verification pending |
-| Configure restrictions | paused start, verifier, tokens, route/daily/cumulative caps, targets/selectors | proposals executed; everything remains paused/inactive |
-| Wait delayed increases | on-chain timestamps and executed changes | eligible no earlier than 2026-08-17 18:17:40 UTC; activation not executed |
+| Deploy V3 risk manager/executor | chain-196 receipts and reproduced creation inputs | passed; V3 risk `0xc69A…1ded`, executor `0xa31d…31A0`; explorer source verification pending |
+| Configure restrictions | paused start, verifier, tokens, route/daily/cumulative caps, targets/selectors | exact four-call Safe proposal executed; everything remains paused/inactive |
+| Wait delayed increases | on-chain timestamps and executed changes | eligible no earlier than 2026-08-20 12:30:41 UTC; activation not executed |
 | Production environment | exact executor address/hash, verifier, OIDC identity, public origin, model, RPC | schema implemented; values not yet verified |
-| Database | migrations 0009-0011 applied and checked | production migrations applied; post-release read check pending |
+| Database | migrations 0009-0012 applied and checked | 0012 is implemented but not yet applied to production |
 | Agent canary | real production sandbox + pinned replay, no principal send | pending deployed environment |
 | Wallet canary | selected owner, retail amount, exact receipts and state deltas | requires separate explicit transaction approval |
 | Monitoring | pause authority, alerts, receipt/reconciliation checks | pause controls implemented; operational alerts pending |
@@ -74,23 +74,25 @@ are not implemented in this release slice.
 
 1. Review the final diff, dependency audit, migrations, contract tests, unit/
    integration/fork suites, Node 24 typecheck/lint/build, and sandbox egress tests.
-2. Obtain explicit authorization for the chain-196 deployment transactions.
-   After `pnpm contracts:test`, generate the unsigned, nonce-bound transaction
-   plan with:
+2. The V3 creations and delayed proposal are complete. Reproduce their unsigned,
+   nonce-bound plan after `pnpm contracts:test` with:
 
    ```bash
-   pnpm executor:plan -- \
-     --deployer 0xDEPLOYER --nonce CURRENT_NONCE \
-     --owner 0xSAFE --verifier 0xVERIFIER \
-     --canary-wallet 0xCANARY
+   pnpm executor:v3:plan -- \
+     --deployer 0xB6da8E6d497bd3Bc5016416DA57d177085449124 \
+     --nonce 5 \
+     --owner 0x08eea990F0b165A20d723e59517044a519C83351 \
+     --registry 0xEf955cC592346e3b4cb8c7a67f3FE6B2c4688877 \
+     --verifier 0x1667d3e9a37655600eb4ee56BD2F5BAddC49fed4 \
+     --canary-wallet 0x9Afbf85e52612A9922617aDdA9569e13f565de31
    ```
 
-   The command has no signer or broadcast method. It emits three CREATE inputs,
-   the immediately restrictive proposal batch, and a separate activation batch.
-3. Deploy paused, verify source and bytecode, record code hashes, and configure
-   only restrictive state.
-4. Schedule capped/open-wallet risk changes, wait the full delay, inspect state,
-   then enable the selected canary wallet or capped open mode.
+   The command has no signer or broadcast method. It emits two CREATE inputs,
+   the restrictive proposal batch, and a separate activation batch.
+3. After the full delay, recheck pending values, targets, runtime hashes, Safe
+   ownership, and paused state before presenting the activation batch.
+4. Let the Safe execute the activation atomically, then independently read back
+   every capability, token cap, canary permission, and pause flag.
 5. Apply database migrations and production environment values, deploy the web
    app, and run API/UI plus agent/fork smoke tests without moving principal.
 6. Obtain separate approval for one retail wallet canary. Confirm every approval
