@@ -69,7 +69,7 @@ function dependencies(result: { accepted: boolean; errorCodes: string[]; evidenc
         offerCommitment: plan.offerCommitment, policyHash: plan.policyHash,
         programHash: plan.programHash, planHash: commitment(plan),
         authorizationTemplateHash: commitment(template), authorizationHash: hash("8"),
-        transactionHash,
+        transactionHash, updatedAt: new Date(2_000_000_200 * 1_000),
       })),
       append: vi.fn(async (event) => event),
     },
@@ -85,6 +85,7 @@ describe("commerce settlement confirmation", () => {
     expect(deps.verify).toHaveBeenCalledTimes(1);
     expect(deps.placements.append).toHaveBeenCalledWith(expect.objectContaining({
       state: "confirmed", evidenceHash: commitment(evidence), transactionHash,
+      observedAtSec: 2_000_000_201,
     }));
     expect(result).toMatchObject({ state: "confirmed", outcome: "payment-settled", evidence });
   });

@@ -18,11 +18,12 @@ const PlacementSchema = z.object({
   offerCommitment: HashSchema, policyHash: HashSchema, programHash: HashSchema,
   planHash: HashSchema, authorizationTemplateHash: HashSchema,
   authorizationHash: HashSchema.nullish(),
+  updatedAt: z.date().optional(),
 }).passthrough();
 
 export type CommerceAuthorizationErrorCodeV1 =
   | "PLACEMENT_NOT_FOUND" | "PLACEMENT_MISMATCH"
-  | "SETTLEMENT_ALREADY_ATTEMPTED" | "SETTLEMENT_UNCERTAIN";
+  | "AUTHORIZATION_EXPIRED" | "SETTLEMENT_ALREADY_ATTEMPTED" | "SETTLEMENT_UNCERTAIN";
 
 export class CommerceAuthorizationErrorV1 extends Error {
   constructor(readonly code: CommerceAuthorizationErrorCodeV1, message: string) {
@@ -65,6 +66,13 @@ export async function authorizeCommercePlacementV1(
       "SETTLEMENT_ALREADY_ATTEMPTED", "This commerce authorization has already been attempted",
     );
   }
+  const validAfter = Number(template.authorization.validAfter);
+  const validBefore = Number(template.authorization.validBefore);
+  if (dependencies.nowSec < validAfter || dependencies.nowSec >= validBefore) {
+    throw new CommerceAuthorizationErrorV1(
+      "AUTHORIZATION_EXPIRED", "The exact commerce authorization window is no longer valid",
+    );
+  }
   let signature: Hex;
   try {
     const finalized = await finalizeX402PaymentV2({
@@ -75,9 +83,13 @@ export async function authorizeCommercePlacementV1(
     throw new CommerceAuthorizationErrorV1("PLACEMENT_MISMATCH", "Owner authorization is invalid");
   }
   const authorizationHash = commitment({ templateHash, signature }) as Hash;
+  const eventTime = Math.max(
+    dependencies.nowSec,
+    stored.updatedAt ? Math.floor(stored.updatedAt.getTime() / 1_000) + 1 : dependencies.nowSec,
+  );
   await dependencies.placements.append({
     placementId, owner: stored.owner, expectedState: "prepared", state: "authorizing",
-    authorizationHash, observedAtSec: dependencies.nowSec,
+    authorizationHash, observedAtSec: eventTime,
   });
   try {
     const result = await dependencies.execute({ expected: template, submitted: template, signature });
@@ -85,7 +97,7 @@ export async function authorizeCommercePlacementV1(
     const placement = await dependencies.placements.append({
       placementId, owner: stored.owner, expectedState: "authorizing", state: "submitted",
       authorizationHash, transactionHash: result.settlement.transaction,
-      observedAtSec: dependencies.nowSec + 1,
+      observedAtSec: eventTime + 1,
     });
     return {
       placement, state: "submitted" as const,

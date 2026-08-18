@@ -17,6 +17,7 @@ const PlacementSchema = z.object({
   offerCommitment: HashSchema, policyHash: HashSchema, programHash: HashSchema,
   planHash: HashSchema, authorizationTemplateHash: HashSchema,
   authorizationHash: HashSchema, transactionHash: HashSchema,
+  updatedAt: z.date().optional(),
 }).passthrough();
 
 export type CommerceSettlementErrorCodeV1 =
@@ -58,6 +59,10 @@ export async function confirmCommerceSettlementV1(
     throw new CommerceSettlementErrorV1("PLACEMENT_NOT_FOUND", "Commerce placement was not found");
   }
   const stored = PlacementSchema.parse(storedValue);
+  const eventTime = Math.max(
+    dependencies.nowSec,
+    stored.updatedAt ? Math.floor(stored.updatedAt.getTime() / 1_000) + 1 : dependencies.nowSec,
+  );
   if (stored.id !== placementId || stored.state !== "submitted" ||
     !isAddressEqual(stored.owner, plan.owner) || stored.offerCommitment !== plan.offerCommitment ||
     stored.policyHash !== plan.policyHash || stored.programHash !== plan.programHash ||
@@ -79,7 +84,7 @@ export async function confirmCommerceSettlementV1(
     const rejectionCode = verification.errorCodes[0] ?? "PAYMENT_SETTLEMENT_INVALID";
     await dependencies.placements.append({
       placementId, owner: stored.owner, expectedState: "submitted", state: "rejected",
-      rejectionCode, observedAtSec: dependencies.nowSec,
+      rejectionCode, observedAtSec: eventTime,
     });
     throw new CommerceSettlementErrorV1(
       "SETTLEMENT_REJECTED", "The X Layer payment failed independent verification", verification.errorCodes,
@@ -89,7 +94,7 @@ export async function confirmCommerceSettlementV1(
   const placement = await dependencies.placements.append({
     placementId, owner: stored.owner, expectedState: "submitted", state: "confirmed",
     authorizationHash: stored.authorizationHash, transactionHash: stored.transactionHash,
-    evidenceHash, observedAtSec: dependencies.nowSec,
+    evidenceHash, observedAtSec: eventTime,
   });
   return {
     placement, state: "confirmed" as const, outcome: "payment-settled" as const,

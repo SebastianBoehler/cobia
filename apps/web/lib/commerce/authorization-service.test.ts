@@ -43,6 +43,7 @@ const root = {
   offerCommitment: template.offerCommitment, policyHash: template.policyHash,
   programHash: template.programHash, planHash: template.planHash,
   authorizationTemplateHash: commitment(template),
+  updatedAt: new Date(2_000_000_100 * 1_000),
 };
 
 async function input() {
@@ -84,8 +85,8 @@ describe("commerce authorization service", () => {
     } as never);
     const result = await authorizeCommercePlacementV1(value, deps);
     expect(deps.placements.append.mock.calls).toEqual([
-      [expect.objectContaining({ state: "authorizing", authorizationHash: expectedAuthorizationHash })],
-      [expect.objectContaining({ state: "submitted", transactionHash: hash("7") })],
+      [expect.objectContaining({ state: "authorizing", authorizationHash: expectedAuthorizationHash, observedAtSec: 2_000_000_101 })],
+      [expect.objectContaining({ state: "submitted", transactionHash: hash("7"), observedAtSec: 2_000_000_102 })],
     ]);
     expect(deps.execute).toHaveBeenCalledTimes(1);
     expect(result).toMatchObject({ state: "submitted", transactionHash: hash("7"), resourceHash: hash("9") });
@@ -108,5 +109,12 @@ describe("commerce authorization service", () => {
     await expect(authorizeCommercePlacementV1(await input(), deps)).rejects.toMatchObject({ code: "SETTLEMENT_UNCERTAIN" });
     expect(deps.placements.append).toHaveBeenCalledTimes(1);
     expect(deps.placements.append).toHaveBeenCalledWith(expect.objectContaining({ state: "authorizing" }));
+  });
+
+  it("rejects an expired wallet authorization before changing state", async () => {
+    const deps = { ...dependencies(), nowSec: Number(template.authorization.validBefore) };
+    await expect(authorizeCommercePlacementV1(await input(), deps)).rejects.toMatchObject({ code: "AUTHORIZATION_EXPIRED" });
+    expect(deps.placements.append).not.toHaveBeenCalled();
+    expect(deps.execute).not.toHaveBeenCalled();
   });
 });
