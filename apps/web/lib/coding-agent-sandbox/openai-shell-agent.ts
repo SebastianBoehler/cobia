@@ -4,7 +4,9 @@ import { z } from "zod";
 const MAX_TURNS = 24;
 const MAX_COMMANDS = 64;
 const MAX_COMMAND_MS = 60_000;
+const MAX_MODEL_REQUEST_MS = 90_000;
 const MAX_OUTPUT = 8_192;
+export const CODING_AGENT_RUNTIME_BUDGET_MS = 160_000;
 
 const ShellCallSchema = z.object({
   type: z.literal("shell_call"),
@@ -53,8 +55,21 @@ export async function runOpenAiSandboxCodingAgent(input: {
   model: string;
   sandbox: CodingAgentSandboxV1;
   fetcher?: typeof fetch;
+  maxRuntimeMs?: number;
+  now?: () => number;
 }): Promise<{ responseIds: string[]; commandCount: number }> {
   const fetcher = input.fetcher ?? fetch;
+  const now = input.now ?? Date.now;
+  const runtime = input.maxRuntimeMs ?? CODING_AGENT_RUNTIME_BUDGET_MS;
+  if (!Number.isSafeInteger(runtime) || runtime <= 0) {
+    throw new Error("Coding-agent runtime budget is invalid");
+  }
+  const deadline = now() + runtime;
+  const remaining = () => {
+    const value = deadline - now();
+    if (value <= 0) throw new Error("Coding-agent runtime budget exceeded");
+    return value;
+  };
   const conversation: unknown[] = [{
     role: "user",
     content: "Solve the intent in in/task.json. Use shell tools until all required output files exist.",
@@ -70,7 +85,7 @@ export async function runOpenAiSandboxCodingAgent(input: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(requestBody(input.model, conversation)),
-      signal: AbortSignal.timeout(90_000),
+      signal: AbortSignal.timeout(Math.min(MAX_MODEL_REQUEST_MS, remaining())),
     });
     if (!response.ok) throw new Error(`Coding-agent model request failed (${response.status})`);
     const parsed = ResponseSchema.parse(await response.json());
@@ -95,7 +110,11 @@ export async function runOpenAiSandboxCodingAgent(input: {
         const result = await input.sandbox.run({
           cmd: "bash",
           args: ["-lc", command],
-          timeoutMs: Math.min(call.action.timeout_ms ?? MAX_COMMAND_MS, MAX_COMMAND_MS),
+          timeoutMs: Math.min(
+            call.action.timeout_ms ?? MAX_COMMAND_MS,
+            MAX_COMMAND_MS,
+            remaining(),
+          ),
         });
         ++commandCount;
         outputs.push({

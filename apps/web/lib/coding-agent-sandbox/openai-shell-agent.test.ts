@@ -89,4 +89,31 @@ describe("OpenAI local-shell coding loop", () => {
       apiKey: "secret", model: "gpt-5.6", sandbox: sandbox(), fetcher,
     })).rejects.toThrow("did not complete");
   });
+
+  it("fails closed before starting work after its total runtime budget expires", async () => {
+    const agent = sandbox();
+    const fetcher = vi.fn().mockResolvedValue(response({
+      id: "resp_budget",
+      status: "completed",
+      output: [{
+        type: "shell_call",
+        call_id: "call_budget",
+        action: { commands: ["npm install viem"] },
+      }],
+    }));
+    const now = vi.fn()
+      .mockReturnValueOnce(1_000)
+      .mockReturnValueOnce(1_000)
+      .mockReturnValue(1_100);
+
+    await expect(runOpenAiSandboxCodingAgent({
+      apiKey: "secret",
+      model: "gpt-5.6",
+      sandbox: agent,
+      fetcher,
+      maxRuntimeMs: 100,
+      now,
+    })).rejects.toThrow("runtime budget exceeded");
+    expect(agent.run).not.toHaveBeenCalled();
+  });
 });

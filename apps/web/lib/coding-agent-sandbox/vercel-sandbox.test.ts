@@ -22,12 +22,12 @@ describe("Vercel coding-agent sandbox", () => {
       name: "cobia-550e8400-e29b-41d4-a716-446655440000",
       runtime: "node24",
       persistent: false,
-      timeout: 300_000,
+      timeout: 170_000,
       resources: { vcpus: 2 },
       env: { COBIA_READ_RPC_BROKER_URL: "https://broker.cobia.example/rpc" },
       networkPolicy: { allow: expect.objectContaining({
-        "registry.npmjs.org": [{ match: { method: ["GET"] } }],
-        "github.com": [{ match: { method: ["GET"] } }],
+        "registry.npmjs.org": [{ match: { method: ["GET"] }, transform: [] }],
+        "github.com": [{ match: { method: ["GET"] }, transform: [] }],
         "broker.cobia.example": [expect.objectContaining({
           match: { method: ["POST"], path: { exact: "/rpc" } },
           forwardURL: "https://broker.cobia.example/rpc",
@@ -41,24 +41,40 @@ describe("Vercel coding-agent sandbox", () => {
     await sandbox.stop();
   });
 
-  it("marks symlinked artifacts so the core runner refuses them", async () => {
+  it("refuses symlinked artifacts with one no-follow read", async () => {
     const sandbox = await startVercelCodingAgentSandbox({
       jobId: "550e8400-e29b-41d4-a716-446655440000",
       brokerUrl: "https://broker.cobia.example/rpc",
       create: async () => ({
         writeFiles: async () => undefined,
-        runCommand: async ({ args }: { args?: string[] }) => ({
-          exitCode: args?.[0] === "-L" ? 0 : 1,
+        runCommand: async () => ({
+          exitCode: 73,
           stdout: async () => "",
-          stderr: async () => "",
+          stderr: async () => "Artifact is not a regular file",
         }),
         readFileToBuffer: async () => Buffer.from("{}"),
         stop: async () => undefined,
       }),
     });
-    await expect(sandbox.readFile("out/proposal.json")).resolves.toEqual({
-      content: "{}",
-      isSymbolicLink: true,
+    await expect(sandbox.readFile("out/proposal.json")).rejects.toThrow("regular file");
+  });
+
+  it("rejects artifact traversal before invoking the sandbox", async () => {
+    let commands = 0;
+    const sandbox = await startVercelCodingAgentSandbox({
+      jobId: "550e8400-e29b-41d4-a716-446655440000",
+      brokerUrl: "https://broker.cobia.example/rpc",
+      create: async () => ({
+        writeFiles: async () => undefined,
+        runCommand: async () => {
+          ++commands;
+          return { exitCode: 0, stdout: async () => "e30=", stderr: async () => "" };
+        },
+        readFileToBuffer: async () => Buffer.from("{}"),
+        stop: async () => undefined,
+      }),
     });
+    await expect(sandbox.readFile("../secret")).rejects.toThrow("safe workspace path");
+    expect(commands).toBe(0);
   });
 });

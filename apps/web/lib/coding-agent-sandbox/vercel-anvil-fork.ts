@@ -5,6 +5,7 @@ import { EIP1967_IMPLEMENTATION_SLOT } from "../adapters/read-client";
 import type { CapabilityForkReplayReadV2 } from "./capability-fork-replay-v2";
 
 const ANVIL_VERSION = "1.7.1";
+export const FORK_REPLAY_SANDBOX_TIMEOUT_MS = 100_000;
 const RPC_SCRIPT = [
   "const [body] = process.argv.slice(1);",
   "const response = await fetch('http://127.0.0.1:8545',{method:'POST',headers:{'content-type':'application/json'},body});",
@@ -41,14 +42,21 @@ export async function startVercelAnvilForkV1(input: {
   create?: (options: NonNullable<Options>) => Promise<SandboxHandle>;
 }) {
   const broker = new URL(input.brokerUrl);
+  if (broker.protocol !== "https:" || broker.username || broker.password) {
+    throw new Error("Fork broker must be a credential-free HTTPS URL");
+  }
+  if (!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(input.jobId) ||
+    !/^[1-9][0-9]*$/.test(input.blockNumber)) {
+    throw new Error("Fork replay identity is invalid");
+  }
   const options = {
     name: `cobia-replay-${input.jobId}`,
     runtime: "node24" as const,
-    timeout: 300_000,
+    timeout: FORK_REPLAY_SANDBOX_TIMEOUT_MS,
     persistent: false,
     resources: { vcpus: 2 },
     networkPolicy: { allow: {
-      "registry.npmjs.org": [],
+      "registry.npmjs.org": [{ match: { method: ["GET"] }, transform: [] }],
       [broker.hostname]: [{
         match: { method: ["POST"], path: { exact: broker.pathname } },
         forwardURL: input.brokerUrl,
@@ -61,14 +69,14 @@ export async function startVercelAnvilForkV1(input: {
   const rpc = async (method: string, params: readonly unknown[] = []) => {
     const body = JSON.stringify({ jsonrpc: "2.0", id: ++id, method, params });
     const result = await finished(await sandbox.runCommand({
-      cmd: "node", args: ["--input-type=module", "-e", RPC_SCRIPT, body], timeoutMs: 30_000,
+      cmd: "node", args: ["--input-type=module", "-e", RPC_SCRIPT, body], timeoutMs: 15_000,
     }));
     if (result.exitCode !== 0) throw new Error(`Anvil RPC command failed: ${await result.stderr()}`);
     return parsedResult(await result.stdout());
   };
   try {
     const installed = await finished(await sandbox.runCommand({
-      cmd: "npm", args: ["install", "--no-save", `@foundry-rs/anvil@${ANVIL_VERSION}`], timeoutMs: 90_000,
+      cmd: "npm", args: ["install", "--no-save", `@foundry-rs/anvil@${ANVIL_VERSION}`], timeoutMs: 60_000,
     }));
     if (installed.exitCode !== 0) throw new Error(`Anvil installation failed: ${await installed.stderr()}`);
     await sandbox.runCommand({
@@ -79,7 +87,7 @@ export async function startVercelAnvilForkV1(input: {
         "--chain-id", "196", "--port", "8545", "--silent",
       ],
       detached: true,
-      timeoutMs: 240_000,
+      timeoutMs: 90_000,
     });
     let ready = false;
     for (let attempt = 0; attempt < 20; ++attempt) {

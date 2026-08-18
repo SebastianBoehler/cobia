@@ -32,8 +32,8 @@ describe("trusted Vercel Anvil fork", () => {
     await expect(fork.rpc("eth_chainId")).resolves.toBe("0xc4");
     expect(options).toMatchObject({
       name: "cobia-replay-550e8400-e29b-41d4-a716-446655440000",
-      runtime: "node24", persistent: false, networkPolicy: { allow: {
-        "registry.npmjs.org": [],
+      runtime: "node24", timeout: 100_000, persistent: false, networkPolicy: { allow: {
+        "registry.npmjs.org": [{ match: { method: ["GET"] }, transform: [] }],
         "cobia.example": [expect.objectContaining({ forwardURL: expect.any(String) })],
       } },
     });
@@ -43,6 +43,20 @@ describe("trusted Vercel Anvil fork", () => {
     ]));
     expect(JSON.stringify(options)).not.toContain("credential");
     await fork.stop();
+  });
+
+  it.each([
+    "http://cobia.example/rpc",
+    "https://user:secret@cobia.example/rpc",
+  ])("rejects an unsafe fork broker URL before creating a sandbox", async (brokerUrl) => {
+    const create = vi.fn();
+    await expect(startVercelAnvilForkV1({
+      jobId: "550e8400-e29b-41d4-a716-446655440000",
+      brokerUrl,
+      blockNumber: "123",
+      create,
+    })).rejects.toThrow("credential-free HTTPS");
+    expect(create).not.toHaveBeenCalled();
   });
 
   it("stops and rejects a fork that answers with the wrong chain", async () => {

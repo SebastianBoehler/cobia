@@ -117,8 +117,15 @@ export async function replayCapabilityProgramOnForkV2(input: {
       throw new Error("Fork static read code identity changed");
     }
     const returnData = await input.read.staticCall({ target: read.target, data: read.data, gasLimit: read.gasLimit });
-    const { phase: _phase, comparator: _comparator, bound: _bound, ...readInput } = read;
-    const decoded = decodeStaticReadReturnV1(readInput, returnData);
+    const decoded = decodeStaticReadReturnV1({
+      target: read.target,
+      runtimeCodeHash: read.runtimeCodeHash,
+      data: read.data,
+      returnWordIndex: read.returnWordIndex,
+      decodeType: read.decodeType,
+      gasLimit: read.gasLimit,
+      label: read.label,
+    }, returnData);
     return { ...decoded, phase, satisfied: staticPredicateSatisfiedV1(read, decoded.decodedValue) };
   };
   const observations = await Promise.all(program.predicates
