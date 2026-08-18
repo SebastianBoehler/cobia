@@ -1,6 +1,6 @@
 import { commitment, type GeneralIntentPolicyV2, type GeneralIntentSnapshotV1 } from "@cobia/domain";
 import { describe, expect, it, vi } from "vitest";
-import { runGeneralCodingAgentMarketV1 } from "./run-general-coding-agent-market";
+import { runGeneralCodingAgentCompetition } from "./run-general-coding-agent-market";
 
 const policy: GeneralIntentPolicyV2 = {
   version: 2, kind: "general-onchain", requestId: "550e8400-e29b-41d4-a716-446655440000",
@@ -21,69 +21,71 @@ const snapshot: GeneralIntentSnapshotV1 = {
   blockNumber: "123", blockHash: `0x${"33".repeat(32)}`,
   capturedAt: "2033-05-18T03:33:20.000Z", manifestHash: policy.manifestHash,
 };
+const ownerSignature = `0x${"44".repeat(65)}` as const;
 
-describe("general coding-agent market orchestration", () => {
-  it("binds the signed policy, pinned state, portfolio, and V3 executor into one job", async () => {
-    const repository = {
-      createRequest: vi.fn(async () => undefined), saveSnapshot: vi.fn(async () => undefined),
-      finishMarket: vi.fn(async () => undefined), failRequest: vi.fn(async () => undefined),
-    };
-    const coordinate = vi.fn(async () => ({ jobId: "job-v3" }));
-    const result = await runGeneralCodingAgentMarketV1(policy, {
-      repository, assertReady: async () => undefined, captureSnapshot: async () => snapshot,
+function repository() {
+  return {
+    intents: { create: vi.fn(async () => undefined) },
+    profiles: { register: vi.fn(async () => undefined) },
+    runs: { kind: "runs" }, submissions: { kind: "submissions" },
+  };
+}
+
+describe("general coding-agent competition orchestration", () => {
+  it("binds one signed intent, pinned state, portfolio, and solver revision", async () => {
+    const repositories = repository();
+    const coordinate = vi.fn(async () => ({
+      status: "attested" as const, runId: "run-v3", submissionId: "program-v3",
+    }));
+    const result = await runGeneralCodingAgentCompetition({
+      policy, ownerSignature, revision: 1, observedAtSec: 2_000_000_100,
+    }, {
+      repositories, assertReady: async () => undefined, captureSnapshot: async () => snapshot,
       capturePortfolio: async () => ({ balances: [], allowances: [], positions: [] }),
       manifest: { version: 1 }, executor: "0x4444444444444444444444444444444444444444",
       coordinate,
-    });
+    } as never);
 
-    expect(result).toEqual({ jobId: "job-v3" });
+    expect(result).toMatchObject({ status: "attested", submissionId: "program-v3" });
+    expect(repositories.intents.create).toHaveBeenCalledWith({ policy, ownerSignature });
+    expect(repositories.profiles.register).toHaveBeenCalledWith(expect.objectContaining({
+      id: "cobia-coding-agent", operatorKind: "internal",
+    }));
     expect(coordinate).toHaveBeenCalledWith(expect.objectContaining({
+      solverId: "cobia-coding-agent", revision: 1,
+      validUntilSec: policy.competition.closesAt,
       job: expect.objectContaining({
-        requestId: policy.requestId,
-        policyHash: commitment(policy),
-        snapshotHash: commitment(snapshot),
-        manifestHash: policy.manifestHash,
+        requestId: policy.requestId, policyHash: commitment(policy),
+        snapshotHash: commitment(snapshot), manifestHash: policy.manifestHash,
       }),
-      policy, snapshot,
-      executor: "0x4444444444444444444444444444444444444444",
-    }), undefined);
-    expect(repository.finishMarket).toHaveBeenCalledWith(policy.requestId, "agent_ready");
+    }), expect.objectContaining({ runs: repositories.runs, submissions: repositories.submissions }));
   });
 
-  it("records failure and never fabricates a fallback program", async () => {
-    const repository = {
-      createRequest: vi.fn(async () => undefined), saveSnapshot: vi.fn(async () => undefined),
-      finishMarket: vi.fn(async () => undefined), failRequest: vi.fn(async () => undefined),
-    };
-    await expect(runGeneralCodingAgentMarketV1(policy, {
-      repository, captureSnapshot: async () => { throw new Error("anchor unavailable"); },
-      assertReady: async () => undefined,
-      capturePortfolio: vi.fn(), manifest: {},
-      executor: "0x4444444444444444444444444444444444444444", coordinate: vi.fn(),
-    })).rejects.toThrow("anchor unavailable");
-    expect(repository.failRequest).toHaveBeenCalledWith(policy.requestId);
-    expect(repository.finishMarket).not.toHaveBeenCalled();
-  });
-
-  it("fails before persistence or sandbox work when the mainnet executor is unavailable", async () => {
-    const repository = {
-      createRequest: vi.fn(async () => undefined), saveSnapshot: vi.fn(async () => undefined),
-      finishMarket: vi.fn(async () => undefined), failRequest: vi.fn(async () => undefined),
-    };
-    const captureSnapshot = vi.fn(async () => snapshot);
-    const coordinate = vi.fn(async () => ({ jobId: "must-not-run" }));
-
-    await expect(runGeneralCodingAgentMarketV1(policy, {
-      repository,
-      assertReady: async () => { throw new Error("Atomic execution is paused"); },
-      captureSnapshot,
-      capturePortfolio: vi.fn(),
+  it("allows the solver to abstain without fabricating a submission", async () => {
+    const repositories = repository();
+    const coordinate = vi.fn(async () => ({ status: "abstained" as const, runId: "run-v3" }));
+    await expect(runGeneralCodingAgentCompetition({
+      policy, ownerSignature, revision: 1, observedAtSec: 2_000_000_100,
+    }, {
+      repositories, assertReady: async () => undefined, captureSnapshot: async () => snapshot,
+      capturePortfolio: async () => ({ balances: [], allowances: [], positions: [] }),
       manifest: {}, executor: "0x4444444444444444444444444444444444444444", coordinate,
-    })).rejects.toThrow("Atomic execution is paused");
+    } as never)).resolves.toEqual({ status: "abstained", runId: "run-v3" });
+  });
 
-    expect(repository.createRequest).not.toHaveBeenCalled();
-    expect(repository.failRequest).not.toHaveBeenCalled();
-    expect(captureSnapshot).not.toHaveBeenCalled();
+  it("fails before persistence or sandbox work when the executor is unavailable", async () => {
+    const repositories = repository();
+    const coordinate = vi.fn();
+    await expect(runGeneralCodingAgentCompetition({
+      policy, ownerSignature, revision: 1, observedAtSec: 2_000_000_100,
+    }, {
+      repositories, assertReady: async () => { throw new Error("Atomic execution is paused"); },
+      captureSnapshot: vi.fn(), capturePortfolio: vi.fn(), manifest: {},
+      executor: "0x4444444444444444444444444444444444444444", coordinate,
+    } as never)).rejects.toThrow("Atomic execution is paused");
+
+    expect(repositories.intents.create).not.toHaveBeenCalled();
+    expect(repositories.profiles.register).not.toHaveBeenCalled();
     expect(coordinate).not.toHaveBeenCalled();
   });
 });

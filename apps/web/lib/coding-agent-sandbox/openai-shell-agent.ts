@@ -35,7 +35,7 @@ const instructions = [
   "You have no wallet key, signing API, browser wallet, production transaction API, or mainnet send method.",
   "Author only the canonical capability program and complete reproducible evidence files requested by in/task.json.",
   "Never emit raw production authorization. Never claim safety; an independent verifier decides.",
-  "Finish by writing out/program.json, out/evidence.json, and out/run-manifest.json.",
+  "Always finish by writing out/decision.json. Set decision to submit only when you also write out/program.json, out/evidence.json, and out/run-manifest.json. Otherwise set decision to abstain with a stable reasonCode.",
 ].join(" ");
 
 function requestBody(model: string, input: unknown[]) {

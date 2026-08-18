@@ -26,6 +26,7 @@ function sandbox(files: Record<string, string>, symlink = "") {
 
 function files(generatedFiles = ["out/search.mjs"]) {
   return {
+    "out/decision.json": JSON.stringify({ version: 1, decision: "submit" }),
     "out/program.json": JSON.stringify(program()),
     "out/evidence.json": JSON.stringify(evidence()),
     "out/run-manifest.json": JSON.stringify({
@@ -55,6 +56,16 @@ function run(agent: ReturnType<typeof sandbox>, generate = async (environment: C
 }
 
 describe("general capability sandbox runner", () => {
+  it("accepts an explicit abstention without inventing proposal artifacts", async () => {
+    const agent = sandbox({
+      "out/decision.json": JSON.stringify({
+        version: 1, decision: "abstain", reasonCode: "NO_VERIFIABLE_PROGRAM",
+      }),
+    });
+    await expect(run(agent)).resolves.toBeNull();
+    expect(agent.stopped).toBe(true);
+  });
+
   it("exposes address-only public state and captures immutable provenance", async () => {
     const agent = sandbox(files());
     const result = await run(agent);
@@ -65,6 +76,8 @@ describe("general capability sandbox runner", () => {
       rpc: { mode: "brokered-read-only", chainId: 196 },
       block: { number: snapshot.blockNumber, hash: snapshot.blockHash },
     });
+    expect(result).not.toBeNull();
+    if (!result) throw new Error("Expected a submitted program");
     expect(result.provenance).toMatchObject({ modelResponseIds: ["resp_1"] });
     expect(result.provenance.commands).toHaveLength(1);
     expect(agent.stopped).toBe(true);
@@ -99,6 +112,7 @@ describe("general capability sandbox runner", () => {
     secondFiles["out/search.mjs"] = "console.log('changed')";
     const second = sandbox(secondFiles);
     const [left, right] = await Promise.all([run(first), run(second)]);
+    if (!left || !right) throw new Error("Expected submitted programs");
     expect(left.provenance.generatedFiles[0]?.sha256)
       .not.toBe(right.provenance.generatedFiles[0]?.sha256);
   });

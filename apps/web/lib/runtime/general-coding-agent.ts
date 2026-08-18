@@ -10,7 +10,6 @@ import type { AtomicExecutionProgramV3 } from "../atomic-execution/types-v3";
 import { productionCapabilityManifestV1 } from "../capabilities/manifest";
 import { productionCapabilityRegistryV1 } from "../capabilities/registry";
 import { replayCapabilityProgramOnForkV2 } from "../coding-agent-sandbox/capability-fork-replay-v2";
-import { coordinateCapabilityProgramV2 } from "../coding-agent-sandbox/coordinator-v2";
 import {
   assertAgentExecutorReadyV1,
   createAgentExecutorReadV1,
@@ -19,10 +18,13 @@ import { runOpenAiSandboxCodingAgent } from "../coding-agent-sandbox/openai-shel
 import { captureCapabilityPortfolioV1, createCapabilityPortfolioReadV1 } from "../coding-agent-sandbox/portfolio";
 import { startVercelAnvilForkV2 } from "../coding-agent-sandbox/vercel-anvil-fork";
 import { startVercelCodingAgentSandbox } from "../coding-agent-sandbox/vercel-sandbox";
-import type { createAgentProgramRepository } from "../db/agent-programs";
-import type { createRequestRepository } from "../db/requests";
+import type { createIntentRepository } from "../db/intents";
+import type { createSolverProfileRepository } from "../db/solver-profiles";
+import type { createSolverRunRepository } from "../db/solver-runs";
+import type { createSolverSubmissionRepository } from "../db/solver-submissions";
 import { readCodingAgentV3RuntimeConfig } from "../env";
-import { runGeneralCodingAgentMarketV1 } from "../orchestrator/run-general-coding-agent-market";
+import { runGeneralCodingAgentCompetition } from "../orchestrator/run-general-coding-agent-market";
+import { assertPolicyTargetsActiveManifest } from "./active-capabilities";
 
 function brokerUrl(origin: string, jobId: string) {
   return new URL(`/api/internal/coding-agent/rpc/${jobId}`, origin).toString();
@@ -72,19 +74,25 @@ async function captureSnapshot(
   };
 }
 
-export async function openGeneralCodingAgentMarketV1(
-  policy: GeneralIntentPolicyV2,
+export async function openGeneralCodingAgentCompetition(
+  input: {
+    policy: GeneralIntentPolicyV2;
+    ownerSignature: `0x${string}`;
+    revision: number;
+    observedAtSec: number;
+  },
   repositories: {
-    requests: ReturnType<typeof createRequestRepository>;
-    programs: ReturnType<typeof createAgentProgramRepository>;
+    intents: ReturnType<typeof createIntentRepository>;
+    profiles: ReturnType<typeof createSolverProfileRepository>;
+    runs: ReturnType<typeof createSolverRunRepository>;
+    submissions: ReturnType<typeof createSolverSubmissionRepository>;
   },
 ) {
+  const { policy } = input;
   const config = readCodingAgentV3RuntimeConfig();
   const executor = config.COBIA_EXECUTOR_V3_ADDRESS;
   const manifest = productionCapabilityManifestV1();
-  if (policy.manifestHash !== manifest.registryHash) {
-    throw new Error("Signed general intent does not target the active capability manifest");
-  }
+  assertPolicyTargetsActiveManifest(policy, manifest);
   const client = createPublicClient({
     chain: xLayer,
     transport: http(config.XLAYER_RPC_URL, { timeout: 15_000 }),
@@ -92,8 +100,8 @@ export async function openGeneralCodingAgentMarketV1(
   });
   const verifier = privateKeyToAccount(config.COBIA_VERIFIER_PRIVATE_KEY);
 
-  return runGeneralCodingAgentMarketV1(policy, {
-    repository: repositories.requests,
+  return runGeneralCodingAgentCompetition(input, {
+    repositories,
     assertReady: () => assertAgentExecutorReadyV1({
       executor,
       expectedCodeHash: config.COBIA_EXECUTOR_V3_CODE_HASH,
@@ -116,12 +124,7 @@ export async function openGeneralCodingAgentMarketV1(
     }),
     manifest,
     executor,
-    coordinate: (input, dependencies) => coordinateCapabilityProgramV2(
-      input,
-      dependencies as Parameters<typeof coordinateCapabilityProgramV2>[1],
-    ),
     coordinatorDependencies: {
-      programs: repositories.programs,
       async runSandbox(input, jobId) {
         const url = brokerUrl(config.CODING_AGENT_PUBLIC_ORIGIN, jobId);
         const sandbox = await startVercelCodingAgentSandbox({ jobId, brokerUrl: url });
@@ -155,13 +158,11 @@ export async function openGeneralCodingAgentMarketV1(
             return block.hash?.toLowerCase() === anchor.blockHash.toLowerCase();
           },
           async replay({ compiled }) {
-            const job = await repositories.programs.getByRequestId(policy.requestId);
-            if (!job) throw new Error("General agent program job is unavailable for replay");
-            const url = brokerUrl(config.CODING_AGENT_PUBLIC_ORIGIN, job.id);
+            const url = brokerUrl(config.CODING_AGENT_PUBLIC_ORIGIN, input.runId);
             const fork = await startVercelAnvilForkV2({
-              jobId: job.id,
+              jobId: input.runId,
               brokerUrl: url,
-              blockNumber: job.blockNumber,
+              blockNumber: snapshot.blockNumber,
             });
             try {
               return await replayCapabilityProgramOnForkV2({

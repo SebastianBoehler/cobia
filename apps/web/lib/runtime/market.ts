@@ -20,6 +20,10 @@ import { createRequestRepository } from "../db/requests";
 import { createRehearsalRepository } from "../db/rehearsals";
 import { createExecutionRepository } from "../db/executions";
 import { createAgentProgramRepository } from "../db/agent-programs";
+import { createIntentRepository } from "../db/intents";
+import { createSolverProfileRepository } from "../db/solver-profiles";
+import { createSolverRunRepository } from "../db/solver-runs";
+import { createSolverSubmissionRepository } from "../db/solver-submissions";
 import {
   readDatabaseUrl,
   readMarketConfig,
@@ -29,7 +33,13 @@ import { createOkxClient } from "../okx/client";
 import { captureSnapshot } from "../orchestrator/capture-snapshot";
 import { runQuoteMarket } from "../orchestrator/run-market";
 import { openCodingAgentMarketV2 } from "./coding-agent";
-import { openGeneralCodingAgentMarketV1 } from "./general-coding-agent";
+import { openGeneralCodingAgentCompetition } from "./general-coding-agent";
+import { cobiaCodingAgentProfile } from "./solver-catalog";
+import { productionCapabilityManifestV1 } from "../capabilities/manifest";
+import {
+  ActiveManifestMismatchError,
+  assertPolicyTargetsActiveManifest,
+} from "./active-capabilities";
 
 let repository: ReturnType<typeof createRequestRepository> | undefined;
 let activityRepository: ReturnType<typeof createActivityRepository> | undefined;
@@ -40,6 +50,10 @@ let paymentRepository: ReturnType<typeof createPaymentRepository> | undefined;
 let rehearsalRepository: ReturnType<typeof createRehearsalRepository> | undefined;
 let executionRepository: ReturnType<typeof createExecutionRepository> | undefined;
 let agentProgramRepository: ReturnType<typeof createAgentProgramRepository> | undefined;
+let intentRepository: ReturnType<typeof createIntentRepository> | undefined;
+let solverProfileRepository: ReturnType<typeof createSolverProfileRepository> | undefined;
+let solverRunRepository: ReturnType<typeof createSolverRunRepository> | undefined;
+let solverSubmissionRepository: ReturnType<typeof createSolverSubmissionRepository> | undefined;
 
 function getDatabase() {
   database ??= createDatabase(readDatabaseUrl());
@@ -85,6 +99,26 @@ export function getExecutionRepository() {
 export function getAgentProgramRepository() {
   agentProgramRepository ??= createAgentProgramRepository(getDatabase());
   return agentProgramRepository;
+}
+
+export function getIntentRepository() {
+  intentRepository ??= createIntentRepository(getDatabase());
+  return intentRepository;
+}
+
+export function getSolverProfileRepository() {
+  solverProfileRepository ??= createSolverProfileRepository(getDatabase());
+  return solverProfileRepository;
+}
+
+export function getSolverRunRepository() {
+  solverRunRepository ??= createSolverRunRepository(getDatabase());
+  return solverRunRepository;
+}
+
+export function getSolverSubmissionRepository() {
+  solverSubmissionRepository ??= createSolverSubmissionRepository(getDatabase());
+  return solverSubmissionRepository;
 }
 
 async function openQuoteMarketV1(policy: StablecoinPolicy) {
@@ -133,9 +167,27 @@ export function openQuoteMarket(policy: PersistedStablecoinPolicy) {
     : openQuoteMarketV2(policy);
 }
 
-export function openGeneralIntentMarket(policy: GeneralIntentPolicyV2) {
-  return openGeneralCodingAgentMarketV1(policy, {
-    requests: getRequestRepository(),
-    programs: getAgentProgramRepository(),
+export function openGeneralIntentMarket(input: {
+  policy: GeneralIntentPolicyV2;
+  ownerSignature: `0x${string}`;
+  revision: number;
+  observedAtSec: number;
+}) {
+  return openGeneralCodingAgentCompetition(input, {
+    intents: getIntentRepository(),
+    profiles: getSolverProfileRepository(),
+    runs: getSolverRunRepository(),
+    submissions: getSolverSubmissionRepository(),
   });
+}
+
+export { ActiveManifestMismatchError };
+
+export async function publishGeneralIntent(input: {
+  policy: GeneralIntentPolicyV2;
+  ownerSignature: `0x${string}`;
+}) {
+  assertPolicyTargetsActiveManifest(input.policy, productionCapabilityManifestV1());
+  await getSolverProfileRepository().register(cobiaCodingAgentProfile);
+  return getIntentRepository().create(input);
 }

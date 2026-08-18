@@ -110,7 +110,7 @@ export const GeneralIntentPolicyV2Schema = z.object({
 - [x] Make state projection pure and deterministic. It must not read wall-clock time internally, trust solver rationale, or infer safety from an artifact's presence.
 - [x] Return explicit empty collections; propagate database/parsing errors instead of hiding them behind an empty marketplace.
 - [x] Rerun focused unit/integration tests and `pnpm --filter @cobia/web typecheck`.
-- [ ] Commit: `feat(web): project solver revision history`
+- [x] Commit: `feat(web): project solver revision history`
 
 ## Task 4: Move the coding-agent vertical slice onto the new competition model
 
@@ -125,15 +125,15 @@ export const GeneralIntentPolicyV2Schema = z.object({
 - Create: `apps/web/app/api/intents/[intentId]/route.test.ts`
 - Create: `apps/web/app/api/programs/[submissionId]/route.ts`
 
-- [ ] Write failing tests that a valid owner-signed V2 intent creates a bounded competition and one `cobia-coding-agent` revision, while a solver may abstain or fail without fabricating a submission.
-- [ ] Test that wrong chain, owner, signature, manifest, competition time, capability, or policy hash fails before a sandbox job starts.
-- [ ] Test a second revision is allowed only before close and within the signed revision cap; the first becomes superseded but remains readable.
-- [ ] Test public responses sanitize shell paths, credentials, RPC URLs, private artifacts, and raw internal errors.
-- [ ] Run the orchestrator and API tests; expect V1/legacy repository assertions to fail.
-- [ ] Register only real coordinator-owned solvers in `solver-catalog.ts`. Keep the catalog separate from verifier capability manifests and do not add community admission.
-- [ ] Persist the sandbox proposal, independent verdict, replay, provenance, authorization, and receipt against the immutable submission revision. The agent never writes its own accepted state.
-- [ ] Return `202` for a running competition, explicit failure codes for rejected/failed submissions, and canonical `/intents/:id` plus `/programs/:submissionId` links.
-- [ ] Rerun focused tests, the read-only RPC adversarial suite, and web typecheck.
+- [x] Write failing tests that a valid owner-signed V2 intent creates a bounded competition and one `cobia-coding-agent` revision, while a solver may abstain or fail without fabricating a submission.
+- [x] Test that wrong chain, owner, signature, manifest, competition time, capability, or policy hash fails before a sandbox job starts.
+- [x] Test a second revision is allowed only before close and within the signed revision cap; the first becomes superseded but remains readable.
+- [x] Test public responses sanitize shell paths, credentials, RPC URLs, private artifacts, and raw internal errors.
+- [x] Run the orchestrator and API tests; expect V1/legacy repository assertions to fail.
+- [x] Register only real coordinator-owned solvers in `solver-catalog.ts`. Keep the catalog separate from verifier capability manifests and do not add community admission.
+- [ ] Persist the sandbox proposal, independent verdict, replay, provenance, authorization, and receipt against the immutable submission revision. The agent never writes its own accepted state. (All pre-execution artifacts are migrated; receipt migration remains coupled to the new execution endpoint.)
+- [x] Return `202` for a running competition, explicit failure codes for rejected/failed submissions, and canonical `/intents/:id` plus `/programs/:submissionId` links.
+- [x] Rerun focused tests, the read-only RPC adversarial suite, and web typecheck.
 - [ ] Commit: `feat(agent): publish verified program revisions`
 
 ## Task 5: Implement the hybrid goal and policy-receipt composer

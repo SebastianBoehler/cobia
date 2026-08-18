@@ -1,6 +1,6 @@
 import { defineSandboxProxy } from "@vercel/sandbox";
 import { readCodingAgentRpcProxyConfig } from "@/lib/env";
-import { getAgentProgramRepository } from "@/lib/runtime/market";
+import { getSolverRunRepository } from "@/lib/runtime/market";
 import { handleCodingAgentRpcProxy } from "@/lib/coding-agent-sandbox/rpc-proxy-handler";
 
 export const runtime = "nodejs";
@@ -13,6 +13,6 @@ export const POST = defineSandboxProxy(async (request, meta) => {
     expectedTeamId: config.VERCEL_TEAM_ID,
     expectedProjectId: config.VERCEL_PROJECT_ID,
     upstreamUrl: config.XLAYER_RPC_URL,
-    readJob: (id) => getAgentProgramRepository().getBrokerAnchor(id),
+    readJob: (id) => getSolverRunRepository().readBrokerAnchor(id),
   });
 });

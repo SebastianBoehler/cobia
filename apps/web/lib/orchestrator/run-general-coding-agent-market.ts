@@ -1,18 +1,29 @@
 import { commitment, type GeneralIntentPolicyV2, type GeneralIntentSnapshotV1 } from "@cobia/domain";
 import type { Address } from "viem";
-import type { CoordinateCapabilityDependenciesV2 } from "../coding-agent-sandbox/coordinator-v2";
-import { coordinateCapabilityProgramV2 } from "../coding-agent-sandbox/coordinator-v2";
+import {
+  coordinateCompetitionProgram,
+  type CompetitionCoordinateDependencies,
+  type CompetitionCoordinateInput,
+} from "../coding-agent-sandbox/competition-coordinator";
 import type { CoordinateCapabilityInputV1 } from "../coding-agent-sandbox/coordinator";
+import { cobiaCodingAgentProfile } from "../runtime/solver-catalog";
 
-interface GeneralRequestStore {
-  createRequest(policy: GeneralIntentPolicyV2): Promise<void>;
-  saveSnapshot(requestId: string, snapshot: GeneralIntentSnapshotV1): Promise<void>;
-  finishMarket(requestId: string, state: "agent_ready"): Promise<void>;
-  failRequest(requestId: string): Promise<void>;
+interface CompetitionRepositories {
+  intents: { create(input: { policy: GeneralIntentPolicyV2; ownerSignature: `0x${string}` }): Promise<unknown> };
+  profiles: { register(input: typeof cobiaCodingAgentProfile): Promise<unknown> };
+  runs: CompetitionCoordinateDependencies["runs"];
+  submissions: CompetitionCoordinateDependencies["submissions"];
 }
 
-export interface RunGeneralCodingAgentMarketDependenciesV1 {
-  repository: GeneralRequestStore;
+export interface RunGeneralCompetitionInput {
+  policy: GeneralIntentPolicyV2;
+  ownerSignature: `0x${string}`;
+  revision: number;
+  observedAtSec: number;
+}
+
+export interface RunGeneralCompetitionDependencies {
+  repositories: CompetitionRepositories;
   assertReady(policy: GeneralIntentPolicyV2): Promise<void>;
   captureSnapshot(policy: GeneralIntentPolicyV2): Promise<GeneralIntentSnapshotV1>;
   capturePortfolio(input: {
@@ -23,55 +34,61 @@ export interface RunGeneralCodingAgentMarketDependenciesV1 {
   manifest: unknown;
   executor: Address;
   coordinate?: (
-    input: CoordinateCapabilityInputV1,
-    dependencies?: CoordinateCapabilityDependenciesV2,
-  ) => Promise<{ jobId: string; [key: string]: unknown }>;
-  coordinatorDependencies?: CoordinateCapabilityDependenciesV2;
+    input: CompetitionCoordinateInput,
+    dependencies: CompetitionCoordinateDependencies,
+  ) => ReturnType<typeof coordinateCompetitionProgram>;
+  coordinatorDependencies?: Omit<CompetitionCoordinateDependencies, "runs" | "submissions">;
 }
 
-export async function runGeneralCodingAgentMarketV1(
-  policy: GeneralIntentPolicyV2,
-  dependencies: RunGeneralCodingAgentMarketDependenciesV1,
+export async function runGeneralCodingAgentCompetition(
+  input: RunGeneralCompetitionInput,
+  dependencies: RunGeneralCompetitionDependencies,
 ) {
+  const { policy } = input;
   await dependencies.assertReady(policy);
-  await dependencies.repository.createRequest(policy);
-  try {
-    const snapshot = await dependencies.captureSnapshot(policy);
-    await dependencies.repository.saveSnapshot(policy.requestId, snapshot);
-    const portfolio = await dependencies.capturePortfolio({
+  await dependencies.repositories.profiles.register(cobiaCodingAgentProfile);
+  await dependencies.repositories.intents.create({
+    policy,
+    ownerSignature: input.ownerSignature,
+  });
+
+  const snapshot = await dependencies.captureSnapshot(policy);
+  const portfolio = await dependencies.capturePortfolio({
+    owner: policy.owner,
+    executor: dependencies.executor,
+    block: { number: snapshot.blockNumber, hash: snapshot.blockHash },
+  });
+  const coordinateInput: CompetitionCoordinateInput = {
+    solverId: cobiaCodingAgentProfile.id,
+    revision: input.revision,
+    observedAtSec: input.observedAtSec,
+    validUntilSec: Math.min(
+      policy.competition.closesAt,
+      policy.deadline,
+      input.observedAtSec + policy.maxEvidenceAgeSec,
+    ),
+    job: {
+      requestId: policy.requestId,
       owner: policy.owner,
-      executor: dependencies.executor,
-      block: { number: snapshot.blockNumber, hash: snapshot.blockHash },
-    });
-    if (!dependencies.coordinatorDependencies && !dependencies.coordinate) {
-      throw new Error("General coding-agent coordinator dependencies are unavailable");
-    }
-    const coordinateInput: CoordinateCapabilityInputV1 = {
-      job: {
-        requestId: policy.requestId,
-        owner: policy.owner,
-        policyHash: commitment(policy),
-        snapshotHash: commitment(snapshot),
-        manifestHash: policy.manifestHash,
-        blockNumber: snapshot.blockNumber,
-        blockHash: snapshot.blockHash,
-      },
-      policy,
-      snapshot,
-      portfolio,
-      manifest: dependencies.manifest,
-      executor: dependencies.executor,
-    };
-    const result = dependencies.coordinate
-      ? await dependencies.coordinate(coordinateInput, dependencies.coordinatorDependencies)
-      : await coordinateCapabilityProgramV2(
-          coordinateInput,
-          dependencies.coordinatorDependencies as CoordinateCapabilityDependenciesV2,
-        );
-    await dependencies.repository.finishMarket(policy.requestId, "agent_ready");
-    return result;
-  } catch (error) {
-    await dependencies.repository.failRequest(policy.requestId);
-    throw error;
-  }
+      policyHash: commitment(policy),
+      snapshotHash: commitment(snapshot),
+      manifestHash: policy.manifestHash,
+      blockNumber: snapshot.blockNumber,
+      blockHash: snapshot.blockHash,
+    },
+    policy,
+    snapshot,
+    portfolio,
+    manifest: dependencies.manifest,
+    executor: dependencies.executor,
+  };
+  const coordinatorDependencies = {
+    runs: dependencies.repositories.runs,
+    submissions: dependencies.repositories.submissions,
+    ...dependencies.coordinatorDependencies,
+  } as CompetitionCoordinateDependencies;
+  return (dependencies.coordinate ?? coordinateCompetitionProgram)(
+    coordinateInput,
+    coordinatorDependencies,
+  );
 }

@@ -23,6 +23,14 @@ const RunManifestV1Schema = z.object({
   generatedFiles: z.array(z.string().min(1).max(256)).max(128),
 }).strict();
 
+const DecisionV1Schema = z.discriminatedUnion("decision", [
+  z.object({ version: z.literal(1), decision: z.literal("submit") }).strict(),
+  z.object({
+    version: z.literal(1), decision: z.literal("abstain"),
+    reasonCode: z.string().regex(/^[A-Z][A-Z0-9_]{2,63}$/),
+  }).strict(),
+]);
+
 export interface CapabilitySandboxGenerationV2 {
   responseIds: readonly string[];
   commandCount: number;
@@ -102,12 +110,21 @@ export async function runCapabilitySandboxV2(input: {
       registry: input.manifest,
       block: { number: snapshot.blockNumber, hash: snapshot.blockHash },
       rpc: { mode: "brokered-read-only", chainId: 196 },
-      outputs: ["out/program.json", "out/evidence.json", "out/run-manifest.json"],
+      outputs: [
+        "out/decision.json",
+        "out/program.json (required only when decision is submit)",
+        "out/evidence.json (required only when decision is submit)",
+        "out/run-manifest.json (required only when decision is submit)",
+      ],
     }));
     const generation = await input.generate(traced);
     if (generation.commandCount !== commands.length) {
       throw new Error("Coding-agent command provenance is incomplete");
     }
+    const decision = DecisionV1Schema.parse(JSON.parse(
+      await readArtifact(traced, "out/decision.json"),
+    ));
+    if (decision.decision === "abstain") return null;
     const program = CapabilityProgramV2Schema.parse(JSON.parse(
       await readArtifact(traced, "out/program.json"),
     ));
