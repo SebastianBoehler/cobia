@@ -1,6 +1,6 @@
 # General-intent V3 release readiness
 
-Snapshot: `2026-08-18T20:48:13Z`. This is a pre-activation checkpoint, not a
+Snapshot: `2026-08-18T20:56:59Z`. This is a pre-activation checkpoint, not a
 production-readiness claim.
 
 ## Product delivered locally
@@ -46,7 +46,7 @@ The earlier post-change local gates completed successfully:
 
 | Gate | Result |
 | --- | --- |
-| `pnpm test` | 1,036 tests: domain 143, solvers 116, web 777 |
+| `pnpm test` | 1,037 tests: domain 143, solvers 116, web 778 |
 | `pnpm typecheck` | all three workspace packages passed |
 | `pnpm lint` | all three workspace packages passed |
 | `pnpm build` | production Next.js build passed; only current product/API paths emitted |
@@ -56,7 +56,7 @@ The earlier post-change local gates completed successfully:
 | `pnpm --filter @cobia/web test:fork` | 4 files, 7 real pinned Anvil-fork tests |
 
 After the commerce additions, the complete local pre-activation gate ran under
-Node `24.19.0`: 1,036 workspace tests, all workspace typechecks and lint, the
+Node `24.19.0`: 1,037 workspace tests, all workspace typechecks and lint, the
 production Next.js build, 69 PostgreSQL integration tests, 66 Solidity tests,
 the high-severity dependency audit, and all seven real pinned Anvil-fork tests
 passed. These commands must still be rerun after activation.
@@ -73,8 +73,8 @@ surface.
 
 ## Mainnet activation gate
 
-At X Layer mainnet block `68317057`, hash
-`0x6e1896951a801443d89caf122a0d8234d240b4ae40cd0f161d433ca69b5b3d34`,
+At X Layer mainnet block `68317583`, hash
+`0xc0d550d38c90dfdcb673ec986e6a54debc421c03c6a9ded0d239c9460d31ad52`,
 read-only calls reproduced the unchanged delayed proposal:
 
 - chain ID `196`;
@@ -84,6 +84,8 @@ read-only calls reproduced the unchanged delayed proposal:
 - canary wallet allow and unpause also activate after `1787229041`;
 - risk manager paused, both tokens disabled, and canary not allowed;
 - adapter registry paused;
+- all three pending adapter permissions remain inactive, and each configured
+  target runtime hash still equals its pending permission hash;
 - risk-manager runtime hash
   `0xe415bc68d215ff3c077c707e4493c0517b6ad76446feb49c0fe6cc00add9372c`;
 - Executor V3 runtime hash
