@@ -57,6 +57,22 @@ const CodingAgentRuntimeEnvSchema = z.object({
   XLAYER_RPC_URL: z.url().default("https://rpc.xlayer.tech"),
 });
 
+const CodingAgentV3ExecutionEnvSchema = z.object({
+  COBIA_EXECUTOR_V3_ADDRESS: z.string().refine(isAddress)
+    .transform((value) => value as Address),
+  COBIA_EXECUTOR_V3_CODE_HASH: z.string().regex(/^0x[0-9a-fA-F]{64}$/)
+    .transform((value) => value as Hex),
+  COBIA_VERIFIER_PRIVATE_KEY: z.string().regex(/^0x[0-9a-fA-F]{64}$/)
+    .transform((value) => value as Hex),
+  XLAYER_RPC_URL: z.url().default("https://rpc.xlayer.tech"),
+});
+
+const CodingAgentV3RuntimeEnvSchema = CodingAgentV3ExecutionEnvSchema.extend({
+  OPENAI_API_KEY: z.string().min(1),
+  OPENAI_CODING_AGENT_MODEL: z.string().min(1),
+  CODING_AGENT_PUBLIC_ORIGIN: z.url().refine((value) => new URL(value).protocol === "https:"),
+});
+
 export function readDatabaseUrl(
   source: Record<string, string | undefined> = process.env,
 ): string {
@@ -105,6 +121,28 @@ export function readCodingAgentRuntimeConfig(
   if (!parsed.success) {
     const invalid = parsed.error.issues.map((issue) => issue.path.join(".")).join(", ");
     throw new Error(`Missing or invalid coding-agent runtime configuration: ${invalid}`);
+  }
+  return parsed.data;
+}
+
+export function readCodingAgentV3ExecutionConfig(
+  source: Record<string, string | undefined> = process.env,
+) {
+  const parsed = CodingAgentV3ExecutionEnvSchema.safeParse(source);
+  if (!parsed.success) {
+    const invalid = parsed.error.issues.map((issue) => issue.path.join(".")).join(", ");
+    throw new Error(`Missing or invalid V3 execution configuration: ${invalid}`);
+  }
+  return parsed.data;
+}
+
+export function readCodingAgentV3RuntimeConfig(
+  source: Record<string, string | undefined> = process.env,
+) {
+  const parsed = CodingAgentV3RuntimeEnvSchema.safeParse(source);
+  if (!parsed.success) {
+    const invalid = parsed.error.issues.map((issue) => issue.path.join(".")).join(", ");
+    throw new Error(`Missing or invalid V3 coding-agent runtime configuration: ${invalid}`);
   }
   return parsed.data;
 }

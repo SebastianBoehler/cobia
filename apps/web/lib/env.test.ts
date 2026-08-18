@@ -4,6 +4,8 @@ import {
   readAgenticSolverConfig,
   readCodingAgentRpcProxyConfig,
   readCodingAgentRuntimeConfig,
+  readCodingAgentV3ExecutionConfig,
+  readCodingAgentV3RuntimeConfig,
   readExecutionSessionSecret,
   readMarketConfig,
 } from "./env";
@@ -88,5 +90,45 @@ describe("market environment", () => {
       COBIA_EXECUTOR_V2_CODE_HASH: `0x${"22".repeat(32)}`,
       CODING_AGENT_PUBLIC_ORIGIN: "https://cobia.example",
     })).toThrow("COBIA_VERIFIER_PRIVATE_KEY");
+  });
+
+  it("requires an explicit V3 mainnet deployment identity without a V2 fallback", () => {
+    const verifier = keccak256(toHex("cobia-v3-verifier"));
+    expect(readCodingAgentV3ExecutionConfig({
+      COBIA_EXECUTOR_V3_ADDRESS: "0x3333333333333333333333333333333333333333",
+      COBIA_EXECUTOR_V3_CODE_HASH: `0x${"44".repeat(32)}`,
+      COBIA_VERIFIER_PRIVATE_KEY: verifier,
+    })).toEqual({
+      COBIA_EXECUTOR_V3_ADDRESS: "0x3333333333333333333333333333333333333333",
+      COBIA_EXECUTOR_V3_CODE_HASH: `0x${"44".repeat(32)}`,
+      COBIA_VERIFIER_PRIVATE_KEY: verifier,
+      XLAYER_RPC_URL: "https://rpc.xlayer.tech",
+    });
+    expect(() => readCodingAgentV3ExecutionConfig({
+      COBIA_EXECUTOR_V2_ADDRESS: "0x1111111111111111111111111111111111111111",
+      COBIA_EXECUTOR_V2_CODE_HASH: `0x${"22".repeat(32)}`,
+      COBIA_VERIFIER_PRIVATE_KEY: verifier,
+    })).toThrow("COBIA_EXECUTOR_V3_ADDRESS");
+  });
+
+  it("requires the complete V3 sandbox runtime separately from execution-only reads", () => {
+    const verifier = keccak256(toHex("cobia-v3-runtime-verifier"));
+    expect(readCodingAgentV3RuntimeConfig({
+      OPENAI_API_KEY: "test-key",
+      OPENAI_CODING_AGENT_MODEL: "gpt-test",
+      COBIA_EXECUTOR_V3_ADDRESS: "0x3333333333333333333333333333333333333333",
+      COBIA_EXECUTOR_V3_CODE_HASH: `0x${"44".repeat(32)}`,
+      COBIA_VERIFIER_PRIVATE_KEY: verifier,
+      CODING_AGENT_PUBLIC_ORIGIN: "https://cobia.example",
+    })).toMatchObject({
+      OPENAI_CODING_AGENT_MODEL: "gpt-test",
+      COBIA_EXECUTOR_V3_ADDRESS: "0x3333333333333333333333333333333333333333",
+      CODING_AGENT_PUBLIC_ORIGIN: "https://cobia.example",
+    });
+    expect(() => readCodingAgentV3RuntimeConfig({
+      COBIA_EXECUTOR_V3_ADDRESS: "0x3333333333333333333333333333333333333333",
+      COBIA_EXECUTOR_V3_CODE_HASH: `0x${"44".repeat(32)}`,
+      COBIA_VERIFIER_PRIVATE_KEY: verifier,
+    })).toThrow("OPENAI_API_KEY");
   });
 });

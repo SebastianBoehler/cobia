@@ -2,6 +2,7 @@ import {
   projectRouteQuote,
   verifyBundle,
   type PersistedStablecoinPolicy,
+  type GeneralIntentPolicyV1,
   type StablecoinPolicy,
   type StablecoinPolicyV2,
 } from "@cobia/domain";
@@ -28,6 +29,7 @@ import { createOkxClient } from "../okx/client";
 import { captureSnapshot } from "../orchestrator/capture-snapshot";
 import { runQuoteMarket } from "../orchestrator/run-market";
 import { openCodingAgentMarketV2 } from "./coding-agent";
+import { openGeneralCodingAgentMarketV1 } from "./general-coding-agent";
 
 let repository: ReturnType<typeof createRequestRepository> | undefined;
 let activityRepository: ReturnType<typeof createActivityRepository> | undefined;
@@ -129,4 +131,11 @@ export function openQuoteMarket(policy: PersistedStablecoinPolicy) {
   return policy.version === 1
     ? openQuoteMarketV1(policy)
     : openQuoteMarketV2(policy);
+}
+
+export function openGeneralIntentMarket(policy: GeneralIntentPolicyV1) {
+  return openGeneralCodingAgentMarketV1(policy, {
+    requests: getRequestRepository(),
+    programs: getAgentProgramRepository(),
+  });
 }

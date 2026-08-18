@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { commitment } from "@cobia/domain";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Eip1193Provider, Eip6963ProviderDetail } from "../../lib/wallet/eip1193";
 import { WalletButton } from "../wallet/WalletButton";
@@ -66,14 +65,14 @@ describe("PolicyForm", () => {
       "Swap 10 USDG for the most USDt0 available within your slippage bound.",
     )).toBeVisible();
     expect(screen.queryByText(/not enabled yet/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Find verified routes" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Build verified program" })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("tab", { name: "Profit" }));
     expect(screen.getByText(
       "Find a verified round-trip route for 10 USDG that ends with more USDG before gas. Gas is checked separately before execution.",
     )).toBeVisible();
     expect(screen.queryByText(/not enabled yet/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Find verified routes" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Build verified program" })).toBeEnabled();
   });
 
   it("updates Swap and Profit outcomes when the amount or asset changes", () => {
@@ -102,13 +101,12 @@ describe("PolicyForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "Advanced settings" }));
 
     expect(screen.getByLabelText("Protocol exposure")).toHaveValue("100");
-    expect(screen.getByLabelText("Minimum protocol TVL")).toHaveValue("500000");
-    expect(screen.getByLabelText("Minimum estimated pre-gas APY")).toHaveValue("0.05");
+    expect(screen.getByText(/At least 99.5%/)).toBeVisible();
   });
 
   it("gates submission on the wallet without a blocking disclosure checkbox", async () => {
     renderForm();
-    const submit = screen.getByRole("button", { name: "Find verified routes" });
+    const submit = screen.getByRole("button", { name: "Build verified program" });
 
     expect(submit).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Connect wallet" }));
@@ -131,14 +129,14 @@ describe("PolicyForm", () => {
     expect(screen.getByText("No bridges")).toBeVisible();
     expect(screen.getByText("Outputs: USDG and USDt0")).toBeVisible();
     expect(screen.getByText(
-      "Adapters: Aave V3 supply, Curve and Uniswap V3 swaps, and full-range LP",
+      "Adapters: Current beta manifest: Aave V3 supply and Curve or Uniswap V3 swaps",
     )).toBeVisible();
     expect(screen.getByText("Maximum swap slippage: 0.50%")).toBeVisible();
     expect(screen.getByText("Yield horizon: 30 days")).toBeVisible();
     expect(screen.getByText("Maximum snapshot age: 300 seconds")).toBeVisible();
     expect(screen.getByText("Intent lifetime: 30 minutes")).toBeVisible();
     expect(screen.getByText(/Principal stays in your wallet until separately confirmed execution/)).toBeVisible();
-    expect(screen.getByRole("button", { name: "Find verified routes" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Build verified program" })).toBeEnabled();
   });
 
   it("describes adapter possibilities without promising a multi-protocol route", () => {
@@ -148,7 +146,9 @@ describe("PolicyForm", () => {
     expect(screen.getByText("10.00 USDG exact")).toBeVisible();
     expect(screen.getByText(/APY and LP fees are estimates, not guarantees/i)).toBeVisible();
     expect(screen.getByText(/No funds move until a separate wallet confirmation/i)).toBeVisible();
-    expect(screen.getByText("Free request · Pay only after selecting an authorized quote"))
+    expect(screen.getByText(/No funds move until your wallet confirms the verified mainnet calls/))
+      .toBeVisible();
+    expect(screen.getByText(/Mainnet beta currently accepts only the allowlisted canary wallet/))
       .toBeVisible();
     expect(screen.queryByText(/paid reveal is not wired/i)).not.toBeInTheDocument();
   });
@@ -163,7 +163,7 @@ describe("PolicyForm", () => {
     renderForm();
     await fillRequiredFields();
 
-    fireEvent.click(screen.getByRole("button", { name: "Find verified routes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Build verified program" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Live data unavailable");
     expect(screen.queryByText(/request .* opened/i)).not.toBeInTheDocument();
@@ -180,7 +180,7 @@ describe("PolicyForm", () => {
     renderForm();
     await fillRequiredFields();
 
-    fireEvent.click(screen.getByRole("button", { name: "Find verified routes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Build verified program" }));
 
     expect(await screen.findByRole("heading", {
       name: "Request completed without an authorized route",
@@ -201,87 +201,10 @@ describe("PolicyForm", () => {
     renderForm();
     await fillRequiredFields();
 
-    fireEvent.click(screen.getByRole("button", { name: "Find verified routes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Build verified program" }));
 
     expect(await screen.findByText("1 route-authorized quote is ready.")).toBeVisible();
     expect(screen.getByText("1 solver attempt failed or was rejected.")).toBeVisible();
   });
 
-  it("signs a canonical V2 exact-allocation route policy", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      Response.json({
-        requestId: "550e8400-e29b-41d4-a716-446655440000",
-        policyHash: `0x${"ab".repeat(32)}`,
-        quoteCount: 1,
-        failureCount: 0,
-      }),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-    renderForm();
-    await fillRequiredFields();
-
-    fireEvent.click(screen.getByRole("button", { name: "Find verified routes" }));
-
-    expect(await screen.findByText("Solver market complete")).toBeVisible();
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
-    const [, init] = fetchMock.mock.calls[0];
-    const body = JSON.parse(String(init.body));
-    expect(body).toMatchObject({
-      ownerSignature: `0x${"ab".repeat(65)}`,
-      policy: {
-        version: 2,
-        owner,
-        principalAtomic: "10000000",
-        protocolExposureBps: 10_000,
-        minPreGasApyBps: 5,
-        noBridges: true,
-        allowedOutputAssets: [
-          "0x4ae46a509f6b1d9056937ba4500cb143933d2dc8",
-          "0x779ded0c9e1022225f8e0630b35a9b54be713736",
-        ],
-        allowedAdapters: ["aave-v3@1", "curve-stableswap-ng@1", "uniswap-v3@1"],
-        maxSlippageBps: 50,
-        horizonDays: 30,
-      },
-    });
-    expect(body.policy).not.toHaveProperty("maxProtocolExposureBps");
-    expect(providerRequest).toHaveBeenCalledWith({
-      method: "personal_sign",
-      params: [commitment(body.policy), owner],
-    });
-  });
-
-  it.each([
-    ["Swap", {
-      kind: "swap",
-      outputAsset: "0x779ded0c9e1022225f8e0630b35a9b54be713736",
-      minimumOutputAtomic: "9950000",
-    }],
-    ["Profit", { kind: "profit", minimumFinalAtomic: "10010000" }],
-  ] as const)("signs and submits an atomic %s objective", async (mode, objective) => {
-    const fetchMock = vi.fn().mockResolvedValue(Response.json({
-      requestId: "550e8400-e29b-41d4-a716-446655440000",
-      policyHash: `0x${"ab".repeat(32)}`,
-      quoteCount: 1,
-      failureCount: 0,
-    }));
-    vi.stubGlobal("fetch", fetchMock);
-    renderForm();
-    await fillRequiredFields();
-    fireEvent.click(screen.getByRole("tab", { name: mode }));
-
-    fireEvent.click(screen.getByRole("button", { name: "Find verified routes" }));
-
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
-    const body = JSON.parse(String(fetchMock.mock.calls[0][1].body));
-    expect(body.policy).toMatchObject({
-      protocolExposureBps: 10_000,
-      minPreGasApyBps: 0,
-      objective,
-    });
-    expect(providerRequest).toHaveBeenCalledWith({
-      method: "personal_sign",
-      params: [commitment(body.policy), owner],
-    });
-  });
 });

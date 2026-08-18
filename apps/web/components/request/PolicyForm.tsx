@@ -4,12 +4,10 @@ import { ArrowRight, ChevronDown, LoaderCircle } from "lucide-react";
 import { commitment } from "@cobia/domain";
 import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
-import { getAddress } from "viem";
+import { getAddress, keccak256, stringToHex } from "viem";
 import { SUPPORTED_ASSETS } from "../../lib/chain/supported-assets";
-import {
-  buildRoutePolicyV2,
-  ROUTE_POLICY_V2_DEFAULTS,
-} from "../../lib/intents/route-policy-v2";
+import { ROUTE_POLICY_V2_DEFAULTS } from "../../lib/intents/route-policy-v2";
+import { buildGeneralIntentPolicyV1 } from "../../lib/intents/general-policy";
 import { shortAddress } from "../../lib/wallet/eip1193";
 import { useWallet } from "../wallet/WalletProvider";
 import { AssetMark } from "../brand/AssetMark";
@@ -30,8 +28,6 @@ export function PolicyForm() {
   const [assetAddress, setAssetAddress] = useState(SUPPORTED_ASSETS[0].address);
   const [principal, setPrincipal] = useState("10");
   const [exposure, setExposure] = useState("100");
-  const [minimumTvl, setMinimumTvl] = useState("500000");
-  const [minimumApy, setMinimumApy] = useState("0.05");
   const [minimumProfit, setMinimumProfit] = useState("0.10");
   const [advanced, setAdvanced] = useState(false);
   const [pending, setPending] = useState(false);
@@ -43,18 +39,16 @@ export function PolicyForm() {
   const values = useMemo(() => {
     const principalAtomic = decimalToAtomic(principal, 6);
     const exposureBps = percentToBps(exposure);
-    const minTvlUsdE6 = decimalToAtomic(minimumTvl, 6);
-    const minPreGasApyBps = percentToBps(minimumApy);
     const minimumProfitBps = percentToBps(minimumProfit);
-    return { principalAtomic, exposureBps, minTvlUsdE6, minPreGasApyBps, minimumProfitBps };
-  }, [exposure, minimumApy, minimumProfit, minimumTvl, principal]);
+    return { principalAtomic, exposureBps, minimumProfitBps };
+  }, [exposure, minimumProfit, principal]);
 
   const valid =
     wallet.account !== null &&
     values.principalAtomic !== null &&
     (mode === "Earn"
       ? values.exposureBps !== null && values.exposureBps > 0 &&
-        values.minTvlUsdE6 !== null && values.minPreGasApyBps !== null
+        values.exposureBps <= 10_000
       : mode === "Swap" || (values.minimumProfitBps !== null && values.minimumProfitBps > 0));
   const effectiveExposureBps = mode === "Earn" ? values.exposureBps : 10_000;
   const exposureAtomic = values.principalAtomic
@@ -70,8 +64,7 @@ export function PolicyForm() {
   const receiptMetrics = mode === "Earn" ? [
     { label: "Principal", value: formatPrincipal(values.principalAtomic, asset.displaySymbol) },
     { label: "Protocol exposure", value: `${formatPrincipal(exposureAtomic, asset.displaySymbol)} exact` },
-    { label: "Minimum Aave reserve TVL", value: `$${Number(minimumTvl).toLocaleString("en-US")}` },
-    { label: "Minimum pre-gas APY", value: `${minimumApy}%` },
+    { label: "Minimum receipt", value: `${formatPrincipal(exposureAtomic ? (BigInt(exposureAtomic) * 9_950n / 10_000n).toString() : null, `a${asset.displaySymbol}`)}` },
   ] : mode === "Swap" && objective?.kind === "swap" ? [
     { label: "You send", value: formatPrincipal(values.principalAtomic, asset.displaySymbol) },
     { label: "You receive", value: outputAsset.displaySymbol },
@@ -91,35 +84,40 @@ export function PolicyForm() {
     setError(undefined);
     try {
       if (!wallet.account) throw new Error("Connect an EVM wallet to sign this intent.");
-      const {
-        principalAtomic,
-        minTvlUsdE6, minPreGasApyBps, minimumProfitBps,
-      } = values;
+      const { principalAtomic, minimumProfitBps } = values;
       if (
         !principalAtomic || effectiveExposureBps === null ||
-        (mode === "Earn" && (!minTvlUsdE6 || minPreGasApyBps === null)) ||
         (mode === "Profit" && minimumProfitBps === null)
       ) throw new Error("The route policy fields are invalid.");
       await wallet.switchToXLayer();
-      const policy = buildRoutePolicyV2({
-        requestId: crypto.randomUUID(),
-        owner: wallet.account,
-        asset: asset.address,
-        principalAtomic,
-        protocolExposureBps: effectiveExposureBps,
-        minTvlUsdE6: mode === "Earn" ? minTvlUsdE6! : "0",
-        minPreGasApyBps: mode === "Earn" ? minPreGasApyBps! : 0,
-        objective,
-        // This runs only after submit; the signed policy needs a fresh wall-clock deadline.
-        // eslint-disable-next-line react-hooks/purity
-        nowSec: Math.floor(Date.now() / 1_000),
-      });
+      const requestId = crypto.randomUUID();
+      // This runs only after submit; the signed policy needs fresh authority and replay protection.
+      // eslint-disable-next-line react-hooks/purity
+      const nowSec = Math.floor(Date.now() / 1_000);
+      const nonce = keccak256(stringToHex(`${requestId}:${wallet.account}:${nowSec}:${crypto.randomUUID()}`));
+      const common = {
+        requestId, owner: wallet.account, inputToken: asset.address,
+        inputAtomic: principalAtomic, nonce, nowSec,
+      } as const;
+      const policy = mode === "Earn"
+        ? buildGeneralIntentPolicyV1({ ...common, mode, exposureBps: effectiveExposureBps })
+        : mode === "Swap" && objective?.kind === "swap"
+          ? buildGeneralIntentPolicyV1({
+              ...common, mode, outputToken: objective.outputAsset,
+              minimumOutputAtomic: objective.minimumOutputAtomic,
+            })
+          : mode === "Profit" && objective?.kind === "profit"
+            ? buildGeneralIntentPolicyV1({
+                ...common, mode,
+                minimumProfitAtomic: (BigInt(objective.minimumFinalAtomic) - BigInt(principalAtomic)).toString(),
+              })
+            : (() => { throw new Error("The general intent objective is invalid."); })();
       const ownerSignature = await wallet.request({
         method: "personal_sign",
         params: [commitment(policy), policy.owner],
       });
       if (typeof ownerSignature !== "string") throw new Error("Wallet returned an invalid signature.");
-      const response = await fetch("/api/requests", {
+      const response = await fetch("/api/general-intents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ policy, ownerSignature }),
@@ -208,18 +206,8 @@ export function PolicyForm() {
               </div>
             </div>
             <div className="field">
-              <label htmlFor="tvl">Minimum protocol TVL</label>
-              <div className="input-affix">
-                <span>$</span>
-                <input id="tvl" value={minimumTvl} onChange={(event) => setMinimumTvl(event.target.value)} />
-              </div>
-            </div>
-            <div className="field">
-              <label htmlFor="apy">Minimum estimated pre-gas APY</label>
-              <div className="input-affix">
-                <input id="apy" value={minimumApy} onChange={(event) => setMinimumApy(event.target.value)} />
-                <span>%</span>
-              </div>
+              <label>Onchain minimum</label>
+              <p className="field-note">At least 99.5% of the allocated amount must arrive as the registered Aave receipt token.</p>
             </div>
           </div> : mode === "Profit" ? (
             <div className="field-grid">
@@ -239,7 +227,7 @@ export function PolicyForm() {
           <PolicySummary
             metrics={receiptMetrics}
             outputAssets={SUPPORTED_ASSETS.map(({ displaySymbol }) => displaySymbol).join(" and ")}
-            adapters="Aave V3 supply, Curve and Uniswap V3 swaps, and full-range LP"
+            adapters="Current beta manifest: Aave V3 supply and Curve or Uniswap V3 swaps"
             maximumSlippage={`${(ROUTE_POLICY_V2_DEFAULTS.maxSlippageBps / 100).toFixed(2)}%`}
             horizon={mode === "Earn" ? `${ROUTE_POLICY_V2_DEFAULTS.horizonDays} days` : undefined}
             snapshotAge={`${ROUTE_POLICY_V2_DEFAULTS.maxSnapshotAgeSec} seconds`}
@@ -251,7 +239,7 @@ export function PolicyForm() {
       {error ? <p role="alert" className="form-alert">{error}</p> : null}
       <button className="button button--primary button--wide" type="submit" disabled={!valid || pending}>
         {pending ? <LoaderCircle className="spin" aria-hidden="true" size={17} /> : null}
-        {pending ? "Running isolated coding agent…" : "Find verified routes"}
+        {pending ? "Running isolated coding agent…" : "Build verified program"}
         {!pending ? <ArrowRight aria-hidden="true" size={17} /> : null}
       </button>
       <p className="terms-notice">
@@ -259,7 +247,10 @@ export function PolicyForm() {
         estimates, not guarantees. Token forecasts are estimates. No funds move until a separate
         wallet confirmation.
       </p>
-      <p className="payment-note">Free request · Pay only after selecting an authorized quote</p>
+      <p className="payment-note">
+        No funds move until your wallet confirms the verified mainnet calls. Mainnet beta currently
+        accepts only the allowlisted canary wallet.
+      </p>
     </form>
   );
 }
