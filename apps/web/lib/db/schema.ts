@@ -32,6 +32,7 @@ import {
   solverSubmissionState,
 } from "./program-schema-v2";
 import { cobiaSolvers, solverOperatorKind } from "./solver-schema";
+import { cobiaSolverRuns, solverRunState } from "./solver-run-schema";
 
 export * from "./execution-schema";
 export * from "./payment-schema";
@@ -42,6 +43,7 @@ export * from "./challenge-schema";
 export * from "./intent-schema";
 export * from "./program-schema-v2";
 export * from "./solver-schema";
+export * from "./solver-run-schema";
 
 export const cobiaSchema = {
   cobiaMarkets,
@@ -59,6 +61,7 @@ export const cobiaSchema = {
   cobiaChallengeRounds,
   cobiaIntents,
   cobiaSolvers,
+  cobiaSolverRuns,
   cobiaSolverSubmissions,
   cobiaProgramArtifactsV2,
   requestState,
@@ -71,6 +74,7 @@ export const cobiaSchema = {
   challengeStatus,
   intentState,
   solverOperatorKind,
+  solverRunState,
   solverSubmissionState,
   programArtifactKindV2,
 };

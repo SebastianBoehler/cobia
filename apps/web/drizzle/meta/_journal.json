@@ -99,6 +99,13 @@
       "when": 1787075400000,
       "tag": "0013_general_solver_competitions",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1787079000000,
+      "tag": "0014_solver_runs",
+      "breakpoints": true
     }
   ]
 }

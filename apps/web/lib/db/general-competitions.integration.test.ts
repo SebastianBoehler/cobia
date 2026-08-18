@@ -54,6 +54,20 @@ async function seedParents() {
 }
 
 describe("general solver competition schema", () => {
+  it("separates sandbox runs from published immutable submissions", async () => {
+    const rows = await db().execute(sql<{
+      runs: string | null; execution_kind: boolean;
+    }>`SELECT
+      to_regclass('public.cobia_solver_runs')::text AS runs,
+      EXISTS (
+        SELECT 1 FROM pg_enum
+        WHERE enumtypid = 'cobia_program_artifact_kind_v2'::regtype
+          AND enumlabel = 'execution'
+      ) AS execution_kind
+    `);
+    expect(rows[0]).toEqual({ runs: "cobia_solver_runs", execution_kind: true });
+  });
+
   it("creates a clean model without copying or dropping legacy audit rows", async () => {
     const rows = await db().execute(sql<{
       legacy: string | null; current: string | null; intents: number;

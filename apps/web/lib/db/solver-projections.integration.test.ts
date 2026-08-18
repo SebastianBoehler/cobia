@@ -116,6 +116,17 @@ describe("solver competition projections", () => {
       expect.objectContaining({ id: first.id, presentationState: "superseded" }),
       expect.objectContaining({ id: rejected.id, presentationState: "rejected" }),
     ]));
+    await expect(submissions.append({
+      intentId: policy.requestId, solverId: "alpha-solver", revision: 4,
+      programHash: hash("b"), validUntilSec: nowSec + 200,
+      blockNumber: "123459", blockHash: hash("c"), observedAtSec: nowSec,
+    })).rejects.toThrow("revision limit");
+    await expect(submissions.append({
+      intentId: policy.requestId, solverId: "alpha-solver", revision: 3,
+      programHash: hash("b"), validUntilSec: nowSec + 301,
+      blockNumber: "123459", blockHash: hash("c"),
+      observedAtSec: policy.competition.closesAt,
+    })).rejects.toThrow("Competition is closed");
   });
 
   it("derives solver statistics and wins from verifier-owned rows", async () => {

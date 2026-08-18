@@ -44,7 +44,7 @@ function canonicalArtifact(value: unknown): unknown {
 
 function allowedTransition(from: string, to: string): boolean {
   return (from === "proposed" && ["verified", "rejected", "failed"].includes(to)) ||
-    (from === "verified" && to === "attested") ||
+    (from === "verified" && ["attested", "failed"].includes(to)) ||
     (from === "attested" && to === "executed");
 }
 
@@ -167,6 +167,26 @@ export function createSolverSubmissionRepository(db: CobiaDatabase) {
         ...row, objective: objectives.get(row.id) ?? null,
         presentationState: projectSubmissionState(row, observedAtSec),
       }));
+    },
+
+    async read(id: string, observedAtSec: number) {
+      const submissionId = z.string().uuid().parse(id);
+      const row = await db.query.cobiaSolverSubmissions.findFirst({
+        where: eq(cobiaSolverSubmissions.id, submissionId),
+      });
+      if (!row) return null;
+      const artifacts = await db.query.cobiaProgramArtifactsV2.findMany({
+        where: eq(cobiaProgramArtifactsV2.submissionId, submissionId),
+        orderBy: [asc(cobiaProgramArtifactsV2.id)],
+      });
+      const objectiveArtifact = artifacts.find(({ kind }) => kind === "objective");
+      return {
+        ...row,
+        artifacts,
+        objective: objectiveArtifact
+          ? ObjectiveMeasurementV1Schema.parse(objectiveArtifact.payload) : null,
+        presentationState: projectSubmissionState(row, observedAtSec),
+      };
     },
 
     async listForIntent(intentId: string, observedAtSec: number) {
