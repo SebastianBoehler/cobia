@@ -18,14 +18,19 @@
 
 .intent-composer-preview { background: var(--surface); border: 1px solid var(--line); border-radius: 24px; box-shadow: var(--shadow); padding: 12px; }
 .rotating-prompt { background: var(--wash); border-radius: 16px; min-height: 202px; padding: 22px; position: relative; }
+.rotating-prompt__content { animation: prompt-enter 320ms ease both; }
 .rotating-prompt__label { align-items: center; display: flex; justify-content: space-between; }
 .rotating-prompt__label span { color: var(--muted); font-size: 12px; }
 .rotating-prompt__label strong { color: var(--muted); font-size: 9px; font-weight: 620; }
 .rotating-prompt__label strong.is-live { color: var(--verified); }
-.rotating-prompt p { animation: prompt-enter 320ms ease both; font-size: clamp(22px, 2.2vw, 30px); font-weight: 570; letter-spacing: -.04em; line-height: 1.22; margin: 34px 0 28px; text-wrap: pretty; }
-.rotating-prompt__controls { bottom: 17px; display: flex; gap: 6px; inset-inline-start: 22px; position: absolute; }
-.rotating-prompt__controls button { background: var(--line-strong); border: 0; border-radius: 999px; cursor: pointer; height: 5px; padding: 0; transition: background 150ms ease, width 150ms ease; width: 15px; }
-.rotating-prompt__controls button[aria-pressed="true"] { background: var(--cobalt); width: 27px; }
+.rotating-prompt p { font-size: clamp(22px, 2.2vw, 30px); font-weight: 570; letter-spacing: -.04em; line-height: 1.22; margin: 34px 0 28px; text-wrap: pretty; }
+.rotating-prompt__controls { align-items: center; bottom: 9px; display: flex; gap: 6px; inset-inline: 14px; justify-content: space-between; position: absolute; }
+.rotating-prompt__pages { align-items: center; display: flex; }
+.rotating-prompt__pages button { background: transparent; border: 0; cursor: pointer; height: 32px; padding: 0 4px; position: relative; width: 23px; }
+.rotating-prompt__pages button::before { background: var(--line-strong); border-radius: 999px; content: ""; height: 5px; inset-inline: 4px; position: absolute; top: 14px; transition: background 150ms ease, inset 150ms ease; }
+.rotating-prompt__pages button[aria-pressed="true"]::before { background: var(--cobalt); inset-inline: 1px; }
+.rotating-prompt__pause { align-items: center; background: transparent; border: 0; border-radius: 50%; color: var(--muted); cursor: pointer; display: inline-flex; height: 32px; justify-content: center; padding: 0; width: 32px; }
+.rotating-prompt__pause:hover { background: var(--surface); color: var(--ink); }
 @keyframes prompt-enter { from { opacity: 0; transform: translateY(5px); } }
 .intent-composer-preview__receipt { padding: 22px 10px 8px; }
 .intent-composer-preview__receipt header { align-items: center; display: flex; justify-content: space-between; }

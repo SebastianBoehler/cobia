@@ -36,4 +36,16 @@ describe("RotatingIntentPrompt", () => {
 
     expect(screen.getByText(/Move 10 USDG/)).toBeVisible();
   });
+
+  it("lets the user stop and resume automatic changes", () => {
+    render(<RotatingIntentPrompt />);
+    act(() => screen.getByRole("button", { name: "Pause examples" }).click());
+
+    act(() => vi.advanceTimersByTime(9_000));
+    expect(screen.getByText(/Move 10 USDG/)).toBeVisible();
+
+    act(() => screen.getByRole("button", { name: "Play examples" }).click());
+    act(() => vi.advanceTimersByTime(4_500));
+    expect(screen.getByText(/Buy a train ticket/)).toBeVisible();
+  });
 });
