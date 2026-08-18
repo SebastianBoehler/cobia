@@ -1,7 +1,7 @@
 # General intent product experience
 
 Date: 18 August 2026  
-Status: approved design, awaiting written-spec review
+Status: approved design
 
 ## Purpose
 
@@ -23,7 +23,8 @@ capability modules are admitted.
   asset markets.
 - Keep portfolio, activity, and wallet history as first-class product surfaces.
 - Give solvers a competition lifecycle with immutable revisions and expiry.
-- Preserve current URLs through redirects instead of breaking shared links.
+- Replace the old market, quote, and Earn/Swap/Profit product taxonomy cleanly.
+- Give each solver a public evidence-backed identity and submission history.
 - Unify the header, canvas, cards, and mobile navigation into one visual system.
 - State what is enforceable, forecast, unsupported, or historical.
 
@@ -49,10 +50,12 @@ The primary object is an intent. An intent contains:
 - one selected current proposal, if any;
 - a separate wallet-controlled execution lifecycle.
 
-A public program can be discovered without a wallet-specific request, but it is
-only a template or past observation. It becomes executable only after Cobia
-regenerates wallet state, policy, pinned evidence, authorization, and fresh
-verification for the connected owner.
+A standing challenge can remain publicly discoverable without an end date, but
+its solver programs cannot. Every challenge runs bounded rounds whose revisions
+expire with their block snapshot and evidence. A discovered program is only a
+template or past observation. It becomes executable only after Cobia creates a
+fresh custom intent and regenerates wallet state, policy, pinned evidence,
+authorization, and verification for the connected owner.
 
 ## Information architecture
 
@@ -62,20 +65,25 @@ The primary navigation is:
 2. **Portfolio** — balances, positions, allowances, and wallet-specific context.
 3. **Activity** — signed policies, verified programs, confirmations, receipts,
    failures, and reconciliation.
-4. **Discover** — current public competitions and verified program discoveries.
+4. **Discover** — standing challenges, custom competitions, and verified program
+   discoveries.
+
+Solver identities are a first-class Discover dimension. `/solvers` lists
+participating implementations; `/solvers/:solverId` shows capabilities,
+accepted, rejected, and superseded submissions, verified wins, and evidence
+anchors. Solver rationale and self-description are clearly separated from
+verifier-owned measurements.
 
 Desktop uses a compact top navigation. Mobile and wallet browsers use a fixed
 four-item bottom navigation with safe-area padding. The top bar keeps brand,
 network, theme, and wallet controls only.
 
-Legacy mappings:
-
-- `/requests/new` redirects to `/intents/new` after the new route is live.
-- `/requests/:id` resolves to the corresponding intent.
-- `/markets` redirects to `/discover`.
-- `/markets/:marketId` resolves the canonical identifier and redirects to a
-  stable Discover detail route.
-- `/routes/:id` continues to resolve purchased legacy route receipts.
+This release is a deliberate product-surface reset. `/requests`, `/markets`,
+and `/routes` are removed rather than retained as compatibility aliases. The
+new canonical paths are `/intents`, `/programs`, `/discover`, and `/solvers`.
+Immutable execution receipts and persisted verification evidence remain
+retained for audit, but old quote or market records do not become actionable
+through the new interface.
 
 ## Hybrid composer
 
@@ -166,8 +174,17 @@ separate per-period policy and revocation semantics.
 
 Discover has two filters:
 
-- **Live competitions** — accepting current solver revisions.
+- **Standing challenges** — common outcomes that remain discoverable and accept
+  solver revisions through rolling bounded rounds.
+- **Custom intents** — owner-, amount-, recipient-, and deadline-specific
+  competitions.
 - **Past discoveries** — historical, expired, superseded, or template programs.
+
+An always-available challenge is not an always-valid quote. Its current leader
+must still have a fresh pinned block, independently reproduced evidence, and an
+unexpired round. Selecting a challenge instantiates a new editable policy
+receipt; it never copies authorization, calldata, wallet state, or simulation
+from the public discovery.
 
 Only current independently verified revisions receive a rank or executable CTA.
 Past items show discovery time, block, expiry reason, and “Create fresh intent.”
@@ -175,6 +192,12 @@ They never reuse calldata, simulation, authorization, or wallet state.
 
 Ranking is deterministic from policy-defined objectives and verifier-owned
 measurements. Solver rationale and popularity are context, not ranking evidence.
+
+Each immutable program revision is attributed to a solver identity. A solver
+may abstain or publish a higher revision until the competition closes. Only its
+latest current independently verified revision can rank; prior revisions remain
+visible as superseded history. Solver profile statistics are derived from
+persisted verifier verdicts and receipts, never from solver claims.
 
 ## Visual system
 
@@ -216,9 +239,8 @@ and reduced-motion preferences remove nonessential movement.
 
 ## Error handling
 
-- Invalid legacy identifiers render a branded not-found state with a Discover
-  action instead of the framework 404.
-- Valid legacy market IDs normalize once and redirect to their stable route.
+- Removed product paths render a branded not-found state with Intent and
+  Discover actions instead of the framework 404.
 - Missing capability semantics return a named unsupported-capability result.
 - Expired, stale, reorged, or superseded programs cannot produce execution calls.
 - Infrastructure failures preserve the signed policy and expose a safe retry;
@@ -240,12 +262,16 @@ routes, mock market data, or speculative production support.
 
 ## Verification
 
-- Regression test canonical and encoded colon-bearing legacy market IDs.
-- Test every legacy redirect and branded invalid-ID state.
+- Test removed product paths and unknown identifiers use the branded not-found
+  state without exposing framework error copy.
 - Test natural-language draft review cannot skip required canonical fields.
 - Test unsupported domains cannot sign or open a solver competition.
 - Test signed commitments change when any displayed bound changes.
 - Test active, expired, rejected, and superseded proposal presentation.
+- Test standing challenges survive round expiry while every contained program
+  becomes historical and non-executable.
+- Test “Use this challenge” creates a fresh unsigned receipt and copies no
+  program calldata, evidence, owner, nonce, or deadline.
 - Test keyboard, focus, live-region, reduced-motion, light/dark, mobile safe-area,
   and wallet-browser layouts.
 - Run unit, integration, typecheck, lint, production build, contract, audit, and
@@ -268,6 +294,7 @@ the production site continues serving the existing safe flow. After the timelock
 - The user can explain exactly what the signed policy permits before signing.
 - Current and historical solver results cannot be confused.
 - Portfolio and activity remain primary, usable mobile surfaces.
-- No valid persisted market link returns the framework 404.
+- Current Intent, Program, Discover, and Solver links never return the framework
+  404; removed product paths use the branded not-found state.
 - The header and body read as one coherent application in light and dark modes.
 - Unsupported domains are inspiring but never represented as executable.
