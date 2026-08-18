@@ -12,6 +12,7 @@ export * from "./capabilities/sandbox-runner-v2";
 export * from "./capabilities/module";
 export * from "./capabilities/registry";
 export * from "./capabilities/asset-flow";
+export * from "./capabilities/commerce-order";
 export * from "./capabilities/verifier";
 export * from "./capabilities/sandbox-runner";
 export * from "./deterministic";
