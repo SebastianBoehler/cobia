@@ -1,6 +1,6 @@
 import { commitment } from "@cobia/domain";
 import { describe, expect, it } from "vitest";
-import { encodeFunctionData, erc20Abi } from "viem";
+import { encodeFunctionData, erc20Abi, type Hex } from "viem";
 import { buildAtomicAuthorizationV3 } from "../atomic-execution/authorization-v3";
 import { encodeAtomicExecutionCallV3 } from "../atomic-execution/encode-v3";
 import type { AtomicExecutionProgramV3 } from "../atomic-execution/types-v3";
@@ -12,6 +12,11 @@ const token = "0x3333333333333333333333333333333333333333" as const;
 const target = "0x4444444444444444444444444444444444444444" as const;
 const hash = `0x${"55".repeat(32)}` as const;
 const signature = `0x${"66".repeat(65)}` as const;
+const builderSuffix = "0x737136646c6a326f6e72386d6c357861100080218021802180218021802180218021";
+
+function attributed(data: Hex): Hex {
+  return `${data}${builderSuffix.slice(2)}` as Hex;
+}
 const policy = {
   owner,
   deadline: 2_000,
@@ -51,6 +56,7 @@ const program: AtomicExecutionProgramV3 = {
 function stored() {
   const authorization = buildAtomicAuthorizationV3(program, executor);
   const call = encodeAtomicExecutionCallV3({ program, authorization, expectedExecutor: executor, signature });
+  call.data = attributed(call.data);
   const execution = { version: 3, program };
   const attestation = { version: 3, authorization, signature, call };
   const json = (value: unknown) => JSON.parse(JSON.stringify(
@@ -86,12 +92,16 @@ describe("general agent mainnet execution preparation", () => {
     })).toEqual([
       {
         to: token,
-        data: encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [executor, 0n] }),
+        data: attributed(encodeFunctionData({
+          abi: erc20Abi, functionName: "approve", args: [executor, 0n],
+        })),
         value: "0x0",
       },
       {
         to: token,
-        data: encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [executor, 10n] }),
+        data: attributed(encodeFunctionData({
+          abi: erc20Abi, functionName: "approve", args: [executor, 10n],
+        })),
         value: "0x0",
       },
     ]);
@@ -101,7 +111,9 @@ describe("general agent mainnet execution preparation", () => {
     const result = prepareAgentExecutionV3({ context: stored(), owner, executor, nowSec: 1_100 });
     expect(result.approval).toEqual({
       to: token,
-      data: encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [executor, 10n] }),
+      data: attributed(encodeFunctionData({
+        abi: erc20Abi, functionName: "approve", args: [executor, 10n],
+      })),
       value: "0x0",
     });
     expect(result.execution).toEqual({
@@ -111,8 +123,20 @@ describe("general agent mainnet execution preparation", () => {
         expectedExecutor: executor,
         signature,
       }),
+      data: attributed(encodeAtomicExecutionCallV3({
+        program,
+        authorization: buildAtomicAuthorizationV3(program, executor),
+        expectedExecutor: executor,
+        signature,
+      }).data),
       value: "0x0",
     });
+  });
+
+  it("attributes every bounded approval, including an allowance reset", () => {
+    const calls = exactApprovalCalls({ token, executor, allowance: 11n, required: 10n });
+    expect(calls).toHaveLength(2);
+    expect(calls.every((call) => call.data.endsWith(builderSuffix.slice(2)))).toBe(true);
   });
 
   it("rejects call, owner, executor, deadline, freshness, and artifact commitment drift", () => {

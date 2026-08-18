@@ -101,6 +101,16 @@ USDG/USD₮0 payment settlement. It does not make arbitrary DeFi executor calls
 gasless. Cobia therefore requires OKB for general mainnet execution and reserves
 "gasless" for a separately verified payment capability.
 
+X Layer mainnet transactions are attributed with the registered Builder Code
+`sq6dlj2onr8ml5xa`. The registered payout address is the Cobia operator
+`0xB6da8E6d497bd3Bc5016416DA57d177085449124`; registration transaction
+`0xf9ee439cbc68a652f92c8d7522d8c76a54e6c3888ffde7468eb7ed32c6318ffa`
+is public chain evidence, not signing authority. The trusted coordinator adds
+the ERC-8021 suffix before committing the verifier artifact. Execution
+preflight reconstructs that exact suffixed executor calldata, bounded approvals
+carry the same suffix, and receipt attribution requires byte-for-byte equality.
+The wallet never appends mutable attribution after verification.
+
 The current synchronous web slice fails closed within bounded stages: the
 coding-agent microVM has a 170-second lifetime with a 160-second model/shell
 budget, and the separate fresh-fork microVM has a 100-second lifetime. This

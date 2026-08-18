@@ -1,10 +1,8 @@
-import { commitment, type GeneralIntentPolicyV2, type GeneralIntentSnapshotV1 } from "@cobia/domain";
+import type { GeneralIntentPolicyV2, GeneralIntentSnapshotV1 } from "@cobia/domain";
 import { runCapabilitySandboxV2, verifyCapabilityProgramV2, type StaticReadCallerV1 } from "@cobia/solvers";
 import { createPublicClient, http, keccak256, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { xLayer } from "../chain/xlayer";
-import { buildAtomicAuthorizationV3, signAtomicAuthorizationV3 } from "../atomic-execution/authorization-v3";
-import { encodeAtomicExecutionCallV3 } from "../atomic-execution/encode-v3";
 import { projectCapabilityProgramV3 } from "../atomic-execution/project-capability-program-v3";
 import type { AtomicExecutionProgramV3 } from "../atomic-execution/types-v3";
 import { productionCapabilityManifestV1 } from "../capabilities/manifest";
@@ -14,6 +12,7 @@ import {
   assertAgentExecutorReadyV1,
   createAgentExecutorReadV1,
 } from "../coding-agent-sandbox/executor-preflight";
+import { createGeneralAttestationV3 } from "../coding-agent-sandbox/general-attestation-v3";
 import { runOpenAiSandboxCodingAgent } from "../coding-agent-sandbox/openai-shell-agent";
 import { captureCapabilityPortfolioV1, createCapabilityPortfolioReadV1 } from "../coding-agent-sandbox/portfolio";
 import { startVercelAnvilForkV2 } from "../coding-agent-sandbox/vercel-anvil-fork";
@@ -179,24 +178,13 @@ export async function openGeneralCodingAgentCompetition(
       },
       project: ({ program, evidence, verification }) =>
         projectCapabilityProgramV3({ program, evidence, verification }),
-      async attest({ execution, evidence }) {
-        const program = execution as AtomicExecutionProgramV3;
-        const authorization = buildAtomicAuthorizationV3(program, executor);
-        const signature = await signAtomicAuthorizationV3({
-          program,
-          authorization,
-          expectedExecutor: executor,
-          signTypedData: (typedData) => verifier.signTypedData(typedData),
-        });
-        return {
-          version: 3,
-          authorization,
-          signature,
-          call: encodeAtomicExecutionCallV3({ program, authorization, signature, expectedExecutor: executor }),
-          attestor: verifier.address,
-          evidenceHash: commitment(evidence),
-        };
-      },
+      attest: ({ execution, evidence }) => createGeneralAttestationV3({
+        program: execution as AtomicExecutionProgramV3,
+        evidence,
+        executor,
+        attestor: verifier.address,
+        signTypedData: (typedData) => verifier.signTypedData(typedData),
+      }),
     },
   });
 }

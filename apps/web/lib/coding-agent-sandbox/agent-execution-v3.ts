@@ -2,6 +2,7 @@ import { commitment } from "@cobia/domain";
 import { encodeFunctionData, erc20Abi, getAddress, isAddressEqual, type Address, type Hash, type Hex } from "viem";
 import { z } from "zod";
 import { encodeAtomicExecutionCallV3 } from "../atomic-execution/encode-v3";
+import { attributeCobiaTransaction } from "../chain/xlayer-builder-attribution";
 import {
   assertAtomicExecutionProgramV3,
   type AtomicAuthorizationV3,
@@ -125,7 +126,7 @@ export function exactApprovalCalls(input: {
     throw new Error("Exact approval amounts are invalid");
   }
   if (input.allowance === input.required) return [];
-  const approve = (amount: bigint) => ({
+  const approve = (amount: bigint) => attributeCobiaTransaction({
     to: input.token,
     data: encodeFunctionData({
       abi: erc20Abi,
@@ -178,19 +179,19 @@ export function prepareAgentExecutionV3(input: {
     program.pinnedBlockHash !== input.context.snapshot.blockHash) {
     throw new Error("General execution does not match the signed policy authority");
   }
-  const expectedCall = encodeAtomicExecutionCallV3({
+  const expectedCall = attributeCobiaTransaction(encodeAtomicExecutionCallV3({
     program,
     authorization,
     expectedExecutor: input.executor,
     signature: attestation.signature,
-  });
+  }));
   if (!isAddressEqual(attestation.call.to, expectedCall.to) ||
     attestation.call.data.toLowerCase() !== expectedCall.data.toLowerCase() ||
     (attestation.call.value !== "0" && attestation.call.value !== "0x0")) {
     throw new Error("General execution call does not match its verifier attestation");
   }
   return {
-    approval: {
+    approval: attributeCobiaTransaction({
       to: program.inputToken,
       data: encodeFunctionData({
         abi: erc20Abi,
@@ -198,7 +199,7 @@ export function prepareAgentExecutionV3(input: {
         args: [input.executor, program.inputAmount],
       }),
       value: "0x0" as const,
-    },
+    }),
     execution: { ...expectedCall, value: "0x0" as const },
     inputAmountAtomic: program.inputAmount.toString(),
     canonicalProgramHash: program.canonicalProgramHash,
