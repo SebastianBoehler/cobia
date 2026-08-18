@@ -90,6 +90,14 @@ describe("CommerceOfferV1", () => {
       ...executableOffer,
       placement: { ...executableOffer.placement, endpoint: "http://merchant.example/order" },
     }).success).toBe(false);
+    expect(CommerceOfferV1Schema.safeParse({
+      ...executableOffer,
+      merchant: { ...executableOffer.merchant, manifestHash: hash("0") },
+    }).success).toBe(false);
+    expect(CommerceOfferV1Schema.safeParse({
+      ...executableOffer,
+      evidence: { ...executableOffer.evidence, receiptRecipient: address("0") },
+    }).success).toBe(false);
   });
 
   it("rejects missing or contradictory blocked reasons", () => {

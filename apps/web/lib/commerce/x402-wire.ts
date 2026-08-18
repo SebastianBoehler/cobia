@@ -12,7 +12,7 @@ const AddressSchema = z.string().refine(isAddress).transform(
 );
 const HttpsUrlSchema = z.url().refine((value) => new URL(value).protocol === "https:");
 
-const PaymentRequirementSchema = z.object({
+export const X402PaymentRequirementV2Schema = z.object({
   scheme: z.string().min(1).max(64),
   network: z.string().regex(/^eip155:[1-9][0-9]*$/),
   amount: z.string().regex(/^[1-9][0-9]*$/).max(78),
@@ -33,11 +33,38 @@ export const X402PaymentRequiredV2Schema = z.object({
     tags: z.array(z.string().max(32)).max(5).optional(),
     iconUrl: z.url().max(2_048).optional(),
   }).strict(),
-  accepts: z.array(PaymentRequirementSchema).max(32),
+  accepts: z.array(X402PaymentRequirementV2Schema).max(32),
   extensions: z.record(z.string(), z.unknown()).optional(),
 }).strict();
 
 export type X402PaymentRequiredV2 = z.infer<typeof X402PaymentRequiredV2Schema>;
+
+export const X402BazaarResourcesV2Schema = z.object({
+  x402Version: z.literal(2),
+  items: z.array(z.object({
+    resource: HttpsUrlSchema,
+    type: z.literal("http"),
+    x402Version: z.literal(2),
+    accepts: z.array(X402PaymentRequirementV2Schema).min(1).max(32),
+    lastUpdated: z.string().datetime(),
+    metadata: z.object({ description: z.string().max(2_000).optional() }).passthrough().optional(),
+    description: z.string().max(2_000).optional(),
+    serviceName: z.string().max(32).optional(),
+    tags: z.array(z.string().max(32)).max(5).optional(),
+    iconUrl: z.url().max(2_048).optional(),
+  }).passthrough()).max(100),
+  pagination: z.object({
+    limit: z.number().int().positive(),
+    offset: z.number().int().nonnegative(),
+    total: z.number().int().nonnegative(),
+  }).strict(),
+}).strict();
+
+export type X402BazaarResourcesV2 = z.infer<typeof X402BazaarResourcesV2Schema>;
+
+export function parseX402BazaarResourcesV2(input: unknown): X402BazaarResourcesV2 {
+  return X402BazaarResourcesV2Schema.parse(input);
+}
 
 function decodeCanonicalBase64(input: string): Uint8Array {
   if (input.length > Math.ceil(MAX_PAYMENT_HEADER_BYTES * 4 / 3) + 4) {
@@ -75,6 +102,7 @@ type NormalizeX402Input = {
   productId: string;
   productCommitment: Hash;
   receiptRecipient: Address;
+  merchantRegistered: boolean;
 };
 
 export function normalizeX402ResourceV1(input: NormalizeX402Input): CommerceOfferV1 {
@@ -85,10 +113,12 @@ export function normalizeX402ResourceV1(input: NormalizeX402Input): CommerceOffe
   const chainId = Number(accepted.network.slice("eip155:".length));
   const transferMethod = accepted.extra?.assetTransferMethod;
   const paymentFlow = accepted.extra?.paymentFlow;
-  const executable = accepted.scheme === "exact" && chainId === 196 &&
+  const executable = input.merchantRegistered && accepted.scheme === "exact" && chainId === 196 &&
     (transferMethod === undefined || transferMethod === "eip3009") &&
     (paymentFlow === undefined || paymentFlow === "authorization");
-  const blockedReason = chainId !== 196
+  const blockedReason = !input.merchantRegistered
+    ? "MERCHANT_UNREGISTERED"
+    : chainId !== 196
     ? "CHAIN_UNSUPPORTED"
     : accepted.scheme !== "exact" || transferMethod === "permit2" ||
       (paymentFlow !== undefined && paymentFlow !== "authorization")

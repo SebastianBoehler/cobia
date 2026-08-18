@@ -51,6 +51,7 @@ describe("x402 v2 commerce wire", () => {
       productId: "coffee",
       productCommitment: hash("b"),
       receiptRecipient: owner,
+      merchantRegistered: true,
     });
 
     expect(offer.payment).toMatchObject({ chainId: 196, atomicAmount: "12500000", asset });
@@ -80,6 +81,7 @@ describe("x402 v2 commerce wire", () => {
         productId: "coffee",
         productCommitment: hash("b"),
         receiptRecipient: owner,
+        merchantRegistered: true,
       });
       expect(offer.eligibility.status).not.toBe("executable");
     }
@@ -97,6 +99,25 @@ describe("x402 v2 commerce wire", () => {
       productId: "coffee",
       productCommitment: hash("b"),
       receiptRecipient: owner,
+      merchantRegistered: true,
     })).toThrow(/payment/i);
+  });
+
+  it("never marks an open-world merchant executable without a trusted manifest", () => {
+    const offer = normalizeX402ResourceV1({
+      paymentRequired: required,
+      rawResponse: Buffer.from(JSON.stringify(required)),
+      fetchedAt: 2_000_000_000,
+      expiresAt: 2_000_000_060,
+      sourceUrl: "https://bazaar.example/discovery/resources",
+      merchantId: "merchant.example",
+      manifestHash: hash("0"),
+      productId: "coffee",
+      productCommitment: hash("b"),
+      receiptRecipient: "0x0000000000000000000000000000000000000000",
+      merchantRegistered: false,
+    });
+
+    expect(offer.eligibility).toEqual({ status: "discovery-only", blockedReason: "MERCHANT_UNREGISTERED" });
   });
 });
