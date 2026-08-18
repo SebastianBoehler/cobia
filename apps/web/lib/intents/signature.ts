@@ -1,11 +1,11 @@
-import { commitment, type PersistedStablecoinPolicy } from "@cobia/domain";
+import { commitment, type PersistedIntentPolicy } from "@cobia/domain";
 import { isAddressEqual, recoverMessageAddress, type Hex } from "viem";
 import { quoteSelectionCommitment, routeAccessCommitment } from "./commitments";
 
 export { quoteSelectionCommitment, routeAccessCommitment } from "./commitments";
 
 export async function verifyPolicyOwnerSignature(
-  policy: PersistedStablecoinPolicy,
+  policy: PersistedIntentPolicy,
   signature: Hex,
 ): Promise<void> {
   const signer = await recoverMessageAddress({

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { USDG_ADDRESS } from "../chain/xlayer";
-import { verifyStoredMarketIdentity } from "./market-identity";
+import { marketIdentity, verifyStoredMarketIdentity } from "./market-identity";
 
 const expected = {
   executionChainId: 196 as const,
@@ -22,5 +22,20 @@ describe("stored market identity verification", () => {
   ])("rejects a conflicting stored row", (stored) => {
     expect(() => verifyStoredMarketIdentity(stored, expected))
       .toThrow("Stored market identity conflicts with the signed policy");
+  });
+
+  it("uses the signed input token for a general intent market", () => {
+    const policy = {
+      executionChainId: 196 as const,
+      kind: "general-onchain" as const,
+      input: { token: USDG_ADDRESS },
+    };
+
+    expect(marketIdentity(policy)).toBe(`196:${USDG_ADDRESS.toLowerCase()}`);
+    expect(() => verifyStoredMarketIdentity({
+      id: `196:${USDG_ADDRESS.toLowerCase()}`,
+      executionChainId: 196,
+      asset: USDG_ADDRESS.toLowerCase(),
+    }, policy)).not.toThrow();
   });
 });

@@ -1,4 +1,4 @@
-import { commitment } from "@cobia/domain";
+import { GeneralIntentPolicyV1Schema, GeneralIntentSnapshotV1Schema, commitment } from "@cobia/domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { startIntegrationDatabase } from "./integration-database";
 import { createAgentProgramRepository } from "./agent-programs";
@@ -17,6 +17,38 @@ beforeAll(async () => { database = await startIntegrationDatabase(); });
 afterAll(async () => { await database?.close(); });
 
 describe("agent program audit repository", () => {
+  it("persists a general policy and pinned snapshot without routing it through quote artifacts", async () => {
+    const requestId = crypto.randomUUID();
+    const policy = GeneralIntentPolicyV1Schema.parse({
+      version: 1, kind: "general-onchain", requestId,
+      owner: "0x1111111111111111111111111111111111111111", executionChainId: 196,
+      nonce: `0x${"12".repeat(32)}`, createdAt: 2_000_000_000, deadline: 2_000_001_800,
+      maxEvidenceAgeSec: 300, manifestHash: `0x${"23".repeat(32)}`,
+      input: { token: "0x2222222222222222222222222222222222222222", maxAtomic: "10000000" },
+      allowedCapabilities: [{ id: "aave-v3.supply", version: 1 }],
+      limits: { maxActions: 1, maxApprovals: 1, maxActionCalldataBytes: 1024, maxExpectedGas: 1_000_000 },
+      forbiddenTargets: [], forbiddenAssets: [],
+      balanceConstraints: [{ kind: "minimumIncrease", token: "0x3333333333333333333333333333333333333333", atomic: "9950000" }],
+      predicates: [], objective: { kind: "satisfy" },
+    });
+    const snapshot = GeneralIntentSnapshotV1Schema.parse({
+      version: 1, kind: "general-onchain", requestId, chainId: 196,
+      blockNumber: "123", blockHash: `0x${"34".repeat(32)}`,
+      capturedAt: "2033-05-18T03:33:20.000Z", manifestHash: policy.manifestHash,
+    });
+    const requests = createRequestRepository(db());
+    await requests.createRequest(policy);
+    await requests.saveSnapshot(requestId, snapshot);
+    const programs = createAgentProgramRepository(db());
+    const job = await programs.create({
+      requestId, owner: policy.owner, policyHash: commitment(policy),
+      snapshotHash: commitment(snapshot), manifestHash: policy.manifestHash,
+      blockNumber: snapshot.blockNumber, blockHash: snapshot.blockHash,
+    });
+
+    await expect(programs.getExecutionContext(job.id)).resolves.toMatchObject({ policy, snapshot });
+  });
+
   it("persists immutable commitment-bound artifacts through attestation", async () => {
     const fixture = await createRepositoryFixtureV2();
     await createRequestRepository(db()).createRequest(fixture.policy);

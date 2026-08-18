@@ -1,17 +1,19 @@
 import {
+  GeneralIntentPolicyV1Schema,
+  GeneralIntentSnapshotV1Schema,
+  PersistedIntentPolicySchema,
   commitment,
   type PersistedBundle,
   type PersistedRouteQuote,
-  type PersistedSnapshot,
-  type PersistedStablecoinPolicy,
+  type PersistedIntentPolicy,
+  type PersistedIntentSnapshot,
   type PersistedVerificationVerdict,
   type RouteVerificationVerdictV2,
 } from "@cobia/domain";
 import { and, eq, inArray } from "drizzle-orm";
 import type { CobiaDatabase } from "./client";
-import { marketIdentity, verifyStoredMarketIdentity } from "./market-identity";
+import { marketAsset, marketIdentity, verifyStoredMarketIdentity } from "./market-identity";
 import {
-  parsePersistedPolicy,
   parsePublicPersistedQuote,
   validatePersistedRoundArtifacts,
   validateRoundArtifacts,
@@ -22,6 +24,20 @@ import { cobiaMarkets, cobiaQuotes, cobiaRequests } from "./schema";
 
 const selectableStates = ["quotes_ready", "partial"] as const;
 
+function validateGeneralSnapshot(
+  requestId: string,
+  policyInput: unknown,
+  snapshotInput: unknown,
+) {
+  const policy = GeneralIntentPolicyV1Schema.parse(policyInput);
+  const snapshot = GeneralIntentSnapshotV1Schema.parse(snapshotInput);
+  if (policy.requestId !== requestId || snapshot.requestId !== requestId ||
+    snapshot.manifestHash !== policy.manifestHash) {
+    throw new Error("General intent snapshot commitment mismatch");
+  }
+  return snapshot;
+}
+
 function requireUpdated<T>(rows: T[], message: string): T {
   const row = rows[0];
   if (!row) throw new Error(message);
@@ -30,14 +46,14 @@ function requireUpdated<T>(rows: T[], message: string): T {
 
 export function createRequestRepository(db: CobiaDatabase) {
   return {
-    async createRequest(input: PersistedStablecoinPolicy): Promise<void> {
-      const policy = parsePersistedPolicy(input);
+    async createRequest(input: PersistedIntentPolicy): Promise<void> {
+      const policy = PersistedIntentPolicySchema.parse(input);
       const marketId = marketIdentity(policy);
       await db.transaction(async (tx) => {
         const inserted = await tx.insert(cobiaMarkets).values({
           id: marketId,
           executionChainId: policy.executionChainId,
-          asset: policy.asset.toLowerCase(),
+          asset: marketAsset(policy),
         }).onConflictDoNothing({ target: cobiaMarkets.id }).returning({ id: cobiaMarkets.id });
         if (!inserted[0]) {
           const stored = await tx.query.cobiaMarkets.findFirst({
@@ -49,24 +65,27 @@ export function createRequestRepository(db: CobiaDatabase) {
         await tx.insert(cobiaRequests).values({
           id: policy.requestId,
           marketId,
-          policy,
+          policy: policy as never,
           policyHash: commitment(policy),
         });
       });
     },
 
-    async saveSnapshot(requestId: string, input: PersistedSnapshot): Promise<void> {
+    async saveSnapshot(requestId: string, input: PersistedIntentSnapshot): Promise<void> {
       await db.transaction(async (tx) => {
         const request = await tx.query.cobiaRequests.findFirst({
           columns: { policy: true },
           where: eq(cobiaRequests.id, requestId),
         });
         if (!request) throw new Error("Request must be open before snapshot capture");
-        const snapshot = validateSnapshotArtifact(requestId, request.policy, input);
+        const snapshot = request.policy && typeof request.policy === "object" &&
+          "kind" in request.policy && request.policy.kind === "general-onchain"
+          ? validateGeneralSnapshot(requestId, request.policy, input)
+          : validateSnapshotArtifact(requestId, request.policy, input);
         requireUpdated(
           await tx
           .update(cobiaRequests)
-          .set({ snapshot, state: "collecting", updatedAt: new Date() })
+            .set({ snapshot: snapshot as never, state: "collecting", updatedAt: new Date() })
           .where(and(eq(cobiaRequests.id, requestId), eq(cobiaRequests.state, "open")))
           .returning({ id: cobiaRequests.id }),
           "Request must be open before snapshot capture",

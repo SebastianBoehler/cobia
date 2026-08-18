@@ -76,7 +76,7 @@ export const cobiaRequests = pgTable(
       ${table.marketId} = concat(
         (${table.policy}->>'executionChainId')::integer,
         ':',
-        lower(${table.policy}->>'asset')
+        lower(coalesce(${table.policy}->>'asset', ${table.policy}->'input'->>'token'))
       )
     `),
   ],

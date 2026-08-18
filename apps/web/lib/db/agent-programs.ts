@@ -1,4 +1,4 @@
-import { commitment } from "@cobia/domain";
+import { commitment, type PersistedIntentPolicy, type PersistedIntentSnapshot } from "@cobia/domain";
 import { and, asc, eq } from "drizzle-orm";
 import { getAddress, type Address, type Hash } from "viem";
 import { z } from "zod";
@@ -186,7 +186,12 @@ export function createAgentProgramRepository(db: CobiaDatabase) {
         where: eq(cobiaAgentArtifacts.programId, id),
         orderBy: [asc(cobiaAgentArtifacts.id)],
       });
-      return { ...job, policy: request.policy, snapshot: request.snapshot, artifacts };
+      return {
+        ...job,
+        policy: request.policy as PersistedIntentPolicy,
+        snapshot: request.snapshot as PersistedIntentSnapshot,
+        artifacts,
+      };
     },
   };
 }
