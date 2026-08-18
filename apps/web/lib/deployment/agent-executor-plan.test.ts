@@ -13,6 +13,7 @@ const bytecode = "0x60006000f3" as Hex;
 describe("agent executor deployment plan", () => {
   it("predicts the circular executor address and separates delayed activation", () => {
     const plan = buildAgentExecutorDeploymentPlanV1({
+      chainId: 196,
       deployer,
       deployerNonce: 7n,
       owner,
@@ -58,5 +59,82 @@ describe("agent executor deployment plan", () => {
       "unpause-registry",
     ]);
     expect(JSON.stringify(plan)).not.toContain("privateKey");
+  });
+
+  it("builds a paused empty testnet deployment without activation calls", () => {
+    const plan = buildAgentExecutorDeploymentPlanV1({
+      chainId: 1952,
+      deployer,
+      deployerNonce: 11n,
+      owner: deployer,
+      verifier,
+      canaryWallet: wallet,
+      artifacts: {
+        registry: { abi: parseAbi(["constructor(address initialOwner)"]), bytecode },
+        riskManager: {
+          abi: parseAbi(["constructor(address initialOwner,address executor,address verifier)"]),
+          bytecode,
+        },
+        executor: {
+          abi: parseAbi(["constructor(address registry,address riskManager)"]),
+          bytecode,
+        },
+      },
+      capabilities: [],
+      tokens: [],
+    });
+
+    expect(plan.chainId).toBe(1952);
+    expect(plan.proposalTransactions.map(({ label }) => label)).toEqual(["pause-registry"]);
+    expect(plan.activationTransactions).toEqual([]);
+  });
+
+  it("rejects protocol permissions on testnet and empty production plans", () => {
+    const base = {
+      deployer,
+      deployerNonce: 7n,
+      owner,
+      verifier,
+      canaryWallet: wallet,
+      artifacts: {
+        registry: { abi: parseAbi(["constructor(address initialOwner)"]), bytecode },
+        riskManager: {
+          abi: parseAbi(["constructor(address initialOwner,address executor,address verifier)"]),
+          bytecode,
+        },
+        executor: {
+          abi: parseAbi(["constructor(address registry,address riskManager)"]),
+          bytecode,
+        },
+      },
+    } as const;
+
+    expect(() => buildAgentExecutorDeploymentPlanV1({
+      ...base,
+      chainId: 1952,
+      capabilities: [{
+        id: "protocol.action",
+        version: 1,
+        target,
+        selector: "0x12345678",
+        runtimeCodeHash: `0x${"77".repeat(32)}`,
+      }],
+      tokens: [],
+    })).toThrow("Testnet deployment must not contain protocol activation data");
+
+    expect(() => buildAgentExecutorDeploymentPlanV1({
+      ...base,
+      chainId: 196,
+      capabilities: [],
+      tokens: [],
+    })).toThrow("Production deployment plan is incomplete");
+
+    expect(() => buildAgentExecutorDeploymentPlanV1({
+      ...base,
+      chainId: 1952,
+      owner,
+      capabilities: [],
+      tokens: [],
+    })).toThrow("Testnet deployer must be the temporary owner");
   });
 });

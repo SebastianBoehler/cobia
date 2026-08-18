@@ -81,8 +81,9 @@ function limits(input: TokenLimits) {
   };
 }
 
-/** Builds unsigned chain-196 calls only. It has no signer or broadcast method. */
+/** Builds unsigned chain-bound calls only. It has no signer or broadcast method. */
 export function buildAgentExecutorDeploymentPlanV1(input: {
+  chainId: 196 | 1952;
   deployer: Address;
   deployerNonce: bigint;
   owner: Address;
@@ -92,11 +93,18 @@ export function buildAgentExecutorDeploymentPlanV1(input: {
   capabilities: readonly Capability[];
   tokens: readonly TokenLimits[];
 }) {
-  if (input.deployerNonce < 0n || input.capabilities.length === 0 || input.tokens.length === 0) {
-    throw new Error("Deployment plan is incomplete");
+  if (input.deployerNonce < 0n) throw new Error("Deployment nonce is invalid");
+  if (input.chainId === 196 && (input.capabilities.length === 0 || input.tokens.length === 0)) {
+    throw new Error("Production deployment plan is incomplete");
+  }
+  if (input.chainId === 1952 && (input.capabilities.length !== 0 || input.tokens.length !== 0)) {
+    throw new Error("Testnet deployment must not contain protocol activation data");
   }
   const deployer = getAddress(input.deployer);
   const owner = getAddress(input.owner);
+  if (input.chainId === 1952 && owner !== deployer) {
+    throw new Error("Testnet deployer must be the temporary owner");
+  }
   const verifier = getAddress(input.verifier);
   const canaryWallet = getAddress(input.canaryWallet);
   const registry = getContractAddress({ from: deployer, nonce: input.deployerNonce });
@@ -149,10 +157,12 @@ export function buildAgentExecutorDeploymentPlanV1(input: {
       "proposeToken",
       [getAddress(token.token), limits(token)],
     )),
-    call("propose-canary-wallet", riskManager, RISK_ABI, "proposeWallet", [canaryWallet]),
-    call("propose-unpause", riskManager, RISK_ABI, "proposeUnpause"),
+    ...(input.chainId === 196 ? [
+      call("propose-canary-wallet", riskManager, RISK_ABI, "proposeWallet", [canaryWallet]),
+      call("propose-unpause", riskManager, RISK_ABI, "proposeUnpause"),
+    ] : []),
   ];
-  const activationTransactions: PlanCall[] = [
+  const activationTransactions: PlanCall[] = input.chainId === 1952 ? [] : [
     ...input.capabilities.map((capability) => call(
       `activate-${capability.id}@${capability.version}`,
       registry,
@@ -173,7 +183,7 @@ export function buildAgentExecutorDeploymentPlanV1(input: {
   ];
   return {
     version: 1 as const,
-    chainId: 196 as const,
+    chainId: input.chainId,
     deployer,
     owner,
     verifier,

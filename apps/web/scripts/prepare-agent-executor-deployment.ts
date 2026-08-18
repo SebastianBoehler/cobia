@@ -1,55 +1,23 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { getAddress, isAddress, toFunctionSelector, type Abi, type Hex } from "viem";
+import { toFunctionSelector } from "viem";
 import { PROTOCOL_REGISTRY } from "../lib/adapters/registry";
 import { buildAgentExecutorDeploymentPlanV1 } from "../lib/deployment/agent-executor-plan";
 import { buildSafeBatch } from "../lib/deployment/safe-batch";
-
-interface ArtifactFile { abi: Abi; bytecode: { object: Hex } }
-
-function argument(name: string): string {
-  const index = process.argv.indexOf(`--${name}`);
-  const value = index >= 0 ? process.argv[index + 1] : undefined;
-  if (!value || value.startsWith("--")) throw new Error(`Missing --${name}`);
-  return value;
-}
-
-function optionalArgument(name: string): string | undefined {
-  const index = process.argv.indexOf(`--${name}`);
-  const value = index >= 0 ? process.argv[index + 1] : undefined;
-  return value && !value.startsWith("--") ? value : undefined;
-}
-
-function address(name: string) {
-  const value = argument(name);
-  if (!isAddress(value)) throw new Error(`Invalid --${name}`);
-  return getAddress(value);
-}
-
-function artifact(name: string) {
-  const root = fileURLToPath(new URL("../../../", import.meta.url));
-  const value = JSON.parse(readFileSync(
-    `${root}contracts/out/${name}.sol/${name}.json`,
-    "utf8",
-  )) as ArtifactFile;
-  if (!value.bytecode.object.startsWith("0x") || value.bytecode.object.length < 4) {
-    throw new Error(`${name} artifact is unavailable; run pnpm contracts:test first`);
-  }
-  return { abi: value.abi, bytecode: value.bytecode.object };
-}
+import {
+  addressArgument,
+  argument,
+  executorArtifacts,
+  optionalArgument,
+} from "./executor-deployment-input";
 
 const registry = PROTOCOL_REGISTRY;
 const plan = buildAgentExecutorDeploymentPlanV1({
-  deployer: address("deployer"),
+  chainId: 196,
+  deployer: addressArgument("deployer"),
   deployerNonce: BigInt(argument("nonce")),
-  owner: address("owner"),
-  verifier: address("verifier"),
-  canaryWallet: address("canary-wallet"),
-  artifacts: {
-    registry: artifact("CobiaAdapterRegistry"),
-    riskManager: artifact("CobiaRiskManagerV1"),
-    executor: artifact("CobiaExecutorV2"),
-  },
+  owner: addressArgument("owner"),
+  verifier: addressArgument("verifier"),
+  canaryWallet: addressArgument("canary-wallet"),
+  artifacts: executorArtifacts(),
   capabilities: [{
     id: "aave-v3.supply",
     version: 1,

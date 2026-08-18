@@ -8,7 +8,10 @@
   "scripts": {
     "dev": "pnpm --filter @cobia/web dev",
     "contracts:test": "scripts/forge.sh test",
-    "executor:plan": "pnpm --filter @cobia/web exec tsx scripts/prepare-agent-executor-deployment.ts",
+    "executor:plan": "tsx apps/web/scripts/prepare-agent-executor-deployment.ts",
+    "executor:testnet:plan": "tsx apps/web/scripts/prepare-agent-executor-testnet-deployment.ts",
+    "executor:testnet:console": "tsx apps/web/scripts/serve-agent-executor-testnet-deployment.ts",
+    "executor:testnet:verify": "tsx apps/web/scripts/verify-agent-executor-testnet-deployment.ts",
     "env:dev": "node apps/web/scripts/seed-dev-env.mjs",
     "build": "pnpm -r --if-present build",
     "lint": "pnpm -r --if-present lint",
