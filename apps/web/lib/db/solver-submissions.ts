@@ -1,4 +1,6 @@
-import { commitment } from "@cobia/domain";
+import {
+  commitment, GeneralIntentPolicyV2Schema, GeneralIntentSnapshotV1Schema,
+} from "@cobia/domain";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { ObjectiveMeasurementV1Schema } from "../competitions/objective-measurement";
@@ -179,13 +181,50 @@ export function createSolverSubmissionRepository(db: CobiaDatabase) {
         where: eq(cobiaProgramArtifactsV2.submissionId, submissionId),
         orderBy: [asc(cobiaProgramArtifactsV2.id)],
       });
+      const intent = row.intentId ? await db.query.cobiaIntents.findFirst({
+        where: eq(cobiaIntents.id, row.intentId),
+      }) : null;
       const objectiveArtifact = artifacts.find(({ kind }) => kind === "objective");
       return {
         ...row,
+        owner: intent?.owner ?? null,
+        displayGoal: intent?.displayGoal ?? null,
         artifacts,
         objective: objectiveArtifact
           ? ObjectiveMeasurementV1Schema.parse(objectiveArtifact.payload) : null,
         presentationState: projectSubmissionState(row, observedAtSec),
+      };
+    },
+
+    async getExecutionContext(id: string) {
+      const submissionId = z.string().uuid().parse(id);
+      const submission = await db.query.cobiaSolverSubmissions.findFirst({
+        where: eq(cobiaSolverSubmissions.id, submissionId),
+      });
+      if (!submission?.intentId) return null;
+      const intent = await db.query.cobiaIntents.findFirst({
+        where: eq(cobiaIntents.id, submission.intentId),
+      });
+      if (!intent) throw new Error("Program intent is unavailable");
+      const artifacts = await db.query.cobiaProgramArtifactsV2.findMany({
+        where: eq(cobiaProgramArtifactsV2.submissionId, submissionId),
+        orderBy: [asc(cobiaProgramArtifactsV2.id)],
+      });
+      const snapshotArtifact = artifacts.find(({ kind }) => kind === "snapshot");
+      if (!snapshotArtifact) throw new Error("Program snapshot artifact is unavailable");
+      const policy = GeneralIntentPolicyV2Schema.parse(intent.policy);
+      const snapshot = GeneralIntentSnapshotV1Schema.parse(snapshotArtifact.payload);
+      return {
+        state: submission.state,
+        owner: intent.owner,
+        policyHash: intent.policyHash,
+        snapshotHash: snapshotArtifact.artifactHash,
+        manifestHash: policy.manifestHash,
+        blockNumber: submission.blockNumber,
+        blockHash: submission.blockHash,
+        policy,
+        snapshot,
+        artifacts,
       };
     },
 

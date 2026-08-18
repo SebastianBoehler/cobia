@@ -62,9 +62,12 @@ describe("competition coding-agent coordinator", () => {
       programHash: commitment(program),
     }));
     expect(events).toEqual([
-      "run:start", "program", "evidence", "provenance", "verdict", "replay",
+      "run:start", "snapshot", "program", "evidence", "provenance", "verdict", "replay",
       "execution", "verified", "authorization", "attested", "run:completed",
     ]);
+    expect(dependencies.submissions.appendArtifact).toHaveBeenCalledWith(
+      submissionId, "snapshot", input.snapshot,
+    );
   });
 
   it("records abstention without fabricating a submission", async () => {

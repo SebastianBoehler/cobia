@@ -8,7 +8,7 @@ import type {
 import type { CoordinateCapabilityInputV1 } from "./coordinator";
 
 type ArtifactKind =
-  | "program" | "evidence" | "provenance" | "verdict"
+  | "snapshot" | "program" | "evidence" | "provenance" | "verdict"
   | "replay" | "execution" | "authorization";
 
 interface RunStore {
@@ -99,6 +99,7 @@ export async function coordinateCompetitionProgram(
       observedAtSec: input.observedAtSec,
     });
     submissionId = submission.id;
+    await dependencies.submissions.appendArtifact(submission.id, "snapshot", input.snapshot);
     await dependencies.submissions.appendArtifact(submission.id, "program", generated.program);
     await dependencies.submissions.appendArtifact(submission.id, "evidence", generated.evidence);
     await dependencies.submissions.appendArtifact(submission.id, "provenance", generated.provenance);

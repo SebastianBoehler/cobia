@@ -1,4 +1,6 @@
-import { GeneralIntentPolicyV2Schema, commitment } from "@cobia/domain";
+import {
+  GeneralIntentPolicyV2Schema, GeneralIntentSnapshotV1Schema, commitment,
+} from "@cobia/domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { startIntegrationDatabase } from "./integration-database";
 import { createChallengeRepository } from "./challenges";
@@ -93,6 +95,12 @@ describe("solver competition projections", () => {
     await submissions.appendArtifact(second.id, "objective", {
       version: 1, kind: "atomic-value", direction: "maximize", atomic: "10080000",
     });
+    const snapshot = GeneralIntentSnapshotV1Schema.parse({
+      version: 1, kind: "general-onchain", requestId: policy.requestId, chainId: 196,
+      blockNumber: "123457", blockHash: hash("7"),
+      capturedAt: new Date(nowSec * 1_000).toISOString(), manifestHash: policy.manifestHash,
+    });
+    await submissions.appendArtifact(second.id, "snapshot", snapshot);
     const rejected = await submissions.append({
       intentId: policy.requestId, solverId: "beta-solver", revision: 1,
       programHash: hash("8"), validUntilSec: nowSec + 180,
@@ -127,6 +135,12 @@ describe("solver competition projections", () => {
       blockNumber: "123459", blockHash: hash("c"),
       observedAtSec: policy.competition.closesAt,
     })).rejects.toThrow("Competition is closed");
+
+    await expect(submissions.getExecutionContext(second.id)).resolves.toMatchObject({
+      state: "attested", owner, policyHash: commitment(policy),
+      snapshotHash: commitment(snapshot), blockNumber: "123457", blockHash: hash("7"),
+      policy, snapshot,
+    });
   });
 
   it("derives solver statistics and wins from verifier-owned rows", async () => {
