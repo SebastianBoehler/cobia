@@ -9,6 +9,8 @@
     "dev": "pnpm --filter @cobia/web dev",
     "contracts:test": "scripts/forge.sh test",
     "executor:plan": "tsx apps/web/scripts/prepare-agent-executor-deployment.ts",
+    "executor:v3:plan": "tsx apps/web/scripts/prepare-agent-executor-v3-deployment.ts",
+    "executor:v3:console": "tsx apps/web/scripts/serve-agent-executor-v3-deployment.ts",
     "executor:testnet:plan": "tsx apps/web/scripts/prepare-agent-executor-testnet-deployment.ts",
     "executor:testnet:console": "tsx apps/web/scripts/serve-agent-executor-testnet-deployment.ts",
     "executor:testnet:verify": "tsx apps/web/scripts/verify-agent-executor-testnet-deployment.ts",

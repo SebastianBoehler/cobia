@@ -44,7 +44,7 @@ interface TokenLimits {
 }
 interface PlanCall { label: string; to: Address; data: Hex; value: "0x0" }
 
-function capabilityKey(capability: Capability): Hash {
+export function capabilityKey(capability: Capability): Hash {
   if (!/^[a-z0-9]+(?:[._-][a-z0-9]+)+$/.test(capability.id) ||
     !Number.isSafeInteger(capability.version) || capability.version < 1 ||
     !/^0x[0-9a-fA-F]{8}$/.test(capability.selector)) {
@@ -53,7 +53,7 @@ function capabilityKey(capability: Capability): Hash {
   return keccak256(toBytes(`${capability.id}@${capability.version}`));
 }
 
-function permissionKey(capability: Capability): Hash {
+export function capabilityPermissionKey(capability: Capability): Hash {
   return keccak256(encodeAbiParameters(
     parseAbiParameters("bytes32,address,bytes4"),
     [capabilityKey(capability), getAddress(capability.target), capability.selector],
@@ -168,7 +168,7 @@ export function buildAgentExecutorDeploymentPlanV1(input: {
       registry,
       REGISTRY_ABI,
       "activate",
-      [permissionKey(capability)],
+      [capabilityPermissionKey(capability)],
     )),
     ...input.tokens.map((token, index) => call(
       `activate-token-${index}`,

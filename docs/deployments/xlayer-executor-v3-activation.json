@@ -1,0 +1,55 @@
+{
+  "version": "1.0",
+  "chainId": "196",
+  "createdAt": 1787056241000,
+  "meta": {
+    "name": "Cobia Executor V3 activation",
+    "description": "Activates matured registry permissions and V3 risk bounds, then unpauses mainnet execution.",
+    "txBuilderVersion": "2.1.0",
+    "createdFromSafeAddress": "0x08eea990F0b165A20d723e59517044a519C83351",
+    "createdFromOwnerAddress": "",
+    "checksum": "0xa0edcf91b9ae4044e3edf4921771b67e69b71519582fe2761814828186d7560c"
+  },
+  "transactions": [
+    {
+      "to": "0xEf955cC592346e3b4cb8c7a67f3FE6B2c4688877",
+      "value": "0",
+      "data": "0x59db6e8598b745dbd5f4dcab980c9631ea137505eb1431b779611e060855483aca066b5d"
+    },
+    {
+      "to": "0xEf955cC592346e3b4cb8c7a67f3FE6B2c4688877",
+      "value": "0",
+      "data": "0x59db6e8575698503fb23302b6941eaf50de1432de26aeedf682a77f94012372b1c71c235"
+    },
+    {
+      "to": "0xEf955cC592346e3b4cb8c7a67f3FE6B2c4688877",
+      "value": "0",
+      "data": "0x59db6e8584f8b37251137c01d9bbaea8e647481426d165f476d76eb9cfd9d5134af65741"
+    },
+    {
+      "to": "0xc69A1Fb1DD8AeECfbc557e4fc6a03E5a95201ded",
+      "value": "0",
+      "data": "0x0d1ce2d20000000000000000000000004ae46a509f6b1d9056937ba4500cb143933d2dc8"
+    },
+    {
+      "to": "0xc69A1Fb1DD8AeECfbc557e4fc6a03E5a95201ded",
+      "value": "0",
+      "data": "0x0d1ce2d2000000000000000000000000779ded0c9e1022225f8e0630b35a9b54be713736"
+    },
+    {
+      "to": "0xc69A1Fb1DD8AeECfbc557e4fc6a03E5a95201ded",
+      "value": "0",
+      "data": "0x03e28f370000000000000000000000009afbf85e52612a9922617adda9569e13f565de31"
+    },
+    {
+      "to": "0xc69A1Fb1DD8AeECfbc557e4fc6a03E5a95201ded",
+      "value": "0",
+      "data": "0x10d52379"
+    },
+    {
+      "to": "0xEf955cC592346e3b4cb8c7a67f3FE6B2c4688877",
+      "value": "0",
+      "data": "0x16c38b3c0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ]
+}
