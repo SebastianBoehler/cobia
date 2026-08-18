@@ -1,6 +1,6 @@
 # General-intent V3 release readiness
 
-Snapshot: `2026-08-18T17:30:52Z`. This is a pre-activation checkpoint, not a
+Snapshot: `2026-08-18T20:48:13Z`. This is a pre-activation checkpoint, not a
 production-readiness claim.
 
 ## Product delivered locally
@@ -18,6 +18,21 @@ production-readiness claim.
 - The landing prompt rotates complete intent examples, labels live versus
   unavailable capability domains, supports direct selection and pause/play,
   pauses during interaction, and respects reduced motion.
+- Commerce discovery now normalizes immutable public x402 v2 and UCP Catalog
+  offers. The x402 execution lane has a canonical policy/program, coding-agent
+  sandbox runner, verifier-owned merchant semantics, deterministic
+  pre-authorization reproduction, exact EIP-3009 wallet authorization,
+  DNS-pinned paid-resource broker, append-only lifecycle, and independent X
+  Layer settlement verification.
+- Payment settlement is never labeled delivery or order issuance. Direct
+  contract orders require configured event/ERC-721/ERC-1155 evidence and the
+  guarded V3 fresh-fork execution path. Shipping, buyer PII, tracking, refunds,
+  subscriptions, and asynchronous fulfillment remain out of scope.
+
+The production commerce merchant manifest is deliberately empty. Public offers
+are therefore discovery-only and no live wallet authorization is exposed. A
+remote x402 advertisement, ABI, product description, SDK, or agent output is
+not sufficient trust evidence.
 
 The seeded standing challenges use capability-manifest commitment
 `0xaa8947f768daac5548f0f6b790db4516e58e61114b935e7086b3cd4c2d79e91a`.
@@ -27,18 +42,24 @@ onchain evidence.
 
 ## Verification evidence
 
-The post-change local gates completed successfully:
+The earlier post-change local gates completed successfully:
 
 | Gate | Result |
 | --- | --- |
-| `pnpm test` | 953 tests: domain 134, solvers 110, web 709 |
+| `pnpm test` | 1,036 tests: domain 143, solvers 116, web 777 |
 | `pnpm typecheck` | all three workspace packages passed |
 | `pnpm lint` | all three workspace packages passed |
 | `pnpm build` | production Next.js build passed; only current product/API paths emitted |
 | `pnpm audit --audit-level high` | no known vulnerabilities |
-| `pnpm --filter @cobia/web test:integration` | 15 files, 62 PostgreSQL integration tests |
+| `pnpm --filter @cobia/web test:integration` | 17 files, 69 PostgreSQL integration tests |
 | `pnpm contracts:test` | 16 suites, 66 Solidity tests |
 | `pnpm --filter @cobia/web test:fork` | 4 files, 7 real pinned Anvil-fork tests |
+
+After the commerce additions, the complete local pre-activation gate ran under
+Node `24.19.0`: 1,036 workspace tests, all workspace typechecks and lint, the
+production Next.js build, 69 PostgreSQL integration tests, 66 Solidity tests,
+the high-severity dependency audit, and all seven real pinned Anvil-fork tests
+passed. These commands must still be rerun after activation.
 
 The contract and fork gates were run after the V3 architecture changes and
 before the final UI/challenge-template-only edits. They must run again in the
@@ -52,8 +73,8 @@ surface.
 
 ## Mainnet activation gate
 
-At X Layer mainnet block `68305179`, hash
-`0x73778502e68aa51f56b4f1b4cef653fe9595e666f7e356f88049978180ac6f43`,
+At X Layer mainnet block `68317057`, hash
+`0x6e1896951a801443d89caf122a0d8234d240b4ae40cd0f161d433ca69b5b3d34`,
 read-only calls reproduced the unchanged delayed proposal:
 
 - chain ID `196`;
@@ -82,7 +103,7 @@ Cobia does not possess a Safe signer or production principal key.
    identities, and runtime hashes.
 3. Run the complete workspace, integration, contract, audit, build, and pinned
    fork gates again.
-4. Apply migrations `0012` through `0016` to the production database using the
+4. Apply migrations `0012` through `0018` to the production database using the
    canonical configured database only; verify the migration journal and seeded
    challenge commitments.
 5. Push the logical local commits to `main`, deploy the production Vercel app,
@@ -92,7 +113,9 @@ Cobia does not possess a Safe signer or production principal key.
 7. Keep the system canary-only. A retail-size wallet execution is a separate
    explicit user decision and is not an automated release test.
 
-Community solver hosting, arbitrary generic calls, shopping/x402,
-subscriptions, RWAs, asynchronous bridges, and guaranteed future yield remain
-outside the activated capability manifest. They are product directions, not
-live execution claims.
+Community commerce-solver hosting, arbitrary generic calls, subscriptions,
+RWAs, asynchronous bridges, and guaranteed future yield remain outside the
+activated capability manifest. x402 discovery and the closed-world verified
+placement machinery are implemented, but production commerce execution remains
+disabled until a real merchant entry passes the manifest, code-identity,
+authorization, settlement, and live-offer gates.
