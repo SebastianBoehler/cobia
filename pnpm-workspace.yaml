@@ -10,6 +10,7 @@ allowBuilds:
   unrs-resolver: true
 
 overrides:
+  '@esbuild-kit/core-utils@3.3.2>esbuild': 0.25.12
   baseline-browser-mapping: 2.11.12
   electron-to-chromium: 1.5.402
   mppx: 0.4.11
