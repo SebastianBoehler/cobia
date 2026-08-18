@@ -47,6 +47,7 @@ export const uniswapExactInputCapabilityV1: CapabilityModuleV1<Parameters> = {
       target: PROTOCOL_REGISTRY.uniswapV3.swapRouter02.address,
       selector: selectorOf(data),
       data,
+      expectedGas: 700_000,
       spend: [{ token: pair.input.underlying.address, atomic: parameters.amountInAtomic }],
       guaranteedOutputs: [{
         token: pair.output.underlying.address,

@@ -64,6 +64,7 @@ const compiled = [{
   target,
   selector: "0x12345678",
   data: "0x12345678",
+  expectedGas: 200_000,
   spend: [{ token: inputToken, atomic: "10" }],
   guaranteedOutputs: [{ token: outputToken, account: owner, minimumIncreaseAtomic: "9" }],
   deployments: [{ address: target, runtimeCodeHash }],

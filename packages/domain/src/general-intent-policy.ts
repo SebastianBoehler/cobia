@@ -97,6 +97,10 @@ export const GeneralIntentPolicyV1Schema = z.object({
       context.addIssue({ code: "custom", path: ["predicates", index, "target"], message: "Predicate target is forbidden" });
     }
   });
+  if (policy.objective.kind !== "satisfy" &&
+    policy.forbiddenTargets.includes(policy.objective.read.target)) {
+    context.addIssue({ code: "custom", path: ["objective", "read", "target"], message: "Objective target is forbidden" });
+  }
 });
 
 export type GeneralIntentPolicyV1 = z.infer<typeof GeneralIntentPolicyV1Schema>;

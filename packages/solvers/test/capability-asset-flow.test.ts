@@ -39,6 +39,7 @@ function action(input: Partial<CompiledCapabilityActionV1>): CompiledCapabilityA
     target: "0x6666666666666666666666666666666666666666",
     selector: "0x12345678",
     data: "0x12345678",
+    expectedGas: 100_000,
     spend: [],
     guaranteedOutputs: [],
     deployments: [],

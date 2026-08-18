@@ -122,6 +122,11 @@ describe("general on-chain intent policy", () => {
       ...policy,
       objective: { kind: "maximize", read: { ...read, decodeType: "address" } },
     }).success).toBe(false);
+    expect(GeneralIntentPolicyV1Schema.safeParse({
+      ...policy,
+      predicates: [],
+      forbiddenTargets: [readTarget],
+    }).success).toBe(false);
   });
 
   it("rejects expired, zero-funded, forbidden, or widened policies", () => {

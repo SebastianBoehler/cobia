@@ -36,6 +36,7 @@ const module: CapabilityModuleV1<{ amountAtomic: string }> = {
       target,
       selector: "0x12345678",
       data: "0x12345678",
+      expectedGas: 200_000,
       spend: [{ token: routeInputAsset, atomic: parameters.amountAtomic }],
       guaranteedOutputs: [{
         token: routeOutputAsset,

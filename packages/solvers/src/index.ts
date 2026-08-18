@@ -7,6 +7,8 @@ export * from "./capabilities/program";
 export * from "./capabilities/program-v2";
 export * from "./capabilities/evidence-v2";
 export * from "./capabilities/static-read";
+export * from "./capabilities/verifier-v2";
+export * from "./capabilities/sandbox-runner-v2";
 export * from "./capabilities/module";
 export * from "./capabilities/registry";
 export * from "./capabilities/asset-flow";

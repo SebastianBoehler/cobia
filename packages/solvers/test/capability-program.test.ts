@@ -45,6 +45,7 @@ function module(id: string, version: number): CapabilityModuleV1<unknown> {
       target: "0x5555555555555555555555555555555555555555",
       selector: "0x12345678",
       data: "0x12345678",
+      expectedGas: 100_000,
       spend: [],
       guaranteedOutputs: [],
       deployments: [],

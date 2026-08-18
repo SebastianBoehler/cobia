@@ -30,6 +30,7 @@ export interface CompiledCapabilityActionV1 {
   target: Address;
   selector: Hex;
   data: Hex;
+  expectedGas: number;
   spend: readonly CapabilitySpendV1[];
   guaranteedOutputs: readonly CapabilityOutputV1[];
   deployments: readonly CapabilityDeploymentV1[];

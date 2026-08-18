@@ -20,7 +20,7 @@ const program = {
 } satisfies CapabilityProgramV1;
 const compiled = [{
   capabilityId: "protocol.action", capabilityVersion: 1, target, selector: "0x12345678",
-  data: "0x12345678", spend: [{ token: inputToken, atomic: "10" }],
+  data: "0x12345678", expectedGas: 100_000, spend: [{ token: inputToken, atomic: "10" }],
   guaranteedOutputs: [{ token: outputToken, account: executor, minimumIncreaseAtomic: "10" }],
   deployments: [{ address: target, runtimeCodeHash: codeHash }], evidencePredicates: [],
 }] satisfies CompiledCapabilityActionV1[];

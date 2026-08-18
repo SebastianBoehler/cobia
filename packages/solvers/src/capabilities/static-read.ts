@@ -29,6 +29,24 @@ export interface StaticReadResultV1 {
   decodedValue: string;
 }
 
+export function decodeStaticReadReturnV1(
+  input: unknown,
+  returnDataInput: Hex,
+): StaticReadResultV1 {
+  const read = StaticReadV1Schema.parse(input);
+  const returnData = returnDataInput.toLowerCase() as Hex;
+  if (!/^0x(?:[0-9a-f]{2})+$/.test(returnData)) {
+    throw new StaticReadErrorV1("RETURN_INVALID", "Static read returned malformed hex");
+  }
+  const bytes = size(returnData);
+  const offset = read.returnWordIndex * 32;
+  if (bytes < 32 || bytes > 4_096 || bytes % 32 !== 0 || offset + 32 > bytes) {
+    throw new StaticReadErrorV1("RETURN_INVALID", "Static read returned an invalid ABI word range");
+  }
+  const word = sliceHex(returnData, offset, offset + 32);
+  return { readHash: commitment(read), returnData, decodedValue: decodeWord(read, word) };
+}
+
 function decodeWord(read: StaticReadV1, word: Hex): string {
   const raw = BigInt(word);
   switch (read.decodeType) {
@@ -64,21 +82,7 @@ export async function evaluateStaticReadV1(
     gasLimit: read.gasLimit,
   });
   if (!response.success) throw new StaticReadErrorV1("CALL_FAILED", "Static read reverted");
-  const returnData = response.returnData.toLowerCase() as Hex;
-  if (!/^0x(?:[0-9a-f]{2})+$/.test(returnData)) {
-    throw new StaticReadErrorV1("RETURN_INVALID", "Static read returned malformed hex");
-  }
-  const bytes = size(returnData);
-  const offset = read.returnWordIndex * 32;
-  if (bytes < 32 || bytes > 4_096 || bytes % 32 !== 0 || offset + 32 > bytes) {
-    throw new StaticReadErrorV1("RETURN_INVALID", "Static read returned an invalid ABI word range");
-  }
-  const word = sliceHex(returnData, offset, offset + 32);
-  return {
-    readHash: commitment(read),
-    returnData,
-    decodedValue: decodeWord(read, word),
-  };
+  return decodeStaticReadReturnV1(read, response.returnData);
 }
 
 function compare(predicate: StaticPredicateV1, actual: string): boolean {
@@ -92,6 +96,10 @@ function compare(predicate: StaticPredicateV1, actual: string): boolean {
   return actual.toLowerCase() === predicate.bound.toLowerCase();
 }
 
+export function staticPredicateSatisfiedV1(input: unknown, decodedValue: string): boolean {
+  return compare(StaticPredicateV1Schema.parse(input), decodedValue);
+}
+
 export async function evaluateStaticPredicateV1(
   input: unknown,
   caller: StaticReadCallerV1,
@@ -99,5 +107,5 @@ export async function evaluateStaticPredicateV1(
   const predicate = StaticPredicateV1Schema.parse(input);
   const { phase, comparator: _comparator, bound: _bound, ...read } = predicate;
   const result = await evaluateStaticReadV1(read, caller);
-  return { ...result, phase, satisfied: compare(predicate, result.decodedValue) };
+  return { ...result, phase, satisfied: staticPredicateSatisfiedV1(predicate, result.decodedValue) };
 }

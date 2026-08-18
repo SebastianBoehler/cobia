@@ -50,6 +50,7 @@ export const curveExactInputCapabilityV1: CapabilityModuleV1<Parameters> = {
       target: PROTOCOL_REGISTRY.curveStableSwapNg.pair.pool.address,
       selector: selectorOf(data),
       data,
+      expectedGas: 700_000,
       spend: [{ token: pair.input.underlying.address, atomic: parameters.amountInAtomic }],
       guaranteedOutputs: [{
         token: pair.output.underlying.address,

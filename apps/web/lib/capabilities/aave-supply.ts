@@ -39,6 +39,7 @@ export const aaveSupplyCapabilityV1: CapabilityModuleV1<Parameters> = {
       target: PROTOCOL_REGISTRY.aaveV3.pool.address,
       selector: selectorOf(data),
       data,
+      expectedGas: 500_000,
       spend: [{ token: asset.underlying.address, atomic: parameters.amountAtomic }],
       guaranteedOutputs: [{
         token: asset.aToken.address,
