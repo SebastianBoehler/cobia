@@ -24,6 +24,7 @@ import {
   cobiaAgentPrograms,
 } from "./agent-program-schema";
 import { challengeStatus, cobiaChallengeRounds, cobiaChallenges } from "./challenge-schema";
+import { cobiaCommerceOfferSnapshots } from "./commerce-schema";
 import { cobiaIntents, intentState } from "./intent-schema";
 import {
   cobiaProgramArtifactsV2,
@@ -40,6 +41,7 @@ export * from "./request-schema";
 export * from "./route-schema";
 export * from "./agent-program-schema";
 export * from "./challenge-schema";
+export * from "./commerce-schema";
 export * from "./intent-schema";
 export * from "./program-schema-v2";
 export * from "./solver-schema";
@@ -59,6 +61,7 @@ export const cobiaSchema = {
   cobiaAgentArtifacts,
   cobiaChallenges,
   cobiaChallengeRounds,
+  cobiaCommerceOfferSnapshots,
   cobiaIntents,
   cobiaSolvers,
   cobiaSolverRuns,
