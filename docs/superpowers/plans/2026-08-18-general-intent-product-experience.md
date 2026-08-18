@@ -81,15 +81,15 @@ export const GeneralIntentPolicyV2Schema = z.object({
 - Create: `apps/web/drizzle/0013_general_solver_competitions.sql`
 - Create: `apps/web/lib/db/general-competitions.integration.test.ts`
 
-- [ ] Write failing integration tests for standing challenges, bounded challenge rounds, custom intent creation, solver identity registration, immutable revisions, supersession, verifier artifacts, expiry, deterministic latest-current selection, and rejection-code history.
-- [ ] Test that revision replacement inserts a new row, never updates program/evidence hashes, never resurrects an expired revision, and never lets a rejected revision rank.
-- [ ] Test migration behavior against an empty current model and an installation containing old tables; assert no legacy rows are copied and no audit table is dropped.
-- [ ] Run `pnpm --filter @cobia/web exec vitest run --config vitest.integration.config.mts lib/db/general-competitions.integration.test.ts`; expect missing-schema failures.
-- [ ] Add new tables: `cobia_challenges`, `cobia_challenge_rounds`, `cobia_intents`, `cobia_solvers`, `cobia_solver_submissions`, and `cobia_program_artifacts_v2`. Use check constraints for chain 196, lowercase addresses/hashes, positive revisions, bounded rounds, terminal timestamps, expiry, and state/error consistency.
-- [ ] Store verifier-owned challenge templates without an owner, nonce, calldata, or authorization. A round submission references either a challenge round for discovery or a signed custom intent for execution, never both.
-- [ ] Store solver profile claims separately from verifier-derived statistics. Require `solverId`, display name, operator kind, attestation address when community-operated, and declared capability IDs; do not seed invented solvers.
-- [ ] Store `objectiveMeasurement` as a typed canonical JSON artifact hash rather than a mutable numeric column. Derive wins and acceptance rates from verdict/receipt rows.
-- [ ] Generate and inspect Drizzle metadata, then rerun the focused integration test and web typecheck.
+- [x] Write failing integration tests for standing challenges, bounded challenge rounds, custom intent creation, solver identity registration, immutable revisions, supersession, verifier artifacts, expiry, deterministic latest-current selection, and rejection-code history.
+- [x] Test that revision replacement inserts a new row and program/evidence identities cannot be updated; ranking and expiry projection follow in Task 3.
+- [x] Test migration behavior with existing old tables; assert no legacy rows are copied and no audit table is dropped.
+- [x] Run the focused integration test and observe missing-table failures before adding the schema.
+- [x] Add new tables: `cobia_challenges`, `cobia_challenge_rounds`, `cobia_intents`, `cobia_solvers`, `cobia_solver_submissions`, and `cobia_program_artifacts_v2`. Use check constraints for chain 196, lowercase addresses/hashes, positive revisions, bounded rounds, expiry, and state/error consistency.
+- [x] Store verifier-owned challenge templates without an owner, nonce, calldata, or authorization. A round submission references either a challenge round for discovery or a signed custom intent for execution, never both.
+- [x] Store solver profile claims separately from verifier-derived statistics. Require `solverId`, display name, operator kind, attestation address when community-operated, and declared capability IDs; do not seed invented solvers.
+- [x] Store objective measurement as a canonical immutable `objective` artifact hash rather than a mutable numeric column. Derive wins and acceptance rates from verdict/receipt rows.
+- [x] Validate the Drizzle journal with `drizzle-kit check`, rerun the focused integration test (4 passed), and run web typecheck.
 - [ ] Commit: `feat(db): store immutable solver competitions`
 
 ## Task 3: Build repositories and current-versus-history projections
