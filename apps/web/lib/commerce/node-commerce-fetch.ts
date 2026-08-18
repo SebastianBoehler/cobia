@@ -24,8 +24,12 @@ export const nodeCommerceFetchV1: CommerceFetchV1 = (input) => new Promise((reso
     method: "GET",
     headers: input.headers,
     servername: url.hostname,
-    lookup: (_hostname, _options, callback) => {
-      callback(null, input.resolvedAddress, family);
+    lookup: (_hostname, options, callback) => {
+      if (typeof options === "object" && options.all) {
+        callback(null, [{ address: input.resolvedAddress, family }]);
+      } else {
+        callback(null, input.resolvedAddress, family);
+      }
     },
   }, (response) => {
     const contentEncoding = response.headers["content-encoding"];

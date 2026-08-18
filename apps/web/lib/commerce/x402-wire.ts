@@ -18,7 +18,7 @@ export const X402PaymentRequirementV2Schema = z.object({
   amount: z.string().regex(/^[1-9][0-9]*$/).max(78),
   asset: AddressSchema,
   payTo: AddressSchema,
-  maxTimeoutSeconds: z.number().int().min(1).max(900),
+  maxTimeoutSeconds: z.number().int().min(1).max(604_800),
   extra: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
@@ -114,13 +114,14 @@ export function normalizeX402ResourceV1(input: NormalizeX402Input): CommerceOffe
   const transferMethod = accepted.extra?.assetTransferMethod;
   const paymentFlow = accepted.extra?.paymentFlow;
   const executable = input.merchantRegistered && accepted.scheme === "exact" && chainId === 196 &&
+    accepted.maxTimeoutSeconds <= 900 &&
     (transferMethod === undefined || transferMethod === "eip3009") &&
     (paymentFlow === undefined || paymentFlow === "authorization");
   const blockedReason = !input.merchantRegistered
     ? "MERCHANT_UNREGISTERED"
     : chainId !== 196
     ? "CHAIN_UNSUPPORTED"
-    : accepted.scheme !== "exact" || transferMethod === "permit2" ||
+    : accepted.scheme !== "exact" || accepted.maxTimeoutSeconds > 900 || transferMethod === "permit2" ||
       (paymentFlow !== undefined && paymentFlow !== "authorization")
       ? "PLACEMENT_UNSUPPORTED"
       : "ASSET_UNSUPPORTED";

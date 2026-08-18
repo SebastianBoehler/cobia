@@ -98,6 +98,10 @@ describe("CommerceOfferV1", () => {
       ...executableOffer,
       evidence: { ...executableOffer.evidence, receiptRecipient: address("0") },
     }).success).toBe(false);
+    expect(CommerceOfferV1Schema.safeParse({
+      ...executableOffer,
+      payment: { ...executableOffer.payment, maxTimeoutSec: 3_600 },
+    }).success).toBe(false);
   });
 
   it("rejects missing or contradictory blocked reasons", () => {

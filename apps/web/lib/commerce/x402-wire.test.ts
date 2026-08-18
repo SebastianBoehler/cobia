@@ -69,6 +69,7 @@ describe("x402 v2 commerce wire", () => {
     for (const acceptance of [
       { ...required.accepts[0], network: "eip155:1" },
       { ...required.accepts[0], extra: { assetTransferMethod: "permit2" } },
+      { ...required.accepts[0], maxTimeoutSeconds: 3_600 },
     ]) {
       const offer = normalizeX402ResourceV1({
         paymentRequired: { ...required, accepts: [acceptance] },

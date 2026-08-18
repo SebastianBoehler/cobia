@@ -80,7 +80,7 @@ export const CommerceOfferV1Schema = z.object({
     scheme: z.literal("exact"),
     asset: AddressSchema,
     atomicAmount: PositiveIntegerStringSchema,
-    maxTimeoutSec: z.number().int().min(1).max(900),
+    maxTimeoutSec: z.number().int().min(1).max(604_800),
   }).strict(),
   placement: PlacementSchema,
   evidence: z.object({
@@ -100,6 +100,9 @@ export const CommerceOfferV1Schema = z.object({
   }
   if (offer.eligibility.status === "executable" && offer.payment.chainId !== 196) {
     context.addIssue({ code: "custom", path: ["payment", "chainId"], message: "Executable offers require X Layer mainnet" });
+  }
+  if (offer.eligibility.status === "executable" && offer.payment.maxTimeoutSec > 900) {
+    context.addIssue({ code: "custom", path: ["payment", "maxTimeoutSec"], message: "Executable offer timeout exceeds policy bound" });
   }
   if (offer.eligibility.status === "executable" && /^0x0{64}$/.test(offer.merchant.manifestHash)) {
     context.addIssue({ code: "custom", path: ["merchant", "manifestHash"], message: "Executable offers require a trusted merchant manifest" });
