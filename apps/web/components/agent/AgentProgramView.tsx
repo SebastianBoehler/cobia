@@ -30,6 +30,18 @@ function message(value: unknown, fallback: string) {
     : fallback;
 }
 
+export function hasRequiredConfirmations(
+  receiptBlock: string,
+  latestBlock: string,
+  confirmations: number,
+) {
+  if (!/^0x[0-9a-fA-F]+$/.test(receiptBlock) || !/^0x[0-9a-fA-F]+$/.test(latestBlock) ||
+    !Number.isInteger(confirmations) || confirmations < 0) {
+    throw new Error("Wallet returned invalid block confirmation data");
+  }
+  return BigInt(latestBlock) >= BigInt(receiptBlock) + BigInt(confirmations);
+}
+
 async function load(programId: string): Promise<ProgramView> {
   const response = await fetch(`/api/agent-programs/${programId}`, { cache: "no-store" });
   const body = await response.json();
@@ -90,7 +102,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
     } finally { setPending(false); }
   }
 
-  async function send(call: TransactionCall): Promise<Hash> {
+  async function send(call: TransactionCall, confirmations = 0): Promise<Hash> {
     if (!wallet.account) throw new Error("Connect the owner wallet.");
     const hash = await wallet.request({
       method: "eth_sendTransaction",
@@ -101,10 +113,14 @@ export function AgentProgramView({ programId }: { programId: string }) {
     }
     for (let attempt = 0; attempt < 120; ++attempt) {
       const receipt = await wallet.request({ method: "eth_getTransactionReceipt", params: [hash] }) as
-        { status?: string } | null;
+        { status?: string; blockNumber?: string } | null;
       if (receipt) {
         if (receipt.status !== "0x1") throw new Error("Wallet transaction reverted.");
-        return hash as Hash;
+        if (confirmations === 0) return hash as Hash;
+        if (!receipt.blockNumber) throw new Error("Wallet receipt omitted its block number.");
+        const latestBlock = await wallet.request({ method: "eth_blockNumber" });
+        if (typeof latestBlock !== "string") throw new Error("Wallet returned an invalid latest block.");
+        if (hasRequiredConfirmations(receipt.blockNumber, latestBlock, confirmations)) return hash as Hash;
       }
       await new Promise((resolve) => window.setTimeout(resolve, 1_000));
     }
@@ -125,7 +141,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
     if (!prepared) return;
     setPending(true); setError(undefined);
     try {
-      const transactionHash = await send(prepared.execution);
+      const transactionHash = await send(prepared.execution, 1);
       const receiptAccess = await accessProof();
       const response = await fetch(`/api/agent-programs/${programId}/execution/receipt`, {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -156,7 +172,9 @@ export function AgentProgramView({ programId }: { programId: string }) {
       {program.program?.actions.map((action, index) => <p key={`${action.capabilityId}-${index}`}>
         {action.capabilityId}@{action.capabilityVersion}
       </p>)}
-      <p>{program.replay?.reproduced ? "Fresh fork replay reproduced the proposal." : "No accepted replay."}</p>
+      <p>{program.replay?.reproduced
+        ? "Fresh fork replay reproduced the proposal. This is evidence only; execution below targets X Layer mainnet."
+        : "No accepted replay."}</p>
       {program.receipt?.transactionHash ? <p>Confirmed transaction {program.receipt.transactionHash}</p> : null}
     </div>
     {error ? <p role="alert" className="form-alert">{error}</p> : null}
@@ -167,7 +185,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
       {pending ? "Waiting for approval…" : `Confirm bounded approval ${approvalIndex + 1}/${prepared.approvals.length}`}
     </button> : null}
     {prepared && approvalsDone && !confirmed ? <button className="button button--primary" disabled={pending} onClick={execute}>
-      {pending ? "Waiting for X Layer receipt…" : "Confirm exact atomic execution"}
+      {pending ? "Waiting for X Layer mainnet receipt…" : "Confirm exact mainnet execution"}
     </button> : null}
   </section>;
 }

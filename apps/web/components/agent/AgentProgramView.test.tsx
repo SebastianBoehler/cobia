@@ -2,7 +2,7 @@
 import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AgentProgramView } from "./AgentProgramView";
+import { AgentProgramView, hasRequiredConfirmations } from "./AgentProgramView";
 
 describe("AgentProgramView", () => {
   beforeEach(() => {
@@ -26,5 +26,10 @@ describe("AgentProgramView", () => {
     expect(await screen.findByText("Past discovery")).toBeVisible();
     expect(screen.getByText("aave-v3.supply@1")).toBeVisible();
     expect(screen.queryByRole("button", { name: /prepare execution/i })).not.toBeInTheDocument();
+  });
+
+  it("does not attribute an execution until its receipt has one confirmation", () => {
+    expect(hasRequiredConfirmations("0x7b", "0x7b", 1)).toBe(false);
+    expect(hasRequiredConfirmations("0x7b", "0x7c", 1)).toBe(true);
   });
 });

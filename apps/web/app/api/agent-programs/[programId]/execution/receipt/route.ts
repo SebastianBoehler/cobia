@@ -3,9 +3,14 @@ import { createPublicClient, http, isAddressEqual, type Hash, type Hex } from "v
 import { z } from "zod";
 import { xLayer } from "@/lib/chain/xlayer";
 import { prepareAgentExecutionV1 } from "@/lib/coding-agent-sandbox/agent-execution";
+import { prepareAgentExecutionV3 } from "@/lib/coding-agent-sandbox/agent-execution-v3";
 import { verifyAgentExecutionAccessProof } from "@/lib/coding-agent-sandbox/execution-access";
 import { validateAgentExecutionReceiptV1 } from "@/lib/coding-agent-sandbox/execution-receipt";
-import { readCodingAgentRuntimeConfig } from "@/lib/env";
+import {
+  assertCanonicalAgentExecutionReceipt,
+  validateAgentExecutionReceiptV3,
+} from "@/lib/coding-agent-sandbox/execution-receipt-v3";
+import { readCodingAgentRuntimeConfig, readCodingAgentV3ExecutionConfig } from "@/lib/env";
 import { getAgentProgramRepository } from "@/lib/runtime/market";
 
 export const runtime = "nodejs";
@@ -38,43 +43,89 @@ export async function POST(
     if (!stored || !isAddressEqual(stored.owner as `0x${string}`, proof.owner)) {
       return NextResponse.json({ code: "NOT_FOUND", message: "Owner program not found." }, { status: 404 });
     }
-    const config = readCodingAgentRuntimeConfig();
     const execution = stored.artifacts.find(({ kind }) => kind === "execution")?.payload as {
+      version?: unknown;
       canonicalProgramHash?: Hash;
     } | undefined;
-    if (!execution?.canonicalProgramHash) throw new Error("Canonical execution commitment is unavailable");
-    const client = createPublicClient({ chain: xLayer, transport: http(config.XLAYER_RPC_URL), cacheTime: 0 });
+    const v3 = execution?.version === 3;
+    const executionConfig = v3
+      ? (() => {
+          const value = readCodingAgentV3ExecutionConfig();
+          return { executor: value.COBIA_EXECUTOR_V3_ADDRESS, rpcUrl: value.XLAYER_RPC_URL };
+        })()
+      : (() => {
+          const value = readCodingAgentRuntimeConfig();
+          return { executor: value.COBIA_EXECUTOR_V2_ADDRESS, rpcUrl: value.XLAYER_RPC_URL };
+        })();
+    const { executor } = executionConfig;
+    if (!v3 && !execution?.canonicalProgramHash) throw new Error("Canonical execution commitment is unavailable");
+    const client = createPublicClient({ chain: xLayer, transport: http(executionConfig.rpcUrl), cacheTime: 0 });
     const transactionHash = body.transactionHash as Hash;
     const [transaction, receipt] = await Promise.all([
       client.getTransaction({ hash: transactionHash }),
       client.getTransactionReceipt({ hash: transactionHash }),
     ]);
-    const block = await client.getBlock({ blockHash: receipt.blockHash });
-    const prepared = prepareAgentExecutionV1({
-      context: stored,
-      owner: proof.owner,
-      executor: config.COBIA_EXECUTOR_V2_ADDRESS,
-      nowSec: Number(block.timestamp),
+    const [block, latestBlock] = await Promise.all([
+      client.getBlock({ blockNumber: receipt.blockNumber }),
+      client.getBlock(),
+    ]);
+    if (block.number === null || latestBlock.number === null) {
+      throw new Error("General execution receipt block metadata is unavailable");
+    }
+    assertCanonicalAgentExecutionReceipt({
+      receipt,
+      canonicalBlock: { number: block.number, hash: block.hash },
+      latestBlockNumber: latestBlock.number,
     });
-    const attributed = validateAgentExecutionReceiptV1({
-      expected: {
-        owner: proof.owner,
-        executor: config.COBIA_EXECUTOR_V2_ADDRESS,
-        data: prepared.execution.data,
-        canonicalProgramHash: execution.canonicalProgramHash,
-      },
-      transaction: {
-        hash: transaction.hash, from: transaction.from, to: transaction.to,
-        input: transaction.input, value: transaction.value,
-      },
-      receipt: {
-        transactionHash: receipt.transactionHash,
-        status: receipt.status,
-        blockNumber: receipt.blockNumber,
-        blockHash: receipt.blockHash,
-        logs: receipt.logs,
-      },
-    });
+    const transactionInput = {
+      hash: transaction.hash, from: transaction.from, to: transaction.to,
+      input: transaction.input, value: transaction.value,
+    };
+    const receiptInput = {
+      transactionHash: receipt.transactionHash,
+      status: receipt.status,
+      blockNumber: receipt.blockNumber,
+      blockHash: receipt.blockHash,
+      logs: receipt.logs,
+    };
+    const attributed = v3
+      ? (() => {
+          const prepared = prepareAgentExecutionV3({
+            context: stored as never,
+            owner: proof.owner,
+            executor,
+            nowSec: Number(block.timestamp),
+          });
+          return validateAgentExecutionReceiptV3({
+            expected: {
+              owner: proof.owner,
+              executor,
+              data: prepared.execution.data,
+              canonicalProgramHash: prepared.canonicalProgramHash,
+              executionCommitment: prepared.executionCommitment,
+            },
+            transaction: transactionInput,
+            receipt: receiptInput,
+          });
+        })()
+      : (() => {
+          const prepared = prepareAgentExecutionV1({
+            context: stored as never,
+            owner: proof.owner,
+            executor,
+            nowSec: Number(block.timestamp),
+          });
+          return validateAgentExecutionReceiptV1({
+            expected: {
+              owner: proof.owner,
+              executor,
+              data: prepared.execution.data,
+              canonicalProgramHash: execution.canonicalProgramHash!,
+            },
+            transaction: transactionInput,
+            receipt: receiptInput,
+          });
+        })();
     await repository.append(programId, "receipt", attributed);
     return NextResponse.json({ state: "confirmed", receipt: attributed });
   } catch (error) {

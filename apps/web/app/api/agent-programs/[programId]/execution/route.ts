@@ -1,15 +1,19 @@
 import { NextResponse } from "next/server";
-import { createPublicClient, encodeFunctionData, erc20Abi, http, isAddressEqual, type Hex } from "viem";
+import { createPublicClient, erc20Abi, http, isAddressEqual, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { z } from "zod";
 import { xLayer } from "@/lib/chain/xlayer";
 import { prepareAgentExecutionV1 } from "@/lib/coding-agent-sandbox/agent-execution";
 import {
+  exactApprovalCalls,
+  prepareAgentExecutionV3,
+} from "@/lib/coding-agent-sandbox/agent-execution-v3";
+import {
   createAgentExecutorReadV1,
   assertAgentExecutorReadyV1,
 } from "@/lib/coding-agent-sandbox/executor-preflight";
 import { verifyAgentExecutionAccessProof } from "@/lib/coding-agent-sandbox/execution-access";
-import { readCodingAgentRuntimeConfig } from "@/lib/env";
+import { readCodingAgentRuntimeConfig, readCodingAgentV3ExecutionConfig } from "@/lib/env";
 import { getAgentProgramRepository } from "@/lib/runtime/market";
 
 export const runtime = "nodejs";
@@ -40,22 +44,51 @@ export async function POST(
     if (!stored || !isAddressEqual(stored.owner as `0x${string}`, proof.owner)) {
       return NextResponse.json({ code: "NOT_FOUND", message: "Owner program not found." }, { status: 404 });
     }
-    const config = readCodingAgentRuntimeConfig();
-    const prepared = prepareAgentExecutionV1({
-      context: stored,
-      owner: proof.owner,
-      executor: config.COBIA_EXECUTOR_V2_ADDRESS,
-      nowSec: Math.floor(Date.now() / 1_000),
-    });
+    const executionVersion = (stored.artifacts.find(({ kind }) => kind === "execution")?.payload as
+      { version?: unknown } | undefined)?.version;
+    const v3 = executionVersion === 3;
+    const executionConfig = v3
+      ? (() => {
+          const value = readCodingAgentV3ExecutionConfig();
+          return {
+            executor: value.COBIA_EXECUTOR_V3_ADDRESS,
+            codeHash: value.COBIA_EXECUTOR_V3_CODE_HASH,
+            verifierKey: value.COBIA_VERIFIER_PRIVATE_KEY,
+            rpcUrl: value.XLAYER_RPC_URL,
+          };
+        })()
+      : (() => {
+          const value = readCodingAgentRuntimeConfig();
+          return {
+            executor: value.COBIA_EXECUTOR_V2_ADDRESS,
+            codeHash: value.COBIA_EXECUTOR_V2_CODE_HASH,
+            verifierKey: value.COBIA_VERIFIER_PRIVATE_KEY,
+            rpcUrl: value.XLAYER_RPC_URL,
+          };
+        })();
+    const { executor } = executionConfig;
+    const prepared = v3
+      ? prepareAgentExecutionV3({
+          context: stored as never,
+          owner: proof.owner,
+          executor,
+          nowSec: Math.floor(Date.now() / 1_000),
+        })
+      : prepareAgentExecutionV1({
+          context: stored as never,
+          owner: proof.owner,
+          executor,
+          nowSec: Math.floor(Date.now() / 1_000),
+        });
     const client = createPublicClient({
       chain: xLayer,
-      transport: http(config.XLAYER_RPC_URL, { timeout: 15_000 }),
+      transport: http(executionConfig.rpcUrl, { timeout: 15_000 }),
       cacheTime: 0,
     });
     await assertAgentExecutorReadyV1({
-      executor: config.COBIA_EXECUTOR_V2_ADDRESS,
-      expectedCodeHash: config.COBIA_EXECUTOR_V2_CODE_HASH,
-      expectedVerifier: privateKeyToAccount(config.COBIA_VERIFIER_PRIVATE_KEY).address,
+      executor,
+      expectedCodeHash: executionConfig.codeHash,
+      expectedVerifier: privateKeyToAccount(executionConfig.verifierKey).address,
       owner: proof.owner,
       inputToken: prepared.approval.to,
       inputAmount: BigInt(prepared.inputAmountAtomic),
@@ -65,26 +98,21 @@ export async function POST(
       address: prepared.approval.to,
       abi: erc20Abi,
       functionName: "allowance",
-      args: [proof.owner, config.COBIA_EXECUTOR_V2_ADDRESS],
+      args: [proof.owner, executor],
     });
-    const approvalCalls = allowance >= BigInt(prepared.inputAmountAtomic) ? [] : [
-      ...(allowance > 0n ? [{
-        to: prepared.approval.to,
-        data: encodeFunctionData({
-          abi: erc20Abi,
-          functionName: "approve",
-          args: [config.COBIA_EXECUTOR_V2_ADDRESS, 0n],
-        }),
-        value: "0x0" as const,
-      }] : []),
-      prepared.approval,
-    ];
+    const approvalCalls = exactApprovalCalls({
+      token: prepared.approval.to,
+      executor,
+      allowance,
+      required: BigInt(prepared.inputAmountAtomic),
+    });
     return NextResponse.json({
       chainId: 196,
+      programVersion: v3 ? 3 : 2,
       owner: proof.owner,
       approvals: approvalCalls,
       execution: prepared.execution,
-      guarantee: "The atomic executor enforces the attested final-balance constraints and deadline.",
+      guarantee: "The owner wallet will broadcast this exact call on X Layer mainnet. The atomic executor enforces its attested deadline and post-state bounds.",
       forecast: "Future APY, LP fees, and impermanent loss are not guaranteed.",
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

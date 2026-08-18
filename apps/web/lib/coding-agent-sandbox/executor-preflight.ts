@@ -1,6 +1,10 @@
 import { isAddressEqual, keccak256, parseAbi, type Address, type Hash, type Hex } from "viem";
 
-const EXECUTOR_ABI = parseAbi(["function riskManager() view returns (address)"]);
+const EXECUTOR_ABI = parseAbi([
+  "function riskManager() view returns (address)",
+  "function registry() view returns (address)",
+]);
+const PAUSE_ABI = parseAbi(["function paused() view returns (bool)"]);
 const RISK_ABI = parseAbi([
   "function paused() view returns (bool)",
   "function verifierSigner() view returns (address)",
@@ -13,7 +17,9 @@ export interface AgentExecutorReadV1 {
   getChainId(): Promise<number>;
   getCodeHash(address: Address): Promise<Hash | undefined>;
   riskManager(executor: Address): Promise<Address>;
+  registry(executor: Address): Promise<Address>;
   paused(riskManager: Address): Promise<boolean>;
+  registryPaused(registry: Address): Promise<boolean>;
   verifierSigner(riskManager: Address): Promise<Address>;
   walletAuthorized(riskManager: Address, owner: Address): Promise<boolean>;
   tokenEnabled(riskManager: Address, token: Address): Promise<boolean>;
@@ -26,7 +32,12 @@ export function createAgentExecutorReadV1(client: {
   readContract(input: unknown): Promise<unknown>;
 }): AgentExecutorReadV1 {
   const read = (address: Address, functionName: string, args: readonly Address[] = []) =>
-    client.readContract({ address, abi: functionName === "riskManager" ? EXECUTOR_ABI : RISK_ABI, functionName, args });
+    client.readContract({
+      address,
+      abi: functionName === "riskManager" || functionName === "registry" ? EXECUTOR_ABI : RISK_ABI,
+      functionName,
+      args,
+    });
   return {
     getChainId: () => client.getChainId(),
     getCodeHash: async (address) => {
@@ -34,7 +45,13 @@ export function createAgentExecutorReadV1(client: {
       return !code || code === "0x" ? undefined : keccak256(code);
     },
     riskManager: (executor) => read(executor, "riskManager") as Promise<Address>,
+    registry: (executor) => read(executor, "registry") as Promise<Address>,
     paused: (risk) => read(risk, "paused") as Promise<boolean>,
+    registryPaused: (registry) => client.readContract({
+      address: registry,
+      abi: PAUSE_ABI,
+      functionName: "paused",
+    }) as Promise<boolean>,
     verifierSigner: (risk) => read(risk, "verifierSigner") as Promise<Address>,
     walletAuthorized: (risk, owner) => read(risk, "isWalletAuthorized", [owner]) as Promise<boolean>,
     tokenEnabled: (risk, token) => read(risk, "tokenEnabled", [token]) as Promise<boolean>,
@@ -58,15 +75,20 @@ export async function assertAgentExecutorReadyV1(input: {
   if (await input.read.getCodeHash(input.executor) !== input.expectedCodeHash) {
     throw new Error("Atomic executor code identity is not configured");
   }
-  const risk = await input.read.riskManager(input.executor);
-  const [paused, verifier, wallet, token, maxRoute] = await Promise.all([
+  const [risk, registry] = await Promise.all([
+    input.read.riskManager(input.executor),
+    input.read.registry(input.executor),
+  ]);
+  const [paused, registryPaused, verifier, wallet, token, maxRoute] = await Promise.all([
     input.read.paused(risk),
+    input.read.registryPaused(registry),
     input.read.verifierSigner(risk),
     input.read.walletAuthorized(risk, input.owner),
     input.read.tokenEnabled(risk, input.inputToken),
     input.read.maxRoute(risk, input.inputToken),
   ]);
   if (paused) throw new Error("Atomic execution is paused");
+  if (registryPaused) throw new Error("Atomic capability registry is paused");
   if (!isAddressEqual(verifier, input.expectedVerifier)) throw new Error("Verifier signer is not active");
   if (!wallet) throw new Error("Owner wallet is not authorized by the risk manager");
   if (!token) throw new Error("Input token is not enabled by the risk manager");

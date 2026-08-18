@@ -29,10 +29,15 @@ export async function GET(
     const result = await getAgentProgramRepository().getExecutionContext(programId);
     if (!result) return json({ code: "NOT_FOUND", message: "Agent program not found." }, 404);
     const byKind = new Map(result.artifacts.map(({ kind, payload }) => [kind, payload]));
-    const policy = result.policy as { deadline?: number; maxSnapshotAgeSec?: number };
+    const policy = result.policy as {
+      deadline?: number;
+      maxSnapshotAgeSec?: number;
+      maxEvidenceAgeSec?: number;
+    };
     const snapshot = result.snapshot as { capturedAt?: string };
-    const freshUntil = typeof snapshot.capturedAt === "string" && typeof policy.maxSnapshotAgeSec === "number"
-      ? Math.floor(Date.parse(snapshot.capturedAt) / 1_000) + policy.maxSnapshotAgeSec
+    const evidenceAge = policy.maxEvidenceAgeSec ?? policy.maxSnapshotAgeSec;
+    const freshUntil = typeof snapshot.capturedAt === "string" && typeof evidenceAge === "number"
+      ? Math.floor(Date.parse(snapshot.capturedAt) / 1_000) + evidenceAge
       : 0;
     const nowSec = Math.floor(Date.now() / 1_000);
     const live = result.state === "attested" && typeof policy.deadline === "number" &&
