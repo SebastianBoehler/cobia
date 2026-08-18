@@ -104,10 +104,10 @@ profit bounds.
 
 ## Remaining activation work
 
-1. Deploy and independently review `CobiaRiskManagerV1` and `CobiaExecutorV2` on
-   chain 196, record exact addresses/code hashes, configure verifier and token
-   limits, wait through delayed risk increases, and keep the system paused until
-   the canary gate. This needs separate mainnet deployment authorization.
+1. Complete independent review of the deployed chain-196 registry, risk manager,
+   and executor, then regenerate and execute the delayed Safe activation batch
+   only after the fork and canary gates. The contracts remain paused and this
+   still needs separate mainnet activation authorization.
 2. Configure production Sandbox/OIDC/model/RPC variables, apply migrations, and
    run one real production-coordinator generation plus fresh replay without a
    mainnet principal transaction.

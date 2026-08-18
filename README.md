@@ -31,7 +31,7 @@ remain readable as a control. Cobia is not yet an open external-solver network.
 | Transaction construction/execution engine | Unit/fork-tested and wired as buyer-authenticated, one-step-at-a-time X Layer mainnet wallet execution |
 | X Layer mainnet-fork route rehearsal | Product-visible, persisted, and green for direct Aave, Curve/Uniswap-to-Aave, and full-range Uniswap LP-entry routes |
 | Verified stepwise X Layer mainnet execution | Product-wired for fresh, purchased, rehearsed V2 routes; every transaction requires an explicit buyer-wallet confirmation and durable receipt verification |
-| Capped atomic executor beta | Governed risk manager and protocol-neutral executor are implemented and tested; deployment, delayed activation, and exact code-hash configuration remain |
+| Capped atomic executor beta | Chain-196 contracts are deployed under the governance Safe with delayed configuration proposed, but remain paused and inactive; the separate chain-1952 registry, risk manager, and executor are deployed, independently verified, empty, and paused |
 | Agent-program wallet execution | Owner-authenticated preparation, live executor preflight, exact wallet calls, and receipt attribution are implemented; unavailable until executor activation |
 | AI execution/calldata authority | Never granted: verifier-owned capability modules compile calldata and the owner wallet alone signs production transactions |
 
@@ -113,6 +113,10 @@ command does not share one database for the whole run. It ignores ambient
 The opt-in fork command starts a digest-pinned Foundry/Anvil container and forks
 the public X Layer RPC at block `67,649,362`. It requires outbound network access
 to `ghcr.io` for the image and `https://rpc.xlayer.tech` for fork state.
+
+The wallet-confirmed X Layer Testnet deployment and independent receipt checks
+are documented in
+[`docs/deployments/xlayer-testnet-executor-v2-runbook.md`](docs/deployments/xlayer-testnet-executor-v2-runbook.md).
 
 ## Workspace
 
