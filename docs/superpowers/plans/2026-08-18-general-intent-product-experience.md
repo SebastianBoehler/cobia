@@ -131,10 +131,10 @@ export const GeneralIntentPolicyV2Schema = z.object({
 - [x] Test public responses sanitize shell paths, credentials, RPC URLs, private artifacts, and raw internal errors.
 - [x] Run the orchestrator and API tests; expect V1/legacy repository assertions to fail.
 - [x] Register only real coordinator-owned solvers in `solver-catalog.ts`. Keep the catalog separate from verifier capability manifests and do not add community admission.
-- [ ] Persist the sandbox proposal, independent verdict, replay, provenance, authorization, and receipt against the immutable submission revision. The agent never writes its own accepted state. (All pre-execution artifacts are migrated; receipt migration remains coupled to the new execution endpoint.)
+- [x] Persist the sandbox proposal, independent verdict, replay, provenance, authorization, and receipt against the immutable submission revision. The agent never writes its own accepted state.
 - [x] Return `202` for a running competition, explicit failure codes for rejected/failed submissions, and canonical `/intents/:id` plus `/programs/:submissionId` links.
 - [x] Rerun focused tests, the read-only RPC adversarial suite, and web typecheck.
-- [ ] Commit: `feat(agent): publish verified program revisions`
+- [x] Commit: `feat(agent): publish verified program revisions`
 
 ## Task 5: Implement the hybrid goal and policy-receipt composer
 
@@ -148,16 +148,16 @@ export const GeneralIntentPolicyV2Schema = z.object({
 - Create: `apps/web/lib/intents/capability-templates.ts`
 - Create: `apps/web/lib/intents/domain-examples.ts`
 
-- [ ] Write failing UI tests proving the first control is “What should happen?”, no Earn/Swap/Profit tab exists, the user must explicitly choose a manifest-supported template, and the full typed receipt is visible before signing.
-- [ ] Test available examples populate goal context, while rehearsal/designed examples are disabled, identify the missing capability, and cannot reach signature or API calls.
-- [ ] Test “Use this challenge” copies only its human goal and capability-template parameters into an unsigned editor; it must generate a new request ID, owner, nonce, times, bounds, and signature and copy no submission artifact.
+- [x] Write failing UI tests proving the first control is “What should happen?”, no Earn/Swap/Profit tab exists, the user must explicitly choose a manifest-supported template, and the full typed receipt is visible before signing.
+- [x] Test available examples populate goal context, while rehearsal/designed examples are disabled, identify the missing capability, and cannot reach signature or API calls.
+- [x] Test “Use this challenge” copies only its human goal and capability-template parameters into an unsigned editor; it generates fresh wallet-bound authority and copies no submission artifact.
 - [ ] Test invalid amount, unsupported asset, missing output, missing minimum, deadline, and disconnected/wrong-chain wallet focus the exact field and preserve the goal.
-- [ ] Test wallet signature covers the rendered V2 policy commitment and signing text states that no funds or approvals move.
-- [ ] Run `pnpm --filter @cobia/web exec vitest run components/intents/IntentComposer.test.tsx app/intents/new/page.test.tsx`; expect missing-component failures.
-- [ ] Implement a two-stage composer: free-form display goal, then an explicit capability template and editable canonical receipt. Do not parse prose into hidden financial bounds.
-- [ ] Keep `IntentComposer.tsx` as state/submit orchestration only; put field groups and examples in separate files so each remains below 300 LOC.
-- [ ] Rerun focused tests and web typecheck.
-- [ ] Commit: `feat(web): add general intent composer`
+- [x] Test wallet signature covers the rendered V2 policy commitment and signing text states that no funds or approvals move.
+- [x] Run the focused composer tests and capture the missing-component failures before implementation.
+- [x] Implement a two-stage composer: free-form display goal, then an explicit capability template and editable canonical receipt. Do not parse prose into hidden financial bounds.
+- [x] Keep `IntentComposer.tsx` as state/submit orchestration only; put field groups and examples in separate files so each remains below 300 LOC.
+- [x] Rerun focused tests and web typecheck.
+- [x] Commit: `feat(web): add general intent composer`
 
 ## Task 6: Build intent competition, program, Discover, and solver-history surfaces
 
@@ -174,15 +174,15 @@ export const GeneralIntentPolicyV2Schema = z.object({
 - Create: `apps/web/components/solvers/SolverProfileView.tsx`
 - Add focused `*.test.tsx` beside each view.
 
-- [ ] Write failing competition tests for countdown, abstention, current leader, immutable revision history, rejection codes, expiry, close, and refresh without focus theft.
-- [ ] Write failing Discover tests for Standing challenges, Custom intents, and Past discoveries; prove a challenge remains visible after round expiry, expired/superseded programs have no execution CTA, and “Use this challenge” carries no calldata, evidence, owner, nonce, signature, or wallet state.
-- [ ] Write failing solver-profile tests for declared identity versus verifier-derived metrics, accepted/rejected/superseded history, wins, capabilities, evidence links, and a truthful empty state.
-- [ ] Write failing program-view tests proving only a fresh attested revision for its exact owner/policy/program hash can expose V3 preparation; rejected, stale, superseded, wrong-owner, or reorged evidence cannot.
-- [ ] Run focused view suites and observe the new route/component failures.
-- [ ] Implement server loaders from the new repositories and compact responsive cards. Put provenance in a read-only disclosure labelled “Solver lab”; only the verifier card may say accepted/rejected.
-- [ ] Keep historical timestamps, pinned block, expiry reason, and hashes visible; never show stale rows as rankable or executable.
-- [ ] Rerun focused tests and web typecheck.
-- [ ] Commit: `feat(web): expose discovery and solver history`
+- [x] Write failing competition tests for countdown, abstention, current leader, immutable revision history, rejection codes, expiry, close, and refresh without focus theft.
+- [x] Write failing Discover tests for Standing challenges, Custom intents, and Past discoveries; prove a challenge remains visible after round expiry, expired/superseded programs have no execution CTA, and “Use this challenge” carries no authority or artifacts.
+- [x] Write failing solver-profile tests for declared identity versus verifier-derived metrics, accepted/rejected/superseded history, wins, capabilities, evidence links, and a truthful empty state.
+- [x] Write failing program and preparation tests proving only a fresh attested revision for its exact owner/policy/program/snapshot commitments can expose V3 preparation.
+- [x] Run focused view suites and observe the new route/component failures.
+- [x] Implement server loaders from the new repositories and compact responsive cards. Put provenance in a read-only disclosure labelled “Solver lab”; only the verifier card may say accepted/rejected.
+- [x] Keep historical timestamps, pinned block, expiry reason, and hashes visible; never show stale rows as rankable or executable.
+- [x] Rerun focused tests and web typecheck.
+- [x] Commit the discovery, solver history, competition detail, and immutable execution groups.
 
 ## Task 7: Replace the landing page, navigation, and visual system
 
@@ -201,16 +201,16 @@ export const GeneralIntentPolicyV2Schema = z.object({
 - Modify: `apps/web/app/sitemap.ts`
 - Modify: `apps/web/app/metadata.test.ts`
 
-- [ ] Inspect the current desktop and mobile interfaces of Jumper, Jupiter, and one leading Ethereum app. Capture dated screenshots and document hierarchy, navigation, composer pattern, transaction review, state language, density, spacing, typography, color roles, accessibility, and patterns Cobia must not copy.
-- [ ] Apply `better-ui`, `better-layout`, `better-colors`, `better-typography`, `better-writing`, and `better-accessibility` to convert the audit into Cobia-specific layout and content rules before editing components.
+- [x] Inspect the current desktop and mobile interfaces of Jumper, Jupiter, and one leading Ethereum app. Capture dated screenshots and document hierarchy, navigation, composer pattern, transaction review, state language, density, spacing, typography, color roles, accessibility, and patterns Cobia must not copy.
+- [x] Apply `better-ui`, `better-layout`, `better-colors`, `better-typography`, `better-writing`, and `better-accessibility` to convert the audit into Cobia-specific layout and content rules before editing components.
 - [ ] Write failing landing/navigation tests for Intent, Portfolio, Activity, Discover, `/solvers` discovery links, general on-chain copy, domain truth labels, and absence of APY-first/Earn/Swap/Profit framing.
 - [ ] Write a failing branded-not-found test with Intent and Discover actions and no framework 404 copy.
 - [ ] Run the focused page, header, and metadata tests; expect old href/copy failures.
-- [ ] Implement one neutral green-white/near-black surface system. Remove large blue page backgrounds; reserve cobalt for primary/selected/link/focus and green for independently verified state.
-- [ ] Keep the desktop header quiet and add a fixed four-item mobile bottom navigation with `env(safe-area-inset-bottom)`, 44px targets, `aria-current`, and content padding that prevents overlap.
-- [ ] Generalize metadata, manifest start URL, sitemap, Open Graph alt text, and terms copy without claiming unsupported commerce/x402/RWA execution.
-- [ ] Run focused tests plus light/dark render inspection at 390x844 and 1440x900.
-- [ ] Commit: `feat(web): redesign Cobia for general intents`
+- [x] Implement one neutral green-white/near-black surface system. Remove large blue page backgrounds; reserve cobalt for primary/selected/link/focus and green for independently verified state.
+- [x] Keep the desktop header quiet and add a fixed four-item mobile bottom navigation with `env(safe-area-inset-bottom)`, 44px targets, `aria-current`, and content padding that prevents overlap.
+- [x] Generalize metadata, manifest start URL, sitemap, Open Graph alt text, and terms copy without claiming unsupported commerce/x402/RWA execution.
+- [x] Run focused tests plus light/dark render inspection at 390x844 and 1440x900.
+- [x] Commit: `feat(web): redesign Cobia for general intents`
 
 ## Task 8: Remove the legacy product surface and unreachable code
 
@@ -226,7 +226,7 @@ export const GeneralIntentPolicyV2Schema = z.object({
 - Delete: `apps/web/components/routes/**`
 - Delete legacy-only modules under `apps/web/lib/markets`, `apps/web/lib/payments`, and `apps/web/lib/execution-v2` after reachability proof.
 
-- [ ] Add a route-manifest test that enumerates the supported product paths and asserts `/requests`, `/markets`, and `/routes` are absent.
+- [x] Add a route-manifest test that enumerates the supported product paths and asserts `/requests`, `/markets`, and `/routes` are absent.
 - [ ] Run `rg -n '(/requests|/markets|/routes|Earn|Swap|Profit)' apps/web --glob '!drizzle/**'`; classify every remaining match as active low-level capability language, immutable migration history, or obsolete product code.
 - [ ] Delete obsolete pages, components, APIs, payment/reveal UI, projections, and tests. Do not add redirects, adapters, fallback responses, or copied records.
 - [ ] Retain route construction/verifier code only when imported by the active V3 capability verifier, pinned-fork replay, or deterministic control solver. Delete unreachable exports and prove with typecheck/tests.

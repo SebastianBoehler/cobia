@@ -59,7 +59,7 @@ bounds, recipients, final-balance constraints, asset conservation, deployment
 runtime hashes, and proxy implementation identities. It then requires a second
 fork replay to reproduce the evidence commitments and observed balance deltas.
 
-Accepted programs are persisted as immutable artifacts: program, agent evidence,
+Accepted programs are persisted as immutable artifacts: pinned public-state snapshot, program, agent evidence,
 provenance, verifier verdict, trusted replay, projected execution, authorization,
 and eventual receipt. Provenance captures model response IDs, dependency
 versions, fetched source hashes, generated-file hashes, commands, exit codes, and
@@ -75,6 +75,18 @@ per-route cap, immutable artifacts, deadline, and snapshot freshness. The owner
 wallet confirms bounded ERC-20 approvals and then the exact atomic executor call.
 The receipt is accepted only when its from/to/value/input and `ProgramExecuted`
 commitment match.
+
+The public product now uses only `/intents`, immutable solver submissions, and
+`/programs/:submissionId`. The earlier request/market/purchased-route pages and
+APIs are removed rather than retained as compatibility fallbacks. Historical
+payment and execution rows remain database audit records and Activity labels
+them as archived; they cannot produce a fresh authorization.
+
+Discover also publishes manifest-bound standing challenge templates. These are
+not quotes or evergreen authorizations. Selecting one copies only its human goal
+and strictly validated capability fields into a new unsigned editor; the owner,
+request ID, nonce, time bounds, signature, snapshot, program, and evidence are
+always newly created.
 
 The route itself is one transaction and therefore rolls back atomically. An
 ERC-20 approval may still be a preceding owner transaction. OKX Wallet documents
@@ -135,13 +147,12 @@ profit bounds.
 3. Run a selected-wallet retail-size canary with the exact UI-visible program,
    approvals, gas bound, code identities, and receipt attribution; pause on any
    discrepancy.
-4. Move long-lived competition orchestration to a queue/worker before adding
-   timed multi-solver windows. The current synchronous job is bounded to five
-   minutes but is not a recurring auction worker.
-5. Add authenticated community solver registration, replaceable immutable
-   submission revisions, deterministic current-only ranking, withdrawal, rate
-   limits/bonds, and abuse controls. Historical results remain `Past discovery`
-   and can only seed a fresh intent.
+4. Move long-lived competition orchestration to a queue/worker before opening
+   solver hosting. The product already persists bounded competitions, abstention,
+   immutable revisions, supersession, current-only ranking, and past discoveries,
+   but the first Cobia solver still runs synchronously.
+5. Add authenticated community solver registration, withdrawal, rate limits,
+   bonding, and abuse controls before accepting third-party code or submissions.
 
 ## Relevant OKX primary documentation
 

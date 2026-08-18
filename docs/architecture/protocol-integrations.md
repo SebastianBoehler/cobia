@@ -8,20 +8,15 @@ read adapter is not, by itself, an executable Cobia route.
 
 | Surface | State | Authority and limit |
 | --- | --- | --- |
-| OKX Aave product discovery | Live in the product | Off-chain OKX estimates captured between X Layer block reads; the block references do not attest the API rate or TVL |
-| Aave reserve/oracle reader | Live V2 quote input | Direct mainnet reads at one pinned number/hash/timestamp; proxy implementations and amount-specific supply-cap arithmetic are checked |
-| Curve USDG/USDt0 swap reader | Live V2 quote input | Factory-owned StableSwap NG pool, exact token indices, balances, fee, amplification, virtual price, implementation and exact-input output at the pinned block |
-| Uniswap USDG/USDt0 swap and LP readers | Live V2 quote input | Factory-derived 0.01% pool and QuoterV2 response at the pinned snapshot block; full-range LP capture also pins a historical block, fee-growth deltas, pool balances, exact desired amounts, and minimum liquidity |
+| General signed intent | Implemented product path | Wallet-specific policy commits chain 196, owner, input, capabilities, objective, post-state constraints, predicates, limits, deadline, evidence age, competition window, and nonce |
+| Aave/Curve/Uniswap capability readers | Implemented verifier input | Direct mainnet reads at one pinned number/hash/timestamp; deployments, runtime code, proxy implementations, semantic bounds, and exact-input outputs are checked |
 | Portfolio token and aToken balances | Live in the product | Direct X Layer mainnet ERC-20 reads |
-| V1 solver | Live in the product | One deterministic cash/Aave allocation over OKX discovery data; no independent solver competition |
-| V2 policy, snapshot, plan, quote, and purchase | Live product path | Persisted versioned artifacts; one exact conserved leg containing Aave supply, Curve/Uniswap swap-to-Aave, or balance-swap plus full-range LP mint; estimated pre-gas economics only |
-| MPP/EIP-3009 reveal payment | Implemented for fixed chain 196 USDt0 lane | Pays for the private bundle, not principal execution; a funded receipt-correlation canary is still required |
-| Aave/Curve/Uniswap transaction engine | Unit/fork-tested and product-wired for verified stepwise mainnet execution | Exact approvals, Curve exchange/SwapRouter02/Aave/position-manager calldata, receipt attribution, protocol events, owner-held LP NFT and state postconditions; one explicit buyer-wallet confirmation per transaction |
-| Purchased-route fork rehearsal | Product-visible and persisted | Buyer proof replays the exact V2 bundle at its committed snapshot block with simulated funds; historical evidence, not current-state simulation |
-| Verified purchased-route execution | Product-visible for fresh rehearsed V2 routes | Durable one-step chain-196 attempts, buyer-bound short-lived authorization, local calldata verification, recovery by exact nonce/calldata, and no automatic follow-on transaction |
+| Solver competition | Implemented product path | A solver may abstain or publish bounded immutable revisions; current ranking uses only fresh verifier-owned objective evidence and older revisions remain past discoveries |
+| Program evidence | Implemented product path | Snapshot, program, evidence, sanitized provenance, verdict, independent replay, V3 projection, authorization, and receipt are committed independently per revision |
+| Legacy V1/V2 route market | Removed from public product | Historical database rows remain inaccessible audit records; there is no request, market, route, payment, or MCP compatibility fallback |
 | Capped atomic Executor V3 beta | Deployed paused and product-wired | Limits selected wallets and cumulative principal and enforces verifier-signed targets, static predicates, deadlines, and final balances; activation and canary remain pending |
 | Coding-agent sandbox solver | Implemented general-intent path | Writes and runs route-search code in an isolated Vercel Sandbox, but can emit only typed capability programs; an independent compiler, verifier, and fresh fork remain authoritative |
-| Bounded agentic selector | Retained control lane | Selects only among server-built V2 candidates; it is not presented as the coding-agent architecture |
+| Bounded agentic selector | Not a public product path | Old deterministic and selector code is retained only where imported by verifier/fork controls; it is not a callable fallback |
 
 Production code has no sample protocol, fallback APY, or fabricated route. Unit
 tests use deterministic read/wallet clients; each explicit database integration
@@ -47,15 +42,13 @@ all strategy fields as equally enforceable:
    and future token prices are estimates. They may be block-bounded and sourced,
    but simulation cannot guarantee their future lower bound.
 
-The target solver input is a server-enumerated typed route graph. An agentic
-solver may compose swaps, lending, LP positions, and conserved splits; a
-deterministic compiler resolves each action through a registered adapter and
-checks the final enforceable outcome. It never accepts model-authored calldata.
-The current V2 implementation remains narrower: one conserved leg containing
-direct Aave supply, Curve or Uniswap swap followed by Aave supply, or a one-sided balance
-swap followed by a fixed full-range Uniswap mint. It does not perform arbitrary
-range selection. Fee collection, rebalancing, liquidity removal, and exits
-remain unimplemented; the position NFT stays in the request owner's wallet.
+The solver authors a typed capability program inside an isolated sandbox. A
+deterministic verifier resolves every action through a registered semantic module,
+recompiles its calldata, checks the final enforceable outcome, and reproduces it
+on a fresh pinned fork. It never accepts model-authored calldata as authority.
+The current manifest remains narrower than the protocol-neutral policy: Aave
+supply plus exact-input Curve and Uniswap swaps. Shopping/x402, subscriptions,
+bridges, LP lifecycle, and RWAs require new verifier-owned capabilities.
 
 ## Verified X Layer mainnet deployments
 
@@ -112,9 +105,10 @@ silent fallback for the direct Uniswap reader.
 
 ## Execution boundary
 
-Solvers may reference only `adapterId + opportunityId`. They never choose a
-target, recipient, selector, approval, or calldata. The server registry resolves
-those fields after authorization and freshness checks.
+Solvers reference only a registered capability ID/version and typed semantic
+parameters. They never gain authority by choosing a target, recipient, selector,
+approval, or raw calldata. The verifier-owned registry resolves those fields
+after policy, identity, and freshness checks.
 
 The transaction library is deliberately narrow:
 
@@ -129,21 +123,13 @@ The transaction library is deliberately narrow:
    telemetry after confirmation;
 7. structured pending/partial/failed checkpoints rather than blind retries.
 
-The product uses the library for both disposable fork rehearsal and verified stepwise
-chain-196 wallet execution. Mainnet execution requires the exact purchased
-bundle, a matching passed rehearsal, fresh deterministic authorization, current
-registry/deployment identity, sufficient token and buffered OKB gas balances,
-and a short-lived buyer proof. The browser independently rebuilds the prepared
-transaction before `eth_sendTransaction`; the server stores the submitted hash
-before resolving its canonical receipt, events, and postconditions. It never
-accepts caller-authored calldata, relays transactions, or automatically sends a
-follow-on step.
-
-Injected-wallet approvals, Curve exchange, and Aave supply have no on-chain Cobia deadline, so
-a wallet confirmation left open past expiry cannot be made atomic without an
-executor contract or account-level validity window. The UI instructs the buyer
-to reject stale prompts. A capped live canary remains operational deployment
-evidence, not a prerequisite for the implementation claim.
+The product uses the library for disposable fork replay and a single attested
+V3 executor call. Mainnet preparation requires immutable context commitments, a
+fresh replay, exact owner proof, current registry/executor/risk-manager identity,
+token bounds, sufficient allowance, and a short-lived browser-realm proof. The
+browser asks the owner wallet to submit exact approvals and then the exact atomic
+call; the server never accepts caller-authored calldata or relays principal.
+A capped live canary remains a separate operational activation gate.
 
 Reproduce the opt-in rehearsal from the repository root:
 
