@@ -46,10 +46,10 @@ describe("CommerceOffers", () => {
     expect(html).toContain("Discovery only");
     expect(html).toContain("Merchant unregistered");
     expect(html).toContain("bazaar.example");
-    expect(html).not.toContain("Create intent");
+    expect(html).toContain("Review offer");
   });
 
-  it("exposes create-intent only for executable offers by commitment", () => {
+  it("links every immutable offer to commerce review rather than the DeFi composer", () => {
     const executable = CommerceOfferV1Schema.parse({
       ...offer,
       merchant: { ...offer.merchant, manifestHash: hash("4") },
@@ -59,8 +59,9 @@ describe("CommerceOffers", () => {
     const html = renderToStaticMarkup(<CommerceOffers offers={[executable]} observedAtSec={2_000_000_000} />);
 
     expect(html).toContain("Executable");
-    expect(html).toContain("Create intent");
-    expect(html).toContain("offer=0x");
+    expect(html).toContain("Review offer");
+    expect(html).toContain("/commerce/offers/0x");
+    expect(html).not.toContain("/intents/new");
     expect(offer.placement.kind).toBe("x402-exact");
     if (offer.placement.kind !== "x402-exact") throw new Error("Fixture must use x402 placement");
     expect(html).not.toContain(offer.placement.endpoint);

@@ -49,9 +49,9 @@ export function CommerceOffers({ offers, observedAtSec, sourceErrors = [] }: {
         {offer.eligibility.status !== "executable" && <p className="commerce-offers__reason">
           {label(offer.eligibility.blockedReason)}
         </p>}
-        {executable && <Link href={`/intents/new?offer=${commitment}`}>
-          Create intent <ArrowRight aria-hidden="true" size={15} />
-        </Link>}
+        <Link href={`/commerce/offers/${commitment}`}>
+          Review offer <ArrowRight aria-hidden="true" size={15} />
+        </Link>
       </article>;
     })}
     {sourceErrors.map((error) => <p className="source-error" key={`${error.sourceId}:${error.code}`} role="status">
