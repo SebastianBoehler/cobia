@@ -1,5 +1,8 @@
 import { IntentComposer } from "@/components/intents/IntentComposer";
 import { AppHeader } from "@/components/layout/AppHeader";
+import { notFound } from "next/navigation";
+import { challengeToIntentDraft } from "../../../lib/intents/challenge-draft";
+import { getChallengeRepository } from "../../../lib/runtime/market";
 import { createPageMetadata } from "../../site-metadata";
 
 export const metadata = createPageMetadata({
@@ -9,7 +12,15 @@ export const metadata = createPageMetadata({
   index: false,
 });
 
-export default function NewIntentPage() {
+export default async function NewIntentPage({ searchParams }: {
+  searchParams: Promise<{ challenge?: string | string[] }>;
+}) {
+  const challengeId = (await searchParams).challenge;
+  const challenge = typeof challengeId === "string"
+    ? await getChallengeRepository().getActive(challengeId)
+    : null;
+  if (challengeId !== undefined && !challenge) notFound();
+  const initialDraft = challenge ? challengeToIntentDraft(challenge) : undefined;
   return (
     <>
       <AppHeader />
@@ -18,7 +29,7 @@ export default function NewIntentPage() {
           <h1>Describe the outcome.</h1>
           <p>Your words provide context. The policy receipt provides authority.</p>
         </header>
-        <IntentComposer />
+        <IntentComposer initialDraft={initialDraft} />
       </main>
     </>
   );

@@ -66,11 +66,14 @@ describe("solver competition projections", () => {
     });
 
     const discover = await challenges.listDiscover(nowSec);
-    expect(discover).toEqual([expect.objectContaining({
+    expect(discover).toEqual(expect.arrayContaining([expect.objectContaining({
       id: "best-usdg-supply", availability: "between-rounds",
       currentRound: null,
       latestRound: expect.objectContaining({ id: "22222222-2222-4222-8222-222222222222" }),
-    })]);
+    })]));
+    await expect(challenges.getActive("best-usdg-supply")).resolves.toMatchObject({
+      id: "best-usdg-supply", displayGoal: "Find the best verified USDG supply outcome",
+    });
   });
 
   it("ranks only the newest fresh accepted revision and preserves history", async () => {

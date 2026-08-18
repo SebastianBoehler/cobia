@@ -6,28 +6,25 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import { keccak256, stringToHex } from "viem";
 import { buildGeneralIntentPolicyV2 } from "../../lib/intents/general-policy";
-import { decimalToAtomic, INTENT_ASSETS } from "../../lib/intents/capability-templates";
+import {
+  DEFAULT_INTENT_RECEIPT_VALUES, decimalToAtomic, INTENT_ASSETS,
+} from "../../lib/intents/capability-templates";
+import type { IntentComposerDraft } from "../../lib/intents/challenge-draft";
 import { useWallet } from "../wallet/WalletProvider";
 import { IntentGoalInput } from "./IntentGoalInput";
 import { PolicyReceiptEditor, type ReceiptValues } from "./PolicyReceiptEditor";
-
-const initialValues: ReceiptValues = {
-  templateId: "aave-supply",
-  inputToken: INTENT_ASSETS[0].address,
-  outputToken: INTENT_ASSETS[1].address,
-  amount: "10",
-  minimum: "9.95",
-};
 
 function errorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : "The intent could not be published.";
 }
 
-export function IntentComposer() {
+export function IntentComposer({ initialDraft }: { initialDraft?: IntentComposerDraft }) {
   const wallet = useWallet();
   const router = useRouter();
-  const [goal, setGoal] = useState("");
-  const [values, setValues] = useState(initialValues);
+  const [goal, setGoal] = useState(initialDraft?.goal ?? "");
+  const [values, setValues] = useState<ReceiptValues>(
+    initialDraft?.values ?? DEFAULT_INTENT_RECEIPT_VALUES,
+  );
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   const inputAsset = INTENT_ASSETS.find(({ address }) => address === values.inputToken) ?? INTENT_ASSETS[0];

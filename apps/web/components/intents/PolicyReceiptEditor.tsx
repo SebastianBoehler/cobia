@@ -1,13 +1,10 @@
 import type { Address } from "viem";
-import { CAPABILITY_TEMPLATES, INTENT_ASSETS, atomicLabel, type CapabilityTemplateId } from "../../lib/intents/capability-templates";
+import {
+  CAPABILITY_TEMPLATES, INTENT_ASSETS, atomicLabel,
+  type CapabilityTemplateId, type IntentReceiptValues,
+} from "../../lib/intents/capability-templates";
 
-export interface ReceiptValues {
-  templateId: CapabilityTemplateId;
-  inputToken: Address;
-  amount: string;
-  outputToken: Address;
-  minimum: string;
-}
+export type ReceiptValues = IntentReceiptValues;
 
 export function PolicyReceiptEditor({ values, owner, onChange }: {
   values: ReceiptValues;

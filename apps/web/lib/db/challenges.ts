@@ -33,6 +33,13 @@ function sameChallenge(stored: typeof cobiaChallenges.$inferSelect, input: z.inf
 
 export function createChallengeRepository(db: CobiaDatabase) {
   return {
+    async getActive(id: string) {
+      const challengeId = CreateSchema.shape.id.parse(id);
+      return db.query.cobiaChallenges.findFirst({
+        where: and(eq(cobiaChallenges.id, challengeId), eq(cobiaChallenges.status, "active")),
+      });
+    },
+
     async create(value: z.input<typeof CreateSchema>) {
       const input = CreateSchema.parse(value);
       return db.transaction(async (tx) => {

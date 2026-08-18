@@ -1,6 +1,15 @@
 import { SUPPORTED_ASSETS } from "../chain/supported-assets";
+import type { Address } from "viem";
 
 export type CapabilityTemplateId = "aave-supply" | "exact-input-swap" | "round-trip";
+
+export interface IntentReceiptValues {
+  templateId: CapabilityTemplateId;
+  inputToken: Address;
+  amount: string;
+  outputToken: Address;
+  minimum: string;
+}
 
 export const CAPABILITY_TEMPLATES = [
   { id: "aave-supply", label: "Supply to Aave V3", description: "One bounded supply action and a minimum receipt-token increase." },
@@ -11,6 +20,14 @@ export const CAPABILITY_TEMPLATES = [
 export const INTENT_ASSETS = SUPPORTED_ASSETS.map(({ address, displaySymbol, decimals }) => ({
   address, symbol: displaySymbol, decimals,
 }));
+
+export const DEFAULT_INTENT_RECEIPT_VALUES: IntentReceiptValues = {
+  templateId: "aave-supply",
+  inputToken: INTENT_ASSETS[0].address,
+  outputToken: INTENT_ASSETS[1].address,
+  amount: "10",
+  minimum: "9.95",
+};
 
 export function decimalToAtomic(value: string, decimals: number): string | null {
   const match = value.trim().match(/^(\d+)(?:\.(\d+))?$/);
