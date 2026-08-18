@@ -1,6 +1,7 @@
 export * from "./allocation";
 export * from "./bundle";
 export * from "./canonical";
+export * from "./commerce-offer";
 export * from "./general-intent-policy";
 export * from "./onchain-read";
 export * from "./persisted";
