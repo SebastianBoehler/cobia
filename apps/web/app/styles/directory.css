@@ -13,6 +13,18 @@
 .discover-list h3 { font-size: 18px; margin: 14px 0 7px; }
 .discover-list p { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0; }
 .discover-list a, .solver-directory article > a { align-items: center; color: var(--cobalt-dark); display: inline-flex; flex: 0 0 auto; font-size: 12px; font-weight: 650; gap: 7px; }
+.commerce-offers { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.commerce-offers article { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 22px; }
+.commerce-offers__heading { align-items: center; color: var(--muted); display: flex; font-size: 11px; justify-content: space-between; }
+.commerce-offers h3 { font-size: 18px; margin: 16px 0 6px; }
+.commerce-offers > article > p { color: var(--muted); font-size: 12px; margin: 0; }
+.commerce-offers dl { display: grid; gap: 9px; margin: 22px 0; }
+.commerce-offers dl div { align-items: baseline; display: flex; font-size: 11px; justify-content: space-between; }
+.commerce-offers dt { color: var(--muted); }
+.commerce-offers dd { margin: 0; text-align: right; }
+.commerce-offers article > a { align-items: center; color: var(--cobalt-dark); display: inline-flex; font-size: 12px; font-weight: 650; gap: 7px; }
+.commerce-offers .commerce-offers__reason { color: var(--ink); font-weight: 620; margin-top: 16px; }
+.source-error { color: var(--muted); font-size: 11px; grid-column: 1 / -1; margin: 0; }
 .empty-state { background: var(--wash); border: 1px dashed var(--line-strong); border-radius: 16px; color: var(--muted); font-size: 13px; margin: 0; padding: 28px; }
 .history-table { border-block: 1px solid var(--line); }
 .history-table a { align-items: center; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) 180px 110px 18px; min-height: 68px; padding: 12px 4px; }
@@ -87,6 +99,7 @@
   .directory-page__header h1 { font-size: 52px; }
   .discover-view { gap: 56px; }
   .discover-list article { align-items: flex-start; flex-direction: column; gap: 20px; }
+  .commerce-offers { grid-template-columns: 1fr; }
   .history-table a { gap: 6px; grid-template-columns: minmax(0, 1fr) 18px; padding: 16px 4px; }
   .history-table small, .history-table strong { grid-column: 1; }
   .history-table svg { grid-column: 2; grid-row: 1 / span 3; }

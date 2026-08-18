@@ -1,5 +1,7 @@
-import { ArrowRight, Clock3, History, Repeat2 } from "lucide-react";
+import type { CommerceOfferV1 } from "@cobia/domain";
+import { ArrowRight, Clock3, History, Repeat2, ShoppingBag } from "lucide-react";
 import Link from "next/link";
+import { CommerceOffers } from "./CommerceOffers";
 
 export interface DiscoverChallenge { id: string; title: string; goal: string; availability: "live" | "between-rounds" }
 export interface DiscoverIntent { id: string; goal: string; state: string; closesAt: string }
@@ -10,13 +12,23 @@ function label(value: string) {
   return words[0]?.toUpperCase() + words.slice(1);
 }
 
-export function DiscoverView({ challenges, intents, history }: {
+export function DiscoverView({
+  challenges, intents, history, commerceOffers, observedAtSec, commerceSourceErrors,
+}: {
   challenges: DiscoverChallenge[];
   intents: DiscoverIntent[];
   history: DiscoverHistory[];
+  commerceOffers: CommerceOfferV1[];
+  observedAtSec: number;
+  commerceSourceErrors?: Array<{ sourceId: string; code: string }>;
 }) {
   return (
     <div className="discover-view">
+      <section aria-labelledby="commerce-title">
+        <header><div><h2 id="commerce-title">Products and paid resources</h2><p>Public x402 and UCP offers. Discovery is open; execution stays verifier-gated.</p></div><ShoppingBag aria-hidden="true" size={22} /></header>
+        <CommerceOffers offers={commerceOffers} observedAtSec={observedAtSec} sourceErrors={commerceSourceErrors} />
+      </section>
+
       <section aria-labelledby="standing-title">
         <header><div><h2 id="standing-title">Standing challenges</h2><p>Persistent goals with independently bounded competition rounds.</p></div><Repeat2 aria-hidden="true" size={22} /></header>
         {challenges.length ? <div className="discover-list">{challenges.map((item) => <article key={item.id}>

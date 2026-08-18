@@ -2,6 +2,7 @@ import { DiscoverView } from "@/components/discover/DiscoverView";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { getChallengeRepository, getIntentRepository, getSolverSubmissionRepository } from "@/lib/runtime/market";
 import { currentUnixSeconds } from "@/lib/time";
+import { refreshCommerceDiscoveryV1 } from "@/lib/runtime/commerce";
 import { createPageMetadata } from "../site-metadata";
 
 export const dynamic = "force-dynamic";
@@ -13,10 +14,11 @@ export const metadata = createPageMetadata({
 
 export default async function DiscoverPage() {
   const observedAtSec = currentUnixSeconds();
-  const [challengeRows, intentRows, history] = await Promise.all([
+  const [challengeRows, intentRows, history, commerce] = await Promise.all([
     getChallengeRepository().listDiscover(observedAtSec),
     getIntentRepository().listDiscover(observedAtSec),
     getSolverSubmissionRepository().listHistory(observedAtSec),
+    refreshCommerceDiscoveryV1({ nowSec: observedAtSec, limit: 20 }),
   ]);
   const challenges = challengeRows.map((row) => ({
     id: row.id, title: row.title, goal: row.displayGoal, availability: row.availability,
@@ -29,7 +31,9 @@ export default async function DiscoverPage() {
       <AppHeader />
       <main className="directory-page" id="main-content">
         <header className="directory-page__header"><h1>Discover</h1><p>Persistent challenges, wallet-specific competitions, and past solver programs—kept visibly separate.</p></header>
-        <DiscoverView challenges={challenges} intents={intents} history={history} />
+        <DiscoverView challenges={challenges} intents={intents} history={history}
+          commerceOffers={commerce.offers} observedAtSec={observedAtSec}
+          commerceSourceErrors={commerce.sourceErrors} />
       </main>
     </>
   );

@@ -8,6 +8,8 @@ describe("DiscoverView", () => {
       challenges={[{ id: "stable-outcome", title: "Stable outcome", goal: "Find the strongest bounded stablecoin outcome.", availability: "between-rounds" }]}
       intents={[{ id: "550e8400-e29b-41d4-a716-446655440000", goal: "Move 10 USDG with a minimum.", state: "collecting", closesAt: "2026-08-18T18:00:00.000Z" }]}
       history={[{ id: "program-1", goal: "Past stablecoin discovery", solver: "Cobia coding agent", state: "expired" }]}
+      commerceOffers={[]}
+      observedAtSec={2_000_000_000}
     />);
 
     expect(html).toContain("Standing challenges");
@@ -20,9 +22,10 @@ describe("DiscoverView", () => {
   });
 
   it("states truthful empty collections", () => {
-    const html = renderToStaticMarkup(<DiscoverView challenges={[]} history={[]} intents={[]} />);
+    const html = renderToStaticMarkup(<DiscoverView challenges={[]} history={[]} intents={[]} commerceOffers={[]} observedAtSec={2_000_000_000} />);
     expect(html).toContain("No standing challenges are published yet.");
     expect(html).toContain("No custom intents are collecting proposals.");
     expect(html).toContain("No past discoveries yet.");
+    expect(html).toContain("No commerce offers are currently indexed");
   });
 });
