@@ -48,6 +48,11 @@ const X402PlacementSchema = z.object({
   endpoint: HttpsUrlSchema,
   facilitator: HttpsUrlSchema,
   assetTransferMethod: z.literal("eip3009"),
+  token: z.object({
+    runtimeCodeHash: HashSchema,
+    eip712Name: z.string().min(1).max(128),
+    eip712Version: z.string().min(1).max(32),
+  }).strict(),
 }).strict();
 
 const ReceiptSchema = z.discriminatedUnion("kind", [
@@ -66,6 +71,13 @@ const ReceiptSchema = z.discriminatedUnion("kind", [
     kind: z.literal("erc1155"), contract: AddressSchema, runtimeCodeHash: HashSchema,
     tokenId: PositiveAtomicSchema, minimumIncreaseAtomic: PositiveAtomicSchema,
   }).strict(),
+  z.object({
+    kind: z.literal("eip3009-transfer"), topic0: HashSchema,
+    fromTopicIndex: z.number().int().min(1).max(3),
+    toTopicIndex: z.number().int().min(1).max(3),
+  }).strict().refine((value) => value.fromTopicIndex !== value.toTopicIndex, {
+    message: "Transfer topic bindings must be distinct",
+  }),
 ]);
 
 const EntrySchema = z.object({
@@ -76,7 +88,14 @@ const EntrySchema = z.object({
   exactAtomicAmount: PositiveAtomicSchema,
   placement: z.union([DirectPlacementSchema, X402PlacementSchema]),
   receipt: ReceiptSchema,
-}).strict();
+}).strict().superRefine((entry, context) => {
+  if (entry.placement.kind === "x402-exact" && entry.receipt.kind !== "eip3009-transfer") {
+    context.addIssue({ code: "custom", path: ["receipt"], message: "x402 requires EIP-3009 settlement evidence" });
+  }
+  if (entry.placement.kind === "direct-contract" && entry.receipt.kind === "eip3009-transfer") {
+    context.addIssue({ code: "custom", path: ["receipt"], message: "Direct orders require order receipt evidence" });
+  }
+});
 
 export const CommerceMerchantManifestV1Schema = z.object({
   version: z.literal(1),

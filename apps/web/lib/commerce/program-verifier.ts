@@ -16,6 +16,7 @@ import {
   CommerceMerchantManifestV1Schema,
   commerceMerchantManifestCommitmentV1,
 } from "./merchant-manifest";
+import { compileX402AuthorizationPlanV1 } from "./x402-plan";
 
 const HashSchema = z.string().regex(/^0x[0-9a-fA-F]{64}$/).transform(
   (value) => value.toLowerCase() as Hash,
@@ -49,6 +50,9 @@ type ReplayResult = {
   stateDiffHash?: Hash;
   receiptCommitment?: Hash;
 };
+type CompiledCommerceProgramV1 =
+  | ReturnType<typeof compileCommerceOrderActionV1>
+  | ReturnType<typeof compileX402AuthorizationPlanV1>;
 
 function rawChainMismatch(value: unknown, field: string): boolean {
   return Boolean(value && typeof value === "object" && field in value &&
@@ -72,7 +76,7 @@ export async function verifyCommerceProgramV1(input: {
   nowSec: number;
   confirmAnchor(block: { number: string; hash: Hash }): Promise<boolean>;
   readCodeHash(address: Address, block: { number: string; hash: Hash }): Promise<Hash>;
-  replay(compiled: ReturnType<typeof compileCommerceOrderActionV1>, evidence: CommerceProgramEvidenceV1): Promise<ReplayResult>;
+  replay(compiled: CompiledCommerceProgramV1, evidence: CommerceProgramEvidenceV1): Promise<ReplayResult>;
 }) {
   const rawChain = rawChainMismatch(input.program, "chainId") ||
     rawChainMismatch(input.evidence, "chainId") || rawChainMismatch(input.policy, "executionChainId");
@@ -132,16 +136,21 @@ export async function verifyCommerceProgramV1(input: {
     if (!(await input.confirmAnchor(program.pinnedBlock))) errors.add("ANCHOR_MISMATCH");
   } catch { errors.add("ANCHOR_MISMATCH"); }
 
-  let compiled: ReturnType<typeof compileCommerceOrderActionV1> | null = null;
+  let compiled: CompiledCommerceProgramV1 | null = null;
   try {
-    compiled = compileCommerceOrderActionV1({ program, policy, offer, manifest });
+    compiled = offer.placement.kind === "x402-exact"
+      ? compileX402AuthorizationPlanV1({ program, policy, offer, manifest })
+      : compileCommerceOrderActionV1({ program, policy, offer, manifest });
   } catch {
     if (!errors.has("OFFER_CHANGED") && !errors.has("PRICE_BOUND_EXCEEDED") &&
       !errors.has("RECEIPT_RECIPIENT_MISMATCH")) errors.add("MERCHANT_UNREGISTERED");
   }
   if (compiled) {
     if (evidence.compiledActionHash !== commitment(compiled)) errors.add("REPLAY_MISMATCH");
-    for (const deployment of compiled.deployments) {
+    const deployments = "deployments" in compiled
+      ? compiled.deployments
+      : [{ address: compiled.asset, runtimeCodeHash: compiled.token.runtimeCodeHash }];
+    for (const deployment of deployments) {
       try {
         if (await input.readCodeHash(deployment.address, program.pinnedBlock) !== deployment.runtimeCodeHash) {
           errors.add("TARGET_CODE_MISMATCH");

@@ -13,6 +13,7 @@ import {
   commerceMerchantManifestCommitmentV1,
 } from "./merchant-manifest";
 import { CommerceProgramEvidenceV1Schema, verifyCommerceProgramV1 } from "./program-verifier";
+import { compileX402AuthorizationPlanV1 } from "./x402-plan";
 
 const hash = (byte: string) => `0x${byte.repeat(64)}` as `0x${string}`;
 const owner = "0x1111111111111111111111111111111111111111";
@@ -142,5 +143,58 @@ describe("commerce program verifier", () => {
       program: { ...program, rationale: "I verified this is safe" },
     });
     expect(result).toMatchObject({ accepted: false, errorCodes: ["PROGRAM_SCHEMA_INVALID"] });
+  });
+
+  it("verifies x402 plans without treating remote payloads as calldata", async () => {
+    const xManifest = CommerceMerchantManifestV1Schema.parse({
+      ...manifest,
+      entries: [{
+        ...manifest.entries[0]!,
+        placement: {
+          kind: "x402-exact", endpoint: "https://merchant.example/order",
+          facilitator: "https://facilitator.example", assetTransferMethod: "eip3009",
+          token: { runtimeCodeHash: hash("2"), eip712Name: "USD Coin", eip712Version: "2" },
+        },
+        receipt: { kind: "eip3009-transfer", topic0: hash("3"), fromTopicIndex: 1, toTopicIndex: 2 },
+      }],
+    });
+    const xManifestHash = commerceMerchantManifestCommitmentV1(xManifest);
+    const xOffer = CommerceOfferV1Schema.parse({
+      ...offer,
+      merchant: { ...offer.merchant, manifestHash: xManifestHash },
+      placement: { kind: "x402-exact", endpoint: "https://merchant.example/order" },
+      evidence: { profile: "payment-settled", receiptRecipient: owner },
+    });
+    const xPolicy = CommerceOrderPolicyV1Schema.parse({
+      ...policy,
+      offerCommitment: commerceOfferCommitmentV1(xOffer), merchantManifestHash: xManifestHash,
+      evidenceProfile: "payment-settled",
+    });
+    const xProgram = CommerceOrderProgramV1Schema.parse({
+      ...program, policyHash: commerceOrderPolicyCommitmentV1(xPolicy), manifestHash: xManifestHash,
+      parameters: {
+        ...program.parameters, offerCommitment: xPolicy.offerCommitment, evidenceProfile: "payment-settled",
+      },
+    });
+    const plan = compileX402AuthorizationPlanV1({
+      program: xProgram, policy: xPolicy, offer: xOffer, manifest: xManifest,
+    });
+    const xEvidence = CommerceProgramEvidenceV1Schema.parse({
+      ...evidence, programHash: commerceOrderProgramCommitmentV1(xProgram),
+      compiledActionHash: commitment(plan),
+    });
+    const result = await verifyCommerceProgramV1({
+      policy: xPolicy, offer: xOffer, manifest: xManifest, program: xProgram, evidence: xEvidence,
+      wallet: owner, executor, nowSec,
+      confirmAnchor: async () => true,
+      readCodeHash: async () => hash("2"),
+      replay: async () => ({
+        reproduced: true, compiledActionHash: xEvidence.compiledActionHash,
+        traceHash: xEvidence.traceHash, stateDiffHash: xEvidence.stateDiffHash,
+        receiptCommitment: xEvidence.receiptCommitment,
+      }),
+    });
+    expect(result).toMatchObject({ accepted: true, errorCodes: [], compiled: plan });
+    expect("data" in result.compiled!).toBe(false);
   });
 });

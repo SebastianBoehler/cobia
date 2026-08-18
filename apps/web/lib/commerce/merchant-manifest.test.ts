@@ -59,4 +59,40 @@ describe("commerce merchant manifest", () => {
     ];
     for (const value of invalid) expect(CommerceMerchantManifestV1Schema.safeParse(value).success).toBe(false);
   });
+
+  it("requires verifier-owned x402 token signing identity", () => {
+    const x402 = CommerceMerchantManifestV1Schema.parse({
+      version: 1,
+      chainId: 196,
+      entries: [{
+        merchantId: "api.example",
+        productCommitment: hash("4"),
+        payee: "0x4444444444444444444444444444444444444444",
+        paymentAsset: "0x5555555555555555555555555555555555555555",
+        exactAtomicAmount: "10000",
+        placement: {
+          kind: "x402-exact",
+          endpoint: "https://api.example/resource",
+          facilitator: "https://facilitator.example",
+          assetTransferMethod: "eip3009",
+          token: { runtimeCodeHash: hash("6"), eip712Name: "USD Coin", eip712Version: "2" },
+        },
+        receipt: {
+          kind: "eip3009-transfer",
+          topic0: hash("8"),
+          fromTopicIndex: 1,
+          toTopicIndex: 2,
+        },
+      }],
+      officialSources: ["https://api.example/contracts"],
+    });
+    expect(x402.entries[0]?.placement).toMatchObject({
+      kind: "x402-exact",
+      token: { eip712Name: "USD Coin", eip712Version: "2" },
+    });
+    expect(() => CommerceMerchantManifestV1Schema.parse({
+      ...x402,
+      entries: [{ ...x402.entries[0], placement: { ...x402.entries[0]!.placement, token: undefined } }],
+    })).toThrow();
+  });
 });
