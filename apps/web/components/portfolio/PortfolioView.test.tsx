@@ -48,6 +48,7 @@ describe("PortfolioView", () => {
         request: vi.fn(async ({ method }) => {
           if (method === "eth_requestAccounts") return [owner];
           if (method === "eth_chainId") return "0x7a0";
+          if (method === "wallet_switchEthereumChain") return null;
           throw new Error(`Unexpected wallet method ${method}`);
         }),
       },
@@ -77,5 +78,35 @@ describe("PortfolioView", () => {
     expect(screen.getByRole("img", { name: "Aave V3" })).toBeVisible();
     expect(screen.getByText("12.5 USDG")).toBeVisible();
     expect(screen.getByText("4.25 aUSDG")).toBeVisible();
+  });
+
+  it("reads chain 1952 on the testnet host and omits unsupported protocol positions", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({
+      address: owner,
+      chainId: 1952,
+      networkName: "X Layer Testnet",
+      blockNumber: "38600000",
+      observedAt: "2026-08-18T09:00:00.000Z",
+      native: { symbol: "OKB", amountAtomic: "1000000000000000", formatted: "0.001" },
+      balances: [],
+      positions: [],
+    })));
+    const detail: Eip6963ProviderDetail = {
+      info: { uuid: "testnet", name: "OKX", icon: "data:image/svg+xml,<svg/>", rdns: "okx.test" },
+      provider: { request: vi.fn(async ({ method }) => {
+        if (method === "eth_requestAccounts") return [owner];
+        if (method === "eth_chainId") return "0x7a0";
+        throw new Error(`Unexpected wallet method ${method}`);
+      }) },
+    };
+
+    render(<WalletProvider targetChainId={1952}><WalletButton /><PortfolioView /></WalletProvider>);
+    act(() => window.dispatchEvent(new CustomEvent("eip6963:announceProvider", { detail })));
+    fireEvent.click(screen.getByRole("button", { name: "Connect wallet" }));
+
+    expect(await screen.findByText("X Layer Testnet")).toBeVisible();
+    expect(fetch).toHaveBeenCalledWith(`/api/wallets/${owner}/portfolio?chainId=1952`, { cache: "no-store" });
+    expect(screen.getByText("0.001 OKB")).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Protocol positions" })).not.toBeInTheDocument();
   });
 });

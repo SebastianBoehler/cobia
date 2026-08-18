@@ -80,3 +80,20 @@ describe("mainnet portfolio", () => {
     await expect(readPortfolio(owner, 196, "https://rpc.invalid")).rejects.toBe(rpcFailure);
   });
 });
+
+describe("testnet portfolio", () => {
+  it("reads only native testnet OKB without inventing protocol assets", async () => {
+    getBalance.mockResolvedValue(42n);
+
+    const snapshot = await readPortfolio(owner, 1952, "https://testnet-rpc.invalid");
+
+    expect(snapshot).toMatchObject({
+      chainId: 1952,
+      networkName: "X Layer Testnet",
+      native: { symbol: "OKB", amountAtomic: "42" },
+      balances: [],
+      positions: [],
+    });
+    expect(readContract).not.toHaveBeenCalled();
+  });
+});

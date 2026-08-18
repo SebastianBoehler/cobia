@@ -12,13 +12,23 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { AppHeader } from "@/components/layout/AppHeader";
+import { TestnetHome } from "@/components/network/TestnetHome";
+import { getSiteNetwork } from "@/lib/network/site-network-server";
 import { createPageMetadata } from "./site-metadata";
 
-export const metadata = createPageMetadata({
-  title: "Verified DeFi Routes on X Layer",
-  description: "State the wallet outcome you want. Solvers search, Cobia independently verifies, and you decide whether to execute.",
-  path: "/",
-});
+export async function generateMetadata() {
+  const network = await getSiteNetwork();
+  return createPageMetadata(network.mode === "testnet" ? {
+    title: "X Layer Testnet Rehearsal",
+    description: "Inspect Cobia's paused X Layer testnet deployment and dedicated-wallet state on chain 1952.",
+    path: "/",
+    index: false,
+  } : {
+    title: "Verified DeFi Routes on X Layer",
+    description: "State the wallet outcome you want. Solvers search, Cobia independently verifies, and you decide whether to execute.",
+    path: "/",
+  });
+}
 
 const proofPoints = [
   { icon: Blocks, label: "Fresh-fork simulation" },
@@ -39,7 +49,8 @@ const productLinks = [
   { href: "/markets", icon: Store, title: "Explore solver markets", description: "Compare live requests and valid proposals." },
 ] as const;
 
-export default function Home() {
+export default async function Home() {
+  if ((await getSiteNetwork()).mode === "testnet") return <TestnetHome />;
   return (
     <>
       <AppHeader />

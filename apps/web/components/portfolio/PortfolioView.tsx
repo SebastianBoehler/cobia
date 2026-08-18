@@ -24,7 +24,7 @@ export function PortfolioView() {
     if (!wallet.account) return;
     let active = true;
     const account = wallet.account;
-    fetch(`/api/wallets/${wallet.account}/portfolio?chainId=196`, { cache: "no-store" })
+    fetch(`/api/wallets/${wallet.account}/portfolio?chainId=${wallet.targetChainId}`, { cache: "no-store" })
       .then(async (response) => {
         const body = await response.json();
         if (!response.ok) throw new Error(body.message ?? "Portfolio read failed.");
@@ -33,10 +33,11 @@ export function PortfolioView() {
       .then((body) => { if (active) setResult({ account, snapshot: body }); })
       .catch((cause) => { if (active) setResult({ account, error: cause instanceof Error ? cause.message : "Portfolio read failed." }); });
     return () => { active = false; };
-  }, [wallet.account, wallet.chainId]);
+  }, [wallet.account, wallet.chainId, wallet.targetChainId]);
 
-  if (!wallet.account) return <section className={styles.empty}><WalletCards size={28} /><h2>Connect your wallet</h2><p>Your X Layer balances and protocol positions are read directly from chain state.</p></section>;
-  if (result?.account !== wallet.account) return <section className={styles.empty}><LoaderCircle className="spin" /><h2>Reading X Layer</h2></section>;
+  const testnet = wallet.targetChainId === 1952;
+  if (!wallet.account) return <section className={styles.empty}><WalletCards size={28} /><h2>Connect your wallet</h2><p>{testnet ? "Your testnet OKB balance is read directly from chain 1952." : "Your X Layer balances and protocol positions are read directly from chain state."}</p></section>;
+  if (result?.account !== wallet.account) return <section className={styles.empty}><LoaderCircle className="spin" /><h2>Reading {testnet ? "X Layer Testnet" : "X Layer"}</h2></section>;
   if (result.error) return <section className={styles.empty}><CircleAlert /><h2>Portfolio unavailable</h2><p className={styles.error}>{result.error}</p></section>;
   const snapshot = result.snapshot;
   if (!snapshot) return null;
@@ -57,7 +58,7 @@ export function PortfolioView() {
         </article>)}
       </div>
     </section>
-    <section className={styles.holdingGroup} aria-labelledby="protocol-positions-title">
+    {snapshot.positions.length > 0 ? <section className={styles.holdingGroup} aria-labelledby="protocol-positions-title">
       <div className={styles.groupHeader}><h3 id="protocol-positions-title">Protocol positions</h3><span>{snapshot.positions.length} Aave V3 positions</span></div>
       <div className={styles.holdingGrid}>
         {snapshot.positions.map((position) => <article className={styles.holdingCard} key={position.symbol}>
@@ -66,7 +67,7 @@ export function PortfolioView() {
           <strong className={styles.holdingBalance}>{pretty(position.formatted)} {position.symbol}</strong>
         </article>)}
       </div>
-    </section>
-    <WalletScout account={wallet.account} snapshot={snapshot} />
+    </section> : null}
+    {!testnet ? <WalletScout account={wallet.account} snapshot={snapshot} /> : null}
   </section>;
 }

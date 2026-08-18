@@ -4,6 +4,7 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppHeader } from "./AppHeader";
+import { WalletProvider } from "../wallet/WalletProvider";
 
 vi.mock("../wallet/WalletButton", () => ({ WalletButton: () => <button>Connect wallet</button> }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/requests/new" }));
@@ -44,5 +45,15 @@ describe("AppHeader", () => {
     const navigation = screen.getByRole("navigation", { name: "Primary navigation" });
 
     expect(navigation.querySelectorAll(".app-header__nav-icon")).toHaveLength(4);
+  });
+
+  it("labels testnet and removes mainnet-only product destinations", () => {
+    render(<WalletProvider targetChainId={1952}><AppHeader /></WalletProvider>);
+
+    expect(screen.getByTitle("X Layer Testnet")).toHaveTextContent("Testnet");
+    expect(screen.getByRole("link", { name: "Positions" })).toBeVisible();
+    expect(screen.queryByRole("link", { name: "New intent" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Activity" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Solver market" })).not.toBeInTheDocument();
   });
 });

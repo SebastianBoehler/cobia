@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getAddress, isAddress, type Address } from "viem";
-import type { Eip1193Request, Eip6963ProviderDetail, XLayerChainId } from "../../lib/wallet/eip1193";
+import type { Eip1193Request, Eip6963ProviderDetail, XLayerWalletChainId } from "../../lib/wallet/eip1193";
 import { parseChainId } from "../../lib/wallet/eip1193";
 
 const CHAINS = {
@@ -12,6 +12,12 @@ const CHAINS = {
     rpcUrls: ["https://rpc.xlayer.tech"],
     blockExplorerUrls: ["https://www.okx.com/web3/explorer/xlayer"],
   },
+  1952: {
+    chainId: "0x7a0",
+    chainName: "X Layer Testnet",
+    rpcUrls: ["https://testrpc.xlayer.tech/terigon"],
+    blockExplorerUrls: ["https://www.oklink.com/x-layer-test"],
+  },
 } as const;
 
 interface WalletSession {
@@ -19,17 +25,20 @@ interface WalletSession {
   selected: Eip6963ProviderDetail | null;
   account: Address | null;
   chainId: number | null;
+  targetChainId: XLayerWalletChainId;
+  networkName: "X Layer Mainnet" | "X Layer Testnet";
   error: string | null;
   connect(uuid: string): Promise<void>;
   disconnect(): void;
   request(input: Eip1193Request): Promise<unknown>;
-  switchChain(chainId: XLayerChainId): Promise<void>;
+  switchChain(chainId: XLayerWalletChainId): Promise<void>;
   switchToXLayer(): Promise<void>;
 }
 
 const missing = async () => { throw new Error("Connect an EVM wallet first."); };
 const WalletContext = createContext<WalletSession>({
-  providers: [], selected: null, account: null, chainId: null, error: null,
+  providers: [], selected: null, account: null, chainId: null, targetChainId: 196,
+  networkName: "X Layer Mainnet", error: null,
   connect: missing, disconnect: () => undefined, request: missing, switchChain: missing, switchToXLayer: missing,
 });
 
@@ -37,7 +46,30 @@ function errorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : "The wallet request failed.";
 }
 
-export function WalletProvider({ children }: { children: ReactNode }) {
+async function requestChainSwitch(
+  provider: Eip6963ProviderDetail["provider"],
+  target: XLayerWalletChainId,
+): Promise<void> {
+  const chain = CHAINS[target];
+  try {
+    await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: chain.chainId }] });
+  } catch (cause) {
+    const code = typeof cause === "object" && cause && "code" in cause ? cause.code : undefined;
+    if (code !== 4902) throw cause;
+    await provider.request({
+      method: "wallet_addEthereumChain",
+      params: [{
+        ...chain,
+        nativeCurrency: { name: "OKB", symbol: "OKB", decimals: 18 },
+      }],
+    });
+  }
+}
+
+export function WalletProvider({ children, targetChainId = 196 }: {
+  children: ReactNode;
+  targetChainId?: XLayerWalletChainId;
+}) {
   const [providers, setProviders] = useState<Eip6963ProviderDetail[]>([]);
   const [selected, setSelected] = useState<Eip6963ProviderDetail | null>(null);
   const [account, setAccount] = useState<Address | null>(null);
@@ -82,15 +114,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         throw new Error("The wallet returned no valid EVM account.");
       }
       const currentChain = await detail.provider.request({ method: "eth_chainId" });
+      const parsedChain = parseChainId(currentChain);
+      if (parsedChain !== targetChainId) await requestChainSwitch(detail.provider, targetChainId);
       setSelected(detail);
       setAccount(getAddress(accounts[0]));
-      setChainId(parseChainId(currentChain));
+      setChainId(targetChainId);
     } catch (cause) {
       const message = errorMessage(cause);
       setError(message);
       throw new Error(message, { cause });
     }
-  }, [providers]);
+  }, [providers, targetChainId]);
 
   const disconnect = useCallback(() => {
     setSelected(null);
@@ -104,32 +138,23 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     return selected.provider.request(input);
   }, [selected]);
 
-  const switchChain = useCallback(async (target: XLayerChainId) => {
+  const switchChain = useCallback(async (target: XLayerWalletChainId) => {
     if (!selected) throw new Error("Connect an EVM wallet first.");
     if (chainId === target) return;
-    const chain = CHAINS[target];
-    try {
-      await selected.provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: chain.chainId }] });
-      setChainId(target);
-    } catch (cause) {
-      const code = typeof cause === "object" && cause && "code" in cause ? cause.code : undefined;
-      if (code !== 4902) throw cause;
-      await selected.provider.request({
-        method: "wallet_addEthereumChain",
-        params: [{
-          ...chain,
-          nativeCurrency: { name: "OKB", symbol: "OKB", decimals: 18 },
-        }],
-      });
-      setChainId(target);
-    }
+    await requestChainSwitch(selected.provider, target);
+    setChainId(target);
   }, [chainId, selected]);
 
-  const switchToXLayer = useCallback(() => switchChain(196), [switchChain]);
+  const switchToXLayer = useCallback(() => switchChain(targetChainId), [switchChain, targetChainId]);
+  const networkName: WalletSession["networkName"] = targetChainId === 1952
+    ? "X Layer Testnet"
+    : "X Layer Mainnet";
 
   const value = useMemo(() => ({
-    providers, selected, account, chainId, error, connect, disconnect, request, switchChain, switchToXLayer,
-  }), [providers, selected, account, chainId, error, connect, disconnect, request, switchChain, switchToXLayer]);
+    providers, selected, account, chainId, targetChainId, networkName, error,
+    connect, disconnect, request, switchChain, switchToXLayer,
+  }), [providers, selected, account, chainId, targetChainId, networkName, error,
+    connect, disconnect, request, switchChain, switchToXLayer]);
 
   return <WalletContext value={value}>{children}</WalletContext>;
 }

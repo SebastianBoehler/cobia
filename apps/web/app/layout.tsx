@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { WalletProvider } from "@/components/wallet/WalletProvider";
+import { getSiteNetwork } from "@/lib/network/site-network-server";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_ORIGIN, SOCIAL_IMAGE } from "./site-metadata";
 import "./globals.css";
 import "./styles/landing.css";
@@ -18,7 +19,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
+const mainnetMetadata: Metadata = {
   metadataBase: new URL(SITE_ORIGIN),
   applicationName: SITE_NAME,
   title: {
@@ -57,6 +58,18 @@ export const metadata: Metadata = {
   },
 };
 
+export async function generateMetadata(): Promise<Metadata> {
+  const network = await getSiteNetwork();
+  if (network.mode === "mainnet") return mainnetMetadata;
+  return {
+    metadataBase: new URL("https://testnet.getcobia.com"),
+    applicationName: SITE_NAME,
+    title: { default: "Cobia Testnet — X Layer Rehearsal", template: "%s · Cobia Testnet" },
+    description: "Inspect Cobia's paused X Layer testnet deployment and a dedicated wallet without touching mainnet funds.",
+    robots: { index: false, follow: false },
+  };
+}
+
 export const viewport: Viewport = {
   colorScheme: "light dark",
   themeColor: [
@@ -66,18 +79,20 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const network = await getSiteNetwork();
   const savedTheme = (await cookies()).get("cobia-theme")?.value;
   const theme = savedTheme === "dark" || savedTheme === "light" ? savedTheme : undefined;
   return (
     <html
       lang="en"
+      data-network={network.mode}
       data-theme={theme}
       data-scroll-behavior="smooth"
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <WalletProvider>{children}</WalletProvider>
+        <WalletProvider targetChainId={network.chainId}>{children}</WalletProvider>
         <SpeedInsights />
       </body>
     </html>

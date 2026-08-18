@@ -1,10 +1,11 @@
 "use client";
 
-import { CirclePlus, Clock3, Store, WalletCards } from "lucide-react";
+import { CirclePlus, Clock3, House, Store, WalletCards } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CobiaLogo } from "../brand/CobiaLogo";
 import { WalletButton } from "../wallet/WalletButton";
+import { useWallet } from "../wallet/WalletProvider";
 import { ThemeToggle } from "./ThemeToggle";
 
 const navigation = [
@@ -14,22 +15,29 @@ const navigation = [
   { href: "/markets", icon: Store, label: "Solver market", prefixes: ["/markets"] },
 ] as const;
 
+const testnetNavigation = [
+  { href: "/", icon: House, label: "Testnet home", prefixes: ["/"] },
+  { href: "/portfolio", icon: WalletCards, label: "Positions", prefixes: ["/portfolio"] },
+] as const;
+
 export function AppHeader() {
   const pathname = usePathname() ?? "";
+  const wallet = useWallet();
+  const visibleNavigation = wallet.targetChainId === 1952 ? testnetNavigation : navigation;
   return (
     <>
       <a className="skip-link" href="#main-content">Skip to content</a>
       <header className="app-header">
         <div className="app-header__brand">
           <CobiaLogo />
-          <span className="network-label" title="X Layer Mainnet">
+          <span className="network-label" title={wallet.networkName}>
             <span aria-hidden="true" className="network-label__dot" />
-            X Layer
+            {wallet.targetChainId === 1952 ? "Testnet" : "X Layer"}
           </span>
         </div>
         <nav className="app-header__nav" aria-label="Primary navigation">
-          {navigation.map(({ href, icon: Icon, label, prefixes }) => {
-            const active = prefixes.some((prefix) => pathname.startsWith(prefix));
+          {visibleNavigation.map(({ href, icon: Icon, label, prefixes }) => {
+            const active = href === "/" ? pathname === "/" : prefixes.some((prefix) => pathname.startsWith(prefix));
             return (
               <Link aria-current={active ? "page" : undefined} href={href} key={href}>
                 <Icon aria-hidden="true" className="app-header__nav-icon" size={20} strokeWidth={1.8} />

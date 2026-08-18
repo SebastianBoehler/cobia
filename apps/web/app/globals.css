@@ -191,6 +191,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .theme-toggle { height: 40px; width: 40px; }
   .app-header__brand { gap: 12px; }
   .network-label { font-size: 0; gap: 0; }
+  [data-network="testnet"] .network-label { font-size: 10px; gap: 6px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

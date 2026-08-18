@@ -117,3 +117,26 @@ same canonical anchors and state.
 The approved X Layer post is live at
 <https://x.com/Cobia_Web3/status/2089621568942981373>. It describes the solver
 and independent-verifier boundary; it predates the completed testnet deployment.
+
+## Public testnet host
+
+The same Vercel project serves two exact network realms:
+
+- `getcobia.com` and `www.getcobia.com`: X Layer mainnet, chain `196`;
+- `testnet.getcobia.com`: X Layer testnet, chain `1952`.
+
+The hostname is resolved on the server and passed to the wallet provider. A
+chain query parameter cannot override it. The testnet host automatically asks
+the connected wallet to switch to `0x7a0`, reads only native testnet OKB for
+the portfolio, and checks the deployed runtime hashes, owners, bindings, and
+paused state directly against chain 1952.
+
+The testnet host currently blocks intent, market, activity, coding-agent, and
+execution pages and APIs. This is deliberate: the testnet deployment has no
+enabled token or protocol capabilities, so displaying mainnet markets or
+pretending that testnet route execution exists would cross the product trust
+boundary. Static assets and Vercel observability endpoints remain available.
+
+For local verification, use `http://testnet.localhost:3000`; ordinary
+`localhost` remains mainnet. Unknown hosts fail with HTTP `421` rather than
+guessing a chain.

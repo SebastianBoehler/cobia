@@ -1,6 +1,7 @@
 import type { Address } from "viem";
 
 export type XLayerChainId = 196;
+export type XLayerWalletChainId = 196 | 1952;
 
 export interface Eip1193Request {
   method: string;

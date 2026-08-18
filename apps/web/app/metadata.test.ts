@@ -5,12 +5,15 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/components/wallet/WalletProvider", () => ({
   WalletProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
+vi.mock("@/lib/network/site-network-server", () => ({
+  getSiteNetwork: async () => ({ mode: "mainnet", chainId: 196 }),
+}));
 vi.mock("@vercel/speed-insights/next", () => ({ SpeedInsights: () => null }));
 vi.mock("next/font/google", () => ({
   Geist: () => ({ variable: "geist-sans" }),
   Geist_Mono: () => ({ variable: "geist-mono" }),
 }));
-import { metadata, viewport } from "./layout";
+import { generateMetadata, viewport } from "./layout";
 import manifest from "./manifest";
 import robots from "./robots";
 import sitemap from "./sitemap";
@@ -23,7 +26,8 @@ describe("site metadata", () => {
     expect(SITE_ORIGIN).toBe("https://getcobia.com");
   });
 
-  it("publishes a complete Cobia social and search identity", () => {
+  it("publishes a complete Cobia social and search identity", async () => {
+    const metadata = await generateMetadata();
     expect(metadata).toMatchObject({
       applicationName: "Cobia",
       title: {

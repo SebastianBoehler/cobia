@@ -55,4 +55,26 @@ describe("AppHeader wallet control", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Connection rejected");
   });
+
+  it("switches a wallet connected on mainnet to the hostname-bound testnet", async () => {
+    const request = vi.fn(async ({ method }: { method: string }) => {
+      if (method === "eth_requestAccounts") return ["0x1111111111111111111111111111111111111111"];
+      if (method === "eth_chainId") return "0xc4";
+      if (method === "wallet_switchEthereumChain") return null;
+      throw new Error(`Unexpected method ${method}`);
+    });
+    const detail: Eip6963ProviderDetail = {
+      info: { uuid: "okx-testnet", name: "OKX Wallet", icon: "data:image/svg+xml,<svg/>", rdns: "com.okex.wallet" },
+      provider: { request },
+    };
+    render(<WalletProvider targetChainId={1952}><AppHeader /></WalletProvider>);
+
+    act(() => window.dispatchEvent(new CustomEvent("eip6963:announceProvider", { detail })));
+    fireEvent.click(screen.getByRole("button", { name: "Connect wallet" }));
+
+    await waitFor(() => expect(request).toHaveBeenCalledWith({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: "0x7a0" }],
+    }));
+  });
 });
