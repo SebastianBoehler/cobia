@@ -92,5 +92,5 @@ export async function prepareCommercePlacementV1(
     authorizationTemplateHash: commitment(authorization) as Hash,
     observedAtSec: dependencies.nowSec,
   });
-  return { placement, authorization };
+  return { placement, plan: plan.data, authorization };
 }
