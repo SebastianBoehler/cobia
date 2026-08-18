@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { IntentCompetitionView } from "@/components/intents/IntentCompetitionView";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { getIntentRepository, getSolverSubmissionRepository } from "@/lib/runtime/market";
+import { currentUnixSeconds } from "@/lib/time";
 import { createPageMetadata } from "../../site-metadata";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,7 @@ export default async function IntentCompetitionPage({ params }: PageProps<"/inte
   const { intentId } = await params;
   const intent = await getIntentRepository().get(intentId);
   if (!intent) notFound();
-  const rows = await getSolverSubmissionRepository().listForIntent(intentId, Math.floor(Date.now() / 1_000));
+  const rows = await getSolverSubmissionRepository().listForIntent(intentId, currentUnixSeconds());
   const map = (item: (typeof rows.current)[number]) => ({
     id: item.id, solverId: item.solverId, revision: item.revision,
     state: item.presentationState, validUntil: item.validUntil.toISOString(),

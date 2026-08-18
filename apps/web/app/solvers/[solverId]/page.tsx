@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { SolverProfileView } from "@/components/solvers/SolverProfileView";
 import { getSolverProfileRepository } from "@/lib/runtime/market";
+import { currentUnixSeconds } from "@/lib/time";
 import { createPageMetadata } from "../../site-metadata";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ export const metadata = createPageMetadata({
 
 export default async function SolverProfilePage({ params }: PageProps<"/solvers/[solverId]">) {
   const { solverId } = await params;
-  const profile = await getSolverProfileRepository().read(solverId, Math.floor(Date.now() / 1_000));
+  const profile = await getSolverProfileRepository().read(solverId, currentUnixSeconds());
   if (!profile) notFound();
   return <>
     <AppHeader />

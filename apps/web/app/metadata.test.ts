@@ -55,8 +55,8 @@ describe("site metadata", () => {
     expect(viewport).toMatchObject({
       colorScheme: "light dark",
       themeColor: [
-        { media: "(prefers-color-scheme: light)", color: "#f6faf6" },
-        { media: "(prefers-color-scheme: dark)", color: "#07110d" },
+        { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+        { media: "(prefers-color-scheme: dark)", color: "#17181b" },
       ],
     });
   });

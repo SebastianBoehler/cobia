@@ -16,7 +16,6 @@
   "dependencies": {
     "@cobia/domain": "workspace:*",
     "@cobia/solvers": "workspace:*",
-    "@modelcontextprotocol/server": "2.0.0",
     "@okxweb3/mpp": "0.1.0",
     "@vercel/sandbox": "2.9.0",
     "@vercel/speed-insights": "^2.0.0",
@@ -32,7 +31,6 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@modelcontextprotocol/client": "2.0.0",
     "@tailwindcss/postcss": "4.3.3",
     "@testcontainers/postgresql": "12.1.0",
     "@testing-library/jest-dom": "7.0.0",

@@ -2,7 +2,7 @@ import { asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { projectSubmissionState } from "../competitions/submission-state";
 import type { CobiaDatabase } from "./client";
-import { cobiaIntents, cobiaSolverSubmissions, cobiaSolvers } from "./schema";
+import { cobiaSolverSubmissions, cobiaSolvers } from "./schema";
 
 const AddressSchema = z.string().regex(/^0x[0-9a-fA-F]{40}$/).transform((value) => value.toLowerCase());
 const ProfileSchema = z.object({

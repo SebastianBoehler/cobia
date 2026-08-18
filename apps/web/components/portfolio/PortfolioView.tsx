@@ -3,7 +3,6 @@
 import { CircleAlert, LoaderCircle, WalletCards } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { PortfolioSnapshot } from "../../lib/portfolio/read-portfolio";
-import { WalletScout } from "../scout/WalletScout";
 import { useWallet } from "../wallet/WalletProvider";
 import styles from "../product/ProductShell.module.css";
 import { PortfolioAssetMark } from "./PortfolioAssetMark";
@@ -68,6 +67,5 @@ export function PortfolioView() {
         </article>)}
       </div>
     </section> : null}
-    {!testnet ? <WalletScout account={wallet.account} snapshot={snapshot} /> : null}
   </section>;
 }

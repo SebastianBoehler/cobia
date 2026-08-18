@@ -1,4 +1,0 @@
-.actions { align-items: center; display: flex; flex-wrap: wrap; gap: 9px; margin-top: 18px; }
-.action { align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; color: var(--ink); cursor: pointer; display: inline-flex; font-size: 12px; font-weight: 650; gap: 7px; min-height: 40px; padding: 0 13px; transition: border-color 150ms ease, color 150ms ease, transform 150ms ease; }
-.action:hover { border-color: var(--line-strong); color: var(--cobalt-dark); }
-.action:active { transform: scale(.96); }

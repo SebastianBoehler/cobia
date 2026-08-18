@@ -32,10 +32,8 @@ describe("ActivityView", () => {
     expect(await screen.findByRole("heading", { name: "Route proof revealed" })).toBeVisible();
     expect(screen.getByText("Confirmed")).toBeVisible();
     expect(screen.getByText(/Transaction 0x22222222/)).toBeVisible();
-    expect(screen.getByRole("link", { name: "View route proof" })).toHaveAttribute(
-      "href",
-      `/routes/0x${"11".repeat(32)}`,
-    );
+    expect(screen.getByText("Archived route proof")).toBeVisible();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
     expect(fetch).toHaveBeenCalledWith(`/api/wallets/${account}/activity`, { cache: "no-store" });
   });
 });

@@ -46,12 +46,11 @@ describe("site network boundary", () => {
     ]) expect(networkAllowsPath("testnet", path)).toBe(true);
 
     for (const path of [
-      "/requests/new",
-      "/markets",
+      "/intents/new",
+      "/discover",
       "/activity",
-      "/api/requests",
-      "/api/markets",
-      "/api/agent-programs/program/execution",
+      "/api/intents",
+      "/api/programs/550e8400-e29b-41d4-a716-446655440000/execution",
       "/api/internal/coding-agent/rpc/job",
     ]) expect(networkAllowsPath("testnet", path)).toBe(false);
   });

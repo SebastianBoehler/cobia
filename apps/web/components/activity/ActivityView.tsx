@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { Activity, ArrowUpRight, BadgeCheck, CircleAlert, LoaderCircle, Radio, ReceiptText, Route } from "lucide-react";
+import { Activity, BadgeCheck, CircleAlert, LoaderCircle, Radio, ReceiptText, Route } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useWallet } from "../wallet/WalletProvider";
 import styles from "../product/ProductShell.module.css";
@@ -72,7 +71,7 @@ export function ActivityView() {
           {event.transactionHash ? <small title={event.transactionHash}>Transaction {event.transactionHash.slice(0, 10)}…{event.transactionHash.slice(-6)}</small> : null}
         </div>
         <span className={`${styles.statusBadge} ${event.status === "failed" ? styles.statusFailed : ""}`}>{statusLabel(event.status)}</span>
-        {event.routeId ? <Link className={styles.timelineAction} href={`/routes/${event.routeId}`}>View route proof <ArrowUpRight aria-hidden="true" size={15} /></Link> : <span className={styles.timelineActionMuted}>No route link</span>}
+        <span className={styles.timelineActionMuted}>{event.routeId ? "Archived route proof" : "No program link"}</span>
       </li>)}
     </ol>
   </section>;

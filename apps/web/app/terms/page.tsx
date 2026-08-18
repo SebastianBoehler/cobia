@@ -62,7 +62,7 @@ export default function TermsPage() {
           Cobia is not liable for indirect losses, lost profits, protocol failures, or transactions you approve.
         </p>
       </section>
-      <p className="legal-page__back"><Link href="/requests/new">← Back to new intent</Link></p>
+      <p className="legal-page__back"><Link href="/intents/new">← Back to new intent</Link></p>
     </main>
   </>;
 }

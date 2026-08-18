@@ -1,6 +1,7 @@
 import { DiscoverView } from "@/components/discover/DiscoverView";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { getChallengeRepository, getIntentRepository, getSolverSubmissionRepository } from "@/lib/runtime/market";
+import { currentUnixSeconds } from "@/lib/time";
 import { createPageMetadata } from "../site-metadata";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +12,7 @@ export const metadata = createPageMetadata({
 });
 
 export default async function DiscoverPage() {
-  const observedAtSec = Math.floor(Date.now() / 1_000);
+  const observedAtSec = currentUnixSeconds();
   const [challengeRows, intentRows, history] = await Promise.all([
     getChallengeRepository().listDiscover(observedAtSec),
     getIntentRepository().listDiscover(observedAtSec),
