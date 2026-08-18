@@ -90,7 +90,7 @@ export const GeneralIntentPolicyV2Schema = z.object({
 - [x] Store solver profile claims separately from verifier-derived statistics. Require `solverId`, display name, operator kind, attestation address when community-operated, and declared capability IDs; do not seed invented solvers.
 - [x] Store objective measurement as a canonical immutable `objective` artifact hash rather than a mutable numeric column. Derive wins and acceptance rates from verdict/receipt rows.
 - [x] Validate the Drizzle journal with `drizzle-kit check`, rerun the focused integration test (4 passed), and run web typecheck.
-- [ ] Commit: `feat(db): store immutable solver competitions`
+- [x] Commit: `feat(db): store immutable solver competitions`
 
 ## Task 3: Build repositories and current-versus-history projections
 
@@ -103,13 +103,13 @@ export const GeneralIntentPolicyV2Schema = z.object({
 - Create: `apps/web/lib/db/solver-projections.integration.test.ts`
 - Create: `apps/web/lib/db/challenges.ts`
 
-- [ ] Write failing unit tests for `current`, `expired`, `rejected`, `superseded`, and `executed` presentation states using explicit `observedAtSec`.
-- [ ] Write failing integration tests that rank only each solver's newest fresh attested revision, preserve all older revisions in history, keep a standing challenge active after its round expires, count accepted/rejected outcomes from verifier evidence, and sort ties by canonical solver ID.
-- [ ] Run both focused suites; expect missing repository/projection failures.
-- [ ] Implement repository methods `createChallenge`, `openChallengeRound`, `createIntent`, `appendSubmission`, `appendArtifact`, `resolveSubmission`, `selectSubmission`, `listDiscover`, `listSolverProfiles`, and `readSolverProfile` with row locks around state transitions.
-- [ ] Make state projection pure and deterministic. It must not read wall-clock time internally, trust solver rationale, or infer safety from an artifact's presence.
-- [ ] Return explicit empty collections; propagate database/parsing errors instead of hiding them behind an empty marketplace.
-- [ ] Rerun focused unit/integration tests and `pnpm --filter @cobia/web typecheck`.
+- [x] Write failing unit tests for `current`, `expired`, `rejected`, `superseded`, and `executed` presentation states using explicit `observedAtSec`.
+- [x] Write failing integration tests that rank only each solver's newest fresh attested revision, preserve all older revisions in history, keep a standing challenge active after its round expires, count accepted/rejected outcomes from verifier evidence, and sort ties by canonical solver ID.
+- [x] Run both focused suites; expect missing repository/projection failures.
+- [x] Implement repository methods `createChallenge`, `openChallengeRound`, `createIntent`, `appendSubmission`, `appendArtifact`, `resolveSubmission`, `selectSubmission`, `listDiscover`, `listSolverProfiles`, and `readSolverProfile` with row locks around state transitions.
+- [x] Make state projection pure and deterministic. It must not read wall-clock time internally, trust solver rationale, or infer safety from an artifact's presence.
+- [x] Return explicit empty collections; propagate database/parsing errors instead of hiding them behind an empty marketplace.
+- [x] Rerun focused unit/integration tests and `pnpm --filter @cobia/web typecheck`.
 - [ ] Commit: `feat(web): project solver revision history`
 
 ## Task 4: Move the coding-agent vertical slice onto the new competition model
