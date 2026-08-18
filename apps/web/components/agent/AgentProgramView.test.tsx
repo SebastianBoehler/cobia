@@ -7,17 +7,17 @@ import { AgentProgramView, hasRequiredConfirmations } from "./AgentProgramView";
 describe("AgentProgramView", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
-      id: "550e8400-e29b-41d4-a716-446655440000",
-      state: "attested",
-      validity: "past-discovery",
-      executable: false,
-      owner: "0x1111111111111111111111111111111111111111",
-      blockNumber: "123",
-      program: { actions: [{ capabilityId: "aave-v3.supply", capabilityVersion: 1 }], constraints: [] },
-      verdict: { accepted: true, errorCodes: [] },
-      provenance: { modelResponseIds: ["resp_1"], commands: [] },
-      replay: { reproduced: true },
-      receipt: null,
+      submission: {
+        id: "550e8400-e29b-41d4-a716-446655440000", state: "expired",
+        executable: false, owner: "0x1111111111111111111111111111111111111111",
+        blockNumber: "123", displayGoal: "Supply USDG",
+      },
+      artifacts: {
+        program: { payload: { actions: [{ capabilityId: "aave-v3.supply", capabilityVersion: 1 }], balanceConstraints: [] } },
+        verdict: { payload: { accepted: true, errorCodes: [] } },
+        provenance: { summary: { commandCount: 3, fileCount: 2, networkRequestCount: 1 } },
+        replay: { payload: { reproduced: true } },
+      },
     }))));
   });
 
@@ -25,6 +25,7 @@ describe("AgentProgramView", () => {
     render(<AgentProgramView programId="550e8400-e29b-41d4-a716-446655440000" />);
     expect(await screen.findByText("Past discovery")).toBeVisible();
     expect(screen.getByText("aave-v3.supply@1")).toBeVisible();
+    expect(screen.getByText(/3 commands · 2 files/)).toBeVisible();
     expect(screen.queryByRole("button", { name: /prepare execution/i })).not.toBeInTheDocument();
   });
 

@@ -15,6 +15,7 @@ describe("public solver program reads", () => {
     mocks.read.mockResolvedValue({
       id: submissionId, solverId: "cobia-coding-agent", revision: 1,
       state: "attested", presentationState: "current", programHash: `0x${"11".repeat(32)}`,
+      owner: "0x1111111111111111111111111111111111111111", displayGoal: "Supply USDG",
       validUntil: new Date("2033-05-18T03:35:00Z"), blockNumber: "123",
       blockHash: `0x${"22".repeat(32)}`, failureCodes: [], objective: null,
       artifacts: [
@@ -35,7 +36,11 @@ describe("public solver program reads", () => {
     const body = await response.json();
     expect(response.status).toBe(200);
     expect(body).toMatchObject({
-      submission: { id: submissionId, executable: true },
+      submission: {
+        id: submissionId, executable: true,
+        owner: "0x1111111111111111111111111111111111111111",
+        displayGoal: "Supply USDG",
+      },
       artifacts: {
         program: { payload: { version: 2, actions: [] } },
         provenance: { summary: { commandCount: 1, fileCount: 1 } },

@@ -9,18 +9,19 @@ import { shortAddress } from "../../lib/wallet/eip1193";
 import { useWallet } from "../wallet/WalletProvider";
 
 interface TransactionCall { to: Address; data: Hex; value: "0x0" }
+interface PublicArtifact<T> { payload?: T; summary?: T }
 interface ProgramView {
-  id: string;
-  state: string;
-  validity: "live" | "past-discovery";
-  executable: boolean;
-  owner: Address;
-  blockNumber: string;
-  program: { actions: { capabilityId: string; capabilityVersion: number }[]; constraints: unknown[] } | null;
-  verdict: { accepted: boolean; errorCodes: string[] } | null;
-  provenance: { modelResponseIds?: string[]; commands?: unknown[] } | null;
-  replay: { reproduced?: boolean } | null;
-  receipt: { transactionHash?: Hash } | null;
+  submission: {
+    id: string; state: string; executable: boolean; owner: Address | null;
+    blockNumber: string; displayGoal: string | null;
+  };
+  artifacts: {
+    program?: PublicArtifact<{ actions: { capabilityId: string; capabilityVersion: number }[] }>;
+    verdict?: PublicArtifact<{ accepted: boolean; errorCodes: string[] }>;
+    provenance?: PublicArtifact<{ commandCount: number; fileCount: number; networkRequestCount: number }>;
+    replay?: PublicArtifact<{ reproduced?: boolean }>;
+    receipt?: PublicArtifact<{ transactionHash?: Hash }>;
+  };
 }
 interface Prepared { approvals: TransactionCall[]; execution: TransactionCall }
 
@@ -43,7 +44,7 @@ export function hasRequiredConfirmations(
 }
 
 async function load(programId: string): Promise<ProgramView> {
-  const response = await fetch(`/api/agent-programs/${programId}`, { cache: "no-store" });
+  const response = await fetch(`/api/programs/${programId}`, { cache: "no-store" });
   const body = await response.json();
   if (!response.ok) throw new Error(message(body, "Could not load agent program."));
   return body as ProgramView;
@@ -66,9 +67,10 @@ export function AgentProgramView({ programId }: { programId: string }) {
   }, [programId]);
 
   async function accessProof() {
-    if (!program || !wallet.account) throw new Error("Connect the signed intent owner wallet.");
-    if (!isAddressEqual(wallet.account, program.owner)) {
-      throw new Error(`Connect owner ${shortAddress(program.owner)}.`);
+    const owner = program?.submission.owner;
+    if (!owner || !wallet.account) throw new Error("Connect the signed intent owner wallet.");
+    if (!isAddressEqual(wallet.account, owner)) {
+      throw new Error(`Connect owner ${shortAddress(owner)}.`);
     }
     const value = buildAgentExecutionAccessProof({
       programId,
@@ -90,7 +92,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
     try {
       await wallet.switchToXLayer();
       const access = await accessProof();
-      const response = await fetch(`/api/agent-programs/${programId}/execution`, {
+      const response = await fetch(`/api/programs/${programId}/execution`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ proof: access.value, ownerSignature: access.signature }),
       });
@@ -143,7 +145,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
     try {
       const transactionHash = await send(prepared.execution, 1);
       const receiptAccess = await accessProof();
-      const response = await fetch(`/api/agent-programs/${programId}/execution/receipt`, {
+      const response = await fetch(`/api/programs/${programId}/execution/receipt`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           proof: receiptAccess.value,
@@ -160,25 +162,30 @@ export function AgentProgramView({ programId }: { programId: string }) {
 
   if (!program && !error) return <section className="request-created"><LoaderCircle className="spin" /> Loading verified program…</section>;
   if (!program) return <p role="alert" className="form-alert">{error}</p>;
+  const { submission, artifacts } = program;
+  const live = submission.state === "current";
+  const provenance = artifacts.provenance?.summary;
   const approvalsDone = approvalIndex >= (prepared?.approvals.length ?? 0);
   return <section className="request-created">
-    {program.validity === "live" ? <ShieldCheck aria-hidden="true" /> : <CircleCheck aria-hidden="true" />}
+    {live ? <ShieldCheck aria-hidden="true" /> : <CircleCheck aria-hidden="true" />}
     <div>
-      <h2>{program.validity === "live" ? "Live verified program" : "Past discovery"}</h2>
-      <p>{program.validity === "live"
+      <h2>{live ? "Live verified program" : "Past discovery"}</h2>
+      {submission.displayGoal ? <p><strong>{submission.displayGoal}</strong></p> : null}
+      <p>{live
         ? "Agent-authored, independently replayed, and currently inside its signed freshness window."
         : "Historical research only. Create a fresh intent to regenerate and verify current calldata."}</p>
-      <p>Owner {shortAddress(program.owner)} · X Layer mainnet block {program.blockNumber}</p>
-      {program.program?.actions.map((action, index) => <p key={`${action.capabilityId}-${index}`}>
+      <p>{submission.owner ? `Owner ${shortAddress(submission.owner)} · ` : ""}X Layer mainnet block {submission.blockNumber}</p>
+      {artifacts.program?.payload?.actions.map((action, index) => <p key={`${action.capabilityId}-${index}`}>
         {action.capabilityId}@{action.capabilityVersion}
       </p>)}
-      <p>{program.replay?.reproduced
+      {provenance ? <p>{provenance.commandCount} commands · {provenance.fileCount} files · {provenance.networkRequestCount} fetched resources</p> : null}
+      <p>{artifacts.replay?.payload?.reproduced
         ? "Fresh fork replay reproduced the proposal. This is evidence only; execution below targets X Layer mainnet."
         : "No accepted replay."}</p>
-      {program.receipt?.transactionHash ? <p>Confirmed transaction {program.receipt.transactionHash}</p> : null}
+      {artifacts.receipt?.payload?.transactionHash ? <p>Confirmed transaction {artifacts.receipt.payload.transactionHash}</p> : null}
     </div>
     {error ? <p role="alert" className="form-alert">{error}</p> : null}
-    {program.executable && !prepared ? <button className="button button--primary" disabled={pending} onClick={prepare}>
+    {submission.executable && !prepared ? <button className="button button--primary" disabled={pending} onClick={prepare}>
       {pending ? "Checking live bounds…" : "Prepare execution"}
     </button> : null}
     {prepared && !approvalsDone ? <button className="button button--primary" disabled={pending} onClick={approve}>

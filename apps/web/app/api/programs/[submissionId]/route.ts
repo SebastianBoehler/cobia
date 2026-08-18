@@ -57,6 +57,7 @@ export async function GET(
         programHash: submission.programHash, state: submission.presentationState,
         validUntil: submission.validUntil.toISOString(), blockNumber: submission.blockNumber,
         blockHash: submission.blockHash, failureCodes: submission.failureCodes,
+        owner: submission.owner, displayGoal: submission.displayGoal,
         objective: submission.objective, executable,
       },
       artifacts: publicArtifacts(submission.artifacts, executable),
