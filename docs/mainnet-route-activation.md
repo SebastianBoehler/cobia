@@ -34,8 +34,8 @@ active.
 | Deploy V3 risk manager/executor | chain-196 receipts and reproduced creation inputs | passed; V3 risk `0xc69A…1ded`, executor `0xa31d…31A0`; explorer source verification pending |
 | Configure restrictions | paused start, verifier, tokens, route/daily/cumulative caps, targets/selectors | exact four-call Safe proposal executed; everything remains paused/inactive |
 | Wait delayed increases | on-chain timestamps and executed changes | eligible no earlier than 2026-08-20 12:30:41 UTC; activation not executed |
-| Production environment | exact executor address/hash, verifier, OIDC identity, public origin, model, RPC | schema implemented; values not yet verified |
-| Database | migrations 0009-0012 applied and checked | 0012 is implemented but not yet applied to production |
+| Production environment | exact executor address/hash, verifier, OIDC identity, public origin, model, RPC | V3 address/hash and `https://getcobia.com` origin staged; verifier key is Sensitive; runtime canary still pending |
+| Database | migrations 0009-0012 applied and checked | 0012 passes disposable integration tests; production application remains pending provider-authorized access |
 | Agent canary | real production sandbox + pinned replay, no principal send | pending deployed environment |
 | Wallet canary | selected owner, retail amount, exact receipts and state deltas | requires separate explicit transaction approval |
 | Monitoring | pause authority, alerts, receipt/reconciliation checks | pause controls implemented; operational alerts pending |
