@@ -13,6 +13,8 @@ const SelectorSchema = z.string().regex(/^0x[0-9a-fA-F]{8}$/).transform(
 ).refine((value) => value !== "0x00000000");
 const PositiveAtomicSchema = z.string().regex(/^[1-9][0-9]*$/).max(78);
 const HttpsUrlSchema = z.url().refine((value) => new URL(value).protocol === "https:");
+export const ERC20_TRANSFER_TOPIC0 =
+  "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef" as Hash;
 
 export const CommerceArgumentBindingV1Schema = z.enum([
   "orderCommitment", "receiptRecipient", "quantity", "paymentAsset",
@@ -72,7 +74,8 @@ const ReceiptSchema = z.discriminatedUnion("kind", [
     tokenId: PositiveAtomicSchema, minimumIncreaseAtomic: PositiveAtomicSchema,
   }).strict(),
   z.object({
-    kind: z.literal("eip3009-transfer"), topic0: HashSchema,
+    kind: z.literal("eip3009-transfer"),
+    topic0: HashSchema.refine((value) => value === ERC20_TRANSFER_TOPIC0),
     fromTopicIndex: z.number().int().min(1).max(3),
     toTopicIndex: z.number().int().min(1).max(3),
   }).strict().refine((value) => value.fromTopicIndex !== value.toTopicIndex, {

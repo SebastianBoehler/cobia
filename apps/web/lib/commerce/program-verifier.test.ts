@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import { compileCommerceOrderActionV1 } from "../capabilities/commerce-order";
 import {
   CommerceMerchantManifestV1Schema,
+  ERC20_TRANSFER_TOPIC0,
   commerceMerchantManifestCommitmentV1,
 } from "./merchant-manifest";
 import { CommerceProgramEvidenceV1Schema, verifyCommerceProgramV1 } from "./program-verifier";
@@ -155,7 +156,10 @@ describe("commerce program verifier", () => {
           facilitator: "https://facilitator.example", assetTransferMethod: "eip3009",
           token: { runtimeCodeHash: hash("2"), eip712Name: "USD Coin", eip712Version: "2" },
         },
-        receipt: { kind: "eip3009-transfer", topic0: hash("3"), fromTopicIndex: 1, toTopicIndex: 2 },
+        receipt: {
+          kind: "eip3009-transfer", topic0: ERC20_TRANSFER_TOPIC0,
+          fromTopicIndex: 1, toTopicIndex: 2,
+        },
       }],
     });
     const xManifestHash = commerceMerchantManifestCommitmentV1(xManifest);

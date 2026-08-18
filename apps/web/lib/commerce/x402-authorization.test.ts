@@ -9,6 +9,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { describe, expect, it } from "vitest";
 import {
   CommerceMerchantManifestV1Schema,
+  ERC20_TRANSFER_TOPIC0,
   commerceMerchantManifestCommitmentV1,
 } from "./merchant-manifest";
 import {
@@ -34,7 +35,7 @@ const manifest = CommerceMerchantManifestV1Schema.parse({
       token: { runtimeCodeHash: hash("3"), eip712Name: "USD Coin", eip712Version: "2" },
     },
     receipt: {
-      kind: "eip3009-transfer", topic0: hash("5"), fromTopicIndex: 1, toTopicIndex: 2,
+      kind: "eip3009-transfer", topic0: ERC20_TRANSFER_TOPIC0, fromTopicIndex: 1, toTopicIndex: 2,
     },
   }],
   officialSources: ["https://api.example/contracts"],

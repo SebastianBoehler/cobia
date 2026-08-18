@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CommerceMerchantManifestV1Schema,
+  ERC20_TRANSFER_TOPIC0,
   commerceMerchantManifestCommitmentV1,
 } from "./merchant-manifest";
 
@@ -79,7 +80,7 @@ describe("commerce merchant manifest", () => {
         },
         receipt: {
           kind: "eip3009-transfer",
-          topic0: hash("8"),
+          topic0: ERC20_TRANSFER_TOPIC0,
           fromTopicIndex: 1,
           toTopicIndex: 2,
         },
