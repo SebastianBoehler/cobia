@@ -25,6 +25,11 @@ import {
 } from "./agent-program-schema";
 import { challengeStatus, cobiaChallengeRounds, cobiaChallenges } from "./challenge-schema";
 import { cobiaCommerceOfferSnapshots } from "./commerce-schema";
+import {
+  cobiaCommercePlacementEvents,
+  cobiaCommercePlacements,
+  commercePlacementState,
+} from "./commerce-placement-schema";
 import { cobiaIntents, intentState } from "./intent-schema";
 import {
   cobiaProgramArtifactsV2,
@@ -42,6 +47,7 @@ export * from "./route-schema";
 export * from "./agent-program-schema";
 export * from "./challenge-schema";
 export * from "./commerce-schema";
+export * from "./commerce-placement-schema";
 export * from "./intent-schema";
 export * from "./program-schema-v2";
 export * from "./solver-schema";
@@ -62,6 +68,8 @@ export const cobiaSchema = {
   cobiaChallenges,
   cobiaChallengeRounds,
   cobiaCommerceOfferSnapshots,
+  cobiaCommercePlacements,
+  cobiaCommercePlacementEvents,
   cobiaIntents,
   cobiaSolvers,
   cobiaSolverRuns,
@@ -80,6 +88,7 @@ export const cobiaSchema = {
   solverRunState,
   solverSubmissionState,
   programArtifactKindV2,
+  commercePlacementState,
 };
 
 export type CobiaRequestState = (typeof requestState.enumValues)[number];

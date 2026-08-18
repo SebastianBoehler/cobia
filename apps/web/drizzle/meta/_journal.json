@@ -127,6 +127,13 @@
       "when": 1787089800000,
       "tag": "0017_commerce_offers",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1787093400000,
+      "tag": "0018_commerce_placements",
+      "breakpoints": true
     }
   ]
 }
