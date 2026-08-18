@@ -73,6 +73,12 @@ const CodingAgentV3RuntimeEnvSchema = CodingAgentV3ExecutionEnvSchema.extend({
   CODING_AGENT_PUBLIC_ORIGIN: z.url().refine((value) => new URL(value).protocol === "https:"),
 });
 
+const CommerceRuntimeEnvSchema = z.object({
+  COBIA_EXECUTOR_V3_ADDRESS: z.string().refine(isAddress)
+    .transform((value) => value as Address),
+  XLAYER_RPC_URL: z.url().default("https://rpc.xlayer.tech"),
+});
+
 export function readDatabaseUrl(
   source: Record<string, string | undefined> = process.env,
 ): string {
@@ -143,6 +149,17 @@ export function readCodingAgentV3RuntimeConfig(
   if (!parsed.success) {
     const invalid = parsed.error.issues.map((issue) => issue.path.join(".")).join(", ");
     throw new Error(`Missing or invalid V3 coding-agent runtime configuration: ${invalid}`);
+  }
+  return parsed.data;
+}
+
+export function readCommerceRuntimeConfig(
+  source: Record<string, string | undefined> = process.env,
+) {
+  const parsed = CommerceRuntimeEnvSchema.safeParse(source);
+  if (!parsed.success) {
+    const invalid = parsed.error.issues.map((issue) => issue.path.join(".")).join(", ");
+    throw new Error(`Missing or invalid commerce configuration: ${invalid}`);
   }
   return parsed.data;
 }

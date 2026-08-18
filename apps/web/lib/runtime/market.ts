@@ -4,6 +4,7 @@ import { createActivityRepository } from "../db/activity";
 import { createIntentRepository } from "../db/intents";
 import { createChallengeRepository } from "../db/challenges";
 import { createCommerceOfferRepository } from "../db/commerce-offers";
+import { createCommercePlacementRepository } from "../db/commerce-placements";
 import { createSolverProfileRepository } from "../db/solver-profiles";
 import { createSolverRunRepository } from "../db/solver-runs";
 import { createSolverSubmissionRepository } from "../db/solver-submissions";
@@ -21,6 +22,7 @@ let database: ReturnType<typeof createDatabase> | undefined;
 let intentRepository: ReturnType<typeof createIntentRepository> | undefined;
 let challengeRepository: ReturnType<typeof createChallengeRepository> | undefined;
 let commerceOfferRepository: ReturnType<typeof createCommerceOfferRepository> | undefined;
+let commercePlacementRepository: ReturnType<typeof createCommercePlacementRepository> | undefined;
 let solverProfileRepository: ReturnType<typeof createSolverProfileRepository> | undefined;
 let solverRunRepository: ReturnType<typeof createSolverRunRepository> | undefined;
 let solverSubmissionRepository: ReturnType<typeof createSolverSubmissionRepository> | undefined;
@@ -48,6 +50,11 @@ export function getChallengeRepository() {
 export function getCommerceOfferRepository() {
   commerceOfferRepository ??= createCommerceOfferRepository(getDatabase());
   return commerceOfferRepository;
+}
+
+export function getCommercePlacementRepository() {
+  commercePlacementRepository ??= createCommercePlacementRepository(getDatabase());
+  return commercePlacementRepository;
 }
 
 export function getSolverProfileRepository() {

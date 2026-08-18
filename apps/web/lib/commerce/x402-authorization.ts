@@ -13,6 +13,7 @@ import {
 import { z } from "zod";
 import { EIP3009_AUTHORIZATION_TYPES } from "../payments/eip3009-authorization";
 import { compileX402AuthorizationPlanV1 } from "./x402-plan";
+import { X402AuthorizationPlanV1Schema } from "./x402-plan";
 
 const AddressSchema = z.string().refine(isAddress).transform(
   (value) => value.toLowerCase() as Address,
@@ -108,17 +109,25 @@ export function prepareX402AuthorizationV1(raw: {
   program: unknown; policy: unknown; offer: unknown; manifest: unknown; nowSec: number;
 }): X402AuthorizationTemplateV1 {
   const plan = compileX402AuthorizationPlanV1(raw);
+  return prepareX402AuthorizationFromPlanV1(plan, raw.nowSec);
+}
+
+export function prepareX402AuthorizationFromPlanV1(
+  rawPlan: unknown,
+  nowSec: number,
+): X402AuthorizationTemplateV1 {
+  const plan = X402AuthorizationPlanV1Schema.parse(rawPlan);
   const validBefore = Math.min(
-    raw.nowSec + plan.maxTimeoutSec,
+    nowSec + plan.maxTimeoutSec,
     plan.offerExpiresAt,
     plan.programDeadline,
   );
-  if (!Number.isSafeInteger(raw.nowSec) || raw.nowSec <= 0 || validBefore <= raw.nowSec) {
+  if (!Number.isSafeInteger(nowSec) || nowSec <= 0 || validBefore <= nowSec) {
     throw new Error("x402 authorization validity is empty");
   }
   const authorization = {
     from: plan.owner, to: plan.payee, value: plan.amount,
-    validAfter: `${Math.max(0, raw.nowSec - 30)}`, validBefore: `${validBefore}`,
+    validAfter: `${Math.max(0, nowSec - 30)}`, validBefore: `${validBefore}`,
     nonce: plan.authorizationNonce,
   };
   const domain = {

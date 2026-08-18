@@ -18,7 +18,7 @@ function invariant(condition: unknown, message: string): asserts condition {
 }
 
 function boundArgument(
-  binding: CommerceMerchantManifestV1["entries"][number]["placement"] extends infer _T ? string : never,
+  binding: string,
   input: { program: CommerceOrderProgramV1; policy: CommerceOrderPolicyV1; offer: CommerceOfferV1 },
 ): unknown {
   const values: Record<string, unknown> = {
