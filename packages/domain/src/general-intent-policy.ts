@@ -21,13 +21,13 @@ const CapabilitySchema = z.object({
   version: z.number().int().positive().safe(),
 }).strict();
 
-const BalanceConstraintSchema = z.object({
+export const GeneralBalanceConstraintV1Schema = z.object({
   kind: z.enum(["minimumFinal", "minimumIncrease"]),
   token: AddressSchema,
   atomic: PositiveAtomicAmountSchema,
 }).strict();
 
-const ObjectiveSchema = z.discriminatedUnion("kind", [
+export const GeneralIntentObjectiveV1Schema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("satisfy") }).strict(),
   z.object({ kind: z.literal("maximize"), read: NumericStaticReadV1Schema }).strict(),
   z.object({ kind: z.literal("minimize"), read: NumericStaticReadV1Schema }).strict(),
@@ -61,9 +61,9 @@ export const GeneralIntentPolicyV1Schema = z.object({
   }).strict(),
   forbiddenTargets: z.array(AddressSchema).max(32),
   forbiddenAssets: z.array(AddressSchema).max(32),
-  balanceConstraints: z.array(BalanceConstraintSchema).max(8),
+  balanceConstraints: z.array(GeneralBalanceConstraintV1Schema).max(8),
   predicates: z.array(StaticPredicateV1Schema).max(8),
-  objective: ObjectiveSchema,
+  objective: GeneralIntentObjectiveV1Schema,
 }).strict().superRefine((policy, context) => {
   const capabilities = policy.allowedCapabilities.map(({ id, version }) => `${id}@${version}`);
   if (!sortedUnique(capabilities)) {

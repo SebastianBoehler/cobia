@@ -1,5 +1,11 @@
 import type { Address, Hash, Hex } from "viem";
-import type { CapabilityProgramV1, CanonicalJsonValue } from "./program";
+import type { CanonicalJsonValue } from "./program";
+
+export interface CapabilityProgramContextV1 {
+  owner: Address;
+  executor: Address;
+  manifestHash: Hash;
+}
 
 export interface CapabilitySpendV1 {
   token: Address;
@@ -31,7 +37,7 @@ export interface CompiledCapabilityActionV1 {
 }
 
 export interface CapabilityCompileInputV1<T> {
-  program: CapabilityProgramV1;
+  program: CapabilityProgramContextV1;
   actionIndex: number;
   parameters: T;
   manifest: unknown;

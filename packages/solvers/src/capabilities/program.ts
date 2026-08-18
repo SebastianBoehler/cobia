@@ -10,7 +10,7 @@ const HashSchema = z.string().regex(/^0x[0-9a-fA-F]{64}$/).transform(
 );
 const AtomicSchema = z.string().regex(/^(0|[1-9][0-9]*)$/);
 const PositiveAtomicSchema = AtomicSchema.refine((value) => value !== "0");
-const CapabilityIdSchema = z.string().regex(/^[a-z0-9]+(?:[._-][a-z0-9]+)+$/).max(128);
+export const CapabilityIdSchema = z.string().regex(/^[a-z0-9]+(?:[._-][a-z0-9]+)+$/).max(128);
 
 export type CanonicalJsonValue =
   | null | boolean | number | string
@@ -34,7 +34,7 @@ export const CanonicalJsonValueSchema: z.ZodType<CanonicalJsonValue> = z.lazy(()
   ]),
 );
 
-const ActionSchema = z.object({
+export const CapabilityActionV1Schema = z.object({
   capabilityId: CapabilityIdSchema,
   capabilityVersion: z.number().int().positive().safe(),
   valueAtomic: z.literal("0"),
@@ -62,7 +62,7 @@ export const CapabilityProgramV1Schema = z.object({
   deadline: z.number().int().positive().safe(),
   nonce: HashSchema.refine((value) => !/^0x0{64}$/.test(value)),
   input: z.object({ token: AddressSchema, atomic: PositiveAtomicSchema }).strict(),
-  actions: z.array(ActionSchema).min(1).max(8),
+  actions: z.array(CapabilityActionV1Schema).min(1).max(8),
   constraints: z.array(ConstraintSchema).min(1).max(8),
 }).strict();
 

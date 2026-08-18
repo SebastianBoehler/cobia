@@ -1,6 +1,7 @@
 import { isAddressEqual, type Address } from "viem";
 import type { CompiledCapabilityActionV1 } from "./module";
 import type { CapabilityProgramV1 } from "./program";
+import type { CapabilityProgramV2 } from "./program-v2";
 
 export type CapabilityAssetFlowErrorCode =
   | "ACTION_COUNT_MISMATCH"
@@ -23,8 +24,16 @@ function add(balance: Map<string, bigint>, token: Address, amount: bigint): void
   balance.set(key(token), (balance.get(key(token)) ?? 0n) + amount);
 }
 
-export function verifyCapabilityAssetFlowV1(
-  program: CapabilityProgramV1,
+interface FlowProgram {
+  owner: Address;
+  executor: Address;
+  input: { token: Address; atomic: string };
+  actions: readonly { capabilityId: string; capabilityVersion: number }[];
+  constraints: readonly { token: Address; account: Address; minimumIncreaseAtomic: string }[];
+}
+
+function verifyCapabilityAssetFlow(
+  program: FlowProgram,
   compiled: readonly CompiledCapabilityActionV1[],
 ): CapabilityAssetFlowResultV1 {
   const errors = new Set<CapabilityAssetFlowErrorCode>();
@@ -85,4 +94,27 @@ export function verifyCapabilityAssetFlowV1(
     errorCodes: [...errors].sort(),
     guaranteedOwnerDeltas,
   };
+}
+
+export function verifyCapabilityAssetFlowV1(
+  program: CapabilityProgramV1,
+  compiled: readonly CompiledCapabilityActionV1[],
+): CapabilityAssetFlowResultV1 {
+  return verifyCapabilityAssetFlow(program, compiled);
+}
+
+export function verifyCapabilityAssetFlowV2(
+  program: CapabilityProgramV2,
+  compiled: readonly CompiledCapabilityActionV1[],
+): CapabilityAssetFlowResultV1 {
+  return verifyCapabilityAssetFlow({
+    ...program,
+    constraints: program.balanceConstraints
+      .filter(({ kind }) => kind === "minimumIncrease")
+      .map(({ token, atomic }) => ({
+        token,
+        account: program.owner,
+        minimumIncreaseAtomic: atomic,
+      })),
+  }, compiled);
 }
