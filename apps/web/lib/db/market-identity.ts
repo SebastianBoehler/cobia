@@ -1,9 +1,9 @@
-import type { GeneralIntentPolicyV1, StablecoinPolicy } from "@cobia/domain";
+import type { GeneralIntentPolicyV2, StablecoinPolicy } from "@cobia/domain";
 
 type MarketPolicy = Pick<StablecoinPolicy, "executionChainId" | "asset"> | {
-  executionChainId: GeneralIntentPolicyV1["executionChainId"];
-  kind: GeneralIntentPolicyV1["kind"];
-  input: Pick<GeneralIntentPolicyV1["input"], "token">;
+  executionChainId: GeneralIntentPolicyV2["executionChainId"];
+  kind: GeneralIntentPolicyV2["kind"];
+  input: Pick<GeneralIntentPolicyV2["input"], "token">;
 };
 
 export function marketAsset(policy: MarketPolicy): string {

@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  GeneralIntentPolicyV1Schema,
+  commitment,
+  GeneralIntentPolicyV2Schema,
   GeneralIntentSnapshotV1Schema,
-  parseGeneralIntentPolicyV1,
+  parseGeneralIntentPolicyV2,
 } from "../src/index";
 
 const owner = "0x1111111111111111111111111111111111111111";
@@ -32,14 +33,16 @@ const predicate = {
 };
 
 const policy = {
-  version: 1 as const,
+  version: 2 as const,
   kind: "general-onchain" as const,
   requestId: "550e8400-e29b-41d4-a716-446655440090",
+  displayGoal: "Maximize verified receipt balance from 10 USDG",
   owner,
   executionChainId: 196 as const,
   nonce,
   createdAt: 1_999_999_000,
   deadline: 2_000_000_000,
+  competition: { closesAt: 1_999_999_300, maxRevisionsPerSolver: 5 },
   maxEvidenceAgeSec: 300,
   manifestHash,
   input: { token: inputToken, maxAtomic: "10000000" },
@@ -63,15 +66,54 @@ const policy = {
 
 describe("general on-chain intent policy", () => {
   it("accepts a bounded protocol-neutral optimization policy", () => {
-    const parsed = GeneralIntentPolicyV1Schema.parse(policy);
+    const parsed = GeneralIntentPolicyV2Schema.parse(policy);
 
     expect(parsed.objective.kind).toBe("maximize");
     expect(parsed.input).toEqual({ token: inputToken, maxAtomic: "10000000" });
-    expect(parseGeneralIntentPolicyV1(policy, 1_999_999_500)).toEqual(parsed);
+    expect(parseGeneralIntentPolicyV2(policy, 1_999_999_500)).toEqual(parsed);
+  });
+
+  it("requires a signed display goal and bounded solver competition", () => {
+    expect(GeneralIntentPolicyV2Schema.safeParse({ ...policy, displayGoal: " " }).success).toBe(false);
+    expect(GeneralIntentPolicyV2Schema.safeParse({ ...policy, competition: undefined }).success).toBe(false);
+    expect(GeneralIntentPolicyV2Schema.safeParse({
+      ...policy,
+      competition: { ...policy.competition, closesAt: policy.createdAt + 901 },
+    }).success).toBe(false);
+    expect(GeneralIntentPolicyV2Schema.safeParse({
+      ...policy,
+      competition: { ...policy.competition, closesAt: policy.deadline + 1 },
+    }).success).toBe(false);
+  });
+
+  it("changes the commitment when any displayed authority changes", () => {
+    const variants = [
+      { ...policy, displayGoal: "End with at least 10.1 USDt0" },
+      { ...policy, owner: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" },
+      { ...policy, deadline: policy.deadline - 1 },
+      { ...policy, competition: { ...policy.competition, closesAt: policy.competition.closesAt + 1 } },
+      { ...policy, input: { ...policy.input, maxAtomic: "9999999" } },
+      { ...policy, allowedCapabilities: [{ id: "aave-v3.supply", version: 2 }] },
+      { ...policy, limits: { ...policy.limits, maxExpectedGas: policy.limits.maxExpectedGas - 1 } },
+      { ...policy, forbiddenTargets: ["0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"] },
+      { ...policy, forbiddenAssets: ["0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"] },
+      { ...policy, balanceConstraints: [{ ...policy.balanceConstraints[0], atomic: "999999" }] },
+      { ...policy, predicates: [{ ...predicate, bound: "999999" }] },
+      { ...policy, objective: { kind: "satisfy" as const } },
+    ];
+    const baseline = commitment(GeneralIntentPolicyV2Schema.parse(policy));
+    for (const variant of variants) {
+      expect(commitment(GeneralIntentPolicyV2Schema.parse(variant))).not.toBe(baseline);
+    }
+  });
+
+  it("rejects V1 and unknown authority fields", () => {
+    expect(GeneralIntentPolicyV2Schema.safeParse({ ...policy, version: 1 }).success).toBe(false);
+    expect(GeneralIntentPolicyV2Schema.safeParse({ ...policy, recipient: owner }).success).toBe(false);
   });
 
   it("requires an enforceable post-state outcome", () => {
-    expect(GeneralIntentPolicyV1Schema.safeParse({
+    expect(GeneralIntentPolicyV2Schema.safeParse({
       ...policy,
       balanceConstraints: [],
       predicates: [{ ...predicate, phase: "before" }],
@@ -79,25 +121,25 @@ describe("general on-chain intent policy", () => {
   });
 
   it("requires sorted unique capabilities and forbidden sets", () => {
-    expect(GeneralIntentPolicyV1Schema.safeParse({
+    expect(GeneralIntentPolicyV2Schema.safeParse({
       ...policy,
       allowedCapabilities: [
         { id: "uniswap-v3.exact-input", version: 1 },
         { id: "aave-v3.supply", version: 1 },
       ],
     }).success).toBe(false);
-    expect(GeneralIntentPolicyV1Schema.safeParse({
+    expect(GeneralIntentPolicyV2Schema.safeParse({
       ...policy,
       forbiddenAssets: [policy.forbiddenAssets[0], policy.forbiddenAssets[0]],
     }).success).toBe(false);
   });
 
   it("rejects duplicate predicates and incompatible primitive comparisons", () => {
-    expect(GeneralIntentPolicyV1Schema.safeParse({
+    expect(GeneralIntentPolicyV2Schema.safeParse({
       ...policy,
       predicates: [predicate, predicate],
     }).success).toBe(false);
-    expect(GeneralIntentPolicyV1Schema.safeParse({
+    expect(GeneralIntentPolicyV2Schema.safeParse({
       ...policy,
       predicates: [{
         ...predicate,
@@ -106,7 +148,7 @@ describe("general on-chain intent policy", () => {
         bound: owner,
       }],
     }).success).toBe(false);
-    expect(GeneralIntentPolicyV1Schema.safeParse({
+    expect(GeneralIntentPolicyV2Schema.safeParse({
       ...policy,
       predicates: [{
         ...predicate,
@@ -118,11 +160,11 @@ describe("general on-chain intent policy", () => {
   });
 
   it("allows optimization only over signed numeric reads", () => {
-    expect(GeneralIntentPolicyV1Schema.safeParse({
+    expect(GeneralIntentPolicyV2Schema.safeParse({
       ...policy,
       objective: { kind: "maximize", read: { ...read, decodeType: "address" } },
     }).success).toBe(false);
-    expect(GeneralIntentPolicyV1Schema.safeParse({
+    expect(GeneralIntentPolicyV2Schema.safeParse({
       ...policy,
       predicates: [],
       forbiddenTargets: [readTarget],
@@ -130,16 +172,16 @@ describe("general on-chain intent policy", () => {
   });
 
   it("rejects expired, zero-funded, forbidden, or widened policies", () => {
-    expect(() => parseGeneralIntentPolicyV1(policy, policy.deadline)).toThrow(/future/i);
-    expect(GeneralIntentPolicyV1Schema.safeParse({
+    expect(() => parseGeneralIntentPolicyV2(policy, policy.deadline)).toThrow(/future/i);
+    expect(GeneralIntentPolicyV2Schema.safeParse({
       ...policy,
       input: { ...policy.input, maxAtomic: "0" },
     }).success).toBe(false);
-    expect(GeneralIntentPolicyV1Schema.safeParse({
+    expect(GeneralIntentPolicyV2Schema.safeParse({
       ...policy,
       forbiddenAssets: [inputToken],
     }).success).toBe(false);
-    expect(GeneralIntentPolicyV1Schema.safeParse({
+    expect(GeneralIntentPolicyV2Schema.safeParse({
       ...policy,
       nativeValueAtomic: "1",
     }).success).toBe(false);
@@ -147,7 +189,7 @@ describe("general on-chain intent policy", () => {
 
   it("canonicalizes signed addresses and hashes to lowercase", () => {
     const checksummedOwner = "0xB6da8E6d497bd3Bc5016416DA57d177085449124";
-    const parsed = GeneralIntentPolicyV1Schema.parse({
+    const parsed = GeneralIntentPolicyV2Schema.parse({
       ...policy,
       owner: checksummedOwner,
     });

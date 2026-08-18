@@ -21,13 +21,13 @@ const CapabilitySchema = z.object({
   version: z.number().int().positive().safe(),
 }).strict();
 
-export const GeneralBalanceConstraintV1Schema = z.object({
+export const GeneralBalanceConstraintV2Schema = z.object({
   kind: z.enum(["minimumFinal", "minimumIncrease"]),
   token: AddressSchema,
   atomic: PositiveAtomicAmountSchema,
 }).strict();
 
-export const GeneralIntentObjectiveV1Schema = z.discriminatedUnion("kind", [
+export const GeneralIntentObjectiveV2Schema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("satisfy") }).strict(),
   z.object({ kind: z.literal("maximize"), read: NumericStaticReadV1Schema }).strict(),
   z.object({ kind: z.literal("minimize"), read: NumericStaticReadV1Schema }).strict(),
@@ -37,15 +37,20 @@ function sortedUnique(values: readonly string[]): boolean {
   return values.every((value, index) => index === 0 || values[index - 1]! < value);
 }
 
-export const GeneralIntentPolicyV1Schema = z.object({
-  version: z.literal(1),
+export const GeneralIntentPolicyV2Schema = z.object({
+  version: z.literal(2),
   kind: z.literal("general-onchain"),
   requestId: z.string().uuid(),
+  displayGoal: z.string().trim().min(1).max(500),
   owner: AddressSchema,
   executionChainId: z.literal(196),
   nonce: HashSchema.refine((value) => !/^0x0{64}$/.test(value)),
   createdAt: z.number().int().positive().safe(),
   deadline: z.number().int().positive().safe(),
+  competition: z.object({
+    closesAt: z.number().int().positive().safe(),
+    maxRevisionsPerSolver: z.number().int().min(1).max(20),
+  }).strict(),
   maxEvidenceAgeSec: z.number().int().min(30).max(900),
   manifestHash: HashSchema.refine((value) => !/^0x0{64}$/.test(value)),
   input: z.object({
@@ -61,9 +66,9 @@ export const GeneralIntentPolicyV1Schema = z.object({
   }).strict(),
   forbiddenTargets: z.array(AddressSchema).max(32),
   forbiddenAssets: z.array(AddressSchema).max(32),
-  balanceConstraints: z.array(GeneralBalanceConstraintV1Schema).max(8),
+  balanceConstraints: z.array(GeneralBalanceConstraintV2Schema).max(8),
   predicates: z.array(StaticPredicateV1Schema).max(8),
-  objective: GeneralIntentObjectiveV1Schema,
+  objective: GeneralIntentObjectiveV2Schema,
 }).strict().superRefine((policy, context) => {
   const capabilities = policy.allowedCapabilities.map(({ id, version }) => `${id}@${version}`);
   if (!sortedUnique(capabilities)) {
@@ -80,6 +85,15 @@ export const GeneralIntentPolicyV1Schema = z.object({
   }
   if (policy.createdAt >= policy.deadline) {
     context.addIssue({ code: "custom", path: ["deadline"], message: "Policy deadline must follow creation" });
+  }
+  if (policy.competition.closesAt <= policy.createdAt) {
+    context.addIssue({ code: "custom", path: ["competition", "closesAt"], message: "Competition must close after creation" });
+  }
+  if (policy.competition.closesAt > policy.deadline) {
+    context.addIssue({ code: "custom", path: ["competition", "closesAt"], message: "Competition cannot outlive the policy" });
+  }
+  if (policy.competition.closesAt - policy.createdAt > 900) {
+    context.addIssue({ code: "custom", path: ["competition", "closesAt"], message: "Competition cannot exceed 15 minutes" });
   }
   if (policy.balanceConstraints.length === 0 && !policy.predicates.some(({ phase }) => phase === "after")) {
     context.addIssue({ code: "custom", message: "Policy requires an enforceable post-state outcome" });
@@ -103,7 +117,7 @@ export const GeneralIntentPolicyV1Schema = z.object({
   }
 });
 
-export type GeneralIntentPolicyV1 = z.infer<typeof GeneralIntentPolicyV1Schema>;
+export type GeneralIntentPolicyV2 = z.infer<typeof GeneralIntentPolicyV2Schema>;
 
 export const GeneralIntentSnapshotV1Schema = z.object({
   version: z.literal(1),
@@ -118,8 +132,8 @@ export const GeneralIntentSnapshotV1Schema = z.object({
 
 export type GeneralIntentSnapshotV1 = z.infer<typeof GeneralIntentSnapshotV1Schema>;
 
-export function parseGeneralIntentPolicyV1(input: unknown, nowSec: number): GeneralIntentPolicyV1 {
-  const policy = GeneralIntentPolicyV1Schema.parse(input);
+export function parseGeneralIntentPolicyV2(input: unknown, nowSec: number): GeneralIntentPolicyV2 {
+  const policy = GeneralIntentPolicyV2Schema.parse(input);
   if (policy.deadline <= nowSec) throw new Error("Policy deadline must be in the future");
   return policy;
 }

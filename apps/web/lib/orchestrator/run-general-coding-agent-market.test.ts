@@ -1,11 +1,13 @@
-import { commitment, type GeneralIntentPolicyV1, type GeneralIntentSnapshotV1 } from "@cobia/domain";
+import { commitment, type GeneralIntentPolicyV2, type GeneralIntentSnapshotV1 } from "@cobia/domain";
 import { describe, expect, it, vi } from "vitest";
 import { runGeneralCodingAgentMarketV1 } from "./run-general-coding-agent-market";
 
-const policy: GeneralIntentPolicyV1 = {
-  version: 1, kind: "general-onchain", requestId: "550e8400-e29b-41d4-a716-446655440000",
+const policy: GeneralIntentPolicyV2 = {
+  version: 2, kind: "general-onchain", requestId: "550e8400-e29b-41d4-a716-446655440000",
+  displayGoal: "Increase the verified Aave receipt balance",
   owner: "0x1111111111111111111111111111111111111111", executionChainId: 196,
   nonce: `0x${"11".repeat(32)}`, createdAt: 2_000_000_000, deadline: 2_000_001_800,
+  competition: { closesAt: 2_000_000_300, maxRevisionsPerSolver: 5 },
   maxEvidenceAgeSec: 300, manifestHash: `0x${"22".repeat(32)}`,
   input: { token: "0x2222222222222222222222222222222222222222", maxAtomic: "10000000" },
   allowedCapabilities: [{ id: "aave-v3.supply", version: 1 }],

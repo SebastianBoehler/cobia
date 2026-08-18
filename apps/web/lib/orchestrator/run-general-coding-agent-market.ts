@@ -1,11 +1,11 @@
-import { commitment, type GeneralIntentPolicyV1, type GeneralIntentSnapshotV1 } from "@cobia/domain";
+import { commitment, type GeneralIntentPolicyV2, type GeneralIntentSnapshotV1 } from "@cobia/domain";
 import type { Address } from "viem";
 import type { CoordinateCapabilityDependenciesV2 } from "../coding-agent-sandbox/coordinator-v2";
 import { coordinateCapabilityProgramV2 } from "../coding-agent-sandbox/coordinator-v2";
 import type { CoordinateCapabilityInputV1 } from "../coding-agent-sandbox/coordinator";
 
 interface GeneralRequestStore {
-  createRequest(policy: GeneralIntentPolicyV1): Promise<void>;
+  createRequest(policy: GeneralIntentPolicyV2): Promise<void>;
   saveSnapshot(requestId: string, snapshot: GeneralIntentSnapshotV1): Promise<void>;
   finishMarket(requestId: string, state: "agent_ready"): Promise<void>;
   failRequest(requestId: string): Promise<void>;
@@ -13,8 +13,8 @@ interface GeneralRequestStore {
 
 export interface RunGeneralCodingAgentMarketDependenciesV1 {
   repository: GeneralRequestStore;
-  assertReady(policy: GeneralIntentPolicyV1): Promise<void>;
-  captureSnapshot(policy: GeneralIntentPolicyV1): Promise<GeneralIntentSnapshotV1>;
+  assertReady(policy: GeneralIntentPolicyV2): Promise<void>;
+  captureSnapshot(policy: GeneralIntentPolicyV2): Promise<GeneralIntentSnapshotV1>;
   capturePortfolio(input: {
     owner: Address;
     executor: Address;
@@ -30,7 +30,7 @@ export interface RunGeneralCodingAgentMarketDependenciesV1 {
 }
 
 export async function runGeneralCodingAgentMarketV1(
-  policy: GeneralIntentPolicyV1,
+  policy: GeneralIntentPolicyV2,
   dependencies: RunGeneralCodingAgentMarketDependenciesV1,
 ) {
   await dependencies.assertReady(policy);

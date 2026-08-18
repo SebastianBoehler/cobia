@@ -1,4 +1,4 @@
-import { commitment, type GeneralIntentPolicyV1, type GeneralIntentSnapshotV1 } from "@cobia/domain";
+import { commitment, type GeneralIntentPolicyV2, type GeneralIntentSnapshotV1 } from "@cobia/domain";
 import { runCapabilitySandboxV2, verifyCapabilityProgramV2, type StaticReadCallerV1 } from "@cobia/solvers";
 import { createPublicClient, http, keccak256, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -54,7 +54,7 @@ function staticCaller(input: {
 }
 
 async function captureSnapshot(
-  policy: GeneralIntentPolicyV1,
+  policy: GeneralIntentPolicyV2,
   client: ReturnType<typeof createPublicClient>,
 ): Promise<GeneralIntentSnapshotV1> {
   if (await client.getChainId() !== 196) throw new Error("General intent RPC is not X Layer mainnet");
@@ -73,7 +73,7 @@ async function captureSnapshot(
 }
 
 export async function openGeneralCodingAgentMarketV1(
-  policy: GeneralIntentPolicyV1,
+  policy: GeneralIntentPolicyV2,
   repositories: {
     requests: ReturnType<typeof createRequestRepository>;
     programs: ReturnType<typeof createAgentProgramRepository>;

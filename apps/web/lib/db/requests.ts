@@ -1,5 +1,5 @@
 import {
-  GeneralIntentPolicyV1Schema,
+  GeneralIntentPolicyV2Schema,
   GeneralIntentSnapshotV1Schema,
   PersistedIntentPolicySchema,
   commitment,
@@ -29,7 +29,7 @@ function validateGeneralSnapshot(
   policyInput: unknown,
   snapshotInput: unknown,
 ) {
-  const policy = GeneralIntentPolicyV1Schema.parse(policyInput);
+  const policy = GeneralIntentPolicyV2Schema.parse(policyInput);
   const snapshot = GeneralIntentSnapshotV1Schema.parse(snapshotInput);
   if (policy.requestId !== requestId || snapshot.requestId !== requestId ||
     snapshot.manifestHash !== policy.manifestHash) {

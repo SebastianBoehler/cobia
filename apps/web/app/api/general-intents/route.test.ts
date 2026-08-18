@@ -1,4 +1,4 @@
-import { commitment, GeneralIntentPolicyV1Schema } from "@cobia/domain";
+import { commitment, GeneralIntentPolicyV2Schema } from "@cobia/domain";
 import { privateKeyToAccount } from "viem/accounts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,10 +12,12 @@ vi.mock("../../../lib/runtime/market", () => ({
 import { POST } from "./route";
 
 const account = privateKeyToAccount(`0x${"11".repeat(32)}`);
-const policy = GeneralIntentPolicyV1Schema.parse({
-  version: 1, kind: "general-onchain", requestId: "550e8400-e29b-41d4-a716-446655440000",
+const policy = GeneralIntentPolicyV2Schema.parse({
+  version: 2, kind: "general-onchain", requestId: "550e8400-e29b-41d4-a716-446655440000",
+  displayGoal: "Increase the verified Aave receipt balance",
   owner: account.address, executionChainId: 196, nonce: `0x${"22".repeat(32)}`,
   createdAt: 2_000_000_000, deadline: 2_000_001_800, maxEvidenceAgeSec: 300,
+  competition: { closesAt: 2_000_000_300, maxRevisionsPerSolver: 5 },
   manifestHash: `0x${"33".repeat(32)}`,
   input: { token: "0x2222222222222222222222222222222222222222", maxAtomic: "10000000" },
   allowedCapabilities: [{ id: "aave-v3.supply", version: 1 }],

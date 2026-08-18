@@ -2,7 +2,7 @@ import {
   projectRouteQuote,
   verifyBundle,
   type PersistedStablecoinPolicy,
-  type GeneralIntentPolicyV1,
+  type GeneralIntentPolicyV2,
   type StablecoinPolicy,
   type StablecoinPolicyV2,
 } from "@cobia/domain";
@@ -133,7 +133,7 @@ export function openQuoteMarket(policy: PersistedStablecoinPolicy) {
     : openQuoteMarketV2(policy);
 }
 
-export function openGeneralIntentMarket(policy: GeneralIntentPolicyV1) {
+export function openGeneralIntentMarket(policy: GeneralIntentPolicyV2) {
   return openGeneralCodingAgentMarketV1(policy, {
     requests: getRequestRepository(),
     programs: getAgentProgramRepository(),

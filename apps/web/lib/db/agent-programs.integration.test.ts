@@ -1,4 +1,4 @@
-import { GeneralIntentPolicyV1Schema, GeneralIntentSnapshotV1Schema, commitment } from "@cobia/domain";
+import { GeneralIntentPolicyV2Schema, GeneralIntentSnapshotV1Schema, commitment } from "@cobia/domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { startIntegrationDatabase } from "./integration-database";
 import { createAgentProgramRepository } from "./agent-programs";
@@ -19,10 +19,12 @@ afterAll(async () => { await database?.close(); });
 describe("agent program audit repository", () => {
   it("persists a general policy and pinned snapshot without routing it through quote artifacts", async () => {
     const requestId = crypto.randomUUID();
-    const policy = GeneralIntentPolicyV1Schema.parse({
-      version: 1, kind: "general-onchain", requestId,
+    const policy = GeneralIntentPolicyV2Schema.parse({
+      version: 2, kind: "general-onchain", requestId,
+      displayGoal: "Increase the verified Aave receipt balance",
       owner: "0x1111111111111111111111111111111111111111", executionChainId: 196,
       nonce: `0x${"12".repeat(32)}`, createdAt: 2_000_000_000, deadline: 2_000_001_800,
+      competition: { closesAt: 2_000_000_300, maxRevisionsPerSolver: 5 },
       maxEvidenceAgeSec: 300, manifestHash: `0x${"23".repeat(32)}`,
       input: { token: "0x2222222222222222222222222222222222222222", maxAtomic: "10000000" },
       allowedCapabilities: [{ id: "aave-v3.supply", version: 1 }],

@@ -1,6 +1,6 @@
 import {
-  GeneralBalanceConstraintV1Schema,
-  GeneralIntentObjectiveV1Schema,
+  GeneralBalanceConstraintV2Schema,
+  GeneralIntentObjectiveV2Schema,
   StaticPredicateV1Schema,
   canonicalJson,
   commitment,
@@ -34,9 +34,9 @@ export const CapabilityProgramV2Schema = z.object({
   nonce: HashSchema.refine((value) => !/^0x0{64}$/.test(value)),
   input: z.object({ token: AddressSchema, atomic: PositiveAtomicSchema }).strict(),
   actions: z.array(CapabilityActionV1Schema).min(1).max(8),
-  balanceConstraints: z.array(GeneralBalanceConstraintV1Schema).max(8),
+  balanceConstraints: z.array(GeneralBalanceConstraintV2Schema).max(8),
   predicates: z.array(StaticPredicateV1Schema).max(8),
-  objective: GeneralIntentObjectiveV1Schema,
+  objective: GeneralIntentObjectiveV2Schema,
 }).strict().superRefine((program, context) => {
   const predicates = program.predicates.map(canonicalJson);
   if (new Set(predicates).size !== predicates.length) {

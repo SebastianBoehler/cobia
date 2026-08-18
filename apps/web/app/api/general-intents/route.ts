@@ -1,4 +1,4 @@
-import { GeneralIntentPolicyV1Schema, commitment, parseGeneralIntentPolicyV1 } from "@cobia/domain";
+import { GeneralIntentPolicyV2Schema, commitment, parseGeneralIntentPolicyV2 } from "@cobia/domain";
 import { NextResponse } from "next/server";
 import type { Hex } from "viem";
 import { z } from "zod";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 const RequestBodySchema = z.object({
-  policy: GeneralIntentPolicyV1Schema,
+  policy: GeneralIntentPolicyV2Schema,
   ownerSignature: z.string().regex(/^0x[0-9a-fA-F]{130}$/),
 }).strict();
 
@@ -21,7 +21,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const body = RequestBodySchema.parse(await request.json());
     requestId = body.policy.requestId;
-    const policy = parseGeneralIntentPolicyV1(body.policy, Math.floor(Date.now() / 1_000));
+    const policy = parseGeneralIntentPolicyV2(body.policy, Math.floor(Date.now() / 1_000));
     try {
       await verifyPolicyOwnerSignature(policy, body.ownerSignature as Hex);
     } catch {

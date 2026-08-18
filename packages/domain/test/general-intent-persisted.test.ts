@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  GeneralIntentPolicyV1Schema,
+  GeneralIntentPolicyV2Schema,
   GeneralIntentSnapshotV1Schema,
   PersistedIntentPolicySchema,
   PersistedIntentSnapshotSchema,
@@ -11,15 +11,17 @@ const hash = (byte: string) => `0x${byte.repeat(64)}`;
 
 describe("persisted general intents", () => {
   it("round-trips the signed policy and pinned snapshot without widening either", () => {
-    const policy = GeneralIntentPolicyV1Schema.parse({
-      version: 1,
+    const policy = GeneralIntentPolicyV2Schema.parse({
+      version: 2,
       kind: "general-onchain",
       requestId: "550e8400-e29b-41d4-a716-446655440000",
+      displayGoal: "Increase the verified Aave receipt balance",
       owner: address("1"),
       executionChainId: 196,
       nonce: hash("1"),
       createdAt: 2_000_000_000,
       deadline: 2_000_001_800,
+      competition: { closesAt: 2_000_000_300, maxRevisionsPerSolver: 5 },
       maxEvidenceAgeSec: 300,
       manifestHash: hash("2"),
       input: { token: address("2"), maxAtomic: "10000000" },

@@ -7,7 +7,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { getAddress, keccak256, stringToHex } from "viem";
 import { SUPPORTED_ASSETS } from "../../lib/chain/supported-assets";
 import { ROUTE_POLICY_V2_DEFAULTS } from "../../lib/intents/route-policy-v2";
-import { buildGeneralIntentPolicyV1 } from "../../lib/intents/general-policy";
+import { buildGeneralIntentPolicyV2 } from "../../lib/intents/general-policy";
 import { shortAddress } from "../../lib/wallet/eip1193";
 import { useWallet } from "../wallet/WalletProvider";
 import { AssetMark } from "../brand/AssetMark";
@@ -98,17 +98,19 @@ export function PolicyForm() {
       const common = {
         requestId, owner: wallet.account, inputToken: asset.address,
         inputAtomic: principalAtomic, nonce, nowSec,
+        displayGoal: intentOutcome(mode, principal, asset.displaySymbol, outputAsset.displaySymbol),
+        competitionDurationSec: 300,
       } as const;
       const policy = mode === "Earn"
-        ? buildGeneralIntentPolicyV1({ ...common, mode, exposureBps: effectiveExposureBps })
+        ? buildGeneralIntentPolicyV2({ ...common, templateId: "aave-supply", exposureBps: effectiveExposureBps })
         : mode === "Swap" && objective?.kind === "swap"
-          ? buildGeneralIntentPolicyV1({
-              ...common, mode, outputToken: objective.outputAsset,
+          ? buildGeneralIntentPolicyV2({
+              ...common, templateId: "exact-input-swap", outputToken: objective.outputAsset,
               minimumOutputAtomic: objective.minimumOutputAtomic,
             })
           : mode === "Profit" && objective?.kind === "profit"
-            ? buildGeneralIntentPolicyV1({
-                ...common, mode,
+            ? buildGeneralIntentPolicyV2({
+                ...common, templateId: "round-trip",
                 minimumProfitAtomic: (BigInt(objective.minimumFinalAtomic) - BigInt(principalAtomic)).toString(),
               })
             : (() => { throw new Error("The general intent objective is invalid."); })();

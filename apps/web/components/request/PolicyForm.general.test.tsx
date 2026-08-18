@@ -56,7 +56,8 @@ describe("PolicyForm general on-chain policies", () => {
     expect(body).toMatchObject({
       ownerSignature: `0x${"ab".repeat(65)}`,
       policy: {
-        version: 1, kind: "general-onchain", owner, executionChainId: 196,
+        version: 2, kind: "general-onchain", owner, executionChainId: 196,
+        competition: { maxRevisionsPerSolver: 5 },
         manifestHash: registryHash,
         input: { token: "0x4ae46a509f6b1d9056937ba4500cb143933d2dc8", maxAtomic: "10000000" },
         allowedCapabilities: [{ id: "aave-v3.supply", version: 1 }],

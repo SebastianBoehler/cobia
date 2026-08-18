@@ -35,22 +35,24 @@
 - Modify: `apps/web/lib/intents/general-policy.ts`
 - Replace: `apps/web/lib/intents/general-policy.test.ts`
 
-- [ ] Write failing domain tests proving a V2 policy requires `displayGoal`, `competition.closesAt`, `competition.maxRevisionsPerSolver`, an enforceable post-state, and a supported capability list.
-- [ ] Add commitment tests proving any change to goal, close time, recipient/owner, input, capability, forbidden set, predicate, balance constraint, deadline, gas, or action bound changes the policy hash.
-- [ ] Add rejection tests for V1 input, unknown keys, ambiguous empty goals, close time after policy deadline, overlong competition windows, and unsorted capabilities/forbidden lists.
-- [ ] Run `pnpm --filter @cobia/domain exec vitest run test/general-intent-policy.test.ts`; expect the new V2 tests to fail because V1 still parses.
-- [ ] Implement `GeneralIntentPolicyV2Schema` and make `PersistedIntentPolicy` accept V2 only:
+- [x] Write failing domain tests proving a V2 policy requires `displayGoal`, `competition.closesAt`, `competition.maxRevisionsPerSolver`, an enforceable post-state, and a supported capability list.
+- [x] Add commitment tests proving any change to goal, close time, recipient/owner, input, capability, forbidden set, predicate, balance constraint, deadline, gas, or action bound changes the policy hash.
+- [x] Add rejection tests for V1 input, unknown keys, ambiguous empty goals, close time after policy deadline, overlong competition windows, and unsorted capabilities/forbidden lists.
+- [x] Run `pnpm --filter @cobia/domain exec vitest run test/general-intent-policy.test.ts`; the test failed because V2 did not exist.
+- [x] Implement `GeneralIntentPolicyV2Schema` and make the general-intent persistence path accept V2 only:
 
 ```ts
 export const GeneralIntentPolicyV2Schema = z.object({
   version: z.literal(2), kind: z.literal("general-onchain"),
   requestId: z.string().uuid(), displayGoal: z.string().trim().min(1).max(500),
   owner: AddressSchema, executionChainId: z.literal(196),
-  nonce: HashSchema, createdAt: TimestampSchema, deadline: TimestampSchema,
+  nonce: HashSchema,
+  createdAt: z.number().int().positive().safe(),
+  deadline: z.number().int().positive().safe(),
   maxEvidenceAgeSec: z.number().int().min(30).max(900),
   manifestHash: HashSchema,
   competition: z.object({
-    closesAt: TimestampSchema,
+    closesAt: z.number().int().positive().safe(),
     maxRevisionsPerSolver: z.number().int().min(1).max(20),
   }).strict(),
   input: z.object({ token: AddressSchema, maxAtomic: PositiveAtomicAmountSchema }).strict(),
@@ -64,8 +66,8 @@ export const GeneralIntentPolicyV2Schema = z.object({
 }).strict();
 ```
 
-- [ ] Update the web builder to accept capability template IDs (`aave-supply`, `exact-input-swap`, `round-trip`) while emitting only verifier-owned capability/version pairs.
-- [ ] Run the two focused suites and `pnpm --filter @cobia/domain typecheck`; expect green.
+- [x] Update the web builder to accept capability template IDs (`aave-supply`, `exact-input-swap`, `round-trip`) while emitting only verifier-owned capability/version pairs.
+- [x] Run domain, solver, focused web suites and package typechecks; all are green (Node 23 emitted the expected repository engine warning for the Node 24 release gate).
 - [ ] Commit: `feat(domain): define signed general intent v2`
 
 ## Task 2: Add a clean intent, solver, revision, and artifact store
@@ -185,6 +187,7 @@ export const GeneralIntentPolicyV2Schema = z.object({
 ## Task 7: Replace the landing page, navigation, and visual system
 
 **Files:**
+- Create: `docs/design/2026-08-18-general-dapp-interface-audit.md`
 - Modify: `apps/web/app/page.tsx`
 - Create: `apps/web/components/home/GeneralIntentHero.tsx`
 - Create: `apps/web/components/home/DomainCapabilityGrid.tsx`
@@ -198,6 +201,8 @@ export const GeneralIntentPolicyV2Schema = z.object({
 - Modify: `apps/web/app/sitemap.ts`
 - Modify: `apps/web/app/metadata.test.ts`
 
+- [ ] Inspect the current desktop and mobile interfaces of Jumper, Jupiter, and one leading Ethereum app. Capture dated screenshots and document hierarchy, navigation, composer pattern, transaction review, state language, density, spacing, typography, color roles, accessibility, and patterns Cobia must not copy.
+- [ ] Apply `better-ui`, `better-layout`, `better-colors`, `better-typography`, `better-writing`, and `better-accessibility` to convert the audit into Cobia-specific layout and content rules before editing components.
 - [ ] Write failing landing/navigation tests for Intent, Portfolio, Activity, Discover, `/solvers` discovery links, general on-chain copy, domain truth labels, and absence of APY-first/Earn/Swap/Profit framing.
 - [ ] Write a failing branded-not-found test with Intent and Discover actions and no framework 404 copy.
 - [ ] Run the focused page, header, and metadata tests; expect old href/copy failures.

@@ -1,5 +1,5 @@
 import {
-  GeneralIntentPolicyV1Schema,
+  GeneralIntentPolicyV2Schema,
   GeneralIntentSnapshotV1Schema,
 } from "@cobia/domain";
 import { isAddressEqual, sha256 as sha256Hex, stringToHex, type Address } from "viem";
@@ -87,7 +87,7 @@ export async function runCapabilitySandboxV2(input: {
     },
   };
   try {
-    const policy = GeneralIntentPolicyV1Schema.parse(input.policy);
+    const policy = GeneralIntentPolicyV2Schema.parse(input.policy);
     const snapshot = GeneralIntentSnapshotV1Schema.parse(input.snapshot);
     if (!isAddressEqual(policy.owner, input.wallet)) {
       throw new Error("Sandbox wallet must match policy owner");

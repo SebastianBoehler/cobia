@@ -1,5 +1,5 @@
 import {
-  GeneralIntentPolicyV1Schema,
+  GeneralIntentPolicyV2Schema,
   GeneralIntentSnapshotV1Schema,
   StaticReadV1Schema,
   commitment,
@@ -187,10 +187,10 @@ export async function verifyCapabilityProgramV2(input: VerifyCapabilityProgramIn
   try { evidence = CapabilityProgramEvidenceV2Schema.parse(input.evidence); } catch {
     return { accepted: false, errorCodes: [chainMismatch ? "CHAIN_MISMATCH" : "CAPABILITY_EVIDENCE_INVALID"] as CapabilityProgramV2RejectionCode[], compiled: [] };
   }
-  let policy: ReturnType<typeof GeneralIntentPolicyV1Schema.parse>;
+  let policy: ReturnType<typeof GeneralIntentPolicyV2Schema.parse>;
   let snapshot: ReturnType<typeof GeneralIntentSnapshotV1Schema.parse>;
   try {
-    policy = GeneralIntentPolicyV1Schema.parse(input.policy);
+    policy = GeneralIntentPolicyV2Schema.parse(input.policy);
     snapshot = GeneralIntentSnapshotV1Schema.parse(input.snapshot);
   } catch {
     return { accepted: false, errorCodes: [chainMismatch ? "CHAIN_MISMATCH" : "POLICY_MISMATCH"] as CapabilityProgramV2RejectionCode[], compiled: [] };

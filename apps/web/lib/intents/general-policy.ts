@@ -1,9 +1,11 @@
-import { GeneralIntentPolicyV1Schema, type GeneralIntentPolicyV1 } from "@cobia/domain";
+import { GeneralIntentPolicyV2Schema, type GeneralIntentPolicyV2 } from "@cobia/domain";
 import { isAddressEqual, type Address, type Hash } from "viem";
 import { PROTOCOL_REGISTRY, registryHash } from "../adapters/registry";
 
 const DEADLINE_LIFETIME_SEC = 30 * 60;
 const MAX_EVIDENCE_AGE_SEC = 300;
+const MAX_COMPETITION_DURATION_SEC = 15 * 60;
+const MAX_REVISIONS_PER_SOLVER = 5;
 const RECEIPT_FLOOR_BPS = 9_950n;
 
 interface CommonInput {
@@ -13,12 +15,14 @@ interface CommonInput {
   inputAtomic: string;
   nonce: Hash;
   nowSec: number;
+  displayGoal: string;
+  competitionDurationSec: number;
 }
 
 type BuildInput = CommonInput & (
-  | { mode: "Earn"; exposureBps: number }
-  | { mode: "Swap"; outputToken: Address; minimumOutputAtomic: string }
-  | { mode: "Profit"; minimumProfitAtomic: string }
+  | { templateId: "aave-supply"; exposureBps: number }
+  | { templateId: "exact-input-swap"; outputToken: Address; minimumOutputAtomic: string }
+  | { templateId: "round-trip"; minimumProfitAtomic: string }
 );
 
 function positive(value: string, label: string): bigint {
@@ -35,7 +39,7 @@ function receiptToken(inputToken: Address): Address {
 
 function outcome(input: BuildInput) {
   const amount = positive(input.inputAtomic, "Input");
-  if (input.mode === "Earn") {
+  if (input.templateId === "aave-supply") {
     if (!Number.isInteger(input.exposureBps) || input.exposureBps < 1 || input.exposureBps > 10_000) {
       throw new Error("Protocol exposure must be between 1 and 10000 bps");
     }
@@ -52,7 +56,7 @@ function outcome(input: BuildInput) {
       maxActions: 1,
     };
   }
-  if (input.mode === "Swap") {
+  if (input.templateId === "exact-input-swap") {
     if (isAddressEqual(input.inputToken, input.outputToken)) {
       throw new Error("Swap output must use a different asset");
     }
@@ -83,17 +87,27 @@ function outcome(input: BuildInput) {
   };
 }
 
-export function buildGeneralIntentPolicyV1(input: BuildInput): GeneralIntentPolicyV1 {
+export function buildGeneralIntentPolicyV2(input: BuildInput): GeneralIntentPolicyV2 {
+  if (!input.displayGoal.trim()) throw new Error("Intent goal is required");
+  if (!Number.isInteger(input.competitionDurationSec) || input.competitionDurationSec < 1 ||
+    input.competitionDurationSec > MAX_COMPETITION_DURATION_SEC) {
+    throw new Error("Competition duration must be between 1 and 900 seconds");
+  }
   const result = outcome(input);
-  return GeneralIntentPolicyV1Schema.parse({
-    version: 1,
+  return GeneralIntentPolicyV2Schema.parse({
+    version: 2,
     kind: "general-onchain",
     requestId: input.requestId,
+    displayGoal: input.displayGoal,
     owner: input.owner,
     executionChainId: 196,
     nonce: input.nonce,
     createdAt: input.nowSec,
     deadline: input.nowSec + DEADLINE_LIFETIME_SEC,
+    competition: {
+      closesAt: input.nowSec + input.competitionDurationSec,
+      maxRevisionsPerSolver: MAX_REVISIONS_PER_SOLVER,
+    },
     maxEvidenceAgeSec: MAX_EVIDENCE_AGE_SEC,
     manifestHash: registryHash,
     input: { token: input.inputToken, maxAtomic: input.inputAtomic },

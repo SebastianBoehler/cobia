@@ -36,14 +36,16 @@ export const predicate = {
 };
 
 export const policy = {
-  version: 1 as const,
+  version: 2 as const,
   kind: "general-onchain" as const,
   requestId: "550e8400-e29b-41d4-a716-446655440091",
+  displayGoal: "Increase the verified output balance",
   owner,
   executionChainId: 196 as const,
   nonce: `0x${"33".repeat(32)}` as `0x${string}`,
   createdAt: 1_999_999_000,
   deadline: 2_000_000_000,
+  competition: { closesAt: 1_999_999_300, maxRevisionsPerSolver: 5 },
   maxEvidenceAgeSec: 300,
   manifestHash,
   input: { token: inputToken, maxAtomic: "10" },

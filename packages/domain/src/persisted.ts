@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { DecisionBundleSchema } from "./bundle";
-import { GeneralIntentPolicyV1Schema, GeneralIntentSnapshotV1Schema } from "./general-intent-policy";
+import { GeneralIntentPolicyV2Schema, GeneralIntentSnapshotV1Schema } from "./general-intent-policy";
 import { HashSchema } from "./primitives";
 import { StablecoinPolicySchema } from "./policy";
 import { PersistedRouteQuoteV1Schema } from "./route-quote";
@@ -22,7 +22,7 @@ export const PersistedSnapshotSchema = z.discriminatedUnion("version", [
 
 export const PersistedIntentPolicySchema = z.union([
   PersistedStablecoinPolicySchema,
-  GeneralIntentPolicyV1Schema,
+  GeneralIntentPolicyV2Schema,
 ]);
 
 export const PersistedIntentSnapshotSchema = z.union([
