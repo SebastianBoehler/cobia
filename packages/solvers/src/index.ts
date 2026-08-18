@@ -13,6 +13,8 @@ export * from "./capabilities/module";
 export * from "./capabilities/registry";
 export * from "./capabilities/asset-flow";
 export * from "./capabilities/commerce-order";
+export * from "./capabilities/commerce-evidence";
+export * from "./capabilities/commerce-sandbox-runner";
 export * from "./capabilities/verifier";
 export * from "./capabilities/sandbox-runner";
 export * from "./deterministic";
