@@ -1,5 +1,5 @@
 import { commitment, GeneralIntentPolicyV2Schema } from "@cobia/domain";
-import { and, eq, gt } from "drizzle-orm";
+import { and, desc, eq, gt } from "drizzle-orm";
 import { z } from "zod";
 import type { CobiaDatabase } from "./client";
 import { cobiaIntents, cobiaSolverSubmissions } from "./schema";
@@ -39,6 +39,15 @@ export function createIntentRepository(db: CobiaDatabase) {
     },
 
     get: (id: string) => db.query.cobiaIntents.findFirst({ where: eq(cobiaIntents.id, id) }),
+
+    listDiscover(observedAtSec: number) {
+      return db.query.cobiaIntents.findMany({
+        where: and(eq(cobiaIntents.state, "collecting"),
+          gt(cobiaIntents.competitionClosesAt, new Date(observedAtSec * 1_000))),
+        orderBy: [desc(cobiaIntents.createdAt)],
+        limit: 30,
+      });
+    },
 
     async select(intentId: string, submissionId: string, observedAtSec: number) {
       return db.transaction(async (tx) => {

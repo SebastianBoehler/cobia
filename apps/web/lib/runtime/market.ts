@@ -21,6 +21,7 @@ import { createRehearsalRepository } from "../db/rehearsals";
 import { createExecutionRepository } from "../db/executions";
 import { createAgentProgramRepository } from "../db/agent-programs";
 import { createIntentRepository } from "../db/intents";
+import { createChallengeRepository } from "../db/challenges";
 import { createSolverProfileRepository } from "../db/solver-profiles";
 import { createSolverRunRepository } from "../db/solver-runs";
 import { createSolverSubmissionRepository } from "../db/solver-submissions";
@@ -51,6 +52,7 @@ let rehearsalRepository: ReturnType<typeof createRehearsalRepository> | undefine
 let executionRepository: ReturnType<typeof createExecutionRepository> | undefined;
 let agentProgramRepository: ReturnType<typeof createAgentProgramRepository> | undefined;
 let intentRepository: ReturnType<typeof createIntentRepository> | undefined;
+let challengeRepository: ReturnType<typeof createChallengeRepository> | undefined;
 let solverProfileRepository: ReturnType<typeof createSolverProfileRepository> | undefined;
 let solverRunRepository: ReturnType<typeof createSolverRunRepository> | undefined;
 let solverSubmissionRepository: ReturnType<typeof createSolverSubmissionRepository> | undefined;
@@ -104,6 +106,11 @@ export function getAgentProgramRepository() {
 export function getIntentRepository() {
   intentRepository ??= createIntentRepository(getDatabase());
   return intentRepository;
+}
+
+export function getChallengeRepository() {
+  challengeRepository ??= createChallengeRepository(getDatabase());
+  return challengeRepository;
 }
 
 export function getSolverProfileRepository() {

@@ -1,11 +1,11 @@
 import { commitment } from "@cobia/domain";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { ObjectiveMeasurementV1Schema } from "../competitions/objective-measurement";
 import { projectSubmissionState } from "../competitions/submission-state";
 import type { CobiaDatabase } from "./client";
 import {
-  cobiaChallengeRounds, cobiaIntents, cobiaProgramArtifactsV2,
+  cobiaChallengeRounds, cobiaChallenges, cobiaIntents, cobiaProgramArtifactsV2,
   cobiaSolverSubmissions, cobiaSolvers, programArtifactKindV2,
 } from "./schema";
 
@@ -196,6 +196,28 @@ export function createSolverSubmissionRepository(db: CobiaDatabase) {
         history: rows.filter(({ presentationState }) => presentationState !== "current")
           .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime()),
       };
+    },
+
+    async listHistory(observedAtSec: number) {
+      const rows = await db.query.cobiaSolverSubmissions.findMany({
+        orderBy: [desc(cobiaSolverSubmissions.createdAt)], limit: 30,
+      });
+      const historical = rows.map((row) => ({
+        ...row, presentationState: projectSubmissionState(row, observedAtSec),
+      })).filter(({ presentationState }) => !["current", "pending"].includes(presentationState));
+      return Promise.all(historical.map(async (row) => {
+        const solver = await db.query.cobiaSolvers.findFirst({ where: eq(cobiaSolvers.id, row.solverId) });
+        if (!solver) throw new Error("Historical submission solver is unavailable");
+        const intent = row.intentId
+          ? await db.query.cobiaIntents.findFirst({ where: eq(cobiaIntents.id, row.intentId) }) : null;
+        const round = row.challengeRoundId
+          ? await db.query.cobiaChallengeRounds.findFirst({ where: eq(cobiaChallengeRounds.id, row.challengeRoundId) }) : null;
+        const challenge = round
+          ? await db.query.cobiaChallenges.findFirst({ where: eq(cobiaChallenges.id, round.challengeId) }) : null;
+        const goal = intent?.displayGoal ?? challenge?.displayGoal;
+        if (!goal) throw new Error("Historical submission parent is unavailable");
+        return { id: row.id, goal, solver: solver.displayName, state: row.presentationState };
+      }));
     },
   };
   return repository;
