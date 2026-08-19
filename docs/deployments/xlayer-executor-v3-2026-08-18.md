@@ -72,3 +72,16 @@ Until the final read-back verifies every activated value, the production runtime
 must treat Executor V3 as unavailable. A later retail canary is a separate,
 explicit owner-wallet principal transaction and is never part of automated
 release verification.
+
+Use the signer-free state verifier for both sides of the gate:
+
+```bash
+pnpm executor:v3:verify proposed
+# only after the Safe activation batch is mined
+pnpm executor:v3:verify active
+```
+
+Both modes pin one canonical X Layer block and verify exact governance state,
+contract bindings, token limits, canary status, adapter permissions, and runtime
+code identities. The command creates a public client only; it has no wallet,
+signer, or transaction-send method.

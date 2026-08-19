@@ -1,6 +1,6 @@
 # General-intent V3 release readiness
 
-Snapshot: `2026-08-18T20:56:59Z`. This is a pre-activation checkpoint, not a
+Snapshot: `2026-08-19T00:41:56Z`. This is a pre-activation checkpoint, not a
 production-readiness claim.
 
 ## Product delivered locally
@@ -46,7 +46,7 @@ The earlier post-change local gates completed successfully:
 
 | Gate | Result |
 | --- | --- |
-| `pnpm test` | 1,037 tests: domain 143, solvers 116, web 778 |
+| `pnpm test` | 1,050 tests: domain 143, solvers 116, web 791 |
 | `pnpm typecheck` | all three workspace packages passed |
 | `pnpm lint` | all three workspace packages passed |
 | `pnpm build` | production Next.js build passed; only current product/API paths emitted |
@@ -56,7 +56,7 @@ The earlier post-change local gates completed successfully:
 | `pnpm --filter @cobia/web test:fork` | 4 files, 7 real pinned Anvil-fork tests |
 
 After the commerce additions, the complete local pre-activation gate ran under
-Node `24.19.0`: 1,037 workspace tests, all workspace typechecks and lint, the
+Node `24.19.0`: 1,050 workspace tests, all workspace typechecks and lint, the
 production Next.js build, 69 PostgreSQL integration tests, 66 Solidity tests,
 the high-severity dependency audit, and all seven real pinned Anvil-fork tests
 passed. These commands must still be rerun after activation.
@@ -73,8 +73,8 @@ surface.
 
 ## Mainnet activation gate
 
-At X Layer mainnet block `68317583`, hash
-`0xc0d550d38c90dfdcb673ec986e6a54debc421c03c6a9ded0d239c9460d31ad52`,
+At X Layer mainnet block `68331080`, hash
+`0x690a5af7541e72aa443b53ef17a38ea6ffd72b6a43243a81f1064be5960118be`,
 read-only calls reproduced the unchanged delayed proposal:
 
 - chain ID `196`;
@@ -90,6 +90,12 @@ read-only calls reproduced the unchanged delayed proposal:
   `0xe415bc68d215ff3c077c707e4493c0517b6ad76446feb49c0fe6cc00add9372c`;
 - Executor V3 runtime hash
   `0x3f8d413eb3adc61d371012de8cb0aad91817bd3f077529bad2ee329aef103894`.
+
+The deterministic read-only gate is `pnpm executor:v3:verify proposed`. It pins
+one canonical block and rejects changes to the chain, bindings, limits, canary,
+pause state, pending governance, permissions, or runtime code. After the Safe
+activation batch, the same implementation must pass as
+`pnpm executor:v3:verify active` before production is enabled.
 
 The activation batch in
 `docs/deployments/xlayer-executor-v3-activation.json` must not execute before
