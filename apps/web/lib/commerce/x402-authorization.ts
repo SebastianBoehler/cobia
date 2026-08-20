@@ -11,7 +11,10 @@ import {
   type Hex,
 } from "viem";
 import { z } from "zod";
-import { EIP3009_AUTHORIZATION_TYPES } from "../payments/eip3009-authorization";
+import {
+  EIP3009_AUTHORIZATION_TYPES,
+  EIP3009_RPC_TYPES,
+} from "../payments/eip3009-authorization";
 import { compileX402AuthorizationPlanV1 } from "./x402-plan";
 import { X402AuthorizationPlanV1Schema } from "./x402-plan";
 
@@ -103,6 +106,13 @@ export function x402TypedDataV1(raw: unknown) {
       validAfter: BigInt(template.typedData.message.validAfter),
       validBefore: BigInt(template.typedData.message.validBefore),
     },
+  };
+}
+
+export function x402WalletTypedDataV1(raw: unknown) {
+  return {
+    ...x402TypedDataV1(raw),
+    types: EIP3009_RPC_TYPES,
   };
 }
 

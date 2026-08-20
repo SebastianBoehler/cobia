@@ -81,6 +81,14 @@ describe("commerce wallet client", () => {
     expect(wallet.signTypedData).toHaveBeenCalledWith(expect.objectContaining({
       primaryType: "TransferWithAuthorization",
       domain: expect.objectContaining({ chainId: 196, verifyingContract: template.accepted.asset }),
+      types: expect.objectContaining({
+        EIP712Domain: [
+          { name: "name", type: "string" },
+          { name: "version", type: "string" },
+          { name: "chainId", type: "uint256" },
+          { name: "verifyingContract", type: "address" },
+        ],
+      }),
     }));
     expect(wallet).not.toHaveProperty("sendTransaction");
     expect(fetcher.mock.calls[1]![0]).toBe(`/api/commerce/placements/${placementId}/authorization`);

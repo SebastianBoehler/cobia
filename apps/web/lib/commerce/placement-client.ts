@@ -2,7 +2,7 @@ import type { Hex } from "viem";
 import { z } from "zod";
 import {
   X402AuthorizationTemplateV1Schema,
-  x402TypedDataV1,
+  x402WalletTypedDataV1,
 } from "./x402-authorization";
 import { X402AuthorizationPlanV1Schema } from "./x402-plan";
 import { X402SettlementResponseV2Schema } from "./x402-resource-client";
@@ -61,12 +61,12 @@ export async function authorizeCommercePlacementClientV1(input: {
   placement: z.infer<typeof PlacementSchema>;
   plan: z.infer<typeof X402AuthorizationPlanV1Schema>;
   authorization: z.infer<typeof X402AuthorizationTemplateV1Schema>;
-  wallet: { signTypedData(value: ReturnType<typeof x402TypedDataV1>): Promise<Hex> };
+  wallet: { signTypedData(value: ReturnType<typeof x402WalletTypedDataV1>): Promise<Hex> };
   fetcher?: Fetcher;
 }) {
   const fetcher = input.fetcher ?? fetch;
   const signature = SignatureSchema.parse(await input.wallet.signTypedData(
-    x402TypedDataV1(input.authorization),
+    x402WalletTypedDataV1(input.authorization),
   ));
   const response = await fetcher(`/api/commerce/placements/${input.placement.id}/authorization`, {
     method: "POST", headers: { "Content-Type": "application/json" },
