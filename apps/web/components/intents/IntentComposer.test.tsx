@@ -48,6 +48,7 @@ describe("IntentComposer", () => {
     expect(screen.getByRole("button", { name: /Shop with an x402 payment/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Manage a subscription/ })).toBeDisabled();
     expect(screen.getAllByText("Requires capability")).toHaveLength(2);
+    expect(screen.getByText("Live capability")).toHaveClass("intent-example__status--live");
   });
 
   it("starts from a challenge draft but creates fresh wallet-bound authority", async () => {

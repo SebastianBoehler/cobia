@@ -25,7 +25,9 @@ describe("DiscoverView", () => {
     const html = renderToStaticMarkup(<DiscoverView challenges={[]} history={[]} intents={[]} commerceOffers={[]} observedAtSec={2_000_000_000} />);
     expect(html).toContain("No standing challenges are published yet.");
     expect(html).toContain("No custom intents are collecting proposals.");
-    expect(html).toContain("No past discoveries yet.");
+    expect(html).toContain('href="/intents/new"');
+    expect(html).toContain("Create an intent");
+    expect(html).toContain("Verified solver history will appear here after a program resolves.");
     expect(html).toContain("No commerce offers are currently indexed");
   });
 });

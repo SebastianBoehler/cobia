@@ -1,6 +1,6 @@
 "use client";
 
-import { CirclePlus, Clock3, Compass, House, WalletCards } from "lucide-react";
+import { ArrowUpRight, CirclePlus, Clock3, Compass, House, WalletCards } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CobiaLogo } from "../brand/CobiaLogo";
@@ -46,7 +46,16 @@ export function AppHeader() {
             );
           })}
         </nav>
-        <div className="app-header__actions"><ThemeToggle /><WalletButton /></div>
+        <div className="app-header__actions">
+          <div className="app-header__resources">
+            <Link href="/docs">Docs</Link>
+            <Link className="app-header__build-link" href="/docs/quickstart">
+              Build a solver <ArrowUpRight aria-hidden="true" size={14} />
+            </Link>
+          </div>
+          <ThemeToggle />
+          <WalletButton />
+        </div>
       </header>
     </>
   );

@@ -27,7 +27,7 @@ export default async function NewIntentPage({ searchParams }: {
       <main className="intent-page" id="main-content">
         <header className="intent-page__header">
           <h1>Describe the outcome.</h1>
-          <p>Your words provide context. The policy receipt provides authority.</p>
+          <p>Describe the result. Then review the exact spend, asset, and deadline limits your wallet will sign.</p>
         </header>
         <IntentComposer initialDraft={initialDraft} />
       </main>

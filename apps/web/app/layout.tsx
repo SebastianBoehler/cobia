@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { AppFooter } from "../components/layout/AppFooter";
 import { WalletProvider } from "@/components/wallet/WalletProvider";
 import { getSiteNetwork } from "@/lib/network/site-network-server";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_ORIGIN, SOCIAL_IMAGE } from "./site-metadata";
@@ -94,6 +95,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <WalletProvider targetChainId={network.chainId}>{children}</WalletProvider>
+        <AppFooter targetChainId={network.chainId} />
         <SpeedInsights />
       </body>
     </html>

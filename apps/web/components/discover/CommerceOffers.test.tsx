@@ -49,6 +49,29 @@ describe("CommerceOffers", () => {
     expect(html).toContain("Review offer");
   });
 
+  it("names networks accurately instead of presenting every EVM chain as X Layer", () => {
+    const baseOffer = CommerceOfferV1Schema.parse({
+      ...offer,
+      payment: { ...offer.payment, chainId: 8453 },
+    });
+    const html = renderToStaticMarkup(<CommerceOffers offers={[baseOffer]} observedAtSec={2_000_000_000} />);
+
+    expect(html).toContain("Base · chain 8453");
+    expect(html).not.toContain("X Layer · chain 8453");
+  });
+
+  it("keeps a long marketplace scan compact until the user asks for more", () => {
+    const offers = Array.from({ length: 7 }, (_, index) => CommerceOfferV1Schema.parse({
+      ...offer,
+      offerId: `x402:merchant.example:resource-${index}`,
+      product: { ...offer.product, id: `resource-${index}` },
+    }));
+    const html = renderToStaticMarkup(<CommerceOffers offers={offers} observedAtSec={2_000_000_000} />);
+
+    expect(html).toContain("Show 1 more offer");
+    expect(html).toContain("<details");
+  });
+
   it("links every immutable offer to commerce review rather than the DeFi composer", () => {
     const executable = CommerceOfferV1Schema.parse({
       ...offer,

@@ -20,7 +20,10 @@ export function IntentGoalInput({ value, onChange }: { value: string; onChange(v
             onClick={() => onChange(example.goal)}
             type="button"
           >
-            <span>{example.goal}</span><small>{example.status}</small>
+            <span className="intent-example__goal">{example.goal}</span>
+            <span className={`intent-example__status ${example.enabled ? "intent-example__status--live" : ""}`}>
+              {example.status}
+            </span>
           </button>
         ))}
       </div>

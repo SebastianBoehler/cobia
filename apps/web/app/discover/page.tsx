@@ -29,8 +29,8 @@ export default async function DiscoverPage() {
   return (
     <>
       <AppHeader />
-      <main className="directory-page" id="main-content">
-        <header className="directory-page__header"><h1>Discover</h1><p>Persistent challenges, wallet-specific competitions, and past solver programs—kept visibly separate.</p></header>
+      <main className="directory-page directory-page--discover" id="main-content">
+        <header className="directory-page__header"><h1>Discover</h1><p>Browse paid resources, reusable challenges, live intent competitions, and verifier-owned solver history.</p></header>
         <DiscoverView challenges={challenges} intents={intents} history={history}
           commerceOffers={commerce.offers} observedAtSec={observedAtSec}
           commerceSourceErrors={commerce.sourceErrors} />
