@@ -1,11 +1,15 @@
 import {
   commitment,
   OpenIntentPolicyV3Schema,
+  OpenIntentSnapshotV1Schema,
+  SolverDecisionClaimV1Schema,
   SolverProfileClaimV1Schema,
+  solverDecisionClaimCommitmentV1,
   solverProfileClaimCommitmentV1,
 } from "@cobia/domain";
 import { isAddress, isAddressEqual, recoverMessageAddress } from "viem";
 import { z } from "zod";
+import { SolverDecisionV1Schema } from "./harness";
 
 const HashSchema = z.string().regex(/^0x[0-9a-f]{64}$/);
 const SignatureSchema = z.string().regex(/^0x[0-9a-fA-F]{130}$/);
@@ -14,14 +18,22 @@ const IntentSchema = z.object({
   policy: OpenIntentPolicyV3Schema,
   policyHash: HashSchema,
   ownerSignature: SignatureSchema,
+  snapshot: OpenIntentSnapshotV1Schema,
+  snapshotHash: HashSchema,
   competitionClosesAt: z.number().int().positive().safe(),
-  links: z.object({ intent: z.string().startsWith("/api/intents/") }).strict(),
+  links: z.object({
+    intent: z.string().startsWith("/api/intents/"),
+    decisions: z.string().endsWith("/decisions"),
+  }).strict(),
 }).strict().superRefine((intent, context) => {
   if (intent.id !== intent.policy.requestId || intent.policyHash !== commitment(intent.policy)) {
     context.addIssue({ code: "custom", path: ["policyHash"], message: "Intent commitment mismatch" });
   }
   if (intent.competitionClosesAt !== intent.policy.competition.closesAt) {
     context.addIssue({ code: "custom", path: ["competitionClosesAt"], message: "Competition close mismatch" });
+  }
+  if (intent.snapshot.requestId !== intent.id || intent.snapshotHash !== commitment(intent.snapshot)) {
+    context.addIssue({ code: "custom", path: ["snapshotHash"], message: "Snapshot commitment mismatch" });
   }
 });
 
@@ -33,6 +45,14 @@ const SolverRegistrationSchema = z.object({
   solverId: z.string(),
   operator: z.string().refine(isAddress).transform((value) => value as `0x${string}`),
   links: z.object({ profile: z.string().startsWith("/solvers/") }).strict(),
+}).strict();
+const DecisionReceiptSchema = z.object({
+  intentId: z.string().uuid(),
+  solverId: z.string(),
+  revision: z.number().int().positive(),
+  state: z.enum(["accepted", "rejected", "abstained"]),
+  submissionId: z.string().uuid().optional(),
+  errorCodes: z.array(z.string()).optional(),
 }).strict();
 
 export type SolverIntentV1 = z.infer<typeof IntentSchema>;
@@ -107,6 +127,31 @@ export function createSolverExchangeClient(input: {
         throw new Error("Solver registration response mismatch");
       }
       return registration;
+    },
+
+    async submitDecision(input: { claim: unknown; signature: string; decision: unknown }) {
+      const claim = SolverDecisionClaimV1Schema.parse(input.claim);
+      const decision = SolverDecisionV1Schema.parse(input.decision);
+      if (claim.decisionHash !== commitment(decision)) {
+        throw new Error("Solver decision commitment mismatch");
+      }
+      const signature = SignatureSchema.parse(input.signature) as `0x${string}`;
+      await recoverMessageAddress({
+        message: { raw: solverDecisionClaimCommitmentV1(claim) }, signature,
+      });
+      const response = await fetchImpl(`${origin}/api/intents/${claim.intentId}/decisions`, {
+        method: "POST",
+        headers: { accept: "application/json", "content-type": "application/json" },
+        body: JSON.stringify({ claim, signature, decision }),
+      });
+      const receipt = DecisionReceiptSchema.parse(
+        await boundedJson(response, "Solver decision exchange"),
+      );
+      if (receipt.intentId !== claim.intentId || receipt.solverId !== claim.solverId ||
+          receipt.revision !== claim.revision) {
+        throw new Error("Solver decision response mismatch");
+      }
+      return receipt;
     },
   };
 }

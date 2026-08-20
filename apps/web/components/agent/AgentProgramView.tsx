@@ -4,6 +4,8 @@ import { CircleCheck, LoaderCircle, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { isAddressEqual, type Address, type Hash, type Hex } from "viem";
 import { buildAgentExecutionAccessProof } from "../../lib/coding-agent-sandbox/execution-access";
+import { authorizePayment } from "../../lib/payments/eip3009";
+import type { PaymentTerms } from "../../lib/payments/terms";
 import { randomBytes32 } from "../../lib/payments/random";
 import { shortAddress } from "../../lib/wallet/eip1193";
 import { useWallet } from "../wallet/WalletProvider";
@@ -16,14 +18,16 @@ interface ProgramView {
     blockNumber: string; displayGoal: string | null;
   };
   artifacts: {
-    program?: PublicArtifact<{ actions: { capabilityId: string; capabilityVersion: number }[] }>;
+    program?: PublicArtifact<{ actions?: { capabilityId: string; capabilityVersion: number }[];
+      stages?: { id: string; provider?: string; kind: string }[] }>;
     verdict?: PublicArtifact<{ accepted: boolean; errorCodes: string[] }>;
     provenance?: PublicArtifact<{ commandCount: number; fileCount: number; networkRequestCount: number }>;
     replay?: PublicArtifact<{ reproduced?: boolean }>;
     receipt?: PublicArtifact<{ transactionHash?: Hash }>;
   };
 }
-interface Prepared { approvals: TransactionCall[]; execution: TransactionCall }
+interface Prepared { approvals: TransactionCall[]; execution?: TransactionCall;
+  transactions?: (TransactionCall & { stageId: string })[] }
 
 function message(value: unknown, fallback: string) {
   return typeof value === "object" && value && "message" in value && typeof value.message === "string"
@@ -55,6 +59,8 @@ export function AgentProgramView({ programId }: { programId: string }) {
   const [program, setProgram] = useState<ProgramView>();
   const [prepared, setPrepared] = useState<Prepared>();
   const [approvalIndex, setApprovalIndex] = useState(0);
+  const [transactionIndex, setTransactionIndex] = useState(0);
+  const [transactionHashes, setTransactionHashes] = useState<Hash[]>([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   const [confirmed, setConfirmed] = useState<Hash>();
@@ -92,11 +98,23 @@ export function AgentProgramView({ programId }: { programId: string }) {
     try {
       await wallet.switchToXLayer();
       const access = await accessProof();
-      const response = await fetch(`/api/programs/${programId}/execution`, {
+      const requestBody = JSON.stringify({ proof: access.value, ownerSignature: access.signature });
+      let response = await fetch(`/api/programs/${programId}/execution`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ proof: access.value, ownerSignature: access.signature }),
+        body: requestBody,
       });
-      const body = await response.json();
+      let body = await response.json();
+      if (response.status === 402) {
+        if (!wallet.account) throw new Error("Connect the owner wallet.");
+        const credential = await authorizePayment(response, {
+          account: wallet.account, request: wallet.request, switchChain: wallet.switchChain,
+        }, { terms: body.terms as PaymentTerms, owner: wallet.account });
+        response = await fetch(`/api/programs/${programId}/execution`, {
+          method: "POST", headers: { "Content-Type": "application/json", Authorization: credential },
+          body: requestBody,
+        });
+        body = await response.json();
+      }
       if (!response.ok) throw new Error(message(body, "Execution preflight failed."));
       setPrepared(body as Prepared);
     } catch (cause) {
@@ -143,14 +161,22 @@ export function AgentProgramView({ programId }: { programId: string }) {
     if (!prepared) return;
     setPending(true); setError(undefined);
     try {
-      const transactionHash = await send(prepared.execution, 1);
+      const direct = prepared.transactions?.[transactionIndex];
+      if (!prepared.execution && !direct) throw new Error("No verified execution call is available.");
+      const transactionHash = await send((prepared.execution ?? direct)!, 1);
+      const hashes = [...transactionHashes, transactionHash];
+      setTransactionHashes(hashes);
+      if (direct && transactionIndex + 1 < prepared.transactions!.length) {
+        setTransactionIndex((value) => value + 1);
+        return;
+      }
       const receiptAccess = await accessProof();
       const response = await fetch(`/api/programs/${programId}/execution/receipt`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           proof: receiptAccess.value,
           ownerSignature: receiptAccess.signature,
-          transactionHash,
+          ...(prepared.execution ? { transactionHash } : { transactionHashes: hashes }),
         }),
       });
       const body = await response.json();
@@ -175,8 +201,11 @@ export function AgentProgramView({ programId }: { programId: string }) {
         ? "Agent-authored, independently replayed, and currently inside its signed freshness window."
         : "Historical research only. Create a fresh intent to regenerate and verify current calldata."}</p>
       <p>{submission.owner ? `Owner ${shortAddress(submission.owner)} · ` : ""}X Layer mainnet block {submission.blockNumber}</p>
-      {artifacts.program?.payload?.actions.map((action, index) => <p key={`${action.capabilityId}-${index}`}>
+      {artifacts.program?.payload?.actions?.map((action, index) => <p key={`${action.capabilityId}-${index}`}>
         {action.capabilityId}@{action.capabilityVersion}
+      </p>)}
+      {artifacts.program?.payload?.stages?.map((stage) => <p key={stage.id}>
+        {stage.provider ?? stage.kind} · {stage.id}
       </p>)}
       {provenance ? <p>{provenance.commandCount} commands · {provenance.fileCount} files · {provenance.networkRequestCount} fetched resources</p> : null}
       <p>{artifacts.replay?.payload?.reproduced
@@ -192,7 +221,10 @@ export function AgentProgramView({ programId }: { programId: string }) {
       {pending ? "Waiting for approval…" : `Confirm bounded approval ${approvalIndex + 1}/${prepared.approvals.length}`}
     </button> : null}
     {prepared && approvalsDone && !confirmed ? <button className="button button--primary" disabled={pending} onClick={execute}>
-      {pending ? "Waiting for X Layer mainnet receipt…" : "Confirm exact mainnet execution"}
+      {pending ? "Waiting for X Layer mainnet receipt…"
+        : prepared.transactions
+          ? `Confirm exact call ${transactionIndex + 1}/${prepared.transactions.length}`
+          : "Confirm exact mainnet execution"}
     </button> : null}
   </section>;
 }

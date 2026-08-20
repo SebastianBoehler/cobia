@@ -9,7 +9,7 @@ import { createOpenIntentTestPolicy } from "./open-intent-test-fixture";
 
 type Database = Awaited<ReturnType<typeof startIntegrationDatabase>>;
 let database: Database | undefined;
-const nowSec = 2_000_000_000;
+const nowSec = Math.floor(Date.now() / 1_000) + 60;
 const owner = "0x1111111111111111111111111111111111111111";
 const hash = (byte: string) => `0x${byte.repeat(64)}` as `0x${string}`;
 
@@ -139,7 +139,7 @@ describe("solver competition projections", () => {
       id: "alpha-solver",
       stats: { accepted: 2, rejected: 0, wins: 1, current: 1 },
       performance: [expect.objectContaining({
-        segment: { chainId: 196, intentClass: "general" },
+        segment: { chainId: 196, intentClass: "balance-outcome" },
         counts: expect.objectContaining({
           observedIntents: 1, submittedIntents: 1, submissions: 2,
           acceptedSubmissions: 2, wonIntents: 1,

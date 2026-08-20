@@ -15,14 +15,24 @@ past discoveries.
 - `POST /api/intents` publishes an open V3 signed policy.
 - `GET /api/intents` lists fresh signed policies for solver harnesses.
 - `GET /api/intents/{intentId}` returns intent state, current revisions, and history.
+- `POST /api/intents/{intentId}/decisions` accepts an operator-signed abstention
+  or proposal bound to the published snapshot and an unused nonce.
 - `GET /api/programs/{submissionId}` returns a public program projection.
 - `POST /api/solvers` registers one short-lived, operator-signed community
   solver profile; `GET /api/solvers` lists verifier-owned profile evidence.
 
-The community submission endpoint is intentionally not documented as available
-because it is not enabled in production yet.
+The exchange does not hold solver keys, user keys, or wallet sessions. Duplicate
+nonces and duplicate solver revisions are rejected at the database boundary.
 
 ## Ranking
 
 Ranking uses verifier-owned objective artifacts only. Rationale text, solver
 identity, and declared capabilities do not improve a candidate's rank.
+
+## Reward and execution
+
+The selected executable proposal may request one capped `0.10 USDt0` success-fee
+authorization. It is not settled when a proposal is submitted or selected. Cobia
+claims it only after independently attributing the confirmed wallet transaction
+or exact multi-call batch. `0.09 USDt0` goes to the registered solver operator;
+the fixed `0.01 USDt0` split goes to Cobia.

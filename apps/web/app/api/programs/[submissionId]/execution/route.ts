@@ -1,3 +1,4 @@
+import { commitment } from "@cobia/domain";
 import { NextResponse } from "next/server";
 import { createPublicClient, erc20Abi, http, isAddressEqual, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -11,7 +12,15 @@ import {
 } from "../../../../../lib/coding-agent-sandbox/executor-preflight";
 import { verifyAgentExecutionAccessProof } from "../../../../../lib/coding-agent-sandbox/execution-access";
 import { readCodingAgentV3ExecutionConfig } from "../../../../../lib/env";
-import { getSolverSubmissionRepository } from "../../../../../lib/runtime/market";
+import { readPaymentConfig } from "../../../../../lib/payments/config";
+import {
+  buildSolverSuccessFeeTerms, parseSolverSuccessFeeCredential,
+  solverSuccessFeeRequiredResponse,
+} from "../../../../../lib/payments/solver-success-fee";
+import { deriveCapabilityAuthorityV2 } from "../../../../../lib/open-exchange/capability-authority";
+import {
+  getSolverProfileRepository, getSolverSubmissionRepository, getSolverSuccessFeeRepository,
+} from "../../../../../lib/runtime/market";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,9 +50,54 @@ export async function POST(
     if (!stored || !isAddressEqual(stored.owner as `0x${string}`, proof.owner)) {
       return NextResponse.json({ code: "NOT_FOUND", message: "Owner program not found." }, { status: 404 });
     }
+    const profile = await getSolverProfileRepository().identity(stored.solverId);
+    if (!profile?.attestationAddress) throw new Error("Solver payout identity is unavailable");
+    const executionArtifact = stored.artifacts.find(({ kind }) => kind === "execution");
+    if (!executionArtifact || commitment(executionArtifact.payload) !== executionArtifact.artifactHash) {
+      throw new Error("Verified execution artifact is unavailable");
+    }
+    const executionValue = executionArtifact.payload as { version?: number; kind?: string;
+      deadline?: number; program?: { deadline?: string } };
+    const deadline = executionValue.version === 3
+      ? Number(executionValue.program?.deadline) : Number(executionValue.deadline);
+    if (!Number.isSafeInteger(deadline) || deadline <= nowSec) throw new Error("Verified execution has expired");
+    const payment = readPaymentConfig();
+    const feeIssuedAt = proof.expiresAt - 300;
+    const feeTerms = buildSolverSuccessFeeTerms({ submissionId, solverId: stored.solverId,
+      owner: proof.owner, recipient: profile.attestationAddress, treasury: payment.COBIA_TREASURY,
+      realm: payment.PAYMENT_REALM, nowSec: feeIssuedAt, deadline: Math.min(deadline, proof.expiresAt) });
+    if (!request.headers.has("authorization")) return solverSuccessFeeRequiredResponse(feeTerms);
+    const fee = await parseSolverSuccessFeeCredential({ request, terms: feeTerms,
+      owner: proof.owner, nowSec });
+    await getSolverSuccessFeeRepository().authorize({ submissionId, solverId: stored.solverId,
+      owner: proof.owner.toLowerCase() as `0x${string}`,
+      recipient: profile.attestationAddress.toLowerCase() as `0x${string}`,
+      amountAtomic: feeTerms.amount, termsHash: fee.termsHash, terms: feeTerms,
+      credentialHash: fee.credentialHash, credential: fee.credential,
+      expiresAtSec: feeTerms.expiresAt });
+    if (executionValue.kind === "wallet-call-batch") {
+      const batch = z.object({ version: z.literal(1), kind: z.literal("wallet-call-batch"),
+        owner: z.string(), deadline: z.number().int(), assurance: z.literal("exact-call-fork-replay"),
+        stages: z.array(z.object({ stageId: z.string(), chainId: z.literal(196),
+          calls: z.array(z.object({ to: z.string(), data: z.string(), value: z.string() }).strict()) }).strict()),
+      }).strict().parse(executionArtifact.payload);
+      if (!isAddressEqual(batch.owner as `0x${string}`, proof.owner) || stored.state !== "attested") {
+        throw new Error("Open transaction batch is not executable by this owner");
+      }
+      return NextResponse.json({ chainId: 196, programVersion: 1, approvals: [],
+        transactions: batch.stages.flatMap((stage) => stage.calls.map((call) =>
+          ({ ...call, stageId: stage.stageId }))),
+        successFee: { amountAtomic: feeTerms.amount, asset: feeTerms.currency,
+          state: "authorized", settlesAfter: "confirmed-execution" },
+      }, { headers: { "Cache-Control": "no-store" } });
+    }
     const config = readCodingAgentV3ExecutionConfig();
+    const authority = deriveCapabilityAuthorityV2(stored.policy, stored.snapshot);
     const prepared = prepareAgentExecutionV3({
-      context: stored, owner: proof.owner, executor: config.COBIA_EXECUTOR_V3_ADDRESS, nowSec,
+      context: { ...stored, policy: authority.policy, snapshot: authority.snapshot,
+        policyHash: commitment(authority.policy), snapshotHash: commitment(authority.snapshot),
+        manifestHash: authority.policy.manifestHash },
+      owner: proof.owner, executor: config.COBIA_EXECUTOR_V3_ADDRESS, nowSec,
     });
     const client = createPublicClient({
       chain: xLayer, transport: http(config.XLAYER_RPC_URL, { timeout: 15_000 }), cacheTime: 0,
@@ -72,6 +126,8 @@ export async function POST(
         required: BigInt(prepared.inputAmountAtomic),
       }),
       execution: prepared.execution,
+      successFee: { amountAtomic: feeTerms.amount, asset: feeTerms.currency,
+        state: "authorized", settlesAfter: "confirmed-execution" },
       guarantee: "The wallet broadcasts only these independently attested calls. The atomic executor enforces the deadline and post-state bounds.",
       forecast: "Future yield, LP fees, and impermanent loss are not guaranteed.",
     }, { headers: { "Cache-Control": "no-store" } });

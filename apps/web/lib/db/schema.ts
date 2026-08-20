@@ -39,6 +39,10 @@ import {
 } from "./program-schema-v2";
 import { cobiaSolvers, solverOperatorKind } from "./solver-schema";
 import { cobiaSolverRuns, solverRunState } from "./solver-run-schema";
+import {
+  cobiaOpenIntentSnapshots, cobiaSolverDecisionClaims, cobiaSolverSuccessFees,
+  solverSuccessFeeState,
+} from "./open-exchange-schema";
 
 export * from "./execution-schema";
 export * from "./payment-schema";
@@ -52,6 +56,7 @@ export * from "./intent-schema";
 export * from "./program-schema-v2";
 export * from "./solver-schema";
 export * from "./solver-run-schema";
+export * from "./open-exchange-schema";
 
 export const cobiaSchema = {
   cobiaMarkets,
@@ -75,6 +80,9 @@ export const cobiaSchema = {
   cobiaSolverRuns,
   cobiaSolverSubmissions,
   cobiaProgramArtifactsV2,
+  cobiaOpenIntentSnapshots,
+  cobiaSolverDecisionClaims,
+  cobiaSolverSuccessFees,
   requestState,
   paymentState,
   executionRehearsalState,
@@ -89,6 +97,7 @@ export const cobiaSchema = {
   solverSubmissionState,
   programArtifactKindV2,
   commercePlacementState,
+  solverSuccessFeeState,
 };
 
 export type CobiaRequestState = (typeof requestState.enumValues)[number];

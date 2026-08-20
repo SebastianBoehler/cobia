@@ -5,6 +5,7 @@ import { z } from "zod";
 import { verifyPolicyOwnerSignature } from "../../../lib/intents/signature";
 import {
   getIntentRepository,
+  getOpenIntentSnapshotRepository,
   publishOpenIntent,
 } from "../../../lib/runtime/market";
 
@@ -23,13 +24,22 @@ export async function GET(): Promise<Response> {
   const observedAt = Math.floor(Date.now() / 1_000);
   try {
     const rows = await getIntentRepository().listDiscover(observedAt);
-    const intents = rows.map((row) => ({
-      id: row.id,
-      policy: OpenIntentPolicyV3Schema.parse(row.policy),
-      policyHash: row.policyHash,
-      ownerSignature: row.ownerSignature,
-      competitionClosesAt: Math.floor(row.competitionClosesAt.getTime() / 1_000),
-      links: { intent: `/api/intents/${row.id}` },
+    const intents = await Promise.all(rows.map(async (row) => {
+      const snapshot = await getOpenIntentSnapshotRepository().get(row.id);
+      if (!snapshot) throw new Error("Published open intent snapshot is unavailable");
+      return {
+        id: row.id,
+        policy: OpenIntentPolicyV3Schema.parse(row.policy),
+        policyHash: row.policyHash,
+        ownerSignature: row.ownerSignature,
+        snapshot: snapshot.snapshot,
+        snapshotHash: snapshot.snapshotHash,
+        competitionClosesAt: Math.floor(row.competitionClosesAt.getTime() / 1_000),
+        links: {
+          intent: `/api/intents/${row.id}`,
+          decisions: `/api/intents/${row.id}/decisions`,
+        },
+      };
     }));
     return NextResponse.json({ observedAt, intents }, {
       headers: { "Cache-Control": "no-store" },

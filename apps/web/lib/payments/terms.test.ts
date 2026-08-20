@@ -131,7 +131,7 @@ describe("payment terms", () => {
       amount: "100000",
       currency: "0x779Ded0c9e1022225f8E0630b35a9b54bE713736",
       recipient: solver,
-      description: "Reveal Cobia deterministic Aave quote",
+      description: "Cobia verified solver success fee",
       externalId: quote.quoteId,
       expires: "2033-05-18T03:33:20.000Z",
       methodDetails: {

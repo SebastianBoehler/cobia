@@ -1,6 +1,7 @@
 import {
   commitment,
   OpenIntentPolicyV3Schema,
+  solverDecisionClaimCommitmentV1,
   solverProfileClaimCommitmentV1,
 } from "@cobia/domain";
 import { privateKeyToAccount } from "viem/accounts";
@@ -22,15 +23,22 @@ const policy = OpenIntentPolicyV3Schema.parse({
     maxGasPerTransaction: "5000000", maxNativeValueAtomicByChain: [{ chainId: 196, atomic: "0" }] },
   forbiddenTargets: [], forbiddenAssets: [],
 });
+const snapshot = {
+  version: 1 as const, kind: "open-onchain" as const, requestId: policy.requestId,
+  capturedAt: "2033-05-18T03:33:30.000Z",
+  anchors: [{ chainId: 196 as const, blockNumber: "68461706", blockHash: hash("6") }],
+};
 
 async function response(overrides: Record<string, unknown> = {}) {
   const policyHash = commitment(policy);
   const ownerSignature = await account.signMessage({ message: { raw: policyHash } });
   return new Response(JSON.stringify({
     observedAt: 2_000_000_100,
-    intents: [{ id: policy.requestId, policy, policyHash, ownerSignature,
+    intents: [{ id: policy.requestId, policy, policyHash, ownerSignature, snapshot,
+      snapshotHash: commitment(snapshot),
       competitionClosesAt: policy.competition.closesAt,
-      links: { intent: `/api/intents/${policy.requestId}` }, ...overrides }],
+      links: { intent: `/api/intents/${policy.requestId}`,
+        decisions: `/api/intents/${policy.requestId}/decisions` }, ...overrides }],
   }), { headers: { "content-type": "application/json" } });
 }
 
@@ -93,5 +101,66 @@ describe("solver exchange client", () => {
     const body = JSON.parse(String(fetch.mock.calls[0]?.[1]?.body));
     expect(body).toEqual({ claim, signature });
     expect(JSON.stringify(body)).not.toMatch(/privateKey|seed|mnemonic/i);
+  });
+
+  it("submits an operator-signed decision bound to the exact snapshot and payload", async () => {
+    const decision = { version: 1 as const, decision: "abstain" as const, reasonCode: "NO_ROUTE" };
+    const claim = {
+      version: 1 as const,
+      solverId: "alpha-solver",
+      intentId: policy.requestId,
+      revision: 1,
+      decisionHash: commitment(decision),
+      snapshotHash: hash("6"),
+      nonce: hash("7"),
+      issuedAt: 2_000_000_000,
+      expiresAt: 2_000_000_300,
+    };
+    const signature = await account.signMessage({
+      message: { raw: solverDecisionClaimCommitmentV1(claim) },
+    });
+    const fetch = vi.fn(async (_url: URL | RequestInfo, _init?: RequestInit) => new Response(JSON.stringify({
+      intentId: claim.intentId,
+      solverId: claim.solverId,
+      revision: claim.revision,
+      state: "abstained",
+    }), { status: 202, headers: { "content-type": "application/json" } }));
+    const client = createSolverExchangeClient({ baseUrl: "https://getcobia.com", fetch });
+
+    await expect(client.submitDecision({ claim, signature, decision })).resolves.toMatchObject({
+      state: "abstained",
+    });
+    expect(fetch).toHaveBeenCalledWith(
+      `https://getcobia.com/api/intents/${policy.requestId}/decisions`,
+      expect.objectContaining({ method: "POST" }),
+    );
+    const body = JSON.parse(String(fetch.mock.calls[0]?.[1]?.body));
+    expect(body).toEqual({ claim, signature, decision });
+    expect(JSON.stringify(body)).not.toMatch(/privateKey|seed|mnemonic/i);
+  });
+
+  it("rejects a decision that does not match its signed commitment", async () => {
+    const decision = { version: 1 as const, decision: "abstain" as const, reasonCode: "NO_ROUTE" };
+    const claim = {
+      version: 1 as const,
+      solverId: "alpha-solver",
+      intentId: policy.requestId,
+      revision: 1,
+      decisionHash: hash("8"),
+      snapshotHash: hash("6"),
+      nonce: hash("7"),
+      issuedAt: 2_000_000_000,
+      expiresAt: 2_000_000_300,
+    };
+    const signature = await account.signMessage({
+      message: { raw: solverDecisionClaimCommitmentV1(claim) },
+    });
+    const client = createSolverExchangeClient({
+      baseUrl: "https://getcobia.com",
+      fetch: vi.fn(),
+    });
+
+    await expect(client.submitDecision({ claim, signature, decision }))
+      .rejects.toThrow(/decision commitment/i);
   });
 });

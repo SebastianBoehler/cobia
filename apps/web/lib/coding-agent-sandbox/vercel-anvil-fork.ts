@@ -111,7 +111,7 @@ export async function startVercelAnvilForkV1(input: {
 
 export const startVercelAnvilForkV2 = startVercelAnvilForkV1;
 
-function createForkRead(rpc: (method: string, params?: readonly unknown[]) => Promise<unknown>): CapabilityForkReplayReadV2 {
+export function createForkRead(rpc: (method: string, params?: readonly unknown[]) => Promise<unknown>): CapabilityForkReplayReadV2 {
   const balanceOf = async (token: Address, account: Address) => {
     const result = await rpc("eth_call", [{
       to: token, data: encodeFunctionData({ abi: erc20Abi, functionName: "balanceOf", args: [account] }),

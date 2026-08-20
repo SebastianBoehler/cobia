@@ -25,7 +25,7 @@ responses. The verifier always applies policy bounds and independent replay.
 Programs are unsigned. They are never authorization verdicts and never contain
 private keys or wallet session handles.
 
-The IR and verifier libraries are implemented. The production exchange does
-not yet accept community decisions or execute Open V3 stages; those surfaces
-remain disabled until independent replay dispatch, stage reconciliation, and
-the exact wallet review client are complete.
+The public exchange accepts both registered-capability and transaction-program
+decisions. Accepted raw calls are reproduced on a pinned fork and projected as
+an exact wallet-call batch. The wallet still signs each projected call; Cobia
+cannot broaden targets, calldata, value, or approvals after verification.

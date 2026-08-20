@@ -1,5 +1,5 @@
 import {
-  commitment, GeneralIntentPolicyV2Schema, GeneralIntentSnapshotV1Schema,
+  commitment, OpenIntentPolicyV3Schema, OpenIntentSnapshotV1Schema,
 } from "@cobia/domain";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
@@ -212,14 +212,14 @@ export function createSolverSubmissionRepository(db: CobiaDatabase) {
       });
       const snapshotArtifact = artifacts.find(({ kind }) => kind === "snapshot");
       if (!snapshotArtifact) throw new Error("Program snapshot artifact is unavailable");
-      const policy = GeneralIntentPolicyV2Schema.parse(intent.policy);
-      const snapshot = GeneralIntentSnapshotV1Schema.parse(snapshotArtifact.payload);
+      const policy = OpenIntentPolicyV3Schema.parse(intent.policy);
+      const snapshot = OpenIntentSnapshotV1Schema.parse(snapshotArtifact.payload);
       return {
         state: submission.state,
+        solverId: submission.solverId,
         owner: intent.owner,
         policyHash: intent.policyHash,
         snapshotHash: snapshotArtifact.artifactHash,
-        manifestHash: policy.manifestHash,
         blockNumber: submission.blockNumber,
         blockHash: submission.blockHash,
         policy,

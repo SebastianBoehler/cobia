@@ -14,7 +14,7 @@ read adapter is not, by itself, an executable Cobia route.
 | Solver competition | Implemented product path | A solver may abstain or publish bounded immutable revisions; current ranking uses only fresh verifier-owned objective evidence and older revisions remain past discoveries |
 | Program evidence | Implemented product path | Snapshot, program, evidence, sanitized provenance, verdict, independent replay, V3 projection, authorization, and receipt are committed independently per revision |
 | Legacy V1/V2 route market | Removed from public product | Historical database rows remain inaccessible audit records; there is no request, market, route, payment, or MCP compatibility fallback |
-| Capped atomic Executor V3 beta | Deployed paused and product-wired | Limits selected wallets and cumulative principal and enforces verifier-signed targets, static predicates, deadlines, and final balances; activation and canary remain pending |
+| Capped atomic Executor V3 beta | Active and product-wired | Limits selected wallets and cumulative principal and enforces verifier-signed targets, static predicates, deadlines, and final balances; every production execution still requires the owner wallet |
 | Coding-agent sandbox solver | Implemented general-intent path | Writes and runs route-search code in an isolated Vercel Sandbox, but can emit only typed capability programs; block-pinned RPC preflight runs before an independent fresh replay, and neither path can broadcast to mainnet |
 | Bounded agentic selector | Not a public product path | Old deterministic and selector code is retained only where imported by verifier/fork controls; it is not a callable fallback |
 
@@ -53,9 +53,14 @@ acceptance fallback. The fork is destroyed after evidence capture and has no
 production send path. The verifier never accepts model-authored calldata as
 authority.
 
-The current manifest remains narrower than the protocol-neutral policy: Aave
-supply plus exact-input Curve and Uniswap swaps. Shopping/x402, subscriptions,
-bridges, LP lifecycle, and RWAs require new verifier-owned capabilities.
+The semantic capability manifest remains narrower than the protocol-neutral
+policy: Aave supply plus exact-input Curve and Uniswap swaps. Open solvers may
+propose other exact wallet-call programs only when code identity, approvals,
+asset/event/state coverage, and a fresh fork replay all verify. The separate
+x402 commerce lane additionally requires a registered merchant manifest so an
+order can be shown and bound to its payment. Subscriptions, bridges, LP
+lifecycle, and RWAs still need stronger product-specific semantics before Cobia
+can describe or guarantee their domain outcomes.
 
 ## Verified X Layer mainnet deployments
 

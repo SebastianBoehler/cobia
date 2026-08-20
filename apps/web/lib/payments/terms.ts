@@ -18,7 +18,7 @@ import {
 const REVEAL_AMOUNT = "100000" as const;
 const COBIA_SPLIT_AMOUNT = "10000" as const;
 const COBIA_SPLIT_MEMO = "cobia-platform" as const;
-const DESCRIPTION = "Reveal Cobia deterministic Aave quote";
+const DESCRIPTION = "Cobia verified solver success fee";
 export const MAX_PAYMENT_WINDOW_SECONDS = 300;
 export const MAX_RFC3339_UNIX_SECONDS = 253_402_300_799;
 

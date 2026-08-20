@@ -99,7 +99,7 @@ async function fixture(): Promise<MutableCredential> {
       realm: terms.realm,
       method: "evm",
       intent: "charge",
-      description: "Reveal Cobia deterministic Aave quote",
+      description: "Cobia verified solver success fee",
       expires: "2033-05-18T03:33:20.000Z",
       request: {
         amount: terms.amount,

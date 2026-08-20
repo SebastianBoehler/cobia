@@ -7,11 +7,12 @@ program inside an isolated sandbox. A separate trusted verifier compiles the
 capabilities, checks policy and deployment identities, and reproduces the result
 on a fresh fork before any wallet execution is offered.
 
-Generation is open-world, but production authorization is closed-world. The
-first verifier-owned modules are USDG/USDt0 Aave V3 supply and registered Curve
-StableSwap NG or Uniswap V3 exact-input swaps. Unsupported capabilities reject;
-there is no raw-calldata or deterministic V2 fallback. V1 allocation rounds
-remain readable as a control. Cobia is not yet an open external-solver network.
+Generation is open-world, while production authorization remains independently
+verified. The first semantic modules are USDG/USDt0 Aave V3 supply and
+registered Curve StableSwap NG or Uniswap V3 exact-input swaps. External solvers
+may also submit exact wallet-call programs; Cobia binds their code identities,
+approvals, asset deltas, events, and state diffs to a fresh fork replay before
+the owner can execute them. V1 allocation rounds remain readable as a control.
 
 ## Current truth
 
@@ -20,19 +21,19 @@ remain readable as a control. Cobia is not yet an open external-solver network.
 | Wallet connection and X Layer switching | Live |
 | Direct Aave V3 reserve/oracle, Curve swap, and Uniswap V3 quote/LP reads | Live V2 capture with pinned current and historical X Layer blocks |
 | Versioned policy, snapshot, route, and quote commitments | Implemented |
-| Coding-agent V2 generation | Implemented with an ephemeral Node 24 Vercel Sandbox, bounded shell loop, explicit egress, and provenance capture; production activation pending |
+| Coding-agent V2 generation | Implemented with an ephemeral Node 24 Vercel Sandbox, bounded shell loop, explicit egress, and provenance capture |
 | Independent capability verification | Implemented for typed registered Aave supply and Curve/Uniswap exact-input modules; unsupported actions fail closed |
 | Quote selection and owner signatures | Implemented |
 | MPP/EIP-3009 paid reveal | Implemented on X Layer mainnet with fixed USDt0 and one off-chain authorization per recipient |
 | PostgreSQL request/payment/purchase history | Implemented |
 | X Layer mainnet USDt0 and Aave aToken balances | Live reads |
 | Aave + Curve + Uniswap route planning | Implemented for one exact conserved leg: Aave supply, Curve/Uniswap swap-to-Aave, or one-sided full-range Uniswap LP entry |
-| Solver competition | Historical quote markets exist; replaceable timed V2 submissions and external/community solver admission are not implemented |
+| Solver competition | Open signed intent intake, solver registration, immutable decision revisions, abstention, capability programs, exact wallet-call programs, and replay protection are implemented |
 | Transaction construction/execution engine | Unit/fork-tested and wired as buyer-authenticated, one-step-at-a-time X Layer mainnet wallet execution |
 | X Layer mainnet-fork route rehearsal | Product-visible, persisted, and green for direct Aave, Curve/Uniswap-to-Aave, and full-range Uniswap LP-entry routes |
 | Verified stepwise X Layer mainnet execution | Product-wired for fresh, purchased, rehearsed V2 routes; every transaction requires an explicit buyer-wallet confirmation and durable receipt verification |
-| Capped atomic executor beta | Chain-196 contracts are deployed under the governance Safe with delayed configuration proposed, but remain paused and inactive; the separate chain-1952 registry, risk manager, and executor are deployed, independently verified, empty, and paused |
-| Agent-program wallet execution | Owner-authenticated preparation, live executor preflight, exact wallet calls, and receipt attribution are implemented; unavailable until executor activation |
+| Capped atomic executor beta | Chain-196 registry, risk manager, and executor are active under the governance Safe; wallet, target, selector, principal, deadline, and final-balance bounds remain enforced on-chain |
+| Agent-program wallet execution | Owner-authenticated preparation, live executor preflight, exact wallet calls, and receipt attribution are implemented for both capability and wallet-call programs |
 | AI execution/calldata authority | Never granted: verifier-owned capability modules compile calldata and the owner wallet alone signs production transactions |
 
 APY and TVL are snapshot-derived estimates. A block-bounded capture does not

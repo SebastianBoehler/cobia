@@ -26,6 +26,7 @@ export * from "./okx/verifier";
 export * from "./okx/manifest";
 export * from "./okx/wire";
 export * from "./transaction-program/evidence";
+export * from "./transaction-program/decision";
 export * from "./transaction-program/provider-artifacts";
 export * from "./transaction-program/raw-wallet-stage";
 export * from "./transaction-program/sandbox-runner";

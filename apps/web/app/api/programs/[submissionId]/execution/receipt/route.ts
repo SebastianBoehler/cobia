@@ -1,5 +1,7 @@
+import { commitment, OpenIntentPolicyV3Schema } from "@cobia/domain";
+import { TransactionProgramEvidenceV1Schema } from "@cobia/solvers";
 import { NextResponse } from "next/server";
-import { createPublicClient, http, isAddressEqual, type Hash, type Hex } from "viem";
+import { createPublicClient, erc20Abi, http, isAddressEqual, type Hash, type Hex } from "viem";
 import { z } from "zod";
 import { xLayer } from "../../../../../../lib/chain/xlayer";
 import { prepareAgentExecutionV3 } from "../../../../../../lib/coding-agent-sandbox/agent-execution-v3";
@@ -8,16 +10,25 @@ import {
   assertCanonicalAgentExecutionReceipt, validateAgentExecutionReceiptV3,
 } from "../../../../../../lib/coding-agent-sandbox/execution-receipt-v3";
 import { readCodingAgentV3ExecutionConfig } from "../../../../../../lib/env";
-import { getSolverSubmissionRepository } from "../../../../../../lib/runtime/market";
+import { deriveCapabilityAuthorityV2 } from "../../../../../../lib/open-exchange/capability-authority";
+import { verifyOpenWalletBatchReceiptsV1 } from "../../../../../../lib/open-exchange/wallet-batch-receipt";
+import { settleSolverSuccessFee } from "../../../../../../lib/payments/settle-solver-success-fee";
+import {
+  getSolverSubmissionRepository, getSolverSuccessFeeRepository,
+} from "../../../../../../lib/runtime/market";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const BodySchema = z.object({
+const AccessSchema = z.object({
   proof: z.unknown(),
   ownerSignature: z.string().regex(/^0x[0-9a-fA-F]{130}$/),
+});
+const BodySchema = z.union([AccessSchema.extend({
   transactionHash: z.string().regex(/^0x[0-9a-fA-F]{64}$/),
-}).strict();
+}).strict(), AccessSchema.extend({
+  transactionHashes: z.array(z.string().regex(/^0x[0-9a-fA-F]{64}$/)).min(1).max(32),
+}).strict()]);
 
 export async function POST(
   request: Request,
@@ -44,29 +55,55 @@ export async function POST(
     const client = createPublicClient({
       chain: xLayer, transport: http(config.XLAYER_RPC_URL, { timeout: 15_000 }), cacheTime: 0,
     });
-    const transactionHash = body.transactionHash as Hash;
-    const [transaction, receipt] = await Promise.all([
-      client.getTransaction({ hash: transactionHash }),
-      client.getTransactionReceipt({ hash: transactionHash }),
-    ]);
-    const [block, latestBlock] = await Promise.all([
-      client.getBlock({ blockNumber: receipt.blockNumber }), client.getBlock(),
-    ]);
-    if (block.number === null || latestBlock.number === null) {
+    const latestBlock = await client.getBlock();
+    if (latestBlock.number === null) {
       throw new Error("Execution receipt block metadata is unavailable");
     }
-    assertCanonicalAgentExecutionReceipt({
-      receipt,
-      canonicalBlock: { number: block.number, hash: block.hash },
-      latestBlockNumber: latestBlock.number,
-    });
-    const prepared = prepareAgentExecutionV3({
-      context: stored,
-      owner: proof.owner,
-      executor: config.COBIA_EXECUTOR_V3_ADDRESS,
-      nowSec: Number(block.timestamp),
-    });
-    const attributed = validateAgentExecutionReceiptV3({
+    let attributed: unknown;
+    if ("transactionHashes" in body) {
+      const execution = stored.artifacts.find(({ kind }) => kind === "execution");
+      if (!execution || commitment(execution.payload) !== execution.artifactHash) {
+        throw new Error("Open execution artifact is unavailable");
+      }
+      attributed = await verifyOpenWalletBatchReceiptsV1({
+        batch: execution.payload, owner: proof.owner, transactionHashes: body.transactionHashes,
+        latestBlockNumber: latestBlock.number,
+        readTransaction: (hash) => client.getTransaction({ hash }),
+        readReceipt: (hash) => client.getTransactionReceipt({ hash }),
+        readCanonicalBlock: (number) => client.getBlock({ blockNumber: number }),
+      });
+      const policy = OpenIntentPolicyV3Schema.parse(stored.policy);
+      const evidenceArtifact = stored.artifacts.find(({ kind }) => kind === "evidence");
+      const evidence = TransactionProgramEvidenceV1Schema.parse(evidenceArtifact?.payload);
+      for (const outcome of policy.outcomes) {
+        if (outcome.kind !== "minimum-final" && outcome.kind !== "minimum-increase") continue;
+        const baseline = evidence.simulations.flatMap(({ assetDeltas }) => assetDeltas)
+          .find(({ token, account }) => isAddressEqual(token, outcome.token) && isAddressEqual(account, proof.owner));
+        if (!baseline) throw new Error("Open execution outcome baseline is unavailable");
+        const balance = await client.readContract({ address: outcome.token, abi: erc20Abi,
+          functionName: "balanceOf", args: [proof.owner], blockNumber: latestBlock.number });
+        const required = outcome.kind === "minimum-final" ? BigInt(outcome.atomic)
+          : BigInt(baseline.beforeAtomic) + BigInt(outcome.atomic);
+        if (balance < required) throw new Error("Confirmed execution did not satisfy the signed outcome");
+      }
+    } else {
+      const transactionHash = body.transactionHash as Hash;
+      const [transaction, receipt] = await Promise.all([
+        client.getTransaction({ hash: transactionHash }),
+        client.getTransactionReceipt({ hash: transactionHash }),
+      ]);
+      const block = await client.getBlock({ blockNumber: receipt.blockNumber });
+      if (block.number === null) throw new Error("Execution receipt block metadata is unavailable");
+      assertCanonicalAgentExecutionReceipt({ receipt,
+        canonicalBlock: { number: block.number, hash: block.hash }, latestBlockNumber: latestBlock.number });
+      const authority = deriveCapabilityAuthorityV2(stored.policy, stored.snapshot);
+      const prepared = prepareAgentExecutionV3({
+        context: { ...stored, policy: authority.policy, snapshot: authority.snapshot,
+          policyHash: commitment(authority.policy), snapshotHash: commitment(authority.snapshot),
+          manifestHash: authority.policy.manifestHash },
+        owner: proof.owner, executor: config.COBIA_EXECUTOR_V3_ADDRESS, nowSec: Number(block.timestamp),
+      });
+      attributed = validateAgentExecutionReceiptV3({
       expected: {
         owner: proof.owner,
         executor: config.COBIA_EXECUTOR_V3_ADDRESS,
@@ -82,10 +119,13 @@ export async function POST(
         transactionHash: receipt.transactionHash, status: receipt.status,
         blockNumber: receipt.blockNumber, blockHash: receipt.blockHash, logs: receipt.logs,
       },
-    });
+      });
+    }
     await repository.appendArtifact(submissionId, "receipt", attributed);
     await repository.resolve(submissionId, "executed", []);
-    return NextResponse.json({ state: "confirmed", receipt: attributed });
+    const successFee = await settleSolverSuccessFee({ submissionId,
+      repository: getSolverSuccessFeeRepository(), nowSec: Math.floor(Date.now() / 1_000) });
+    return NextResponse.json({ state: "confirmed", receipt: attributed, successFee });
   } catch (error) {
     const invalid = error instanceof z.ZodError;
     return NextResponse.json({

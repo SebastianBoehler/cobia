@@ -92,6 +92,10 @@ export function createSolverProfileRepository(db: CobiaDatabase) {
       };
     },
 
+    identity(id: string) {
+      return db.query.cobiaSolvers.findFirst({ where: eq(cobiaSolvers.id, id) });
+    },
+
     async list(observedAtSec: number) {
       const rows = await db.query.cobiaSolvers.findMany({ orderBy: [asc(cobiaSolvers.id)] });
       return Promise.all(rows.map(({ id }) => repository.read(id, observedAtSec)));

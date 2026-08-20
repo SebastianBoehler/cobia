@@ -4,10 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   listDiscover: vi.fn(),
+  getSnapshot: vi.fn(),
   publish: vi.fn(async () => undefined),
 }));
 vi.mock("../../../lib/runtime/market", () => ({
   getIntentRepository: () => ({ listDiscover: mocks.listDiscover }),
+  getOpenIntentSnapshotRepository: () => ({ get: mocks.getSnapshot }),
   publishOpenIntent: mocks.publish,
   ActiveManifestMismatchError: class ActiveManifestMismatchError extends Error {},
 }));
@@ -31,6 +33,12 @@ const policy = OpenIntentPolicyV3Schema.parse({
     maxNativeValueAtomicByChain: [{ chainId: 196, atomic: "0" }] },
   forbiddenTargets: [], forbiddenAssets: [],
 });
+const snapshot = {
+  version: 1 as const, kind: "open-onchain" as const, requestId: policy.requestId,
+  capturedAt: new Date((nowSec - 90) * 1_000).toISOString(),
+  anchors: [{ chainId: 196 as const, blockNumber: "68461706",
+    blockHash: `0x${"66".repeat(32)}` as `0x${string}` }],
+};
 
 async function signedRequest(signature?: `0x${string}`) {
   const ownerSignature = signature ?? await account.signMessage({ message: { raw: commitment(policy) } });
@@ -45,6 +53,7 @@ describe("general intent competition API", () => {
     vi.spyOn(Date, "now").mockReturnValue(nowSec * 1_000);
     vi.clearAllMocks();
     mocks.listDiscover.mockResolvedValue([]);
+    mocks.getSnapshot.mockResolvedValue(null);
     mocks.publish.mockResolvedValue(undefined);
   });
 
@@ -64,6 +73,12 @@ describe("general intent competition API", () => {
       createdAt: new Date((nowSec - 100) * 1_000),
       updatedAt: new Date((nowSec - 100) * 1_000),
     }]);
+    mocks.getSnapshot.mockResolvedValue({
+      intentId: policy.requestId,
+      snapshotHash: commitment(snapshot),
+      snapshot,
+      createdAt: new Date((nowSec - 90) * 1_000),
+    });
 
     const response = await GET();
 
@@ -76,8 +91,11 @@ describe("general intent competition API", () => {
         policy,
         policyHash: commitment(policy),
         ownerSignature: expect.stringMatching(/^0x[0-9a-f]{130}$/),
+        snapshot,
+        snapshotHash: commitment(snapshot),
         competitionClosesAt: policy.competition.closesAt,
-        links: { intent: `/api/intents/${policy.requestId}` },
+        links: { intent: `/api/intents/${policy.requestId}`,
+          decisions: `/api/intents/${policy.requestId}/decisions` },
       }],
     });
     expect(mocks.listDiscover).toHaveBeenCalledWith(nowSec);
