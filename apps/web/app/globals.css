@@ -114,7 +114,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .app-header__resources { align-items: center; display: flex; font-size: 12px; gap: 4px; }
 .app-header__resources a { align-items: center; border-radius: 9px; color: var(--muted); display: inline-flex; gap: 5px; min-height: 38px; padding: 0 10px; }
 .app-header__resources a:hover { color: var(--ink); }
-.app-header__resources .app-header__build-link { border: 1px solid var(--line); color: var(--ink); font-weight: 630; padding-inline: 12px; }
+.app-header__resources .app-header__build-link { border: 1px solid var(--line); color: var(--ink); font-weight: 630; padding-inline: 12px; white-space: nowrap; }
 .app-header__resources .app-header__build-link:hover { border-color: var(--line-strong); }
 .wallet-control { justify-self: end; position: relative; }
 .wallet-control__label--mobile { display: none; }

@@ -3,6 +3,18 @@ import {
   ACTION_PREFERENCES, PROTOCOL_EXCLUSIONS, type ActionPreference, type ProtocolExclusionId,
 } from "../../lib/intents/intent-controls";
 
+const EXAMPLE_INTENTS = [
+  "Swap 10 @USDG into at least 9.95 @USDt0 on @XLayer",
+  "Supply 10 @USDG to @Aave on @XLayer",
+  "Acquire at least 0.01 @PAXG on @Ethereum",
+] as const;
+
+function renderTaggedPrompt(prompt: string) {
+  return prompt.split(/(@[A-Za-z0-9]+)/g).map((part, index) => part.startsWith("@")
+    ? <strong key={`${part}-${index}`}>{part}</strong>
+    : part);
+}
+
 export interface IntentMention {
   id: string;
   group: "Assets" | "Networks" | "Protocols" | "Services";
@@ -43,6 +55,12 @@ export function IntentGoalInput({ value, compiling, action, excludedProtocols, m
           }
         }}
       />
+      {!value.trim() ? <div aria-label="Example intents" className="intent-examples">
+        {EXAMPLE_INTENTS.map((example) => <button aria-label={`Use example: ${example}`}
+          key={example} onClick={() => onChange(example)} type="button">
+          {renderTaggedPrompt(example)}
+        </button>)}
+      </div> : null}
       <div className="intent-goal__tools">
         <div className="intent-goal__controls">
           <select aria-label="Action type" value={action}

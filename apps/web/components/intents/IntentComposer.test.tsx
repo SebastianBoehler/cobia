@@ -40,8 +40,23 @@ describe("IntentComposer", () => {
     expect(screen.getByLabelText("Action type")).toHaveValue("any");
     expect(screen.getByText("Mention")).toBeVisible();
     expect(screen.getByText("Routes")).toBeVisible();
+    expect(screen.getByLabelText("Example intents")).toBeVisible();
     expect(screen.queryByLabelText("Verified capability")).not.toBeInTheDocument();
     expect(screen.queryByText("Unsigned draft")).not.toBeInTheDocument();
+  });
+
+  it("fills the goal from a tagged example and then hides the examples", () => {
+    render(<IntentComposer />);
+
+    fireEvent.click(screen.getByRole("button", {
+      name: "Use example: Swap 10 @USDG into at least 9.95 @USDt0 on @XLayer",
+    }));
+
+    expect(screen.getByLabelText("What should happen?")).toHaveValue(
+      "Swap 10 @USDG into at least 9.95 @USDt0 on @XLayer",
+    );
+    expect(screen.queryByLabelText("Example intents")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Review policy" })).toBeEnabled();
   });
 
   it("compiles the goal before showing editable signed bounds", async () => {
