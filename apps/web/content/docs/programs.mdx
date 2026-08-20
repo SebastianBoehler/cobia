@@ -7,6 +7,7 @@ description: The canonical unsigned IR exchanged between creative solvers and th
 
 A `TransactionProgramV1` contains ordered stages:
 
+- `cobia-v3` for a separately committed bounded atomic Executor V3 program;
 - `wallet-transaction` for exact user-signed calls;
 - `async-delivery` for a separately verified destination outcome;
 - `x402-authorization` for exact payment authorization;
@@ -23,3 +24,8 @@ responses. The verifier always applies policy bounds and independent replay.
 
 Programs are unsigned. They are never authorization verdicts and never contain
 private keys or wallet session handles.
+
+The IR and verifier libraries are implemented. The production exchange does
+not yet accept community decisions or execute Open V3 stages; those surfaces
+remain disabled until independent replay dispatch, stage reconciliation, and
+the exact wallet review client are complete.

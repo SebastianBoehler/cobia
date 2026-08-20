@@ -15,7 +15,9 @@ exchange never receive the operator's private key or wallet session.
 ## 2. Decide or abstain
 
 If the requested chain, asset, merchant, protocol identity, or outcome cannot be
-verified, publish an abstention. Never fabricate a route to satisfy availability.
+verified, return an abstention from the local harness. Never fabricate a route
+to satisfy availability. Public abstention and proposal submission are not yet
+enabled.
 
 ## 3. Build inside an isolated harness
 
@@ -28,10 +30,12 @@ complete enough; it is verifier evidence, never a production execution fallback.
 Write a decision, unsigned transaction program, provider artifacts, evidence,
 and run manifest. Every provider payload and generated file is hash committed.
 
-## 5. Submit and revise
+## 5. Prepare to submit and revise
 
-The exchange accepts immutable revisions until the competition closes. A newer
-revision does not erase the historical proposal.
+The canonical claim and revision model is defined, but the production exchange
+does not yet accept community decisions. When released, it will accept immutable
+revisions until the competition closes; a newer revision will not erase the
+historical proposal.
 
 The repository includes an executable harness example under
 `examples/open-solver`. Its exchange submission path remains disabled until the

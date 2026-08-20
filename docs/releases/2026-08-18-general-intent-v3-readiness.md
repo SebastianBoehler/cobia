@@ -1,7 +1,25 @@
 # General-intent V3 release readiness
 
-Snapshot: `2026-08-19T00:41:56Z`. This is a pre-activation checkpoint, not a
+Original snapshot: `2026-08-19T00:41:56Z`. Refreshed Open V3 and governance
+snapshot: `2026-08-20T11:37:54Z`. This is a pre-activation checkpoint, not a
 production-readiness claim.
+
+## Open V3 checkpoint
+
+The public production deployment now contains the open intent exchange, signed
+community solver profile registration, immutable solver/program views,
+segmented solver performance evidence, SDK/example harness, and developer docs.
+The coding sandbox can emit canonical `TransactionProgramV1` artifacts. The
+independent verifier covers exact raw wallet calls plus strict LI.FI and OKX
+provider artifacts.
+
+That is proposal and verification infrastructure, not arbitrary production
+execution. Signed community decision intake, production provider/code/replay
+dispatch, staged receipt reconciliation, and multi-chain wallet review are not
+complete. The tokenized-instrument and commerce production registries are empty,
+so the UI must not offer tokenized-stock or x402 execution. See
+`docs/evidence/general-intent-mainnet-readiness.md` and
+`docs/evidence/x402-mainnet-offer.md`.
 
 ## Product delivered locally
 
@@ -61,6 +79,19 @@ production Next.js build, 69 PostgreSQL integration tests, 66 Solidity tests,
 the high-severity dependency audit, and all seven real pinned Anvil-fork tests
 passed. These commands must still be rerun after activation.
 
+The later Open V3 checkpoint ran 1,129 workspace tests: domain 163, solvers 156,
+web 804, SDK 5, and example harness 1. Workspace typecheck, lint, production
+build, production dependency audit, and diff checks passed. The instrument
+registry then passed its focused TDD gate as part of 168 web files and 808 web
+tests, plus web typecheck and diff check. Those later checks ran under local Node
+23.11.0 and emitted the repository's Node `>=24` engine warning; final release
+verification must use Node 24.
+
+The current machine's Docker daemon is unavailable, so the later Open V3
+PostgreSQL/Testcontainers, Solidity wrapper, and pinned Anvil-fork gates are not
+recorded as passing. The earlier pre-Open-V3 results below remain historical
+evidence only, not a substitute for the required final rerun.
+
 The contract and fork gates were run after the V3 architecture changes and
 before the final UI/challenge-template-only edits. They must run again in the
 final post-activation release gate.
@@ -73,8 +104,8 @@ surface.
 
 ## Mainnet activation gate
 
-At X Layer mainnet block `68331080`, hash
-`0x690a5af7541e72aa443b53ef17a38ea6ffd72b6a43243a81f1064be5960118be`,
+At X Layer mainnet block `68456889`, hash
+`0x32a951370ad7a5bbbf58d28e76367f91266249022e60e6881937c2b1ed8e75a9`,
 read-only calls reproduced the unchanged delayed proposal:
 
 - chain ID `196`;
@@ -111,7 +142,7 @@ Cobia does not possess a Safe signer or production principal key.
    identities, and runtime hashes.
 3. Run the complete workspace, integration, contract, audit, build, and pinned
    fork gates again.
-4. Apply migrations `0012` through `0018` to the production database using the
+4. Apply migrations `0012` through `0019` to the production database using the
    canonical configured database only; verify the migration journal and seeded
    challenge commitments.
 5. Push the logical local commits to `main`, deploy the production Vercel app,
@@ -121,9 +152,9 @@ Cobia does not possess a Safe signer or production principal key.
 7. Keep the system canary-only. A retail-size wallet execution is a separate
    explicit user decision and is not an automated release test.
 
-Community commerce-solver hosting, arbitrary generic calls, subscriptions,
-RWAs, asynchronous bridges, and guaranteed future yield remain outside the
-activated capability manifest. x402 discovery and the closed-world verified
-placement machinery are implemented, but production commerce execution remains
-disabled until a real merchant entry passes the manifest, code-identity,
-authorization, settlement, and live-offer gates.
+Community decision submission, arbitrary staged wallet execution,
+subscriptions, RWAs, asynchronous bridges, and guaranteed future yield remain
+outside the production execution surface. The generic verifier, LI.FI/OKX
+adapters, x402 discovery, and closed-world placement machinery are implemented,
+but their production wallet paths remain disabled until the independent
+decision, replay, stage, instrument, merchant, and receipt gates pass.
