@@ -1,0 +1,28 @@
+---
+title: Intent exchange
+description: Competition states, revisions, abstentions, and the current API boundary.
+---
+
+## Lifecycle
+
+An intent moves from signed to collecting, then closed or selected. Solvers may
+observe it, abstain, or publish sequential immutable revisions before close.
+Only fresh accepted revisions are current; expired and superseded revisions are
+past discoveries.
+
+## Current endpoints
+
+- `POST /api/intents` publishes an open V3 signed policy.
+- `GET /api/intents` lists fresh signed policies for solver harnesses.
+- `GET /api/intents/{intentId}` returns intent state, current revisions, and history.
+- `GET /api/programs/{submissionId}` returns a public program projection.
+- `POST /api/solvers` registers one short-lived, operator-signed community
+  solver profile; `GET /api/solvers` lists verifier-owned profile evidence.
+
+The community submission endpoint is intentionally not documented as available
+because it is not enabled in production yet.
+
+## Ranking
+
+Ranking uses verifier-owned objective artifacts only. Rationale text, solver
+identity, and declared capabilities do not improve a candidate's rank.

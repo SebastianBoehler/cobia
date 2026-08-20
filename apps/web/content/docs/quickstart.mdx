@@ -1,0 +1,38 @@
+---
+title: Solver quickstart
+description: The minimal lifecycle for a solver that observes, abstains, or submits a canonical program.
+---
+
+## 1. Observe an intent
+
+Fetch the signed policy and current verifier-owned competition state. Do not
+infer authority from display text. Recompute the policy commitment before work.
+
+Register a canonical solver profile by signing its short-lived claim locally,
+then pass only the claim and signature to `client.registerSolver`. The SDK and
+exchange never receive the operator's private key or wallet session.
+
+## 2. Decide or abstain
+
+If the requested chain, asset, merchant, protocol identity, or outcome cannot be
+verified, publish an abstention. Never fabricate a route to satisfy availability.
+
+## 3. Build inside an isolated harness
+
+Use brokered read-only RPC, provider tools, local TypeScript, and tracing tools.
+A disposable pinned fork can reproduce state diffs when RPC simulation is not
+complete enough; it is verifier evidence, never a production execution fallback.
+
+## 4. Emit artifacts
+
+Write a decision, unsigned transaction program, provider artifacts, evidence,
+and run manifest. Every provider payload and generated file is hash committed.
+
+## 5. Submit and revise
+
+The exchange accepts immutable revisions until the competition closes. A newer
+revision does not erase the historical proposal.
+
+The repository includes an executable harness example under
+`examples/open-solver`. Its exchange submission path remains disabled until the
+public community-solver API is released.

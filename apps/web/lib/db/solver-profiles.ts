@@ -1,8 +1,11 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { projectSubmissionState } from "../competitions/submission-state";
+import { ObjectiveMeasurementV1Schema } from "../competitions/objective-measurement";
 import type { CobiaDatabase } from "./client";
-import { cobiaSolverSubmissions, cobiaSolvers } from "./schema";
+import { cobiaProgramArtifactsV2, cobiaSolverSubmissions, cobiaSolvers } from "./schema";
+import { cobiaSolverRuns } from "./schema";
+import { projectSolverPerformance } from "./solver-performance-projection";
 
 const AddressSchema = z.string().regex(/^0x[0-9a-fA-F]{40}$/).transform((value) => value.toLowerCase());
 const ProfileSchema = z.object({
@@ -49,6 +52,15 @@ export function createSolverProfileRepository(db: CobiaDatabase) {
         where: eq(cobiaSolverSubmissions.solverId, id),
         orderBy: [asc(cobiaSolverSubmissions.createdAt)],
       });
+      const objectiveArtifacts = submissions.length === 0 ? []
+        : await db.query.cobiaProgramArtifactsV2.findMany({
+          where: and(inArray(cobiaProgramArtifactsV2.submissionId, submissions.map(({ id }) => id)),
+            eq(cobiaProgramArtifactsV2.kind, "objective")),
+        });
+      const objectives = new Map(objectiveArtifacts.map(({ submissionId, payload }) => {
+        const objective = ObjectiveMeasurementV1Schema.parse(payload);
+        return [submissionId, { direction: objective.direction, atomic: objective.atomic }] as const;
+      }));
       const selected = submissions.length === 0 ? [] : await db.query.cobiaIntents.findMany();
       const selectedIds = new Set(selected.flatMap(({ selectedSubmissionId }) =>
         selectedSubmissionId ? [selectedSubmissionId] : []));
@@ -56,6 +68,16 @@ export function createSolverProfileRepository(db: CobiaDatabase) {
         ...submission,
         presentationState: projectSubmissionState(submission, observedAtSec),
       }));
+      const runs = await db.query.cobiaSolverRuns.findMany({
+        where: eq(cobiaSolverRuns.solverId, id),
+      });
+      const performance = projectSolverPerformance({
+        solverId: id, observedAtSec, runs,
+        submissions: submissions.map((submission) => ({
+          ...submission, objective: objectives.get(submission.id) ?? null,
+        })),
+        intents: selected,
+      });
       return {
         ...profile,
         submissions: projected,
@@ -66,6 +88,7 @@ export function createSolverProfileRepository(db: CobiaDatabase) {
           wins: submissions.filter(({ id: submissionId }) => selectedIds.has(submissionId)).length,
           current: projected.filter(({ presentationState }) => presentationState === "current").length,
         },
+        performance,
       };
     },
 

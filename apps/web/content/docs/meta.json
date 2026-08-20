@@ -1,0 +1,4 @@
+{
+  "title": "Cobia developer docs",
+  "pages": ["index", "quickstart", "exchange", "programs", "verification", "adapters", "reputation", "security"]
+}

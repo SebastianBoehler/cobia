@@ -1,4 +1,4 @@
-import type { GeneralIntentPolicyV2 } from "@cobia/domain";
+import type { GeneralIntentPolicyV2, OpenIntentPolicyV3 } from "@cobia/domain";
 import { createDatabase } from "../db/client";
 import { createActivityRepository } from "../db/activity";
 import { createIntentRepository } from "../db/intents";
@@ -94,5 +94,12 @@ export async function publishGeneralIntent(input: {
 }) {
   assertPolicyTargetsActiveManifest(input.policy, productionCapabilityManifestV1());
   await getSolverProfileRepository().register(cobiaCodingAgentProfile);
+  return getIntentRepository().create(input);
+}
+
+export async function publishOpenIntent(input: {
+  policy: OpenIntentPolicyV3;
+  ownerSignature: `0x${string}`;
+}) {
   return getIntentRepository().create(input);
 }

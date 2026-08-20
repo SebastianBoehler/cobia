@@ -1,0 +1,25 @@
+---
+title: Transaction programs
+description: The canonical unsigned IR exchanged between creative solvers and the conservative verifier.
+---
+
+## Stages
+
+A `TransactionProgramV1` contains ordered stages:
+
+- `wallet-transaction` for exact user-signed calls;
+- `async-delivery` for a separately verified destination outcome;
+- `x402-authorization` for exact payment authorization;
+- `research` for non-executable findings.
+
+Each wallet call commits chain, sender, target, value, calldata, and semantic
+labels. Provider artifacts are one-to-one with provider-backed wallet stages.
+
+## Open generation, closed verification
+
+`evm.raw@1` lets a solver propose arbitrary EVM calldata without making it
+trusted. LI.FI and OKX adapters additionally normalize and commit provider
+responses. The verifier always applies policy bounds and independent replay.
+
+Programs are unsigned. They are never authorization verdicts and never contain
+private keys or wallet session handles.

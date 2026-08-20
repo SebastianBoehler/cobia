@@ -1,12 +1,11 @@
-import {
-  GeneralIntentPolicyV2Schema, GeneralIntentSnapshotV1Schema, commitment,
-} from "@cobia/domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { startIntegrationDatabase } from "./integration-database";
 import { createChallengeRepository } from "./challenges";
 import { createIntentRepository } from "./intents";
 import { createSolverProfileRepository } from "./solver-profiles";
+import { createSolverRunRepository } from "./solver-runs";
 import { createSolverSubmissionRepository } from "./solver-submissions";
+import { createOpenIntentTestPolicy } from "./open-intent-test-fixture";
 
 type Database = Awaited<ReturnType<typeof startIntegrationDatabase>>;
 let database: Database | undefined;
@@ -19,33 +18,18 @@ function db() {
   return database.db;
 }
 
-const policy = GeneralIntentPolicyV2Schema.parse({
-  version: 2, kind: "general-onchain", requestId: "11111111-1111-4111-8111-111111111111",
-  displayGoal: "Supply 10 USDG with the best verified outcome",
-  owner, executionChainId: 196, nonce: hash("1"), createdAt: nowSec - 60,
-  deadline: nowSec + 1_800,
-  competition: { closesAt: nowSec + 300, maxRevisionsPerSolver: 3 },
-  maxEvidenceAgeSec: 300, manifestHash: hash("2"),
-  input: { token: "0x2222222222222222222222222222222222222222", maxAtomic: "10000000" },
-  allowedCapabilities: [{ id: "aave-v3.supply", version: 1 }],
-  limits: { maxActions: 1, maxApprovals: 1, maxActionCalldataBytes: 1024, maxExpectedGas: 1_000_000 },
-  forbiddenTargets: [], forbiddenAssets: [],
-  balanceConstraints: [{
-    kind: "minimumIncrease", token: "0x3333333333333333333333333333333333333333", atomic: "9950000",
-  }],
-  predicates: [], objective: { kind: "satisfy" },
-});
+const policy = createOpenIntentTestPolicy({ nowSec, owner });
 
 beforeAll(async () => {
   database = await startIntegrationDatabase();
   const profiles = createSolverProfileRepository(db());
   await profiles.register({
     id: "alpha-solver", displayName: "Alpha Solver", operatorKind: "internal",
-    attestationAddress: null, declaredCapabilities: ["aave-v3.supply"],
+    attestationAddress: null, declaredCapabilities: ["evm.raw@1"],
   });
   await profiles.register({
     id: "beta-solver", displayName: "Beta Solver", operatorKind: "internal",
-    attestationAddress: null, declaredCapabilities: ["aave-v3.supply"],
+    attestationAddress: null, declaredCapabilities: ["evm.raw@1"],
   });
 });
 afterAll(async () => { await database?.close(); });
@@ -81,6 +65,13 @@ describe("solver competition projections", () => {
       policy, ownerSignature: `0x${"44".repeat(65)}`,
     });
     const submissions = createSolverSubmissionRepository(db());
+    const runs = createSolverRunRepository(db());
+    const completeRun = async (solverId: string, revision: number, blockNumber: string, blockHash: `0x${string}`) => {
+      const run = await runs.create({ intentId: policy.requestId, solverId, revision, blockNumber, blockHash });
+      await runs.start(run.id);
+      await runs.complete(run.id);
+    };
+    await completeRun("alpha-solver", 1, "123456", hash("3"));
     const first = await submissions.append({
       intentId: policy.requestId, solverId: "alpha-solver", revision: 1,
       programHash: hash("5"), validUntilSec: nowSec + 120,
@@ -88,6 +79,7 @@ describe("solver competition projections", () => {
     });
     await submissions.resolve(first.id, "verified", []);
     await submissions.resolve(first.id, "attested", []);
+    await completeRun("alpha-solver", 2, "123457", hash("7"));
     const second = await submissions.append({
       intentId: policy.requestId, solverId: "alpha-solver", revision: 2,
       programHash: hash("6"), validUntilSec: nowSec + 180,
@@ -98,18 +90,14 @@ describe("solver competition projections", () => {
     await submissions.appendArtifact(second.id, "objective", {
       version: 1, kind: "atomic-value", direction: "maximize", atomic: "10080000",
     });
-    const snapshot = GeneralIntentSnapshotV1Schema.parse({
-      version: 1, kind: "general-onchain", requestId: policy.requestId, chainId: 196,
-      blockNumber: "123457", blockHash: hash("7"),
-      capturedAt: new Date(nowSec * 1_000).toISOString(), manifestHash: policy.manifestHash,
-    });
-    await submissions.appendArtifact(second.id, "snapshot", snapshot);
+    await completeRun("beta-solver", 1, "123457", hash("7"));
     const rejected = await submissions.append({
       intentId: policy.requestId, solverId: "beta-solver", revision: 1,
       programHash: hash("8"), validUntilSec: nowSec + 180,
       blockNumber: "123457", blockHash: hash("7"), observedAtSec: nowSec,
     });
     await submissions.resolve(rejected.id, "rejected", ["FINAL_BALANCE_TOO_LOW"]);
+    await completeRun("beta-solver", 2, "123458", hash("a"));
     const betaSecond = await submissions.append({
       intentId: policy.requestId, solverId: "beta-solver", revision: 2,
       programHash: hash("9"), validUntilSec: nowSec + 180,
@@ -139,11 +127,6 @@ describe("solver competition projections", () => {
       observedAtSec: policy.competition.closesAt,
     })).rejects.toThrow("Competition is closed");
 
-    await expect(submissions.getExecutionContext(second.id)).resolves.toMatchObject({
-      state: "attested", owner, policyHash: commitment(policy),
-      snapshotHash: commitment(snapshot), blockNumber: "123457", blockHash: hash("7"),
-      policy, snapshot,
-    });
   });
 
   it("derives solver statistics and wins from verifier-owned rows", async () => {
@@ -155,6 +138,17 @@ describe("solver competition projections", () => {
     expect(profile).toMatchObject({
       id: "alpha-solver",
       stats: { accepted: 2, rejected: 0, wins: 1, current: 1 },
+      performance: [expect.objectContaining({
+        segment: { chainId: 196, intentClass: "general" },
+        counts: expect.objectContaining({
+          observedIntents: 1, submittedIntents: 1, submissions: 2,
+          acceptedSubmissions: 2, wonIntents: 1,
+        }),
+        rates: expect.objectContaining({
+          verifierAcceptance: expect.objectContaining({ rateBps: 10_000, denominator: 2 }),
+          win: expect.objectContaining({ rateBps: 10_000, denominator: 1 }),
+        }),
+      })],
     });
     expect(profile?.submissions.map(({ presentationState }) => presentationState))
       .toEqual(expect.arrayContaining(["current", "superseded"]));

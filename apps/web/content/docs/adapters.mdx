@@ -1,0 +1,23 @@
+---
+title: Provider adapters
+description: Strict provider normalization without binding the solver architecture to a protocol.
+---
+
+## Generic EVM
+
+`evm.raw@1` verifies exact stage identity, code commitments, calldata, allowance
+discipline, replay, and state deltas. It is the open composition boundary.
+
+## LI.FI
+
+The LI.FI adapter commits the request and raw provider response, normalizes the
+route into Cobia's program IR, checks destination semantics, then replays it.
+
+## OKX
+
+The OKX adapter requires exact-input requests, explicit owner and receiver,
+RFQ disabled, exact approvals, a pinned router/approval identity, and the Cobia
+Builder Code suffix. API-returned calldata remains untrusted until verification.
+
+Adapters are tools for better construction and provider-specific semantic
+checks. They are not protocol allowlists for the entire solver architecture.

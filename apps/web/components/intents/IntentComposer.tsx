@@ -5,7 +5,7 @@ import { ArrowRight, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import { keccak256, stringToHex } from "viem";
-import { buildGeneralIntentPolicyV2 } from "../../lib/intents/general-policy";
+import { buildOpenIntentPolicyV3 } from "../../lib/intents/open-policy";
 import {
   DEFAULT_INTENT_RECEIPT_VALUES, decimalToAtomic, INTENT_ASSETS,
 } from "../../lib/intents/capability-templates";
@@ -54,11 +54,11 @@ export function IntentComposer({ initialDraft }: { initialDraft?: IntentComposer
         competitionDurationSec: 300,
       } as const;
       const policy = values.templateId === "aave-supply"
-        ? buildGeneralIntentPolicyV2({ ...common, templateId: "aave-supply", exposureBps: 10_000 })
+        ? buildOpenIntentPolicyV3({ ...common, templateId: "aave-supply", exposureBps: 10_000 })
         : values.templateId === "exact-input-swap" && minimumAtomic
-          ? buildGeneralIntentPolicyV2({ ...common, templateId: "exact-input-swap", outputToken: values.outputToken, minimumOutputAtomic: minimumAtomic })
+          ? buildOpenIntentPolicyV3({ ...common, templateId: "exact-input-swap", outputToken: values.outputToken, minimumOutputAtomic: minimumAtomic })
           : values.templateId === "round-trip" && minimumAtomic
-            ? buildGeneralIntentPolicyV2({ ...common, templateId: "round-trip", minimumProfitAtomic: minimumAtomic })
+            ? buildOpenIntentPolicyV3({ ...common, templateId: "round-trip", minimumProfitAtomic: minimumAtomic })
             : (() => { throw new Error("Complete the minimum result before signing."); })();
       const ownerSignature = await wallet.request({
         method: "personal_sign",

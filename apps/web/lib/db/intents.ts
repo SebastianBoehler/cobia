@@ -1,12 +1,12 @@
-import { commitment, GeneralIntentPolicyV2Schema } from "@cobia/domain";
-import { and, desc, eq, gt } from "drizzle-orm";
+import { commitment, GeneralIntentPolicyV2Schema, OpenIntentPolicyV3Schema } from "@cobia/domain";
+import { and, desc, eq, gt, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { CobiaDatabase } from "./client";
 import { cobiaIntents, cobiaSolverSubmissions } from "./schema";
 
 const SignatureSchema = z.string().regex(/^0x[0-9a-fA-F]{130}$/);
 const CreateSchema = z.object({
-  policy: GeneralIntentPolicyV2Schema,
+  policy: z.union([GeneralIntentPolicyV2Schema, OpenIntentPolicyV3Schema]),
   ownerSignature: SignatureSchema,
 }).strict();
 
@@ -43,7 +43,8 @@ export function createIntentRepository(db: CobiaDatabase) {
     listDiscover(observedAtSec: number) {
       return db.query.cobiaIntents.findMany({
         where: and(eq(cobiaIntents.state, "collecting"),
-          gt(cobiaIntents.competitionClosesAt, new Date(observedAtSec * 1_000))),
+          gt(cobiaIntents.competitionClosesAt, new Date(observedAtSec * 1_000)),
+          sql`${cobiaIntents.policy}->>'version' = '3'`),
         orderBy: [desc(cobiaIntents.createdAt)],
         limit: 30,
       });

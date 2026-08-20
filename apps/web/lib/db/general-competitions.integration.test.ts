@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { startIntegrationDatabase } from "./integration-database";
+import { createOpenIntentTestPolicy } from "./open-intent-test-fixture";
 
 type Database = Awaited<ReturnType<typeof startIntegrationDatabase>>;
 let database: Database | undefined;
@@ -20,6 +21,7 @@ beforeAll(async () => { database = await startIntegrationDatabase(); });
 afterAll(async () => { await database?.close(); });
 
 async function seedParents() {
+  const policy = createOpenIntentTestPolicy({ nowSec: 2_000_000_000, owner });
   await db().execute(sql`
     INSERT INTO cobia_solvers
       (id, display_name, operator_kind, attestation_address, declared_capabilities)
@@ -44,11 +46,8 @@ async function seedParents() {
       (id, owner, chain_id, display_goal, policy_hash, policy, owner_signature,
        state, competition_closes_at)
     VALUES (${intentId}::uuid, ${owner}, 196, 'Supply 10 USDG safely', ${hash("3")},
-      ${JSON.stringify({
-        version: 2, kind: "general-onchain", requestId: intentId,
-        displayGoal: "Supply 10 USDG safely", owner, executionChainId: 196,
-        competition: { closesAt: 2_000_000_300 },
-      })}::jsonb, ${`0x${"44".repeat(65)}`}, 'collecting',
+      ${JSON.stringify({ ...policy, displayGoal: "Supply 10 USDG safely" })}::jsonb,
+      ${`0x${"44".repeat(65)}`}, 'collecting',
       to_timestamp(2000000300))
   `);
 }

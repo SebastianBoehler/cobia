@@ -13,7 +13,7 @@ export const solverSubmissionState = pgEnum("cobia_solver_submission_state", [
 ]);
 
 export const programArtifactKindV2 = pgEnum("cobia_program_artifact_kind_v2", [
-  "snapshot", "program", "evidence", "provenance", "verdict", "replay", "execution", "authorization",
+  "snapshot", "program", "provider", "evidence", "provenance", "verdict", "replay", "execution", "authorization",
   "receipt", "objective",
 ]);
 

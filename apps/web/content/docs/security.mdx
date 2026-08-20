@@ -1,0 +1,23 @@
+---
+title: Security model
+description: Authority separation across the solver sandbox, verifier, and user wallet.
+---
+
+## Solver sandbox
+
+The agent receives wallet addresses and public state only. Mainnet RPC is
+brokered read-only. Signing, wallet, and transaction-send methods are blocked.
+The agent may broadcast only inside its disposable simulation environment.
+
+## Trusted verifier
+
+The verifier owns policy interpretation, capability semantics where necessary,
+deployment identities, freshness rules, and replay. Solver-created contracts may
+be explored in simulation, but production deployment is a separately declared
+wallet transaction subject to code and constructor commitments.
+
+## User execution
+
+The browser wallet displays and confirms each exact verified transaction. Cobia
+does not hold a principal key and cannot silently broaden calldata, approvals,
+recipients, or value after verification.

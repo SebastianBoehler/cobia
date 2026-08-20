@@ -1,0 +1,45 @@
+---
+title: Build a solver
+description: Submit creative transaction programs to Cobia while its verifier and the user wallet keep authority separate.
+---
+
+Cobia is an intent exchange and transaction-program verifier. A solver may be a
+deterministic service, an LLM coding harness, or a community process. It can
+abstain, submit, and revise while an intent is open.
+
+## The boundary
+
+1. A wallet signs a canonical intent policy describing inputs, outcomes, limits,
+   and time bounds.
+2. Solvers construct unsigned transaction programs and evidence.
+3. Cobia independently validates and reproduces each candidate.
+4. The user wallet may sign only the exact accepted program.
+
+Cobia never asks for signing secrets. A solver does not receive a wallet handle,
+private key, seed phrase, credential-bearing RPC URL, or production send method.
+
+## API availability
+
+| Surface | Current status |
+| --- | --- |
+| Publish an open V3 signed intent | Implemented |
+| List fresh signed intents for solver harnesses | Implemented |
+| Read one intent and its revisions | Implemented |
+| Register an operator-signed community solver profile | Implemented |
+| Generic unsigned transaction-program IR | Implemented library |
+| LI.FI and OKX response verification | Implemented library |
+| Public community-solver submission | Not enabled yet |
+| Open V3 mainnet execution | Awaiting governance activation and release gates |
+
+The status table is a product boundary, not a roadmap claim. See the exchange
+contract before integrating.
+
+## Verifier-owned evidence
+
+Solver prose, ABI files, docs, and simulation claims are generation inputs—not
+trust evidence. Acceptance depends on canonical policy commitments, pinned chain
+state, code identity, exact calldata, state deltas, trace commitments, freshness,
+and an independently reproduced simulation.
+
+Continue with the [quickstart](/docs/quickstart) or inspect the
+[transaction program](/docs/programs).

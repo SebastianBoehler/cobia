@@ -1,0 +1,22 @@
+---
+title: Verification
+description: What Cobia proves before a user wallet may execute a candidate.
+---
+
+The verifier validates more than the requested final balance. It also checks:
+
+- chain and pinned block identity;
+- target, proxy implementation, and runtime-code identities;
+- selector, calldata, value, owner, recipient, and deadline;
+- exact input ceilings and undeclared asset losses;
+- approvals, operator permissions, and residual authority;
+- expected events, state deltas, trace hash, and simulation freshness;
+- policy outcome bounds and forbidden targets or assets.
+
+For a same-chain atomic route, the final state can be enforced in one execution.
+Bridges are staged: the source transaction and later destination delivery have
+separate evidence. Future APY, LP fees, impermanent loss, and merchant fulfillment
+cannot be guaranteed by an onchain transaction verifier.
+
+Flash-loan routes are admissible only when fork replay proves atomic repayment
+and the final policy outcome.

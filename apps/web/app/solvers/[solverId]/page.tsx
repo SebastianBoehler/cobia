@@ -25,6 +25,7 @@ export default async function SolverProfilePage({ params }: PageProps<"/solvers/
         attestationAddress: profile.attestationAddress,
         declaredCapabilities: profile.declaredCapabilities,
         stats: profile.stats,
+        performance: profile.performance,
         submissions: profile.submissions.map((item) => ({
           id: item.id, revision: item.revision, state: item.presentationState,
           createdAt: item.createdAt.toISOString(),

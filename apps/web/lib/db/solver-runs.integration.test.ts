@@ -1,29 +1,15 @@
-import { GeneralIntentPolicyV2Schema } from "@cobia/domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createIntentRepository } from "./intents";
 import { startIntegrationDatabase } from "./integration-database";
 import { createSolverProfileRepository } from "./solver-profiles";
 import { createSolverRunRepository } from "./solver-runs";
+import { createOpenIntentTestPolicy } from "./open-intent-test-fixture";
 
 type Database = Awaited<ReturnType<typeof startIntegrationDatabase>>;
 let database: Database | undefined;
 const nowSec = 2_000_000_000;
 const hash = (byte: string) => `0x${byte.repeat(64)}` as `0x${string}`;
-const policy = GeneralIntentPolicyV2Schema.parse({
-  version: 2, kind: "general-onchain", requestId: "11111111-1111-4111-8111-111111111111",
-  displayGoal: "Supply USDG", owner: "0x1111111111111111111111111111111111111111",
-  executionChainId: 196, nonce: hash("1"), createdAt: nowSec - 60, deadline: nowSec + 900,
-  competition: { closesAt: nowSec + 300, maxRevisionsPerSolver: 3 },
-  maxEvidenceAgeSec: 300, manifestHash: hash("2"),
-  input: { token: "0x2222222222222222222222222222222222222222", maxAtomic: "10000000" },
-  allowedCapabilities: [{ id: "aave-v3.supply", version: 1 }],
-  limits: { maxActions: 1, maxApprovals: 1, maxActionCalldataBytes: 1024, maxExpectedGas: 1_000_000 },
-  forbiddenTargets: [], forbiddenAssets: [], balanceConstraints: [{
-    kind: "minimumIncrease", token: "0x3333333333333333333333333333333333333333",
-    atomic: "9950000",
-  }], predicates: [],
-  objective: { kind: "satisfy" },
-});
+const policy = createOpenIntentTestPolicy({ nowSec });
 
 function db() {
   if (!database) throw new Error("Integration database did not start");
@@ -35,7 +21,7 @@ beforeAll(async () => {
   await createIntentRepository(db()).create({ policy, ownerSignature: `0x${"44".repeat(65)}` });
   await createSolverProfileRepository(db()).register({
     id: "cobia-coding-agent", displayName: "Cobia Coding Agent", operatorKind: "internal",
-    attestationAddress: null, declaredCapabilities: ["aave-v3.supply"],
+    attestationAddress: null, declaredCapabilities: ["evm.raw@1"],
   });
 });
 afterAll(async () => { await database?.close(); });

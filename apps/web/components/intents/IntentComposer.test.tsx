@@ -86,7 +86,7 @@ describe("IntentComposer", () => {
     expect(randomUUID).toHaveBeenCalledTimes(2);
   });
 
-  it("signs the rendered V2 policy commitment and publishes to the canonical API", async () => {
+  it("signs the rendered open policy commitment and publishes to the canonical API", async () => {
     const fetchMock = vi.fn().mockResolvedValue(Response.json({
       intentId: "550e8400-e29b-41d4-a716-446655440000",
       policyHash: `0x${"cd".repeat(32)}`,
@@ -108,10 +108,11 @@ describe("IntentComposer", () => {
       method: "personal_sign", params: [commitment(body.policy), owner],
     });
     expect(body.policy).toMatchObject({
-      version: 2,
+      version: 3,
       displayGoal: "Put 10 USDG into a bounded Aave position.",
-      allowedCapabilities: [{ id: "aave-v3.supply", version: 1 }],
+      executionChainIds: [196],
     });
+    expect(body.policy).not.toHaveProperty("allowedCapabilities");
     expect(state.push).toHaveBeenCalledWith("/intents/550e8400-e29b-41d4-a716-446655440000");
   });
 });
