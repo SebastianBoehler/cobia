@@ -44,6 +44,7 @@ function harness(overrides: Record<string, unknown> = {}) {
   const order: string[] = [];
   let transaction = 0;
   const balances = new Map<string, bigint[]>([
+    [`${inputToken}:${owner}`, [10n]],
     [`${outputToken}:${owner}`, [0n, 9n]],
     [`${inputToken}:${executor}`, [0n, 0n]],
     [`${outputToken}:${executor}`, [0n, 9n]],

@@ -17,6 +17,7 @@ import {
   type Hex,
 } from "viem";
 import type { CapabilityForkReplayReadV1 } from "./capability-fork-replay";
+import { seedCapabilityForkPrincipalV1 } from "./capability-fork-funding";
 
 const FORK_GAS_BALANCE = "0x56bc75e2d63100000";
 
@@ -111,6 +112,14 @@ export async function replayCapabilityProgramOnForkV2(input: {
     }
     return { address: getAddress(expected.address), runtimeCodeHash, ...(implementation ? { implementation } : {}) };
   }));
+
+  await seedCapabilityForkPrincipalV1({
+    owner: program.owner,
+    token: program.input.token,
+    amountAtomic: BigInt(program.input.atomic),
+    forkRpc: input.forkRpc,
+    read: input.read,
+  });
 
   const observe = async (read: Program["predicates"][number], phase: "before" | "after") => {
     if (await input.read.getCodeHash(read.target) !== read.runtimeCodeHash) {
