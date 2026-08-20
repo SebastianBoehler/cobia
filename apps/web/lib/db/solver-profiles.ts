@@ -26,6 +26,14 @@ function sameProfile(stored: typeof cobiaSolvers.$inferSelect, input: z.infer<ty
     JSON.stringify(stored.declaredCapabilities) === JSON.stringify(input.declaredCapabilities);
 }
 
+export function solverProfileIdentityMatches(
+  stored: Pick<typeof cobiaSolvers.$inferSelect, "operatorKind" | "attestationAddress">,
+  input: Pick<z.infer<typeof ProfileSchema>, "operatorKind" | "attestationAddress">,
+) {
+  return stored.operatorKind === input.operatorKind &&
+    stored.attestationAddress === input.attestationAddress;
+}
+
 export function createSolverProfileRepository(db: CobiaDatabase) {
   const repository = {
     async register(value: z.input<typeof ProfileSchema>) {
@@ -33,8 +41,14 @@ export function createSolverProfileRepository(db: CobiaDatabase) {
       return db.transaction(async (tx) => {
         const stored = await tx.query.cobiaSolvers.findFirst({ where: eq(cobiaSolvers.id, input.id) });
         if (stored) {
-          if (!sameProfile(stored, input)) throw new Error("Solver profile conflicts");
-          return stored;
+          if (!solverProfileIdentityMatches(stored, input)) throw new Error("Solver profile conflicts");
+          if (sameProfile(stored, input)) return stored;
+          const rows = await tx.update(cobiaSolvers).set({
+            displayName: input.displayName,
+            declaredCapabilities: input.declaredCapabilities,
+          }).where(eq(cobiaSolvers.id, input.id)).returning();
+          if (!rows[0]) throw new Error("Solver profile was not updated");
+          return rows[0];
         }
         const rows = await tx.insert(cobiaSolvers).values({
           ...input,
