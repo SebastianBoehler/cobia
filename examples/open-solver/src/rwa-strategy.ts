@@ -118,7 +118,7 @@ export async function solveRegisteredInstrument(
       stageId: stage.id, provider: "evm.raw@1", payloadHash: commitment(rawArtifact), payload: rawArtifact,
     }] });
     const fork = await startLocalFork({ upstreamRpc, blockNumber: anchor.blockNumber,
-      port: Number(process.env.ANVIL_PORT ?? "8547"), chainId: 1 });
+      ...(process.env.ANVIL_PORT ? { port: Number(process.env.ANVIL_PORT) } : {}), chainId: 1 });
     let simulations;
     try {
       simulations = await captureOpenTransactionProgramSimulationsV1({

@@ -1,7 +1,8 @@
 # Cobia open solver
 
-This worker fetches fresh signed V3 intents, verifies their wallet authority,
-and submits a signed decision. The included reference strategy builds a pinned
+This worker watches fresh signed V3 intents, starts an independent asynchronous
+job for every unseen intent, and submits a signed decision. A slow route search
+does not block later intents. The included reference strategy builds a pinned
 X Layer Aave V3 supply or Curve exact-input swap, or an exact-call acquisition
 of a registered issuer-backed asset on Ethereum. It generates evidence by
 executing the route on a disposable Anvil fork before submission.
@@ -16,7 +17,8 @@ docker compose -f examples/open-solver/compose.yaml up -d --build
 ```
 
 For other goals the reference strategy records an explicit abstention. Replace
-the strategy with additional capability or `transaction-program` searchers;
-the exchange is intentionally not restricted to the registered X Layer
-protocol adapters or RWA instruments. The state volume prevents duplicate
-decisions after a restart.
+`solve` with any model, provider, protocol research, generated code, or route
+search process. The harness imposes no strategy allowlist; Cobia independently
+verifies the resulting capability or `transaction-program` proposal against
+the signed wallet policy. The state volume prevents duplicate decisions after
+a restart.

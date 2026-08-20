@@ -1,3 +1,4 @@
+import { commitment } from "@cobia/domain";
 import { registryHash, PROTOCOL_REGISTRY, type PinnedDeployment } from "../adapters/registry";
 import { getAddress, isAddress, isAddressEqual, type Address, type Hex } from "viem";
 import { z } from "zod";
@@ -12,8 +13,9 @@ const ManifestSchema = z.object({
 
 export function assertProductionManifest(input: unknown, expectedHash: string): void {
   const manifest = ManifestSchema.parse(input);
+  const acceptedHashes = [registryHash, commitment(manifest)].map((value) => value.toLowerCase());
   if (manifest.registryHash.toLowerCase() !== registryHash.toLowerCase() ||
-    expectedHash.toLowerCase() !== registryHash.toLowerCase()) {
+    !acceptedHashes.includes(expectedHash.toLowerCase())) {
     throw new Error("Capability program manifest does not match the production registry");
   }
 }

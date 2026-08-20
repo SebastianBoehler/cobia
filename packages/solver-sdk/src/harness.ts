@@ -8,6 +8,51 @@ interface IntentClientV1 {
   listIntents(): Promise<SolverIntentListV1>;
 }
 
+function waitForNextPoll(milliseconds: number, signal: AbortSignal) {
+  if (signal.aborted) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    const finish = () => {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", finish);
+      resolve();
+    };
+    const timer = setTimeout(finish, milliseconds);
+    signal.addEventListener("abort", finish, { once: true });
+  });
+}
+
+/** Polling transport with subscription semantics: every intent gets an independent job. */
+export async function watchSolverIntents(input: {
+  client: IntentClientV1;
+  onIntent(intent: SolverIntentV1): Promise<void>;
+  onError(error: unknown, intent?: SolverIntentV1): void | Promise<void>;
+  isHandled?(intent: SolverIntentV1): boolean;
+  pollIntervalMs?: number;
+  signal: AbortSignal;
+}) {
+  const pollIntervalMs = input.pollIntervalMs ?? 1_000;
+  if (!Number.isSafeInteger(pollIntervalMs) || pollIntervalMs < 1) {
+    throw new Error("Solver intent poll interval must be a positive integer");
+  }
+  const jobs = new Map<string, Promise<void>>();
+  while (!input.signal.aborted) {
+    try {
+      const { intents } = await input.client.listIntents();
+      for (const intent of intents) {
+        if (jobs.has(intent.id) || input.isHandled?.(intent)) continue;
+        const job = Promise.resolve().then(() => input.onIntent(intent))
+          .catch((error) => input.onError(error, intent))
+          .finally(() => { jobs.delete(intent.id); });
+        jobs.set(intent.id, job);
+      }
+    } catch (error) {
+      await input.onError(error);
+    }
+    await waitForNextPoll(pollIntervalMs, input.signal);
+  }
+  await Promise.allSettled(jobs.values());
+}
+
 export async function runSolverCycle(input: {
   client: IntentClientV1;
   solve(intent: SolverIntentV1): Promise<unknown>;

@@ -69,7 +69,7 @@ export async function solve(intent: SolverIntentV1): Promise<SolverDecisionV1> {
   const compiled = [module.compile({ program, actionIndex: 0,
     parameters: parsedParameters, manifest: authority.manifest })];
   const fork = await startLocalFork({ upstreamRpc, blockNumber: authority.snapshot.blockNumber,
-    port: Number(process.env.ANVIL_PORT ?? "8547") });
+    ...(process.env.ANVIL_PORT ? { port: Number(process.env.ANVIL_PORT) } : {}) });
   try {
     const replay = await replayCapabilityProgramOnForkV2({ program, compiled,
       forkRpc: fork.rpc, read: fork.read });

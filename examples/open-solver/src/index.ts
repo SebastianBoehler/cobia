@@ -1,7 +1,9 @@
 import {
   commitment, solverDecisionClaimCommitmentV1, solverProfileClaimCommitmentV1,
 } from "@cobia/domain";
-import { createSolverExchangeClient } from "@cobia/solver-sdk";
+import {
+  createSolverExchangeClient, watchSolverIntents, type SolverIntentV1,
+} from "@cobia/solver-sdk";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { keccak256, toHex, type Hash, type Hex } from "viem";
@@ -50,36 +52,26 @@ async function register(client: ReturnType<typeof createSolverExchangeClient>, i
   await client.registerSolver({ claim, signature });
 }
 
-async function cycle(input: {
+async function processIntent(input: {
   client: ReturnType<typeof createSolverExchangeClient>;
   solverId: string;
   account: ReturnType<typeof privateKeyToAccount>;
-  statePath: string;
+  intent: SolverIntentV1;
+  record(revision: number, state: string): Promise<void>;
 }) {
-  const state = await readState(input.statePath);
-  const { intents } = await input.client.listIntents();
-  for (const intent of intents) {
-    if (state[intent.id]) continue;
-    try {
-      const decision = await solve(intent);
-      const issuedAt = Math.floor(Date.now() / 1_000);
-      const claim = { version: 1 as const, solverId: input.solverId, intentId: intent.id,
-        revision: 1, decisionHash: commitment(decision), snapshotHash: intent.snapshotHash as Hash,
-        nonce: nonce(), issuedAt, expiresAt: Math.min(issuedAt + 240, intent.competitionClosesAt) };
-      if (claim.expiresAt <= claim.issuedAt) continue;
-      const signature = await input.account.signMessage({
-        message: { raw: solverDecisionClaimCommitmentV1(claim) },
-      });
-      const receipt = await input.client.submitDecision({ claim, signature, decision });
-      state[intent.id] = { revision: claim.revision, state: receipt.state };
-      await writeState(input.statePath, state);
-      output({ event: "decision", intentId: intent.id, decision: decision.decision,
-        receiptState: receipt.state, submissionId: receipt.submissionId });
-    } catch (error) {
-      output({ event: "intent-error", intentId: intent.id,
-        message: error instanceof Error ? error.message : String(error) });
-    }
-  }
+  const decision = await solve(input.intent);
+  const issuedAt = Math.floor(Date.now() / 1_000);
+  const claim = { version: 1 as const, solverId: input.solverId, intentId: input.intent.id,
+    revision: 1, decisionHash: commitment(decision), snapshotHash: input.intent.snapshotHash as Hash,
+    nonce: nonce(), issuedAt, expiresAt: Math.min(issuedAt + 240, input.intent.competitionClosesAt) };
+  if (claim.expiresAt <= claim.issuedAt) return;
+  const signature = await input.account.signMessage({
+    message: { raw: solverDecisionClaimCommitmentV1(claim) },
+  });
+  const receipt = await input.client.submitDecision({ claim, signature, decision });
+  await input.record(claim.revision, receipt.state);
+  output({ event: "decision", intentId: input.intent.id, decision: decision.decision,
+    receiptState: receipt.state, submissionId: receipt.submissionId });
 }
 
 const privateKey = z.string().regex(/^0x[0-9a-fA-F]{64}$/)
@@ -97,9 +89,25 @@ const worker = {
 await register(client, { ...worker,
   displayName: process.env.REFERENCE_SOLVER_NAME ?? "Cobia Reference Solver" });
 output({ event: "registered", solverId: worker.solverId, operator: account.address });
-do {
-  await cycle(worker);
-  if (process.env.REFERENCE_SOLVER_ONCE === "1") break;
-  await new Promise((resolve) => setTimeout(resolve,
-    Number(process.env.REFERENCE_SOLVER_POLL_MS ?? "10000")));
-} while (true);
+const state = await readState(worker.statePath);
+let pendingWrite = Promise.resolve();
+const controller = new AbortController();
+process.once("SIGINT", () => controller.abort());
+process.once("SIGTERM", () => controller.abort());
+await watchSolverIntents({
+  client,
+  signal: controller.signal,
+  pollIntervalMs: Number(process.env.REFERENCE_SOLVER_POLL_MS ?? "1000"),
+  isHandled: (intent) => Boolean(state[intent.id]),
+  onError(error, intent) {
+    output({ event: intent ? "intent-error" : "poll-error", intentId: intent?.id,
+      message: error instanceof Error ? error.message : String(error) });
+  },
+  async onIntent(intent) {
+    await processIntent({ ...worker, intent, record(revision, receiptState) {
+      state[intent.id] = { revision, state: receiptState };
+      pendingWrite = pendingWrite.then(() => writeState(worker.statePath, state));
+      return pendingWrite;
+    } });
+  },
+});
