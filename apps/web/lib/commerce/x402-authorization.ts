@@ -23,6 +23,7 @@ const HashSchema = z.string().regex(/^0x[0-9a-fA-F]{64}$/).transform(
 ).refine((value) => !/^0x0{64}$/.test(value));
 const AtomicSchema = z.string().regex(/^[1-9][0-9]*$/).max(78);
 const TimestampSchema = z.string().regex(/^(0|[1-9][0-9]*)$/).max(20);
+const ChainSchema = z.union([z.literal(196), z.literal(8453)]);
 const SignatureSchema = z.string().regex(/^0x[0-9a-fA-F]{130}$/).transform(
   (value) => value.toLowerCase() as Hex,
 );
@@ -32,8 +33,8 @@ const AuthorizationSchema = z.object({
   validAfter: TimestampSchema, validBefore: TimestampSchema, nonce: HashSchema,
 }).strict();
 const AcceptedSchema = z.object({
-  scheme: z.literal("exact"), network: z.literal("eip155:196"), amount: AtomicSchema,
-  asset: AddressSchema, payTo: AddressSchema, maxTimeoutSeconds: z.number().int().min(1).max(900),
+  scheme: z.literal("exact"), network: z.enum(["eip155:196", "eip155:8453"]), amount: AtomicSchema,
+  asset: AddressSchema, payTo: AddressSchema, maxTimeoutSeconds: z.number().int().min(1).max(3_600),
   extra: z.object({
     assetTransferMethod: z.literal("eip3009"), paymentFlow: z.literal("authorization"),
     name: z.string().min(1).max(128), version: z.string().min(1).max(32),
@@ -41,7 +42,7 @@ const AcceptedSchema = z.object({
 }).strict();
 
 export const X402AuthorizationTemplateV1Schema = z.object({
-  version: z.literal(1), chainId: z.literal(196),
+  version: z.literal(1), chainId: ChainSchema,
   offerCommitment: HashSchema, policyHash: HashSchema, programHash: HashSchema, planHash: HashSchema,
   endpoint: z.url().refine((value) => new URL(value).protocol === "https:"),
   facilitator: z.url().refine((value) => new URL(value).protocol === "https:"),
@@ -51,7 +52,7 @@ export const X402AuthorizationTemplateV1Schema = z.object({
   typedData: z.object({
     domain: z.object({
       name: z.string().min(1).max(128), version: z.string().min(1).max(32),
-      chainId: z.literal(196), verifyingContract: AddressSchema,
+      chainId: ChainSchema, verifyingContract: AddressSchema,
     }).strict(),
     types: z.object({
       TransferWithAuthorization: z.tuple([
@@ -133,15 +134,15 @@ export function prepareX402AuthorizationFromPlanV1(
   const domain = {
     name: plan.token.eip712Name,
     version: plan.token.eip712Version,
-    chainId: 196 as const,
+    chainId: plan.chainId,
     verifyingContract: plan.asset,
   };
   return X402AuthorizationTemplateV1Schema.parse({
-    version: 1, chainId: 196, offerCommitment: plan.offerCommitment,
+    version: 1, chainId: plan.chainId, offerCommitment: plan.offerCommitment,
     policyHash: plan.policyHash, programHash: plan.programHash, planHash: commitment(plan),
     endpoint: plan.endpoint, facilitator: plan.facilitator, resource: { url: plan.endpoint },
     accepted: {
-      scheme: "exact", network: "eip155:196", amount: plan.amount,
+      scheme: "exact", network: `eip155:${plan.chainId}` as "eip155:196" | "eip155:8453", amount: plan.amount,
       asset: plan.asset, payTo: plan.payee, maxTimeoutSeconds: plan.maxTimeoutSec,
       extra: {
         assetTransferMethod: "eip3009", paymentFlow: "authorization",

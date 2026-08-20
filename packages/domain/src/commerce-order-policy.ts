@@ -21,7 +21,7 @@ export const CommerceOrderPolicyV1Schema = z.object({
   displayGoal: z.string().trim().min(1).max(500),
   owner: AddressSchema,
   receiptRecipient: AddressSchema,
-  executionChainId: z.literal(196),
+  executionChainId: z.union([z.literal(196), z.literal(8453)]),
   nonce: HashSchema,
   createdAt: z.number().int().positive().safe(),
   deadline: z.number().int().positive().safe(),

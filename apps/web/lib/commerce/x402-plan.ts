@@ -23,14 +23,15 @@ const HashSchema = z.string().regex(/^0x[0-9a-fA-F]{64}$/).transform(
   (value) => value.toLowerCase() as Hash,
 ).refine((value) => !/^0x0{64}$/.test(value));
 const AtomicSchema = z.string().regex(/^[1-9][0-9]*$/).max(78);
+const ChainSchema = z.union([z.literal(196), z.literal(8453)]);
 
 export const X402AuthorizationPlanV1Schema = z.object({
-  version: z.literal(1), chainId: z.literal(196),
+  version: z.literal(1), chainId: ChainSchema,
   offerCommitment: HashSchema, policyHash: HashSchema, programHash: HashSchema,
   owner: AddressSchema, payee: AddressSchema, asset: AddressSchema, amount: AtomicSchema,
   endpoint: z.url().refine((value) => new URL(value).protocol === "https:"),
   facilitator: z.url().refine((value) => new URL(value).protocol === "https:"),
-  maxTimeoutSec: z.number().int().min(1).max(900),
+  maxTimeoutSec: z.number().int().min(1).max(3_600),
   offerExpiresAt: z.number().int().positive().safe(),
   programDeadline: z.number().int().positive().safe(),
   authorizationNonce: HashSchema,
@@ -72,10 +73,12 @@ export function compileX402AuthorizationPlanV1(raw: {
   invariant(offer.placement.kind === "x402-exact" && offer.evidence.profile === "payment-settled" &&
     policy.evidenceProfile === "payment-settled" && program.parameters.evidenceProfile === "payment-settled",
   "x402 offer placement is unsupported");
-  invariant(offer.payment.chainId === 196 && offer.payment.scheme === "exact" &&
+  invariant(offer.payment.chainId === policy.executionChainId &&
+    offer.payment.chainId === manifest.chainId && offer.payment.scheme === "exact" &&
     isAddressEqual(offer.payment.asset, policy.payment.asset) &&
     BigInt(offer.payment.atomicAmount) <= BigInt(policy.payment.maxAtomic), "x402 payment bound mismatch");
-  invariant(isAddressEqual(offer.evidence.receiptRecipient, policy.receiptRecipient) &&
+  invariant((/^0x0{40}$/.test(offer.evidence.receiptRecipient) ||
+    isAddressEqual(offer.evidence.receiptRecipient, policy.receiptRecipient)) &&
     isAddressEqual(policy.receiptRecipient, policy.owner), "x402 receipt recipient mismatch");
   const entry = manifest.entries.find((candidate) => candidate.merchantId === offer.merchant.id &&
     candidate.productCommitment === offer.product.commitment);
@@ -89,7 +92,7 @@ export function compileX402AuthorizationPlanV1(raw: {
     offerCommitment: offerHash, orderCommitment: program.parameters.orderCommitment,
   }) as Hash;
   return X402AuthorizationPlanV1Schema.parse({
-    version: 1, chainId: 196, offerCommitment: offerHash, policyHash,
+    version: 1, chainId: offer.payment.chainId, offerCommitment: offerHash, policyHash,
     programHash: commerceOrderProgramCommitmentV1(program), owner: policy.owner,
     payee: entry.payee, asset: entry.paymentAsset, amount: entry.exactAtomicAmount,
     endpoint: entry.placement.endpoint, facilitator: entry.placement.facilitator,

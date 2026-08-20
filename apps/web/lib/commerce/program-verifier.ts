@@ -40,7 +40,7 @@ type CompiledCommerceProgramV1 =
 
 function rawChainMismatch(value: unknown, field: string): boolean {
   return Boolean(value && typeof value === "object" && field in value &&
-    (value as Record<string, unknown>)[field] !== 196);
+    ![196, 8453].includes((value as Record<string, unknown>)[field] as number));
 }
 
 function sameReplay(evidence: CommerceProgramEvidenceV1, replay: ReplayResult): boolean {
@@ -93,6 +93,10 @@ export async function verifyCommerceProgramV1(input: {
   if (program.parameters.offerCommitment !== offerHash || policy.offerCommitment !== offerHash) {
     errors.add("OFFER_CHANGED");
   }
+  if (program.chainId !== policy.executionChainId || program.chainId !== evidence.chainId ||
+    program.chainId !== manifest.chainId || program.chainId !== offer.payment.chainId) {
+    errors.add("CHAIN_UNSUPPORTED");
+  }
   if (program.policyHash !== commerceOrderPolicyCommitmentV1(policy) ||
     program.requestId !== policy.requestId || program.nonce !== policy.nonce ||
     program.deadline > policy.deadline || !isAddressEqual(program.owner, policy.owner) ||
@@ -106,7 +110,9 @@ export async function verifyCommerceProgramV1(input: {
     entry.merchantId === offer.merchant.id && entry.productCommitment === offer.product.commitment)?.payee ?? input.wallet)) {
     errors.add("PAYEE_MISMATCH");
   }
-  if (!isAddressEqual(offer.evidence.receiptRecipient, policy.receiptRecipient)) {
+  const listingRecipientUnbound = /^0x0{40}$/.test(offer.evidence.receiptRecipient);
+  if (!listingRecipientUnbound &&
+    !isAddressEqual(offer.evidence.receiptRecipient, policy.receiptRecipient)) {
     errors.add("RECEIPT_RECIPIENT_MISMATCH");
   }
   if (!isAddressEqual(offer.payment.asset, policy.payment.asset) ||

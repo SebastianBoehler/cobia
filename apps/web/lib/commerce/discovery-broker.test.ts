@@ -41,7 +41,7 @@ const source = {
   id: "cdp-x402-bazaar",
   protocol: "x402-bazaar" as const,
   url: bazaarUrl,
-  trustedMerchants: {},
+  trustedResources: {},
 };
 
 describe("commerce discovery broker", () => {
@@ -66,6 +66,26 @@ describe("commerce discovery broker", () => {
       resolvedAddress: publicIp,
       headers: { accept: "application/json", "user-agent": "Cobia-Commerce-Discovery/1" },
     }));
+  });
+
+  it("marks only an exactly pinned resource executable before wallet binding", async () => {
+    const fetcher = vi.fn<CommerceFetchV1>().mockResolvedValue(response(bazaar));
+    const result = await discoverCommerceOffersV1({
+      sources: [{ ...source, trustedResources: {
+        "https://merchant.example/api/coffee": {
+          manifestHash: `0x${"44".repeat(32)}`,
+          merchantDisplayName: "Example Merchant",
+        },
+      } }],
+      dnsResolver: async () => [publicIp], fetcher, nowSec: 2_000_000_000,
+      receiptRecipient: "0x0000000000000000000000000000000000000000",
+    });
+
+    expect(result.sourceErrors).toEqual([]);
+    expect(result.offers[0]).toMatchObject({
+      evidence: { receiptRecipient: "0x0000000000000000000000000000000000000000" },
+      eligibility: { status: "executable" },
+    });
   });
 
   it("never sends cookies, authorization, wallet, or RPC data", async () => {

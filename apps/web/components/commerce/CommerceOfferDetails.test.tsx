@@ -47,4 +47,22 @@ describe("commerce offer details", () => {
     expect(html).toContain("Base · 8453");
     expect(html).not.toContain("X Layer · 196");
   });
+
+  it("offers a bounded purchase intent only for a fresh supported resource", () => {
+    const supported = CommerceOfferV1Schema.parse({
+      ...offer,
+      merchant: { ...offer.merchant, manifestHash: hash("4") },
+      evidence: { ...offer.evidence,
+        receiptRecipient: "0x3333333333333333333333333333333333333333" },
+      eligibility: { status: "executable" },
+    });
+    const html = renderToStaticMarkup(
+      <CommerceOfferDetails offer={supported} observedAtSec={2_000_000_010} />,
+    );
+
+    expect(html).toContain("Cobia-supported");
+    expect(html).toContain("Pinned merchant and product");
+    expect(html).toContain("Verified purchase intent");
+    expect(html).toContain("Review and buy");
+  });
 });

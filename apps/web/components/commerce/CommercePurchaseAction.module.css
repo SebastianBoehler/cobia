@@ -1,0 +1,44 @@
+.purchase {
+  align-items: start;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 20px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  margin-top: 44px;
+  padding-top: 32px;
+}
+
+.purchase h2 {
+  font-size: 18px;
+  margin: 0 0 8px;
+}
+
+.purchase p {
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.resource {
+  background: var(--wash);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font: 12px/1.55 var(--font-mono, monospace);
+  margin: 18px 0 0;
+  max-height: 240px;
+  overflow: auto;
+  padding: 16px;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 720px) {
+  .purchase {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .purchase button {
+    grid-column: 1 / -1;
+    justify-content: center;
+    width: 100%;
+  }
+}

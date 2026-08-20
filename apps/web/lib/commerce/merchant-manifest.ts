@@ -102,7 +102,7 @@ const EntrySchema = z.object({
 
 export const CommerceMerchantManifestV1Schema = z.object({
   version: z.literal(1),
-  chainId: z.literal(196),
+  chainId: z.union([z.literal(196), z.literal(8453)]),
   entries: z.array(EntrySchema).max(64),
   officialSources: z.array(HttpsUrlSchema).max(64),
 }).strict().superRefine((manifest, context) => {

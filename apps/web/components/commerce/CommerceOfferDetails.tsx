@@ -1,5 +1,6 @@
-import type { CommerceOfferV1 } from "@cobia/domain";
+import { commerceOfferCommitmentV1, type CommerceOfferV1 } from "@cobia/domain";
 import styles from "./CommerceOfferDetails.module.css";
+import { CommercePurchaseAction } from "./CommercePurchaseAction";
 import { humanizeIdentifier, networkName, paymentDisplay, productName } from "./offer-display";
 
 function label(value: string) {
@@ -40,10 +41,11 @@ export function CommerceOfferDetails({ offer, observedAtSec }: {
           <div><dt>Profile</dt><dd>{label(offer.evidence.profile)}</dd></div>
           <div><dt>Expires</dt><dd>{new Date(offer.expiresAt * 1_000).toISOString()}</dd></div>
           <div><dt>Source</dt><dd>{new URL(offer.source.url).hostname}</dd></div>
-          <div><dt>Status</dt><dd className={blockedReason ? styles.blocked : undefined}>{blockedReason ?? "Verified merchant"}</dd></div>
+          <div><dt>Status</dt><dd className={blockedReason ? styles.blocked : undefined}>{blockedReason ?? "Pinned merchant and product"}</dd></div>
         </dl>
         <p className={styles.notice}>Payment settled is not proof of delivery. An order is shown as issued only when the configured onchain receipt independently verifies.</p>
       </section>
     </div>
+    {executable ? <CommercePurchaseAction offerCommitment={commerceOfferCommitmentV1(offer)} /> : null}
   </article>;
 }

@@ -81,7 +81,7 @@ describe("CommerceOfferV1", () => {
     expect(parsed.eligibility.status).toBe("discovery-only");
   });
 
-  it("rejects executable non-X-Layer offers and unbound endpoints", () => {
+  it("rejects unsupported executable networks and unpinned endpoints", () => {
     expect(CommerceOfferV1Schema.safeParse({
       ...executableOffer,
       payment: { ...executableOffer.payment, chainId: 1 },
@@ -97,11 +97,11 @@ describe("CommerceOfferV1", () => {
     expect(CommerceOfferV1Schema.safeParse({
       ...executableOffer,
       evidence: { ...executableOffer.evidence, receiptRecipient: address("0") },
-    }).success).toBe(false);
+    }).success).toBe(true);
     expect(CommerceOfferV1Schema.safeParse({
       ...executableOffer,
       payment: { ...executableOffer.payment, maxTimeoutSec: 3_600 },
-    }).success).toBe(false);
+    }).success).toBe(true);
   });
 
   it("rejects missing or contradictory blocked reasons", () => {

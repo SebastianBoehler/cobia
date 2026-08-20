@@ -7,7 +7,7 @@ const HashSchema = z.string().regex(/^0x[0-9a-fA-F]{64}$/).transform(
 
 export const CommerceProgramEvidenceV1Schema = z.object({
   version: z.literal(1),
-  chainId: z.literal(196),
+  chainId: z.union([z.literal(196), z.literal(8453)]),
   blockNumber: z.string().regex(/^[1-9][0-9]*$/),
   blockHash: HashSchema,
   capturedAtSec: z.number().int().positive().safe(),

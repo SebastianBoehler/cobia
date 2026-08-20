@@ -132,7 +132,7 @@ export async function verifyX402SettlementReceiptV1(raw: {
     }
   } catch { errors.add("TARGET_CODE_MISMATCH"); }
   const evidence = errors.size === 0 ? {
-    version: 1 as const, chainId: 196 as const, transactionHash: transaction.hash,
+    version: 1 as const, chainId: plan.chainId, transactionHash: transaction.hash,
     blockNumber: transaction.blockNumber, blockHash: transaction.blockHash,
     planHash: commitment(plan), settlementHash: commitment(settlement),
     receiptHash: commitment(receipt), confirmations: confirmations.toString(),

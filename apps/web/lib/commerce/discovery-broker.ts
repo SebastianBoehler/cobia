@@ -31,7 +31,7 @@ export type CommerceDiscoverySourceV1 = {
   id: string;
   protocol: "x402-bazaar";
   url: string;
-  trustedMerchants: Readonly<Record<string, { manifestHash: Hash }>>;
+  trustedResources: Readonly<Record<string, { manifestHash: Hash; merchantDisplayName: string }>>;
 };
 
 export type CommerceDiscoverySourceErrorV1 = {
@@ -89,7 +89,7 @@ function normalizeBazaar(
   const payload = parseX402BazaarResourcesV2(parseJson(response.body));
   return payload.items.map((item) => {
     const accepted = item.accepts[0]!;
-    const merchant = source.trustedMerchants[accepted.payTo.toLowerCase()];
+    const trusted = source.trustedResources[item.resource];
     const required = {
       x402Version: 2 as const,
       resource: {
@@ -112,11 +112,12 @@ function normalizeBazaar(
       expiresAt: nowSec + Math.min(300, accepted.maxTimeoutSeconds),
       sourceUrl: source.url,
       merchantId: new URL(item.resource).hostname,
-      manifestHash: merchant?.manifestHash ?? ZERO_HASH,
+      manifestHash: trusted?.manifestHash ?? ZERO_HASH,
       productId,
       productCommitment: x402PaymentRequiredCommitmentV1(required),
       receiptRecipient,
-      merchantRegistered: Boolean(merchant),
+      merchantRegistered: Boolean(trusted),
+      ...(trusted ? { merchantDisplayName: trusted.merchantDisplayName } : {}),
     });
   });
 }

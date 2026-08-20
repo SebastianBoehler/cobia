@@ -105,17 +105,14 @@ export const CommerceOfferV1Schema = z.object({
   if (offer.product.tags && !sortedUnique(offer.product.tags)) {
     context.addIssue({ code: "custom", path: ["product", "tags"], message: "Product tags must be sorted and unique" });
   }
-  if (offer.eligibility.status === "executable" && offer.payment.chainId !== 196) {
-    context.addIssue({ code: "custom", path: ["payment", "chainId"], message: "Executable offers require X Layer mainnet" });
+  if (offer.eligibility.status === "executable" && ![196, 8453].includes(offer.payment.chainId)) {
+    context.addIssue({ code: "custom", path: ["payment", "chainId"], message: "Executable offer chain is unsupported" });
   }
-  if (offer.eligibility.status === "executable" && offer.payment.maxTimeoutSec > 900) {
+  if (offer.eligibility.status === "executable" && offer.payment.maxTimeoutSec > 3_600) {
     context.addIssue({ code: "custom", path: ["payment", "maxTimeoutSec"], message: "Executable offer timeout exceeds policy bound" });
   }
   if (offer.eligibility.status === "executable" && /^0x0{64}$/.test(offer.merchant.manifestHash)) {
-    context.addIssue({ code: "custom", path: ["merchant", "manifestHash"], message: "Executable offers require a trusted merchant manifest" });
-  }
-  if (offer.eligibility.status === "executable" && /^0x0{40}$/.test(offer.evidence.receiptRecipient)) {
-    context.addIssue({ code: "custom", path: ["evidence", "receiptRecipient"], message: "Executable offers require a bound receipt recipient" });
+    context.addIssue({ code: "custom", path: ["merchant", "manifestHash"], message: "Executable offers require a supported merchant resource manifest" });
   }
   if (offer.eligibility.status === "executable" && offer.placement.kind === "ucp-checkout") {
     context.addIssue({ code: "custom", path: ["placement"], message: "UCP checkout is discovery only" });

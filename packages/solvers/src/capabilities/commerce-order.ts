@@ -14,7 +14,7 @@ export const CommerceOrderProgramV1Schema = z.object({
   version: z.literal(1),
   kind: z.literal("commerce-order"),
   requestId: z.string().uuid(),
-  chainId: z.literal(196),
+  chainId: z.union([z.literal(196), z.literal(8453)]),
   policyHash: HashSchema,
   manifestHash: HashSchema,
   owner: AddressSchema,

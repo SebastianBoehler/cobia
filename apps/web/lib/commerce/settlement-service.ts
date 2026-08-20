@@ -78,7 +78,7 @@ export async function confirmCommerceSettlementV1(
     if (verification.errorCodes.length === 1 &&
       verification.errorCodes[0] === "PAYMENT_SETTLEMENT_UNCONFIRMED") {
       throw new CommerceSettlementErrorV1(
-        "SETTLEMENT_PENDING", "The X Layer payment is awaiting confirmations", verification.errorCodes,
+        "SETTLEMENT_PENDING", "The x402 payment is awaiting confirmations", verification.errorCodes,
       );
     }
     const rejectionCode = verification.errorCodes[0] ?? "PAYMENT_SETTLEMENT_INVALID";
@@ -87,7 +87,7 @@ export async function confirmCommerceSettlementV1(
       rejectionCode, observedAtSec: eventTime,
     });
     throw new CommerceSettlementErrorV1(
-      "SETTLEMENT_REJECTED", "The X Layer payment failed independent verification", verification.errorCodes,
+      "SETTLEMENT_REJECTED", "The x402 payment failed independent verification", verification.errorCodes,
     );
   }
   const evidenceHash = commitment(verification.evidence) as Hash;

@@ -13,7 +13,7 @@ export type X402PlanReproductionV1 = {
 /**
  * Reproduces the complete pre-signature x402 plan. There is no transaction to
  * execute yet; actual transfer calldata, logs, code and block identity are
- * independently checked after the owner-signed settlement lands on X Layer.
+ * independently checked after the owner-signed settlement lands on its declared chain.
  */
 export function reproduceX402PlanV1(raw: unknown): X402PlanReproductionV1 {
   const plan = X402AuthorizationPlanV1Schema.parse(raw);

@@ -18,7 +18,7 @@ const HashSchema = z.string().regex(/^0x[0-9a-fA-F]{64}$/).transform(
 ).refine((value) => !/^0x0{64}$/.test(value));
 
 export const X402SettlementResponseV2Schema = z.object({
-  success: z.literal(true), transaction: HashSchema, network: z.literal("eip155:196"),
+  success: z.literal(true), transaction: HashSchema, network: z.enum(["eip155:196", "eip155:8453"]),
   payer: AddressSchema, amount: z.string().regex(/^[1-9][0-9]*$/).max(78).optional(),
   extensions: z.record(z.string(), z.unknown()).optional(),
 }).strict();
@@ -75,7 +75,8 @@ export async function executeX402ResourceV1(input: {
     throw new Error("x402 paid resource compression is forbidden");
   }
   const settlement = parseSettlementHeader(response.headers["payment-response"]);
-  if (!isAddressEqual(settlement.payer, expected.authorization.from) ||
+  if (settlement.network !== expected.accepted.network ||
+    !isAddressEqual(settlement.payer, expected.authorization.from) ||
     (settlement.amount !== undefined && settlement.amount !== expected.authorization.value)) {
     throw new Error("x402 settlement evidence does not match the authorization");
   }

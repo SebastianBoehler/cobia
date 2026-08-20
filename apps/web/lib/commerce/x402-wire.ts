@@ -103,6 +103,7 @@ type NormalizeX402Input = {
   productCommitment: Hash;
   receiptRecipient: Address;
   merchantRegistered: boolean;
+  merchantDisplayName?: string;
 };
 
 export function normalizeX402ResourceV1(input: NormalizeX402Input): CommerceOfferV1 {
@@ -113,15 +114,15 @@ export function normalizeX402ResourceV1(input: NormalizeX402Input): CommerceOffe
   const chainId = Number(accepted.network.slice("eip155:".length));
   const transferMethod = accepted.extra?.assetTransferMethod;
   const paymentFlow = accepted.extra?.paymentFlow;
-  const executable = input.merchantRegistered && accepted.scheme === "exact" && chainId === 196 &&
-    accepted.maxTimeoutSeconds <= 900 &&
+  const executable = input.merchantRegistered && accepted.scheme === "exact" && [196, 8453].includes(chainId) &&
+    accepted.maxTimeoutSeconds <= 3_600 &&
     (transferMethod === undefined || transferMethod === "eip3009") &&
     (paymentFlow === undefined || paymentFlow === "authorization");
   const blockedReason = !input.merchantRegistered
     ? "MERCHANT_UNREGISTERED"
-    : chainId !== 196
+    : ![196, 8453].includes(chainId)
     ? "CHAIN_UNSUPPORTED"
-    : accepted.scheme !== "exact" || accepted.maxTimeoutSeconds > 900 || transferMethod === "permit2" ||
+    : accepted.scheme !== "exact" || accepted.maxTimeoutSeconds > 3_600 || transferMethod === "permit2" ||
       (paymentFlow !== undefined && paymentFlow !== "authorization")
       ? "PLACEMENT_UNSUPPORTED"
       : "ASSET_UNSUPPORTED";
@@ -144,7 +145,7 @@ export function normalizeX402ResourceV1(input: NormalizeX402Input): CommerceOffe
     expiresAt: input.expiresAt,
     merchant: {
       id: input.merchantId,
-      displayName: required.resource.serviceName ?? input.merchantId,
+      displayName: input.merchantDisplayName ?? required.resource.serviceName ?? input.merchantId,
       payee: accepted.payTo,
       manifestHash: input.manifestHash,
     },

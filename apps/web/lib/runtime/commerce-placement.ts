@@ -1,4 +1,5 @@
 import { createPublicClient, http, keccak256 } from "viem";
+import { base } from "viem/chains";
 import { xLayer } from "../chain/xlayer";
 import { authorizeCommercePlacementV1 } from "../commerce/authorization-service";
 import { nodeCommerceFetchV1, nodeDnsResolverV1 } from "../commerce/node-commerce-fetch";
@@ -17,13 +18,14 @@ export async function prepareProductionCommercePlacementV1(input: {
   policy: unknown; ownerSignature: unknown; program: unknown; evidence: unknown;
 }) {
   const config = readCommerceRuntimeConfig();
+  const manifest = productionCommerceMerchantManifestV1();
   const client = createPublicClient({
-    chain: xLayer,
-    transport: http(config.XLAYER_RPC_URL, { timeout: 15_000 }),
+    chain: manifest.chainId === 8453 ? base : xLayer,
+    transport: http(manifest.chainId === 8453 ? config.BASE_RPC_URL : config.XLAYER_RPC_URL,
+      { timeout: 15_000 }),
     cacheTime: 0,
   });
-  if (await client.getChainId() !== 196) throw new Error("Commerce RPC is not X Layer mainnet");
-  const manifest = productionCommerceMerchantManifestV1();
+  if (await client.getChainId() !== manifest.chainId) throw new Error("Commerce RPC chain mismatch");
   return prepareCommercePlacementV1(input, {
     nowSec: Math.floor(Date.now() / 1_000),
     executor: config.COBIA_EXECUTOR_V3_ADDRESS,
@@ -67,12 +69,14 @@ export async function confirmProductionCommerceSettlementV1(input: {
   signature: unknown; settlement: unknown;
 }) {
   const config = readCommerceRuntimeConfig();
+  const manifest = productionCommerceMerchantManifestV1();
   const client = createPublicClient({
-    chain: xLayer,
-    transport: http(config.XLAYER_RPC_URL, { timeout: 15_000 }),
+    chain: manifest.chainId === 8453 ? base : xLayer,
+    transport: http(manifest.chainId === 8453 ? config.BASE_RPC_URL : config.XLAYER_RPC_URL,
+      { timeout: 15_000 }),
     cacheTime: 0,
   });
-  if (await client.getChainId() !== 196) throw new Error("Commerce RPC is not X Layer mainnet");
+  if (await client.getChainId() !== manifest.chainId) throw new Error("Commerce RPC chain mismatch");
   return confirmCommerceSettlementV1(input, {
     nowSec: Math.floor(Date.now() / 1_000),
     placements: getCommercePlacementRepository(),
