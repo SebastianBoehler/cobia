@@ -5,8 +5,10 @@ const state = vi.hoisted(() => ({ getActive: vi.fn() }));
 
 vi.mock("@/components/layout/AppHeader", () => ({ AppHeader: () => null }));
 vi.mock("@/components/intents/IntentComposer", () => ({
-  IntentComposer: ({ initialDraft }: { initialDraft?: { goal: string } }) => (
-    <div>Intent composer{initialDraft ? `: ${initialDraft.goal}` : ""}</div>
+  IntentComposer: ({ initialDraft, initialGoal }: {
+    initialDraft?: { goal: string }; initialGoal?: string;
+  }) => (
+    <div>Intent composer{initialDraft ? `: ${initialDraft.goal}` : initialGoal ? `: ${initialGoal}` : ""}</div>
   ),
 }));
 vi.mock("../../../lib/runtime/market", () => ({
@@ -44,5 +46,12 @@ describe("new intent page", () => {
 
     expect(state.getActive).toHaveBeenCalledWith("bounded-usdg-aave-supply");
     expect(html).toContain("Intent composer: Supply 10 USDG with a bounded receipt-token floor.");
+  });
+
+  it("carries a landing-page prompt into the general composer", async () => {
+    const page = await NewIntentPage({
+      searchParams: Promise.resolve({ goal: "Swap 10 @USDG into @USDt0" }),
+    });
+    expect(renderToStaticMarkup(page)).toContain("Intent composer: Swap 10 @USDG into @USDt0");
   });
 });

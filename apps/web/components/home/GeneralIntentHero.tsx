@@ -1,13 +1,7 @@
-import { ArrowRight, CheckCircle2, Clock3, FileCheck2 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { LandingPromptBar } from "./LandingPromptBar";
 import { RotatingIntentPrompt } from "./RotatingIntentPrompt";
-
-const receipt = [
-  ["Network", "X Layer"],
-  ["Competition", "5 minutes"],
-  ["Signer", "Your wallet"],
-  ["Execution", "Exact verified calls"],
-] as const;
 
 export function GeneralIntentHero() {
   return (
@@ -29,18 +23,9 @@ export function GeneralIntentHero() {
         </p>
       </div>
 
-      <article className="intent-composer-preview" aria-label="Intent policy preview">
+      <article className="intent-composer-preview" aria-label="Try an intent prompt">
         <RotatingIntentPrompt />
-        <div className="intent-composer-preview__receipt">
-          <header>
-            <span><FileCheck2 aria-hidden="true" size={18} /> Policy receipt</span>
-            <strong><CheckCircle2 aria-hidden="true" size={15} /> Review before signing</strong>
-          </header>
-          <dl>
-            {receipt.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
-          </dl>
-        </div>
-        <footer><Clock3 aria-hidden="true" size={15} /> Example only · no quote or authorization</footer>
+        <LandingPromptBar />
       </article>
     </section>
   );

@@ -18,10 +18,15 @@ describe("home conversion path", () => {
     expect(createIndex).toBeGreaterThan(-1);
     expect(exploreIndex).toBeGreaterThan(createIndex);
     expect(html).toContain('href="/intents/new"');
+    expect(html).toContain('action="/intents/new"');
+    expect(html).toContain('name="goal"');
+    expect(html).toContain("@USDG");
+    expect(html).toContain("@Aave");
     expect(html).toContain("What should happen onchain?");
     expect(html).toContain("Solvers may submit, revise, or abstain");
     expect(html).not.toContain("home-eyebrow");
     expect(html).not.toMatch(/Earn|Swap|Profit/);
+    expect(html).not.toContain("Policy receipt");
   });
 
   it("keeps solver creativity separate from verification and wallet approval", async () => {

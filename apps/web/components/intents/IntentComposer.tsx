@@ -27,10 +27,13 @@ function errorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : "The intent could not be published.";
 }
 
-export function IntentComposer({ initialDraft }: { initialDraft?: IntentComposerDraft }) {
+export function IntentComposer({ initialDraft, initialGoal = "" }: {
+  initialDraft?: IntentComposerDraft;
+  initialGoal?: string;
+}) {
   const wallet = useWallet();
   const router = useRouter();
-  const [goal, setGoal] = useState(initialDraft?.goal ?? "");
+  const [goal, setGoal] = useState(initialDraft?.goal ?? initialGoal);
   const [values, setValues] = useState<ReceiptValues>(
     initialDraft?.values ?? DEFAULT_INTENT_RECEIPT_VALUES,
   );

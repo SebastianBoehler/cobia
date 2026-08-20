@@ -7,6 +7,7 @@ import { CobiaLogo } from "../brand/CobiaLogo";
 import { WalletButton } from "../wallet/WalletButton";
 import { useWallet } from "../wallet/WalletProvider";
 import { ThemeToggle } from "./ThemeToggle";
+import { PublicLaunchBanner } from "./PublicLaunchBanner";
 
 const navigation = [
   { href: "/intents/new", icon: CirclePlus, label: "Intent", prefixes: ["/intents", "/programs"] },
@@ -57,6 +58,7 @@ export function AppHeader() {
           <WalletButton />
         </div>
       </header>
+      {wallet.targetChainId === 196 ? <PublicLaunchBanner /> : null}
     </>
   );
 }

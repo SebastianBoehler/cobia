@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { readStatus } = vi.hoisted(() => ({ readStatus: vi.fn() }));
+const { readMainnetStatus, readTestnetStatus } = vi.hoisted(() => ({
+  readMainnetStatus: vi.fn(), readTestnetStatus: vi.fn(),
+}));
 vi.mock("../../../../lib/network/read-testnet-status", () => ({
-  readTestnetDeploymentStatus: readStatus,
+  readTestnetDeploymentStatus: readTestnetStatus,
+}));
+vi.mock("../../../../lib/network/read-mainnet-access-status", () => ({
+  readMainnetAccessStatus: readMainnetStatus,
 }));
 
 import { GET } from "./route";
@@ -11,17 +16,23 @@ beforeEach(() => vi.clearAllMocks());
 
 describe("network status route", () => {
   it("reads the live deployment only for the exact testnet host", async () => {
-    readStatus.mockResolvedValueOnce({ chainId: 1952, state: "paused" });
+    readTestnetStatus.mockResolvedValueOnce({ chainId: 1952, state: "paused" });
     const response = await GET(new Request("https://testnet.getcobia.com/api/network/status"));
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ chainId: 1952, state: "paused" });
-    expect(readStatus).toHaveBeenCalledOnce();
+    expect(readTestnetStatus).toHaveBeenCalledOnce();
+    expect(readMainnetStatus).not.toHaveBeenCalled();
   });
 
-  it("does not expose the rehearsal status through the mainnet host", async () => {
+  it("exposes the public execution countdown through the mainnet host", async () => {
+    readMainnetStatus.mockResolvedValueOnce({
+      chainId: 196, state: "scheduled", activationAt: 1_787_440_661,
+    });
     const response = await GET(new Request("https://getcobia.com/api/network/status"));
-    expect(response.status).toBe(404);
-    expect(readStatus).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ state: "scheduled", activationAt: 1_787_440_661 });
+    expect(readMainnetStatus).toHaveBeenCalledOnce();
+    expect(readTestnetStatus).not.toHaveBeenCalled();
   });
 });

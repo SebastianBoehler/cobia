@@ -13,14 +13,17 @@ export const metadata = createPageMetadata({
 });
 
 export default async function NewIntentPage({ searchParams }: {
-  searchParams: Promise<{ challenge?: string | string[] }>;
+  searchParams: Promise<{ challenge?: string | string[]; goal?: string | string[] }>;
 }) {
-  const challengeId = (await searchParams).challenge;
+  const query = await searchParams;
+  const challengeId = query.challenge;
   const challenge = typeof challengeId === "string"
     ? await getChallengeRepository().getActive(challengeId)
     : null;
   if (challengeId !== undefined && !challenge) notFound();
   const initialDraft = challenge ? challengeToIntentDraft(challenge) : undefined;
+  const initialGoal = !initialDraft && typeof query.goal === "string"
+    ? query.goal.trim().slice(0, 500) : undefined;
   return (
     <>
       <AppHeader />
@@ -29,7 +32,7 @@ export default async function NewIntentPage({ searchParams }: {
           <h1>Describe the outcome.</h1>
           <p>Start with the goal. Cobia turns it into explicit limits for you to review before anything is signed.</p>
         </header>
-        <IntentComposer initialDraft={initialDraft} />
+        <IntentComposer initialDraft={initialDraft} initialGoal={initialGoal} />
       </main>
     </>
   );

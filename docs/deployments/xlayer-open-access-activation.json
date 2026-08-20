@@ -1,0 +1,20 @@
+{
+  "version": "1.0",
+  "chainId": "196",
+  "createdAt": 1787267907655,
+  "meta": {
+    "name": "Cobia public open-access activation",
+    "description": "Activates public wallet access after the 48-hour risk-manager timelock has matured.",
+    "txBuilderVersion": "2.1.0",
+    "createdFromSafeAddress": "0x08eea990F0b165A20d723e59517044a519C83351",
+    "createdFromOwnerAddress": "",
+    "checksum": "0x24e7cb003d63812db7363e517bb38c69e49ff8dd1cbfaa31f9c229a200afd3c9"
+  },
+  "transactions": [
+    {
+      "to": "0xc69A1Fb1DD8AeECfbc557e4fc6a03E5a95201ded",
+      "value": "0",
+      "data": "0xcd7cf55c"
+    }
+  ]
+}

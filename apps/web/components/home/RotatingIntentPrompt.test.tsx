@@ -17,12 +17,13 @@ beforeEach(() => {
 describe("RotatingIntentPrompt", () => {
   it("rotates complete labelled prompts instead of changing isolated words", () => {
     render(<RotatingIntentPrompt />);
-    expect(screen.getByText(/Move 10 USDG/)).toBeVisible();
+    expect(screen.getByText(/Move 10/)).toBeVisible();
+    expect(screen.getByText("@USDG")).toBeVisible();
     expect(screen.queryByText("Supported")).not.toBeInTheDocument();
 
     act(() => vi.advanceTimersByTime(4_500));
 
-    expect(screen.getByText(/Buy a listed resource/)).toBeVisible();
+    expect(screen.getByText(/Buy a listed service/)).toBeVisible();
     expect(screen.queryByText("Supported when listed")).not.toBeInTheDocument();
   });
 
@@ -34,7 +35,7 @@ describe("RotatingIntentPrompt", () => {
 
     act(() => vi.advanceTimersByTime(9_000));
 
-    expect(screen.getByText(/Move 10 USDG/)).toBeVisible();
+    expect(screen.getByText(/Move 10/)).toBeVisible();
   });
 
   it("lets the user stop and resume automatic changes", () => {
@@ -42,10 +43,10 @@ describe("RotatingIntentPrompt", () => {
     act(() => screen.getByRole("button", { name: "Pause examples" }).click());
 
     act(() => vi.advanceTimersByTime(9_000));
-    expect(screen.getByText(/Move 10 USDG/)).toBeVisible();
+    expect(screen.getByText(/Move 10/)).toBeVisible();
 
     act(() => screen.getByRole("button", { name: "Play examples" }).click());
     act(() => vi.advanceTimersByTime(4_500));
-    expect(screen.getByText(/Buy a listed resource/)).toBeVisible();
+    expect(screen.getByText(/Buy a listed service/)).toBeVisible();
   });
 });

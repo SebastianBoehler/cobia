@@ -4,11 +4,16 @@ import { useEffect, useState } from "react";
 import { Pause, Play } from "lucide-react";
 
 const prompts = [
-  "Move 10 USDG into the best verified position while keeping at least 10.04 USDt0.",
-  "Buy a listed resource with an x402 payment capped at 50 USDt0.",
-  "Use another protocol only if its exact calls reproduce and satisfy my balance floor.",
-  "Pay this subscription monthly, but stop before total spend exceeds 120 USDt0.",
+  "Move 10 @USDG into the best verified position while keeping at least 10.04 @USDt0 on @XLayer.",
+  "Buy a listed service with an x402 payment capped at 50 @USDt0.",
+  "Use @Uniswap only if its exact calls reproduce and satisfy my balance floor.",
+  "Pay this subscription monthly on @XLayer, but stop before total spend exceeds 120 @USDt0.",
 ] as const;
+
+function tagged(prompt: string) {
+  return prompt.split(/(@[A-Za-z0-9]+)/g).map((part, index) => part.startsWith("@")
+    ? <strong key={`${part}-${index}`}>{part}</strong> : part);
+}
 
 export function RotatingIntentPrompt() {
   const [active, setActive] = useState(0);
@@ -33,7 +38,7 @@ export function RotatingIntentPrompt() {
     >
       <div className="rotating-prompt__content" key={prompt}>
         <div className="rotating-prompt__label"><span>Describe your goal</span></div>
-        <p>{prompt}</p>
+        <p>{tagged(prompt)}</p>
       </div>
       <div className="rotating-prompt__controls" aria-label="Example intents" role="group">
         <div className="rotating-prompt__pages">
