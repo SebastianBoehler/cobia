@@ -1,4 +1,4 @@
-import { ArrowRight, Clock3, History, ShieldCheck } from "lucide-react";
+import { ArrowRight, CircleDot, Clock3, History, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
 export interface CompetitionSubmission {
@@ -32,23 +32,39 @@ function SubmissionRow({ item, current }: { item: CompetitionSubmission; current
   </article>;
 }
 
-export function IntentCompetitionView({ goal, closesAt, current, history }: {
+export function IntentCompetitionView({ goal, closesAt, observedAtSec, current, history }: {
   goal: string;
   closesAt: string;
+  observedAtSec: number;
   current: CompetitionSubmission[];
   history: CompetitionSubmission[];
 }) {
+  const live = Date.parse(closesAt) > observedAtSec * 1_000;
+  const emptyTitle = live ? "Waiting for solver submissions" : "Closed without a verified program";
   return <div className="intent-competition">
     <section className="intent-competition__summary">
       <ShieldCheck aria-hidden="true" size={24} />
-      <div><h1>{goal}</h1><p>Solvers may abstain or publish improved revisions until the competition closes. Only independently verified, still-fresh programs can execute.</p></div>
-      <div className="intent-competition__deadline"><Clock3 aria-hidden="true" size={15} /><span>Closes</span><strong>{new Date(closesAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" })} UTC</strong></div>
+      <div>
+        <span className={`intent-competition__status ${live ? "intent-competition__status--live" : ""}`}>
+          <CircleDot aria-hidden="true" size={14} />{live ? "Live · accepting proposals" : "Competition closed"}
+        </span>
+        <h1>{goal}</h1>
+        <p>{live
+          ? "Independent solvers are working from the signed policy and may publish improved revisions until the deadline."
+          : "The proposal window has ended. Any submitted revisions remain available as auditable evidence below."}</p>
+      </div>
+      <div className="intent-competition__deadline"><Clock3 aria-hidden="true" size={15} /><span>{live ? "Proposal deadline" : "Closed"}</span><strong>{new Date(closesAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" })} UTC</strong></div>
     </section>
 
     <section aria-labelledby="current-programs">
       <header className="section-heading"><div><h2 id="current-programs">Current programs</h2><p>Newest live revision from each solver, ranked by verifier-owned objective evidence.</p></div><span>{current.length}</span></header>
       {current.length ? <div className="competition-list">{current.map((item) => <SubmissionRow current item={item} key={item.id} />)}</div>
-        : <p className="empty-state">No solver has submitted a currently valid program. Abstention is allowed.</p>}
+        : <div className={`competition-waiting ${live ? "competition-waiting--live" : ""}`} role="status">
+          <CircleDot aria-hidden="true" size={20} />
+          <div><strong>{emptyTitle}</strong><p>{live
+            ? "New solver jobs can still be submitted before the deadline. This page will show independently verified programs as they arrive."
+            : "No independently verified solver program arrived before this competition closed."}</p></div>
+        </div>}
     </section>
 
     <section aria-labelledby="revision-history">

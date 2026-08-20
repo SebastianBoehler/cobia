@@ -61,7 +61,7 @@ export function CommerceOffers({ offers, observedAtSec, sourceErrors = [] }: {
   const moreOffers = supportedOffers.slice(6);
   return <div className="commerce-offers-shell">
     {supportedOffers.length ? <>
-      <div className="commerce-offers">
+      <div className="commerce-offers commerce-offers--supported">
         {visibleOffers.map((offer) => <CommerceOfferCard
           key={commerceOfferCommitmentV1(offer)} offer={offer} observedAtSec={observedAtSec}
         />)}

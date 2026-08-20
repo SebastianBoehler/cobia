@@ -22,6 +22,7 @@ describe("DiscoverView", () => {
     expect(html).toContain("Between rounds");
     expect(html).toContain("Custom intents");
     expect(html).toContain("Past discoveries");
+    expect(html.indexOf("</aside>")).toBeLessThan(html.indexOf("Paid resources"));
     expect(html).toContain("Expired");
     expect(html).not.toContain("Execute");
     expect(html).toContain('href="/intents/new?challenge=stable-outcome"');

@@ -62,11 +62,12 @@ export function DiscoverView({
           </Link>)}</div> : <p className="empty-state">Verified solver history will appear here after a program resolves.</p>}
         </section>
 
-        <section aria-labelledby="commerce-title">
-          <header><div><h2 id="commerce-title">Paid resources</h2><p>Cobia-supported resources appear first; external x402 entries are compact and details-only.</p></div><ShoppingBag aria-hidden="true" size={22} /></header>
-          <CommerceOffers offers={commerceOffers} observedAtSec={observedAtSec} sourceErrors={commerceSourceErrors} />
-        </section>
       </aside>
+
+      <section aria-labelledby="commerce-title" className="discover-view__commerce">
+        <header><div><h2 id="commerce-title">Paid resources</h2><p>Review supported services across the full marketplace. Verified purchases lead; external x402 listings remain details-only.</p></div><ShoppingBag aria-hidden="true" size={22} /></header>
+        <CommerceOffers offers={commerceOffers} observedAtSec={observedAtSec} sourceErrors={commerceSourceErrors} />
+      </section>
     </div>
   );
 }

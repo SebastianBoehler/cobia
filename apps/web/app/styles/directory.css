@@ -5,6 +5,7 @@
 .directory-page--discover { max-width: 1540px; }
 .discover-view { align-items: start; display: grid; gap: 24px; grid-template-columns: minmax(0, 1.65fr) minmax(360px, .75fr); }
 .discover-view > section, .discover-view__rail > section { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 24px; }
+.discover-view__commerce { grid-column: 1 / -1; min-width: 0; }
 .discover-view__rail { display: grid; gap: 18px; }
 .discover-view section > header { align-items: start; display: flex; justify-content: space-between; margin-bottom: 20px; }
 .discover-view section > header svg { color: var(--muted); }
@@ -27,8 +28,9 @@
 .supported-protocols small { color: var(--muted); font-size: 12px; }
 .discover-view__rail .discover-list article { align-items: flex-start; flex-direction: column; gap: 14px; min-height: auto; padding: 18px; }
 .discover-view__rail .discover-list h3 { margin-top: 12px; }
-.discover-view__rail .commerce-offers { grid-template-columns: 1fr; }
 .commerce-offers { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.discover-view__commerce .commerce-offers { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.discover-view__commerce .commerce-offers--supported { grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 520px)); }
 .commerce-offers article { background: var(--wash); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
 .commerce-offers__heading { align-items: center; color: var(--muted); display: flex; font-size: 12px; justify-content: space-between; }
 .commerce-offers h3 { font: 16px var(--font-geist-mono), monospace; margin: 16px 0 6px; overflow-wrap: anywhere; }
@@ -42,6 +44,7 @@
 .commerce-offers__more { margin-top: 14px; }
 .commerce-offers__more summary { border: 1px solid var(--line); border-radius: 12px; color: var(--ink); cursor: pointer; font-size: 13px; font-weight: 640; list-style-position: inside; padding: 13px 15px; }
 .commerce-offers--more { margin-top: 12px; }
+.commerce-offers-shell, .commerce-offers__external { min-width: 0; }
 .commerce-offers__external { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 18px; }
 .commerce-offers__external > header { display: grid !important; gap: 5px; margin-bottom: 12px !important; }
 .commerce-offers__external > header h3 { font-size: 14px; margin: 0; }
@@ -73,8 +76,10 @@
 .intent-competition { display: grid; gap: 64px; }
 .intent-competition__summary { align-items: start; display: grid; gap: 24px; grid-template-columns: 48px minmax(0, 1fr) 190px; }
 .intent-competition__summary > svg { background: var(--cobalt-wash); border-radius: 14px; color: var(--cobalt); height: 48px; padding: 12px; width: 48px; }
-.intent-competition__summary h1 { font-size: clamp(36px, 5vw, 62px); letter-spacing: -.065em; line-height: 1; margin: 0; text-wrap: balance; }
+.intent-competition__summary h1 { font-size: clamp(36px, 5vw, 62px); letter-spacing: -.065em; line-height: 1; margin: 16px 0 0; text-wrap: balance; }
 .intent-competition__summary p { color: var(--muted); font-size: 14px; line-height: 1.65; margin: 22px 0 0; max-width: 700px; }
+.intent-competition__status { align-items: center; color: var(--muted); display: inline-flex; font-size: 12px; font-weight: 650; gap: 7px; }
+.intent-competition__status--live { color: var(--verified); }
 .intent-competition__deadline { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; display: grid; gap: 7px; grid-template-columns: 18px 1fr; padding: 16px; }
 .intent-competition__deadline svg { color: var(--muted); }
 .intent-competition__deadline span { color: var(--muted); font-size: 10px; }
@@ -93,6 +98,11 @@
 .competition-row__result strong { font: 12px var(--font-geist-mono), monospace; }
 .competition-row > a { align-items: center; color: var(--cobalt-dark); display: inline-flex; font-size: 12px; font-weight: 650; gap: 7px; }
 .competition-list--history .competition-row { opacity: .74; }
+.competition-waiting { align-items: start; background: var(--wash); border: 1px solid var(--line); border-radius: 18px; color: var(--muted); display: grid; gap: 14px; grid-template-columns: 22px minmax(0, 1fr); padding: 22px 24px; }
+.competition-waiting--live { background: var(--cobalt-wash); border-color: color-mix(in srgb, var(--cobalt) 24%, transparent); color: var(--cobalt-dark); }
+.competition-waiting svg { margin-top: 2px; }
+.competition-waiting strong { color: var(--ink); font-size: 16px; }
+.competition-waiting p { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 7px 0 0; }
 .solver-profile { display: grid; gap: 58px; }
 .solver-profile__hero { align-items: start; display: grid; gap: 20px; grid-template-columns: 54px 1fr; max-width: 850px; }
 .solver-profile__hero > svg { background: var(--cobalt-wash); border-radius: 15px; color: var(--cobalt); height: 54px; padding: 14px; width: 54px; }
@@ -161,7 +171,8 @@
 @media (max-width: 1100px) {
   .discover-view { grid-template-columns: 1fr; }
   .discover-view__rail { grid-template-columns: 1fr 1fr; }
-  .discover-view__rail section:first-child { grid-column: 1 / -1; }
+  .discover-view__commerce .commerce-offers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .discover-view__commerce .commerce-offers--supported { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
 }
 
 @media (max-width: 720px) {
@@ -169,6 +180,8 @@
   .directory-page__header h1 { font-size: 48px; }
   .directory-page__header p { font-size: 16px; }
   .discover-view > section, .discover-view__rail > section { border-radius: 18px; padding: 18px; }
+  .discover-view__commerce .commerce-offers { grid-template-columns: 1fr; }
+  .discover-view__commerce .commerce-offers__external .commerce-offers { grid-auto-columns: minmax(280px, calc(100% - 24px)); grid-auto-flow: column; grid-template-columns: none; max-width: 100%; min-width: 0; overflow-x: auto; overscroll-behavior-inline: contain; padding-bottom: 6px; scroll-snap-type: inline mandatory; width: 100%; }
+  .commerce-offers__external .commerce-offers article { scroll-snap-align: start; }
   .discover-view__rail { grid-template-columns: 1fr; }
-  .discover-view__rail section:first-child { grid-column: auto; }
 }

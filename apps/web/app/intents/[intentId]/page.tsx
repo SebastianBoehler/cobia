@@ -16,7 +16,8 @@ export default async function IntentCompetitionPage({ params }: PageProps<"/inte
   const { intentId } = await params;
   const intent = await getIntentRepository().get(intentId);
   if (!intent) notFound();
-  const rows = await getSolverSubmissionRepository().listForIntent(intentId, currentUnixSeconds());
+  const observedAtSec = currentUnixSeconds();
+  const rows = await getSolverSubmissionRepository().listForIntent(intentId, observedAtSec);
   const map = (item: (typeof rows.current)[number]) => ({
     id: item.id, solverId: item.solverId, revision: item.revision,
     state: item.presentationState, validUntil: item.validUntil.toISOString(),
@@ -28,6 +29,7 @@ export default async function IntentCompetitionPage({ params }: PageProps<"/inte
       <IntentCompetitionView
         goal={intent.displayGoal}
         closesAt={intent.competitionClosesAt.toISOString()}
+        observedAtSec={observedAtSec}
         current={rows.current.map(map)}
         history={rows.history.map(map)}
       />
