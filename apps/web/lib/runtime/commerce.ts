@@ -15,8 +15,13 @@ export async function refreshCommerceDiscoveryV1(input: { nowSec: number; limit:
     receiptRecipient: ZERO_ADDRESS,
   });
   await Promise.all(discovered.offers.map((offer) => repository.store(offer)));
+  const offers = [...discovered.offers].sort((left, right) => {
+    const leftRank = left.eligibility.status === "executable" ? 0 : 1;
+    const rightRank = right.eligibility.status === "executable" ? 0 : 1;
+    return leftRank - rightRank || left.offerId.localeCompare(right.offerId);
+  }).slice(0, input.limit);
   return {
-    offers: await repository.listCurrent(input.nowSec, input.limit),
+    offers,
     sourceErrors: discovered.sourceErrors,
   };
 }
