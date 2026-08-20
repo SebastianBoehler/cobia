@@ -10,6 +10,7 @@ services:
       CODEX_HOME: /auth/codex
     volumes:
       - codex-auth:/auth/codex
+      - ./codex/config.toml:/auth/codex/config.toml:ro
       - solver-state:/var/lib/cobia-solver
 
 volumes:

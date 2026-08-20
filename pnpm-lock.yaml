@@ -150,12 +150,18 @@ importers:
       '@foundry-rs/anvil':
         specifier: 1.7.1
         version: 1.7.1
+      '@modelcontextprotocol/server':
+        specifier: 2.0.0
+        version: 2.0.0
       '@openai/codex':
         specifier: 0.148.0
         version: 0.148.0
       '@openai/codex-sdk':
         specifier: ^0.148.0
         version: 0.148.0
+      smol-toml:
+        specifier: 1.4.2
+        version: 1.4.2
       viem:
         specifier: 2.55.11
         version: 2.55.11(typescript@6.0.3)(zod@4.4.3)
@@ -4642,6 +4648,10 @@ packages:
   signal-exit@4.1.0:
     resolution: {integrity: sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw==}
     engines: {node: '>=14'}
+
+  smol-toml@1.4.2:
+    resolution: {integrity: sha512-rInDH6lCNiEyn3+hH8KVGFdbjc099j47+OSgbMrfDYX1CmXLfdKd7qi6IfcWj2wFxvSVkuI46M+wPGYfEOEj6g==}
+    engines: {node: '>= 18'}
 
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
@@ -9894,6 +9904,8 @@ snapshots:
   signal-exit@3.0.7: {}
 
   signal-exit@4.1.0: {}
+
+  smol-toml@1.4.2: {}
 
   source-map-js@1.2.1: {}
 

@@ -1,0 +1,23 @@
+# Solver-owned Codex choices. The host still enforces the signing boundary,
+# disables arbitrary shell execution, and binds the route MCP to one intent.
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
+web_search = "live"
+include_apps_instructions = false
+
+[features]
+apps = false
+skill_mcp_dependency_install = false
+
+# Non-secret worker and spend controls. Docker supplies only credentials and RPCs.
+[cobia]
+exchange_url = "https://getcobia.com"
+solver_id = "cobia-reference"
+display_name = "Cobia Reference Solver"
+poll_interval_ms = 1000
+job_root = "/var/lib/cobia-solver/jobs"
+state_file = "/var/lib/cobia-solver/state.json"
+max_parallel_jobs = 2
+max_attempts_per_intent = 2
+retry_base_ms = 30000
+turn_timeout_ms = 240000

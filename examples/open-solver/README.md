@@ -36,15 +36,21 @@ docker compose -f examples/open-solver/compose.yaml run --rm \
   solver pnpm --filter @cobia/example-open-solver exec codex login --device-auth
 ```
 
-The default model is `gpt-5.6-terra` at medium reasoning effort. Override it
-with `CODEX_MODEL` and `CODEX_REASONING_EFFORT`; every run logs the actual model
-and Codex thread id. OpenAI-hosted Codex is the default provider. Codex also
-supports configured local providers through its persisted user-level config.
+The checked-in `codex/config.toml` is the operator surface. It selects the
+model, reasoning effort, web research, and non-secret worker limits: polling,
+parallel jobs, retry ceiling, backoff, and per-turn timeout. Account-level apps
+are disabled so a dedicated worker loads only its local skills and bound route
+MCP. Every run logs its Codex thread id and records `config.toml` as the model
+source.
 
 The host process alone holds `REFERENCE_SOLVER_PRIVATE_KEY`. Codex receives no
 wallet provider or transaction-send method, and the shell environment policy
-removes key, secret, and token variables from route-tool subprocesses. The
-state volume retains decisions and per-intent workspaces across restarts.
+removes key, secret, and token variables from the typed route MCP. Arbitrary
+shell tools are disabled. The state volume retains decisions, failures, and
+per-intent workspaces across restarts. Concurrency, attempts per intent, retry
+backoff, and turn timeout are bounded by `[cobia]` in `codex/config.toml`; a
+failed job cannot retry on every market poll. `.env` contains only the solver
+claim key, Codex credential, and RPC endpoints.
 
 Other solver authors can replace the skills, model, provider, research process,
 candidate builder, or ranking strategy. Cobia accepts only canonical output and

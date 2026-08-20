@@ -1,11 +1,11 @@
 import {
   Codex,
-  type ModelReasoningEffort,
   type ThreadEvent,
   type ThreadOptions,
 } from "@openai/codex-sdk";
 import { SolverDecisionV1Schema, type SolverDecisionV1 } from "@cobia/solver-sdk";
 import { writeFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import type { CodexJob } from "./codex-job";
 import { publicCodexEvent, type SolverCodexEvent } from "./codex-events";
@@ -20,9 +20,12 @@ export interface SolverCodexLike {
   startThread(options: ThreadOptions): CodexThreadLike;
 }
 
-const outputSchema = z.toJSONSchema(SolverDecisionV1Schema, {
+const CodexDecisionEnvelopeSchema = z.object({
+  decisionJson: z.string().min(2),
+}).strict();
+
+const outputSchema = z.toJSONSchema(CodexDecisionEnvelopeSchema, {
   io: "input",
-  unrepresentable: "any",
 });
 
 function runtimeEnvironment() {
@@ -37,31 +40,60 @@ function runtimeEnvironment() {
   return result;
 }
 
-export function createSolverCodex(): SolverCodexLike {
+function routeEnvironment() {
+  return Object.fromEntries([
+    "XLAYER_RPC_URL", "ETHEREUM_RPC_URL", "COBIA_EXECUTOR_V3_ADDRESS", "ANVIL_PORT",
+  ].flatMap((name) => process.env[name] ? [[name, process.env[name]!]] : []));
+}
+
+export function solverCodexConfig(job: CodexJob) {
+  const repositoryRoot = fileURLToPath(new URL("../../..", import.meta.url));
+  return {
+    features: { shell_tool: false, unified_exec: false, skill_mcp_dependency_install: false },
+    agents: { enabled: false },
+    mcp_servers: {
+      cobia_route: {
+        command: process.execPath,
+        args: ["--import", "tsx", fileURLToPath(new URL("./route-mcp-server.ts", import.meta.url)),
+          "--intent", job.intentPath],
+        cwd: repositoryRoot,
+        env: routeEnvironment(),
+        enabled_tools: ["capabilities", "solve", "exact_call"],
+        default_tools_approval_mode: "approve",
+        required: true,
+        startup_timeout_sec: 20,
+        tool_timeout_sec: 180,
+      },
+    },
+    shell_environment_policy: {
+      inherit: "core",
+      ignore_default_excludes: false,
+      filters: {
+        "*KEY*": "exclude",
+        "*SECRET*": "exclude",
+        "*TOKEN*": "exclude",
+        "REFERENCE_SOLVER_PRIVATE_KEY": "exclude",
+      },
+    },
+  };
+}
+
+export function createSolverCodex(job: CodexJob): SolverCodexLike {
   return new Codex({
     ...(process.env.OPENAI_API_KEY ? { apiKey: process.env.OPENAI_API_KEY } : {}),
     env: runtimeEnvironment(),
-    config: {
-      features: { skill_mcp_dependency_install: false },
-      shell_environment_policy: {
-        inherit: "core",
-        ignore_default_excludes: false,
-        filters: {
-          "*KEY*": "exclude",
-          "*SECRET*": "exclude",
-          "*TOKEN*": "exclude",
-          "REFERENCE_SOLVER_PRIVATE_KEY": "exclude",
-        },
-      },
-    },
+    config: solverCodexConfig(job),
   });
 }
 
 function parseDecision(text: string | undefined): SolverDecisionV1 {
   if (!text) throw new Error("Codex did not return a solver decision");
+  let envelope: z.infer<typeof CodexDecisionEnvelopeSchema>;
+  try { envelope = CodexDecisionEnvelopeSchema.parse(JSON.parse(text)); }
+  catch (error) { throw new Error("Codex did not return a valid decision envelope", { cause: error }); }
   let value: unknown;
-  try { value = JSON.parse(text); }
-  catch (error) { throw new Error("Codex did not return valid decision JSON", { cause: error }); }
+  try { value = JSON.parse(envelope.decisionJson); }
+  catch (error) { throw new Error("Codex envelope did not contain valid decision JSON", { cause: error }); }
   const parsed = SolverDecisionV1Schema.safeParse(value);
   if (!parsed.success) throw new Error(`Codex solver decision is invalid: ${parsed.error.message}`);
   return parsed.data;
@@ -69,8 +101,6 @@ function parseDecision(text: string | undefined): SolverDecisionV1 {
 
 export async function runCodexSolver(input: {
   job: CodexJob;
-  model: string;
-  reasoningEffort: ModelReasoningEffort;
   timeoutMs: number;
   codex?: SolverCodexLike;
   emit(event: SolverCodexEvent): void;
@@ -78,16 +108,13 @@ export async function runCodexSolver(input: {
   if (!Number.isSafeInteger(input.timeoutMs) || input.timeoutMs <= 0) {
     throw new Error("Codex solver timeout must be a positive integer");
   }
-  const codex = input.codex ?? createSolverCodex();
+  const codex = input.codex ?? createSolverCodex(input.job);
   const thread = codex.startThread({
-    model: input.model,
-    modelReasoningEffort: input.reasoningEffort,
     workingDirectory: input.job.cwd,
     skipGitRepoCheck: true,
     sandboxMode: "workspace-write",
     approvalPolicy: "never",
     networkAccessEnabled: true,
-    webSearchMode: "disabled",
   });
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), input.timeoutMs);

@@ -12,25 +12,23 @@ import { privateKeyToAccount } from "viem/accounts";
 import { z } from "zod";
 import { prepareCodexJob } from "./codex-job";
 import { runCodexSolver } from "./codex-runner";
+import { IntentAttempts, SolverJobStateSchema, WorkLimiter, type SolverJobState } from "./job-control";
 import { REFERENCE_CAPABILITIES } from "./route-tool";
-
-const StateSchema = z.record(z.string().uuid(), z.object({
-  revision: z.number().int().positive(), state: z.string(),
-}).strict());
+import { readReferenceSolverConfig, type ReferenceSolverConfig } from "./solver-config";
 
 function nonce(): Hash {
   return keccak256(toHex(crypto.getRandomValues(new Uint8Array(32))));
 }
 
 async function readState(path: string) {
-  try { return StateSchema.parse(JSON.parse(await readFile(path, "utf8"))); }
+  try { return SolverJobStateSchema.parse(JSON.parse(await readFile(path, "utf8"))); }
   catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return {};
     throw error;
   }
 }
 
-async function writeState(path: string, state: z.infer<typeof StateSchema>) {
+async function writeState(path: string, state: SolverJobState) {
   await mkdir(dirname(path), { recursive: true });
   const temporary = `${path}.tmp`;
   await writeFile(temporary, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
@@ -60,28 +58,22 @@ async function processIntent(input: {
   solverId: string;
   account: ReturnType<typeof privateKeyToAccount>;
   intent: SolverIntentV1;
+  config: ReferenceSolverConfig;
   record(revision: number, state: string): Promise<void>;
 }) {
   const job = await prepareCodexJob({
-    root: process.env.REFERENCE_SOLVER_JOB_ROOT ?? "/var/lib/cobia-solver/jobs",
+    root: input.config.job_root,
     intent: input.intent,
     skillsSource: fileURLToPath(new URL("../skills", import.meta.url)),
-    toolCommand: ["pnpm", "--dir", join(dirname(fileURLToPath(import.meta.url)), "../../.."),
-      "--filter", "@cobia/example-open-solver", "exec", "tsx",
-      fileURLToPath(new URL("./route-tool.ts", import.meta.url))],
   });
-  const model = process.env.CODEX_MODEL ?? "gpt-5.6-terra";
   const result = await runCodexSolver({
     job,
-    model,
-    reasoningEffort: z.enum(["minimal", "low", "medium", "high", "xhigh"])
-      .parse(process.env.CODEX_REASONING_EFFORT ?? "medium"),
-    timeoutMs: Number(process.env.CODEX_TURN_TIMEOUT_MS ?? "240000"),
+    timeoutMs: input.config.turn_timeout_ms,
     emit: output,
   });
   const decision = result.decision;
   output({ event: "codex-decision", intentId: input.intent.id,
-    threadId: result.threadId, provider: "openai-codex", model,
+    threadId: result.threadId, provider: "openai-codex", model: "config.toml",
     decision: decision.decision });
   const issuedAt = Math.floor(Date.now() / 1_000);
   const claim = { version: 1 as const, solverId: input.solverId, intentId: input.intent.id,
@@ -99,38 +91,56 @@ async function processIntent(input: {
 
 const privateKey = z.string().regex(/^0x[0-9a-fA-F]{64}$/)
   .parse(process.env.REFERENCE_SOLVER_PRIVATE_KEY) as Hex;
+const configPath = process.env.CODEX_HOME
+  ? join(process.env.CODEX_HOME, "config.toml")
+  : fileURLToPath(new URL("../codex/config.toml", import.meta.url));
+const config = await readReferenceSolverConfig(configPath);
 const account = privateKeyToAccount(privateKey);
 const client = createSolverExchangeClient({
-  baseUrl: process.env.COBIA_EXCHANGE_URL ?? "https://getcobia.com",
+  baseUrl: config.exchange_url,
 });
 const worker = {
   client,
-  solverId: process.env.REFERENCE_SOLVER_ID ?? "cobia-reference",
+  solverId: config.solver_id,
   account,
-  statePath: process.env.REFERENCE_SOLVER_STATE_FILE ?? "/var/lib/cobia-solver/state.json",
+  statePath: config.state_file,
 };
 await register(client, { ...worker,
-  displayName: process.env.REFERENCE_SOLVER_NAME ?? "Cobia Reference Solver" });
+  displayName: config.display_name });
 output({ event: "registered", solverId: worker.solverId, operator: account.address });
 const state = await readState(worker.statePath);
+const maxAttempts = config.max_attempts_per_intent;
+const attempts = new IntentAttempts(state, { maxAttempts,
+  retryBaseMs: config.retry_base_ms });
+const limiter = new WorkLimiter(config.max_parallel_jobs);
 let pendingWrite = Promise.resolve();
+function persistState() {
+  pendingWrite = pendingWrite.then(() => writeState(worker.statePath, state));
+  return pendingWrite;
+}
 const controller = new AbortController();
 process.once("SIGINT", () => controller.abort());
 process.once("SIGTERM", () => controller.abort());
 await watchSolverIntents({
   client,
   signal: controller.signal,
-  pollIntervalMs: Number(process.env.REFERENCE_SOLVER_POLL_MS ?? "1000"),
-  isHandled: (intent) => Boolean(state[intent.id]),
-  onError(error, intent) {
-    output({ event: intent ? "intent-error" : "poll-error", intentId: intent?.id,
-      message: error instanceof Error ? error.message : String(error) });
+  pollIntervalMs: config.poll_interval_ms,
+  isHandled: (intent) => attempts.isHandled(intent.id),
+  async onError(error, intent) {
+    if (!intent) {
+      output({ event: "poll-error", message: error instanceof Error ? error.message : String(error) });
+      return;
+    }
+    const failed = attempts.failed(intent.id);
+    await persistState();
+    output({ event: "intent-error", intentId: intent.id,
+      message: error instanceof Error ? error.message : String(error), attempts: failed.attempts,
+      retry: failed.attempts >= maxAttempts ? "stopped" : new Date(failed.retryAfterMs).toISOString() });
   },
   async onIntent(intent) {
-    await processIntent({ ...worker, intent, record(revision, receiptState) {
-      state[intent.id] = { revision, state: receiptState };
-      pendingWrite = pendingWrite.then(() => writeState(worker.statePath, state));
-      return pendingWrite;
-    } });
+    await limiter.run(() => processIntent({ ...worker, config, intent, record(revision, receiptState) {
+      attempts.completed(intent.id, revision, receiptState);
+      return persistState();
+    } }));
   },
 });

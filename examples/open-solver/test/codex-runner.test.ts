@@ -2,14 +2,16 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { runCodexSolver } from "../src/codex-runner";
+import { runCodexSolver, solverCodexConfig } from "../src/codex-runner";
 
 async function* events() {
   yield { type: "thread.started", thread_id: "thread-123" } as const;
   yield { type: "turn.started" } as const;
   yield { type: "item.completed", item: {
     id: "message-1", type: "agent_message",
-    text: JSON.stringify({ version: 1, decision: "abstain", reasonCode: "NO_PROFITABLE_ROUTE" }),
+    text: JSON.stringify({ decisionJson: JSON.stringify({
+      version: 1, decision: "abstain", reasonCode: "NO_PROFITABLE_ROUTE",
+    }) }),
   } } as const;
   yield { type: "turn.completed", usage: {
     input_tokens: 10, cached_input_tokens: 2, cache_write_input_tokens: 0,
@@ -18,25 +20,40 @@ async function* events() {
 }
 
 describe("Codex solver runner", () => {
+  it("uses a required typed route MCP and disables nested shell execution", () => {
+    const config = solverCodexConfig({ cwd: "/jobs/intent", intentPath: "/jobs/intent/intent.json",
+      decisionPath: "/jobs/intent/decision.json", prompt: "solve" });
+
+    expect(config.features).toMatchObject({ shell_tool: false, unified_exec: false });
+    expect(config.mcp_servers.cobia_route).toMatchObject({
+      required: true,
+      default_tools_approval_mode: "approve",
+      enabled_tools: ["capabilities", "solve", "exact_call"],
+      args: expect.arrayContaining(["--intent", "/jobs/intent/intent.json"]),
+    });
+    expect(config.mcp_servers.cobia_route.env).not.toHaveProperty("REFERENCE_SOLVER_PRIVATE_KEY");
+  });
+
   it("streams allowlisted lifecycle events and persists the structured decision", async () => {
     const cwd = await mkdtemp(join(tmpdir(), "cobia-codex-runner-test-"));
-    const startThread = vi.fn(() => ({ runStreamed: vi.fn(async () => ({ events: events() })) }));
+    const startThread = vi.fn((_options: unknown) => ({
+      runStreamed: vi.fn(async () => ({ events: events() })),
+    }));
     const observed: object[] = [];
 
     const result = await runCodexSolver({
       job: { cwd, intentPath: join(cwd, "intent.json"),
         decisionPath: join(cwd, "decision.json"), prompt: "solve" },
-      model: "gpt-5.6-terra",
-      reasoningEffort: "medium",
       timeoutMs: 10_000,
       codex: { startThread },
       emit: (event) => { observed.push(event); },
     });
 
     expect(startThread).toHaveBeenCalledWith(expect.objectContaining({
-      model: "gpt-5.6-terra", workingDirectory: cwd,
+      workingDirectory: cwd,
       sandboxMode: "workspace-write", approvalPolicy: "never",
     }));
+    expect(startThread.mock.calls[0]![0]).not.toHaveProperty("model");
     expect(result).toMatchObject({ threadId: "thread-123", decision: {
       decision: "abstain", reasonCode: "NO_PROFITABLE_ROUTE",
     } });
@@ -63,7 +80,7 @@ describe("Codex solver runner", () => {
     await expect(runCodexSolver({
       job: { cwd: "/tmp", intentPath: "/tmp/intent.json",
         decisionPath: "/tmp/decision.json", prompt: "solve" },
-      model: "gpt-5.6-terra", reasoningEffort: "medium", timeoutMs: 10_000,
+      timeoutMs: 10_000,
       codex: { startThread: () => ({ runStreamed: async () => ({ events: empty() }) }) },
       emit: vi.fn(),
     })).rejects.toThrow(/did not return/i);

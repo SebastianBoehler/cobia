@@ -19,14 +19,15 @@ describe("Codex solver job", () => {
       root,
       intent,
       skillsSource: join(import.meta.dirname, "..", "skills"),
-      toolCommand: ["pnpm", "--silent", "route-tool"],
     });
 
     expect(job.cwd).toBe(join(root, intentId));
     expect(JSON.parse(await readFile(job.intentPath, "utf8"))).toEqual(intent);
     const guidance = await readFile(join(job.cwd, "AGENTS.md"), "utf8");
     expect(guidance).toContain("decision.json");
-    expect(guidance).toContain("pnpm --silent route-tool");
+    expect(job.prompt).toContain("decisionJson");
+    expect(guidance).toContain("route MCP tools");
+    expect(guidance).toContain("not an allowlist");
     expect(guidance).not.toContain("PRIVATE_KEY");
     await expect(readFile(join(job.cwd, ".agents", "skills", "cobia-intent", "SKILL.md"), "utf8"))
       .resolves.toContain("name: cobia-intent");
