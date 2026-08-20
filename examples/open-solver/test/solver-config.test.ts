@@ -20,10 +20,15 @@ max_parallel_jobs = 3
 max_attempts_per_intent = 2
 retry_base_ms = 5000
 turn_timeout_ms = 120000
+risk_level = "balanced"
+max_codex_turns_per_intent = 3
+max_total_tokens_per_intent = 400000
 `);
 
     await expect(readReferenceSolverConfig(path)).resolves.toMatchObject({
       solver_id: "solver-one", max_parallel_jobs: 3, turn_timeout_ms: 120000,
+      risk_level: "balanced", max_codex_turns_per_intent: 3,
+      max_total_tokens_per_intent: 400000,
     });
   });
 });

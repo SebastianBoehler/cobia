@@ -11,6 +11,7 @@ import { keccak256, toHex, type Hash, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { z } from "zod";
 import { prepareCodexJob } from "./codex-job";
+import { readExistingCodexDecision } from "./codex-output";
 import { runCodexSolver } from "./codex-runner";
 import { IntentAttempts, SolverJobStateSchema, WorkLimiter, type SolverJobState } from "./job-control";
 import { REFERENCE_CAPABILITIES } from "./route-tool";
@@ -58,6 +59,7 @@ async function processIntent(input: {
   solverId: string;
   account: ReturnType<typeof privateKeyToAccount>;
   intent: SolverIntentV1;
+  revision: number;
   config: ReferenceSolverConfig;
   record(revision: number, state: string): Promise<void>;
 }) {
@@ -65,19 +67,29 @@ async function processIntent(input: {
     root: input.config.job_root,
     intent: input.intent,
     skillsSource: fileURLToPath(new URL("../skills", import.meta.url)),
+    exploration: input.config,
   });
-  const result = await runCodexSolver({
-    job,
-    timeoutMs: input.config.turn_timeout_ms,
-    emit: output,
-  });
-  const decision = result.decision;
-  output({ event: "codex-decision", intentId: input.intent.id,
-    threadId: result.threadId, provider: "openai-codex", model: "config.toml",
-    decision: decision.decision });
+  let decision = await readExistingCodexDecision(job.decisionPath);
+  if (decision) {
+    output({ event: "codex-decision-reused", intentId: input.intent.id,
+      revision: input.revision, decision: decision.decision });
+  } else {
+    const result = await runCodexSolver({
+      job,
+      timeoutMs: input.config.turn_timeout_ms,
+      exploration: { riskLevel: input.config.risk_level,
+        maxTurns: input.config.max_codex_turns_per_intent,
+        maxTotalTokens: input.config.max_total_tokens_per_intent },
+      emit: output,
+    });
+    decision = result.decision;
+    output({ event: "codex-decision", intentId: input.intent.id,
+      threadId: result.threadId, provider: "openai-codex", model: "config.toml",
+      decision: decision.decision, exploration: result.usage });
+  }
   const issuedAt = Math.floor(Date.now() / 1_000);
   const claim = { version: 1 as const, solverId: input.solverId, intentId: input.intent.id,
-    revision: 1, decisionHash: commitment(decision), snapshotHash: input.intent.snapshotHash as Hash,
+    revision: input.revision, decisionHash: commitment(decision), snapshotHash: input.intent.snapshotHash as Hash,
     nonce: nonce(), issuedAt, expiresAt: Math.min(issuedAt + 240, input.intent.competitionClosesAt) };
   if (claim.expiresAt <= claim.issuedAt) return;
   const signature = await input.account.signMessage({
@@ -138,7 +150,9 @@ await watchSolverIntents({
       retry: failed.attempts >= maxAttempts ? "stopped" : new Date(failed.retryAfterMs).toISOString() });
   },
   async onIntent(intent) {
-    await limiter.run(() => processIntent({ ...worker, config, intent, record(revision, receiptState) {
+    const revision = (state[intent.id]?.attempts ?? 0) + 1;
+    await limiter.run(() => processIntent({ ...worker, config, intent, revision,
+      record(revision, receiptState) {
       attempts.completed(intent.id, revision, receiptState);
       return persistState();
     } }));

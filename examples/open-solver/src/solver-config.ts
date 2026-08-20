@@ -3,6 +3,7 @@ import { parse } from "smol-toml";
 import { z } from "zod";
 
 const PositiveIntegerSchema = z.number().int().positive().safe();
+const RiskLevelSchema = z.enum(["conservative", "balanced", "opportunistic"]);
 
 const ReferenceSolverConfigSchema = z.object({
   cobia: z.object({
@@ -16,6 +17,9 @@ const ReferenceSolverConfigSchema = z.object({
     max_attempts_per_intent: PositiveIntegerSchema,
     retry_base_ms: PositiveIntegerSchema,
     turn_timeout_ms: PositiveIntegerSchema,
+    risk_level: RiskLevelSchema,
+    max_codex_turns_per_intent: PositiveIntegerSchema.max(8),
+    max_total_tokens_per_intent: PositiveIntegerSchema,
   }).strict(),
 }).passthrough();
 

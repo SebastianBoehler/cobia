@@ -174,7 +174,12 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
           policy, snapshot, program: decision.program, evidence: decision.evidence,
           ...(decision.proposalKind === "transaction-program"
             ? { providerArtifacts: decision.providerArtifacts } : {}), nowSec });
-      } catch {
+      } catch (error) {
+        console.error("Open solver verifier failed", {
+          intentId: claim.intentId,
+          runId: run.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
         await dependencies.submissions.resolve(submission.id, "failed", ["VERIFIER_FAILED"]);
         await dependencies.runs.fail(run.id, "VERIFIER_FAILED");
         throw new SolverDecisionUnavailableError("Independent verifier failed");

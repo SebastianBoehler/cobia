@@ -163,4 +163,22 @@ describe("solver exchange client", () => {
     await expect(client.submitDecision({ claim, signature, decision }))
       .rejects.toThrow(/decision commitment/i);
   });
+
+  it("preserves the exchange error code for operator diagnostics", async () => {
+    const decision = { version: 1 as const, decision: "abstain" as const, reasonCode: "NO_ROUTE" };
+    const claim = {
+      version: 1 as const, solverId: "alpha-solver", intentId: policy.requestId, revision: 1,
+      decisionHash: commitment(decision), snapshotHash: hash("6"), nonce: hash("7"),
+      issuedAt: 2_000_000_000, expiresAt: 2_000_000_300,
+    };
+    const signature = await account.signMessage({
+      message: { raw: solverDecisionClaimCommitmentV1(claim) },
+    });
+    const client = createSolverExchangeClient({ baseUrl: "https://getcobia.com",
+      fetch: vi.fn(async () => Response.json({ code: "DECISION_UNAVAILABLE",
+        message: "Solver decision was not accepted." }, { status: 409 })) });
+
+    await expect(client.submitDecision({ claim, signature, decision }))
+      .rejects.toThrow("HTTP 409 (DECISION_UNAVAILABLE)");
+  });
 });

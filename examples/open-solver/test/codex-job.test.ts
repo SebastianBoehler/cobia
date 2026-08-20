@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { prepareCodexJob } from "../src/codex-job";
-import { readCodexDecision } from "../src/codex-output";
+import { readCodexDecision, readExistingCodexDecision } from "../src/codex-output";
 
 const intentId = "6e242063-95be-4b0d-95d8-bc94cd3e6416";
 const intent = {
@@ -19,6 +19,8 @@ describe("Codex solver job", () => {
       root,
       intent,
       skillsSource: join(import.meta.dirname, "..", "skills"),
+      exploration: { risk_level: "opportunistic", max_codex_turns_per_intent: 3,
+        max_total_tokens_per_intent: 500000 },
     });
 
     expect(job.cwd).toBe(join(root, intentId));
@@ -28,6 +30,8 @@ describe("Codex solver job", () => {
     expect(job.prompt).toContain("decisionJson");
     expect(guidance).toContain("route MCP tools");
     expect(guidance).toContain("not an allowlist");
+    expect(guidance).toContain("research checkpoint");
+    expect(guidance).toContain("opportunistic");
     expect(guidance).not.toContain("PRIVATE_KEY");
     await expect(readFile(join(job.cwd, ".agents", "skills", "cobia-intent", "SKILL.md"), "utf8"))
       .resolves.toContain("name: cobia-intent");
@@ -49,5 +53,14 @@ describe("Codex solver job", () => {
     });
     await writeFile(path, JSON.stringify({ version: 1, decision: "abstain", reasonCode: "bad" }));
     await expect(readCodexDecision(path)).rejects.toThrow(/invalid/i);
+  });
+
+  it("distinguishes a missing cached decision from an invalid cached decision", async () => {
+    const root = await mkdtemp(join(tmpdir(), "cobia-codex-cache-test-"));
+    const path = join(root, "decision.json");
+
+    await expect(readExistingCodexDecision(path)).resolves.toBeUndefined();
+    await writeFile(path, "not json");
+    await expect(readExistingCodexDecision(path)).rejects.toThrow(/invalid JSON/i);
   });
 });

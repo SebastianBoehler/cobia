@@ -45,6 +45,7 @@ describe("Codex solver runner", () => {
       job: { cwd, intentPath: join(cwd, "intent.json"),
         decisionPath: join(cwd, "decision.json"), prompt: "solve" },
       timeoutMs: 10_000,
+      exploration: { riskLevel: "balanced", maxTurns: 1, maxTotalTokens: 1000 },
       codex: { startThread },
       emit: (event) => { observed.push(event); },
     });
@@ -54,7 +55,9 @@ describe("Codex solver runner", () => {
       sandboxMode: "workspace-write", approvalPolicy: "never",
     }));
     expect(startThread.mock.calls[0]![0]).not.toHaveProperty("model");
-    expect(result).toMatchObject({ threadId: "thread-123", decision: {
+    expect(result).toMatchObject({ threadId: "thread-123", usage: {
+      turns: 1, totalTokens: 14, stopReason: "turn-limit",
+    }, decision: {
       decision: "abstain", reasonCode: "NO_PROFITABLE_ROUTE",
     } });
     expect(JSON.parse(await readFile(join(cwd, "decision.json"), "utf8")))
@@ -81,8 +84,45 @@ describe("Codex solver runner", () => {
       job: { cwd: "/tmp", intentPath: "/tmp/intent.json",
         decisionPath: "/tmp/decision.json", prompt: "solve" },
       timeoutMs: 10_000,
+      exploration: { riskLevel: "conservative", maxTurns: 1, maxTotalTokens: 100 },
       codex: { startThread: () => ({ runStreamed: async () => ({ events: empty() }) }) },
       emit: vi.fn(),
     })).rejects.toThrow(/did not return/i);
+  });
+
+  it("continues an abstention until the configured exploration turn budget is spent", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "cobia-codex-exploration-test-"));
+    let turn = 0;
+    const runStreamed = vi.fn(async (_prompt: string) => ({ events: (async function* () {
+      turn += 1;
+      if (turn === 1) yield { type: "thread.started", thread_id: "thread-explore" } as const;
+      yield { type: "turn.started" } as const;
+      yield { type: "item.completed", item: { id: `message-${turn}`, type: "agent_message",
+        text: JSON.stringify({ decisionJson: JSON.stringify({ version: 1,
+          decision: "abstain", reasonCode: turn === 1 ? "NO_VERIFIED_SWAP_ROUTE" :
+            "NO_ROUTE_AFTER_RESEARCH",
+        }) }),
+      } } as const;
+      yield { type: "turn.completed", usage: { input_tokens: 100, cached_input_tokens: 50,
+        cache_write_input_tokens: 0, output_tokens: 10, reasoning_output_tokens: 4 } } as const;
+    })() }));
+    const observed: object[] = [];
+
+    const result = await runCodexSolver({
+      job: { cwd, intentPath: join(cwd, "intent.json"),
+        decisionPath: join(cwd, "decision.json"), prompt: "solve" },
+      timeoutMs: 10_000,
+      exploration: { riskLevel: "opportunistic", maxTurns: 2, maxTotalTokens: 1000 },
+      codex: { startThread: () => ({ runStreamed }) },
+      emit: (event) => { observed.push(event); },
+    });
+
+    expect(runStreamed).toHaveBeenCalledTimes(2);
+    expect(runStreamed.mock.calls[1]![0]).toContain("market inefficiencies");
+    expect(observed).toContainEqual(expect.objectContaining({
+      event: "codex-exploration-continued", reasonCode: "NO_VERIFIED_SWAP_ROUTE", nextTurn: 2,
+    }));
+    expect(result).toMatchObject({ decision: { reasonCode: "NO_ROUTE_AFTER_RESEARCH" },
+      usage: { turns: 2, totalTokens: 220, stopReason: "turn-limit" } });
   });
 });

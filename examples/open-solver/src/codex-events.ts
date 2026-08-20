@@ -5,6 +5,8 @@ export type SolverCodexEvent =
   | { event: "codex-turn-started" }
   | { event: "codex-message-completed" }
   | { event: "codex-tool-completed"; tool: string; status: string }
+  | { event: "codex-exploration-continued"; reasonCode: string; nextTurn: number;
+      turnsRemaining: number; tokensRemaining: number }
   | { event: "codex-turn-completed"; usage: {
       inputTokens: number; cachedInputTokens: number;
       outputTokens: number; reasoningOutputTokens: number;

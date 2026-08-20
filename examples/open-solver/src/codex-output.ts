@@ -14,3 +14,12 @@ export async function readCodexDecision(path: string): Promise<SolverDecisionV1>
   }
   return parsed.data;
 }
+
+export async function readExistingCodexDecision(path: string): Promise<SolverDecisionV1 | undefined> {
+  try { return await readCodexDecision(path); }
+  catch (error) {
+    const cause = error instanceof Error ? error.cause : undefined;
+    if ((cause as NodeJS.ErrnoException | undefined)?.code === "ENOENT") return undefined;
+    throw error;
+  }
+}

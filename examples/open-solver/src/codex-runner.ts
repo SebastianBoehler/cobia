@@ -2,6 +2,7 @@ import {
   Codex,
   type ThreadEvent,
   type ThreadOptions,
+  type Usage,
 } from "@openai/codex-sdk";
 import { SolverDecisionV1Schema, type SolverDecisionV1 } from "@cobia/solver-sdk";
 import { writeFile } from "node:fs/promises";
@@ -18,6 +19,12 @@ interface CodexThreadLike {
 
 export interface SolverCodexLike {
   startThread(options: ThreadOptions): CodexThreadLike;
+}
+
+export interface CodexExplorationBudget {
+  riskLevel: "conservative" | "balanced" | "opportunistic";
+  maxTurns: number;
+  maxTotalTokens: number;
 }
 
 const CodexDecisionEnvelopeSchema = z.object({
@@ -99,14 +106,43 @@ function parseDecision(text: string | undefined): SolverDecisionV1 {
   return parsed.data;
 }
 
+function tokenCount(usage: Usage) {
+  return usage.input_tokens + usage.output_tokens;
+}
+
+function nextPrompt(input: {
+  decision: Extract<SolverDecisionV1, { decision: "abstain" }>;
+  exploration: CodexExplorationBudget;
+  nextTurn: number;
+  tokensRemaining: number;
+}) {
+  return `Your previous turn abstained with ${input.decision.reasonCode}. Do not stop at the ` +
+    "curated quote. Continue the same intent search now. Use web research and installed protocol " +
+    "skills to inspect alternative pools, multi-hop paths, established external protocols, and " +
+    "atomic market inefficiencies. Use the exact-call tool for any complete candidate. " +
+    `Risk level: ${input.exploration.riskLevel}. This is turn ${input.nextTurn} of ` +
+    `${input.exploration.maxTurns}; ${input.tokensRemaining} total tokens remain. Never weaken the ` +
+    "signed policy or invent evidence. Return the required decisionJson envelope for this turn.";
+}
+
 export async function runCodexSolver(input: {
   job: CodexJob;
   timeoutMs: number;
+  exploration: CodexExplorationBudget;
   codex?: SolverCodexLike;
   emit(event: SolverCodexEvent): void;
-}): Promise<{ decision: SolverDecisionV1; threadId: string; usage: unknown }> {
+}): Promise<{ decision: SolverDecisionV1; threadId: string; usage: {
+  turns: number; inputTokens: number; cachedInputTokens: number; outputTokens: number;
+  reasoningOutputTokens: number; totalTokens: number; stopReason: "submitted" | "turn-limit" |
+  "token-limit";
+} }> {
   if (!Number.isSafeInteger(input.timeoutMs) || input.timeoutMs <= 0) {
     throw new Error("Codex solver timeout must be a positive integer");
+  }
+  if (!Number.isSafeInteger(input.exploration.maxTurns) || input.exploration.maxTurns <= 0 ||
+      !Number.isSafeInteger(input.exploration.maxTotalTokens) ||
+      input.exploration.maxTotalTokens <= 0) {
+    throw new Error("Codex exploration budget must use positive integers");
   }
   const codex = input.codex ?? createSolverCodex(input.job);
   const thread = codex.startThread({
@@ -116,32 +152,55 @@ export async function runCodexSolver(input: {
     approvalPolicy: "never",
     networkAccessEnabled: true,
   });
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), input.timeoutMs);
   let threadId: string | undefined;
-  let finalMessage: string | undefined;
-  let finalUsage: unknown;
-  try {
-    const turn = await thread.runStreamed(input.job.prompt, {
-      outputSchema,
-      signal: controller.signal,
-    });
-    for await (const event of turn.events) {
-      const visible = publicCodexEvent(event);
-      if (visible) input.emit(visible);
-      if (event.type === "thread.started") threadId = event.thread_id;
-      if (event.type === "item.completed" && event.item.type === "agent_message") {
-        finalMessage = event.item.text;
+  let decision: SolverDecisionV1 | undefined;
+  const usage = { turns: 0, inputTokens: 0, cachedInputTokens: 0,
+    outputTokens: 0, reasoningOutputTokens: 0, totalTokens: 0 };
+  let prompt = input.job.prompt;
+  for (let turnIndex = 0; turnIndex < input.exploration.maxTurns; turnIndex += 1) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), input.timeoutMs);
+    let finalMessage: string | undefined;
+    let turnUsage: Usage | undefined;
+    try {
+      const turn = await thread.runStreamed(prompt, { outputSchema, signal: controller.signal });
+      for await (const event of turn.events) {
+        const visible = publicCodexEvent(event);
+        if (visible) input.emit(visible);
+        if (event.type === "thread.started") threadId = event.thread_id;
+        if (event.type === "item.completed" && event.item.type === "agent_message") {
+          finalMessage = event.item.text;
+        }
+        if (event.type === "turn.completed") turnUsage = event.usage;
+        if (event.type === "turn.failed") {
+          throw new Error(`Codex solver turn failed: ${event.error.message}`);
+        }
+        if (event.type === "error") throw new Error(`Codex solver stream failed: ${event.message}`);
       }
-      if (event.type === "turn.completed") finalUsage = event.usage;
-      if (event.type === "turn.failed") throw new Error(`Codex solver turn failed: ${event.error.message}`);
-      if (event.type === "error") throw new Error(`Codex solver stream failed: ${event.message}`);
+    } finally {
+      clearTimeout(timer);
     }
-  } finally {
-    clearTimeout(timer);
+    if (!turnUsage) throw new Error("Codex solver turn did not report usage");
+    decision = parseDecision(finalMessage);
+    usage.turns += 1;
+    usage.inputTokens += turnUsage.input_tokens;
+    usage.cachedInputTokens += turnUsage.cached_input_tokens;
+    usage.outputTokens += turnUsage.output_tokens;
+    usage.reasoningOutputTokens += turnUsage.reasoning_output_tokens;
+    usage.totalTokens += tokenCount(turnUsage);
+    if (decision.decision === "submit" || usage.totalTokens >= input.exploration.maxTotalTokens ||
+        usage.turns >= input.exploration.maxTurns) break;
+    const tokensRemaining = input.exploration.maxTotalTokens - usage.totalTokens;
+    input.emit({ event: "codex-exploration-continued", reasonCode: decision.reasonCode,
+      nextTurn: usage.turns + 1, turnsRemaining: input.exploration.maxTurns - usage.turns,
+      tokensRemaining });
+    prompt = nextPrompt({ decision, exploration: input.exploration,
+      nextTurn: usage.turns + 1, tokensRemaining });
   }
   if (!threadId) throw new Error("Codex did not start a solver thread");
-  const decision = parseDecision(finalMessage);
+  if (!decision) throw new Error("Codex did not return a solver decision");
   await writeFile(input.job.decisionPath, `${JSON.stringify(decision, null, 2)}\n`, { mode: 0o600 });
-  return { decision, threadId, usage: finalUsage };
+  const stopReason = decision.decision === "submit" ? "submitted"
+    : usage.totalTokens >= input.exploration.maxTotalTokens ? "token-limit" : "turn-limit";
+  return { decision, threadId, usage: { ...usage, stopReason } };
 }

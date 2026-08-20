@@ -58,6 +58,12 @@ const DecisionReceiptSchema = z.object({
 export type SolverIntentV1 = z.infer<typeof IntentSchema>;
 export type SolverIntentListV1 = z.infer<typeof IntentListSchema>;
 
+export class SolverExchangeHttpError extends Error {
+  constructor(readonly status: number, readonly code: string | undefined, label: string) {
+    super(`${label} returned HTTP ${status}${code ? ` (${code})` : ""}`);
+  }
+}
+
 function exchangeOrigin(value: string): string {
   const url = new URL(value);
   const local = ["localhost", "127.0.0.1", "::1"].includes(url.hostname);
@@ -80,15 +86,20 @@ async function verifyIntentSignature(intent: SolverIntentV1): Promise<void> {
 }
 
 async function boundedJson(response: Response, label: string): Promise<unknown> {
-  if (!response.ok) throw new Error(`${label} returned HTTP ${response.status}`);
   if (!response.headers.get("content-type")?.toLowerCase().includes("application/json")) {
+    if (!response.ok) throw new SolverExchangeHttpError(response.status, undefined, label);
     throw new Error(`${label} returned a non-JSON response`);
   }
   const value = await response.text();
   if (new TextEncoder().encode(value).byteLength > 2 * 1024 * 1024) {
     throw new Error(`${label} response exceeds 2 MiB`);
   }
-  return JSON.parse(value);
+  const parsed = JSON.parse(value) as unknown;
+  if (!response.ok) {
+    const code = z.object({ code: z.string().max(80) }).passthrough().safeParse(parsed);
+    throw new SolverExchangeHttpError(response.status, code.success ? code.data.code : undefined, label);
+  }
+  return parsed;
 }
 
 export function createSolverExchangeClient(input: {

@@ -37,8 +37,12 @@ docker compose -f examples/open-solver/compose.yaml run --rm \
 ```
 
 The checked-in `codex/config.toml` is the operator surface. It selects the
-model, reasoning effort, web research, and non-secret worker limits: polling,
-parallel jobs, retry ceiling, backoff, and per-turn timeout. Account-level apps
+model, reasoning effort, web research, risk level, and non-secret worker limits:
+polling, parallel jobs, retry ceiling, backoff, Codex turns, total tokens, and
+per-turn timeout. A curated-route abstention remains internal while exploration
+budget remains; the same Codex thread can research multi-hop paths, external
+protocols, raw exact calls, and market inefficiencies before returning its final
+decision. Account-level apps
 are disabled so a dedicated worker loads only its local skills and bound route
 MCP. Every run logs its Codex thread id and records `config.toml` as the model
 source.
@@ -55,7 +59,8 @@ wallet provider or transaction-send method, and the shell environment policy
 removes key, secret, and token variables from the typed route MCP. Arbitrary
 shell tools are disabled. The state volume retains decisions, failures, and
 per-intent workspaces across restarts. Concurrency, attempts per intent, retry
-backoff, and turn timeout are bounded by `[cobia]` in `codex/config.toml`; a
+backoff, turns, tokens, and per-turn timeout are bounded by `[cobia]` in
+`codex/config.toml`; a
 failed job cannot retry on every market poll. `.env` contains only the solver
 claim key, Codex credential, and RPC endpoints.
 
