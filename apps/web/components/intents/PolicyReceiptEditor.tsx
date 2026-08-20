@@ -23,7 +23,7 @@ export function PolicyReceiptEditor({ values, owner, onChange }: {
 
   return (
     <section className="policy-editor" aria-labelledby="policy-receipt-title">
-      <header><div><h2 id="policy-receipt-title">Policy receipt</h2><p>These typed fields—not the prose alone—define what may execute.</p></div><span>Unsigned draft</span></header>
+      <header><div><h2 id="policy-receipt-title">Review the policy</h2><p>These typed fields—not the prose alone—define what may execute.</p></div></header>
       <div className="policy-fields">
         <label>Verified capability<select value={values.templateId} onChange={(event) => {
           const templateId = event.target.value as CapabilityTemplateId;
@@ -49,6 +49,13 @@ export function PolicyReceiptEditor({ values, owner, onChange }: {
         {rwa && instrument ? <label>Jurisdiction<select value={values.jurisdiction} onChange={(event) => onChange({ ...values,
           jurisdiction: event.target.value, eligibilityAccepted: false })}>{instrument.eligibleJurisdictions.map((code) => <option key={code} value={code}>{code}</option>)}</select></label> : null}
         {values.templateId !== "aave-supply" ? <label>{values.templateId === "round-trip" ? "Minimum profit" : "Minimum output"}<input inputMode="decimal" value={values.minimum} onChange={(event) => set("minimum", event.target.value)} /></label> : null}
+        <label className="policy-fee">Maximum solver success fee
+          <span className="policy-fee__value">{Number(values.maxSolverFeeUsd).toFixed(2)} USDt0</span>
+          <input aria-label="Maximum solver success fee" max="0.50" min="0" step="0.05"
+            type="range" value={values.maxSolverFeeUsd}
+            onChange={(event) => set("maxSolverFeeUsd", Number(event.target.value).toFixed(2))} />
+          <small>Paid only after confirmed execution. The signed cap prevents a solver fee above this budget.</small>
+        </label>
         {rwa && instrument ? <label className="policy-attestation"><input checked={values.eligibilityAccepted}
           onChange={(event) => set("eligibilityAccepted", event.target.checked)} type="checkbox" />
           <span>I have reviewed the issuer restriction: {instrument.eligibilityNote}</span></label> : null}
@@ -58,6 +65,7 @@ export function PolicyReceiptEditor({ values, owner, onChange }: {
         <div><dt>Input bound</dt><dd>{atomicLabel(values.amount, input.symbol)}</dd></div>
         <div><dt>Minimum result</dt><dd>{minimumLabel}</dd></div>
         <div><dt>Competition</dt><dd>5 minutes · up to 5 revisions per solver</dd></div>
+        <div><dt>Solver fee cap</dt><dd>{Number(values.maxSolverFeeUsd).toFixed(2)} USDt0 · success only</dd></div>
         <div><dt>Execution deadline</dt><dd>30 minutes from signing</dd></div>
         <div><dt>Network</dt><dd>{rwa ? "Ethereum · chain 1 (anchored with X Layer)" : "X Layer · chain 196"}</dd></div>
       </dl>

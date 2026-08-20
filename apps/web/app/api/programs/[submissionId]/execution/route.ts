@@ -1,4 +1,4 @@
-import { commitment } from "@cobia/domain";
+import { commitment, OpenIntentPolicyV3Schema } from "@cobia/domain";
 import { NextResponse } from "next/server";
 import { createPublicClient, erc20Abi, http, isAddressEqual, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -66,6 +66,12 @@ export async function POST(
     const feeTerms = buildSolverSuccessFeeTerms({ submissionId, solverId: stored.solverId,
       owner: proof.owner, recipient: profile.attestationAddress, treasury: payment.COBIA_TREASURY,
       realm: payment.PAYMENT_REALM, nowSec: feeIssuedAt, deadline: Math.min(deadline, proof.expiresAt) });
+    const policy = OpenIntentPolicyV3Schema.parse(stored.policy);
+    const feeCap = policy.limits.maxSolverFeeAtomic;
+    if (feeCap !== undefined && BigInt(feeTerms.amount) > BigInt(feeCap)) {
+      return NextResponse.json({ code: "SOLVER_FEE_CAP_EXCEEDED",
+        message: "This program's success fee exceeds the signed intent cap." }, { status: 409 });
+    }
     if (!request.headers.has("authorization")) return solverSuccessFeeRequiredResponse(feeTerms);
     const fee = await parseSolverSuccessFeeCredential({ request, terms: feeTerms,
       owner: proof.owner, nowSec });

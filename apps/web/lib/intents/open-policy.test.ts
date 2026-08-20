@@ -11,6 +11,8 @@ const common = {
   nowSec: 2_000_000_000,
   displayGoal: "Get the best verified outcome",
   competitionDurationSec: 300,
+  maxSolverFeeAtomic: "100000",
+  forbiddenTargets: [],
 };
 
 describe("open intent policy builder", () => {
@@ -36,6 +38,7 @@ describe("open intent policy builder", () => {
       chainId: 196, token: common.inputToken.toLowerCase(), maximumAtomic: "10000000",
     }]);
     expect(policy.limits).toMatchObject({ maxTransactions: 4, maxApprovals: 4,
+      maxSolverFeeAtomic: "100000",
       maxNativeValueAtomicByChain: [{ chainId: 196, atomic: "0" }] });
     expect(policy.competition.closesAt).toBe(common.nowSec + 300);
   });

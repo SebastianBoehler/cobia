@@ -1,7 +1,9 @@
 "use client";
 
-import { commitment } from "@cobia/domain";
-import { ArrowRight, LoaderCircle } from "lucide-react";
+import {
+  CommerceOfferV1Schema, commerceOfferCommitmentV1, commitment, type CommerceOfferV1,
+} from "@cobia/domain";
+import { ArrowLeft, ArrowRight, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import { keccak256, stringToHex } from "viem";
@@ -12,9 +14,14 @@ import {
 } from "../../lib/intents/capability-templates";
 import { instrumentCommitmentV1 } from "../../lib/instruments/production-registry";
 import type { IntentComposerDraft } from "../../lib/intents/challenge-draft";
+import {
+  protocolForbiddenTargets, type ActionPreference, type ProtocolExclusionId,
+} from "../../lib/intents/intent-controls";
 import { useWallet } from "../wallet/WalletProvider";
 import { IntentGoalInput } from "./IntentGoalInput";
 import { PolicyReceiptEditor, type ReceiptValues } from "./PolicyReceiptEditor";
+import type { IntentMention } from "./IntentGoalInput";
+import type { PortfolioSnapshot } from "../../lib/portfolio/read-portfolio";
 
 function errorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : "The intent could not be published.";
@@ -27,6 +34,15 @@ export function IntentComposer({ initialDraft }: { initialDraft?: IntentComposer
   const [values, setValues] = useState<ReceiptValues>(
     initialDraft?.values ?? DEFAULT_INTENT_RECEIPT_VALUES,
   );
+  const [step, setStep] = useState<"goal" | "review">(initialDraft ? "review" : "goal");
+  const [action, setAction] = useState<ActionPreference>(initialDraft?.values.templateId ?? "any");
+  const [excludedProtocols, setExcludedProtocols] = useState<ProtocolExclusionId[]>([]);
+  const [portfolio, setPortfolio] = useState<PortfolioSnapshot>();
+  const [offers, setOffers] = useState<CommerceOfferV1[]>([]);
+  const [selectedMentions, setSelectedMentions] = useState<IntentMention[]>([]);
+  const [selectedService, setSelectedService] = useState<string>();
+  const [mentionsLoaded, setMentionsLoaded] = useState(false);
+  const [compiling, setCompiling] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   const rwa = values.templateId === "rwa-acquisition";
@@ -37,8 +53,89 @@ export function IntentComposer({ initialDraft }: { initialDraft?: IntentComposer
     : INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? INTENT_ASSETS[1];
   const inputAtomic = useMemo(() => decimalToAtomic(values.amount, inputAsset.decimals), [inputAsset.decimals, values.amount]);
   const minimumAtomic = useMemo(() => decimalToAtomic(values.minimum, outputAsset.decimals), [outputAsset.decimals, values.minimum]);
+  const maxSolverFeeAtomic = useMemo(() => values.maxSolverFeeUsd === "0"
+    ? "0" : decimalToAtomic(values.maxSolverFeeUsd, 6), [values.maxSolverFeeUsd]);
   const valid = Boolean(wallet.account && goal.trim() && inputAtomic &&
-    (values.templateId === "aave-supply" || minimumAtomic) && (!rwa || values.eligibilityAccepted));
+    maxSolverFeeAtomic !== null && (values.templateId === "aave-supply" || minimumAtomic) &&
+    (!rwa || values.eligibilityAccepted));
+
+  async function loadMentions() {
+    if (mentionsLoaded) return;
+    setMentionsLoaded(true);
+    if (wallet.account && wallet.targetChainId === 196) {
+      fetch(`/api/wallets/${wallet.account}/portfolio?chainId=196`, { cache: "no-store" })
+        .then(async (response) => response.ok ? response.json() as Promise<PortfolioSnapshot> : undefined)
+        .then(setPortfolio).catch(() => undefined);
+    }
+    fetch("/api/commerce/discover?limit=12", { cache: "no-store" })
+      .then(async (response): Promise<{ offers: unknown[] }> => response.ok
+        ? response.json() as Promise<{ offers: unknown[] }> : { offers: [] })
+      .then((result) => setOffers(result.offers.flatMap((offer) => {
+        const parsed = CommerceOfferV1Schema.safeParse(offer);
+        return parsed.success && parsed.data.eligibility.status === "executable" ? [parsed.data] : [];
+      }))).catch(() => undefined);
+  }
+
+  const mentions = useMemo<IntentMention[]>(() => [
+    ...INTENT_ASSETS.map(({ symbol }) => ({ id: `asset:${symbol}`, group: "Assets" as const,
+      mention: symbol, detail: portfolio?.balances?.find((balance) => balance.symbol === symbol)
+        ? `${Number(portfolio.balances.find((balance) => balance.symbol === symbol)!.formatted)
+          .toLocaleString("en-US", { maximumFractionDigits: 6 })} available`
+        : "X Layer asset" })),
+    ...RWA_INTENT_ASSETS.map(({ symbol }) => ({ id: `asset:${symbol}`, group: "Assets" as const,
+      mention: symbol, detail: "Registered RWA · Ethereum" })),
+    { id: "network:x-layer", group: "Networks", mention: "XLayer", detail: "Chain 196" },
+    { id: "network:ethereum", group: "Networks", mention: "Ethereum", detail: "Chain 1" },
+    { id: "protocol:aave", group: "Protocols", mention: "Aave", detail: "Earn on X Layer" },
+    { id: "protocol:curve", group: "Protocols", mention: "Curve", detail: "Swap on X Layer" },
+    { id: "protocol:uniswap", group: "Protocols", mention: "Uniswap", detail: "Swap on X Layer" },
+    ...offers.map((offer) => ({ id: `service:${commerceOfferCommitmentV1(offer)}`,
+      group: "Services" as const,
+      mention: `${offer.merchant.displayName}/${(offer.product.name ?? offer.product.id).replaceAll(" ", "-")}`,
+      detail: `${offer.payment.atomicAmount} atomic · chain ${offer.payment.chainId}` })),
+  ], [offers, portfolio]);
+
+  function mention(value: IntentMention) {
+    const token = `@${value.mention}`;
+    setGoal((current) => current.includes(token) ? current
+      : `${current}${current && !current.endsWith(" ") ? " " : ""}${token} `);
+    setSelectedMentions((current) => current.some(({ id }) => id === value.id)
+      ? current : [...current, value]);
+    if (value.group === "Services") {
+      setSelectedService(value.id.slice("service:".length));
+      setAction("service-purchase");
+    }
+  }
+
+  async function compileGoal() {
+    if (goal.trim().length < 3) return;
+    if (action === "service-purchase") {
+      if (selectedService) router.push(`/commerce/offers/${selectedService}`);
+      else setError("Tag one Cobia-supported service from the @ menu.");
+      return;
+    }
+    setCompiling(true);
+    setError(undefined);
+    try {
+      const response = await fetch("/api/intents/compile", { method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ goal: goal.trim(), actionPreference: action }) });
+      const payload = await response.json() as {
+        status?: "review" | "clarification"; values?: ReceiptValues; question?: string; message?: string;
+      };
+      if (!response.ok) throw new Error(payload.message ?? "The policy draft could not be compiled.");
+      if (payload.status === "clarification") {
+        setError(payload.question ?? "Add the missing spend and outcome bounds to your goal.");
+        return;
+      }
+      if (payload.status !== "review" || !payload.values) {
+        throw new Error("The policy compiler returned an incomplete draft.");
+      }
+      setValues(payload.values);
+      setStep("review");
+    } catch (cause) { setError(errorMessage(cause)); }
+    finally { setCompiling(false); }
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -60,6 +157,8 @@ export function IntentComposer({ initialDraft }: { initialDraft?: IntentComposer
         nowSec,
         displayGoal: goal.trim(),
         competitionDurationSec: 300,
+        maxSolverFeeAtomic: maxSolverFeeAtomic ?? "0",
+        forbiddenTargets: protocolForbiddenTargets(excludedProtocols),
       } as const;
       const instrument = rwa
         ? RWA_INTENT_ASSETS.find(({ address }) => address === values.outputToken)?.instrument : undefined;
@@ -103,16 +202,29 @@ export function IntentComposer({ initialDraft }: { initialDraft?: IntentComposer
   }
 
   return (
-    <form className="intent-composer" noValidate onSubmit={submit}>
-      <IntentGoalInput value={goal} onChange={setGoal} />
-      <PolicyReceiptEditor owner={wallet.account} values={values} onChange={setValues} />
-      {error ? <p className="form-alert" role="alert">{error}</p> : null}
-      <button className="button button--primary intent-submit" disabled={!valid || pending} type="submit">
-        {pending ? <LoaderCircle aria-hidden="true" className="spin" size={17} /> : null}
-        {pending ? "Publishing intent…" : "Review and sign intent"}
-        {!pending ? <ArrowRight aria-hidden="true" size={17} /> : null}
-      </button>
-      {!wallet.account ? <p className="intent-connect-note">Connect your wallet in the header to bind the policy owner.</p> : null}
+    <form className={`intent-composer intent-composer--${step}`} noValidate onSubmit={submit}>
+      {step === "goal" ? <>
+        <IntentGoalInput action={action} compiling={compiling}
+          excludedProtocols={excludedProtocols} mentions={mentions} selectedMentions={selectedMentions}
+          value={goal} onActionChange={setAction} onChange={setGoal} onMention={mention}
+          onMentionMenuOpen={loadMentions}
+          onExcludedProtocolsChange={setExcludedProtocols}
+          onSubmit={compileGoal} />
+        {error ? <p className="form-alert" role="alert">{error}</p> : null}
+      </> : <>
+        <div className="intent-goal-summary"><p>{goal}</p><button className="button button--secondary"
+          onClick={() => { setStep("goal"); setError(undefined); }} type="button">
+          <ArrowLeft aria-hidden="true" size={16} /> Edit goal
+        </button></div>
+        <PolicyReceiptEditor owner={wallet.account} values={values} onChange={setValues} />
+        {error ? <p className="form-alert" role="alert">{error}</p> : null}
+        <button className="button button--primary intent-submit" disabled={!valid || pending} type="submit">
+          {pending ? <LoaderCircle aria-hidden="true" className="spin" size={17} /> : null}
+          {pending ? "Publishing intent…" : "Sign and publish intent"}
+          {!pending ? <ArrowRight aria-hidden="true" size={17} /> : null}
+        </button>
+        {!wallet.account ? <p className="intent-connect-note">Connect your wallet in the header to bind the policy owner.</p> : null}
+      </>}
     </form>
   );
 }

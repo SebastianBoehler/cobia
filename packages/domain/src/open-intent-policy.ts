@@ -90,6 +90,7 @@ export const OpenIntentPolicyV3Schema = z.object({
     maxApprovals: z.number().int().min(0).max(32),
     maxCalldataBytes: z.number().int().min(4).max(131_072),
     maxGasPerTransaction: PositiveAtomicSchema,
+    maxSolverFeeAtomic: AtomicSchema.optional(),
     maxNativeValueAtomicByChain: z.array(NativeValueSchema).min(1).max(2),
   }).strict(),
   forbiddenTargets: z.array(AddressSchema).max(64),

@@ -16,6 +16,8 @@ interface CommonInput {
   nowSec: number;
   displayGoal: string;
   competitionDurationSec: number;
+  maxSolverFeeAtomic: string;
+  forbiddenTargets: Address[];
 }
 
 type BuildInput = CommonInput & (
@@ -82,9 +84,9 @@ export function buildOpenIntentPolicyV3(input: BuildInput): OpenIntentPolicyV3 {
         instrumentCommitment: input.instrumentCommitment, jurisdiction: input.jurisdiction,
         eligibilityAttested: true }],
       limits: { maxStages: 4, maxTransactions: 2, maxApprovals: 2, maxCalldataBytes: 32_768,
-        maxGasPerTransaction: "5000000",
+        maxGasPerTransaction: "5000000", maxSolverFeeAtomic: input.maxSolverFeeAtomic,
         maxNativeValueAtomicByChain: [{ chainId: 1, atomic: "0" }, { chainId: 196, atomic: "0" }] },
-      forbiddenTargets: [], forbiddenAssets: [],
+      forbiddenTargets: input.forbiddenTargets, forbiddenAssets: [],
     });
   }
   const result = outcome(input);
@@ -99,7 +101,8 @@ export function buildOpenIntentPolicyV3(input: BuildInput): OpenIntentPolicyV3 {
     inputs: [{ chainId: 196, token: input.inputToken.toLowerCase(), maximumAtomic: input.inputAtomic }],
     outcomes: [{ kind: "minimum-increase", chainId: 196, token: result.token, atomic: result.atomic }],
     limits: { maxStages: 8, maxTransactions: 4, maxApprovals: 4, maxCalldataBytes: 16_384,
-      maxGasPerTransaction: "5000000", maxNativeValueAtomicByChain: [{ chainId: 196, atomic: "0" }] },
-    forbiddenTargets: [], forbiddenAssets: [],
+      maxGasPerTransaction: "5000000", maxSolverFeeAtomic: input.maxSolverFeeAtomic,
+      maxNativeValueAtomicByChain: [{ chainId: 196, atomic: "0" }] },
+    forbiddenTargets: input.forbiddenTargets, forbiddenAssets: [],
   });
 }
