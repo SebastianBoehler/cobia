@@ -14,7 +14,8 @@ describe("IntentCompetitionView", () => {
       history={[]}
     />);
 
-    expect(html).toContain("Live · accepting proposals");
+    expect(html).not.toContain("Live · accepting proposals");
+    expect(html).toContain("Accepting proposals");
     expect(html).toContain("Waiting for solver submissions");
     expect(html).toContain("New solver jobs can still be submitted before the deadline.");
   });

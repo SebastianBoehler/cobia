@@ -45,15 +45,18 @@ export function IntentCompetitionView({ goal, closesAt, observedAtSec, current, 
     <section className="intent-competition__summary">
       <ShieldCheck aria-hidden="true" size={24} />
       <div>
-        <span className={`intent-competition__status ${live ? "intent-competition__status--live" : ""}`}>
-          <CircleDot aria-hidden="true" size={14} />{live ? "Live · accepting proposals" : "Competition closed"}
-        </span>
         <h1>{goal}</h1>
         <p>{live
           ? "Independent solvers are working from the signed policy and may publish improved revisions until the deadline."
           : "The proposal window has ended. Any submitted revisions remain available as auditable evidence below."}</p>
       </div>
-      <div className="intent-competition__deadline"><Clock3 aria-hidden="true" size={15} /><span>{live ? "Proposal deadline" : "Closed"}</span><strong>{new Date(closesAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" })} UTC</strong></div>
+      <div className="intent-competition__deadline">
+        <span className={`intent-competition__status ${live ? "intent-competition__status--live" : ""}`}>
+          <CircleDot aria-hidden="true" size={14} />{live ? "Accepting proposals" : "Competition closed"}
+        </span>
+        <span className="intent-competition__deadline-label"><Clock3 aria-hidden="true" size={15} />{live ? "Proposal deadline" : "Closed"}</span>
+        <strong>{new Date(closesAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" })} UTC</strong>
+      </div>
     </section>
 
     <section aria-labelledby="current-programs">
