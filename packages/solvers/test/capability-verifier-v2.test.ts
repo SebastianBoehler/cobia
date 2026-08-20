@@ -117,6 +117,20 @@ describe("general capability verifier", () => {
     }
   });
 
+  it("rejects target code drift through RPC preflight before starting fork replay", async () => {
+    const reproduce = replay();
+    const result = await verify({
+      staticCaller: {
+        getCodeHash: async (address) =>
+          address.toLowerCase() === target.toLowerCase() ? undefined : read.runtimeCodeHash,
+        call: staticCaller.call,
+      },
+      replay: reproduce,
+    });
+    expect(result.errorCodes).toContain("TARGET_CODE_MISMATCH");
+    expect(reproduce).not.toHaveBeenCalled();
+  });
+
   it("rejects stale/reorganized anchors and any replay commitment change", async () => {
     expect((await verify({ confirmAnchor: async () => false })).errorCodes).toContain("ANCHOR_MISMATCH");
     expect((await verify({ confirmAnchor: async () => { throw new Error("RPC failed"); } })).errorCodes)

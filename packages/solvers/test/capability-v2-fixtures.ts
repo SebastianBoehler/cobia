@@ -170,6 +170,7 @@ export function replay(candidate = program()) {
 }
 
 export const staticCaller: StaticReadCallerV1 = {
-  getCodeHash: vi.fn(async () => read.runtimeCodeHash),
+  getCodeHash: vi.fn(async (address) =>
+    address.toLowerCase() === target.toLowerCase() ? targetCodeHash : read.runtimeCodeHash),
   call: vi.fn(async () => ({ success: true, returnData: wordNine })),
 };

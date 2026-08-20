@@ -175,6 +175,26 @@ async function verifyObservations(
   } catch { errors.add("OBJECTIVE_MISMATCH"); }
 }
 
+async function verifyDeploymentIdentities(
+  deployments: readonly CapabilityDeploymentV1[],
+  caller: StaticReadCallerV1,
+  errors: Set<CapabilityProgramV2RejectionCode>,
+) {
+  for (const deployment of deployments) {
+    try {
+      if (await caller.getCodeHash(deployment.address) !== deployment.runtimeCodeHash) {
+        errors.add("TARGET_CODE_MISMATCH");
+      }
+      if (deployment.implementation &&
+        await caller.getCodeHash(deployment.implementation.address) !== deployment.implementation.runtimeCodeHash) {
+        errors.add("TARGET_CODE_MISMATCH");
+      }
+    } catch {
+      errors.add("TARGET_CODE_MISMATCH");
+    }
+  }
+}
+
 export async function verifyCapabilityProgramV2(input: VerifyCapabilityProgramInputV2) {
   const chainMismatch = rawChainMismatch(input.program, "chainId") ||
     rawChainMismatch(input.evidence, "chainId") || rawChainMismatch(input.snapshot, "chainId") ||
@@ -255,11 +275,13 @@ export async function verifyCapabilityProgramV2(input: VerifyCapabilityProgramIn
   }
   if (!verifyCapabilityAssetFlowV2(program, compiled).accepted) errors.add("ASSET_FLOW_INVALID");
   if (!coversBalances(program, evidence)) errors.add("FINAL_BALANCE_TOO_LOW");
+  let required: CapabilityDeploymentV1[] = [];
   try {
-    const required = requiredDeployments(compiled, program);
+    required = requiredDeployments(compiled, program);
     if (required.length !== evidence.deployments.length || !required.every((expected) =>
       evidence.deployments.some((observed) => sameDeployment(expected, observed)))) errors.add("TARGET_CODE_MISMATCH");
   } catch { errors.add("TARGET_CODE_MISMATCH"); }
+  await verifyDeploymentIdentities(required, input.staticCaller, errors);
   await verifyObservations(program, evidence, input.staticCaller, errors);
   let replay: CapabilityProgramReplayResultV2 | undefined;
   if (errors.size === 0) {
