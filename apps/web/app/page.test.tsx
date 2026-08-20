@@ -47,16 +47,18 @@ describe("home conversion path", () => {
     expect(architectureIndex).toBeGreaterThan(standingIndex);
   });
 
-  it("labels live and future domains without pretending future capabilities exist", async () => {
+  it("shows semantic and open verified lanes without overstating future domains", async () => {
     const html = renderToStaticMarkup(await Home());
 
-    expect(html).toContain("Investments");
-    expect(html).toContain("Exact-input swaps and Aave supply");
-    expect(html).toContain("Live capability");
+    expect(html).toContain("DeFi strategies");
+    expect(html).toContain("Curve and Uniswap exact-input swaps");
+    expect(html).toContain("Supported");
     expect(html).toContain("Shopping and x402");
-    expect(html).toContain("Requires capability");
-    expect(html).toContain("Subscriptions");
-    expect(html).toContain("Tokenized real-world assets");
+    expect(html).toContain("Supported · offer required");
+    expect(html).toContain("Open protocol programs");
+    expect(html).toContain("Verified program lane");
+    expect(html).toContain("Recurring and regulated actions");
+    expect(html).toContain("Additional semantics needed");
     expect(html).toContain('href="/solvers"');
   });
 });

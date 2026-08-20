@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { Pause, Play } from "lucide-react";
 
 const prompts = [
-  { text: "Move 10 USDG into the best verified position while keeping at least 10.04 USDt0.", status: "Live capability", live: true },
-  { text: "Buy a train ticket for tomorrow using no more than 50 USDt0.", status: "Requires capability", live: false },
-  { text: "Pay this subscription monthly, but stop before total spend exceeds 120 USDt0.", status: "Requires capability", live: false },
-  { text: "Acquire a tokenized Treasury position only from an approved issuer.", status: "Requires capability", live: false },
+  { text: "Move 10 USDG into the best verified position while keeping at least 10.04 USDt0.", status: "Supported", live: true },
+  { text: "Buy a listed resource with an x402 payment capped at 50 USDt0.", status: "Supported when listed", live: true },
+  { text: "Use another protocol only if its exact calls reproduce and satisfy my balance floor.", status: "Open solver lane", live: true },
+  { text: "Pay this subscription monthly, but stop before total spend exceeds 120 USDt0.", status: "Additional semantics needed", live: false },
 ] as const;
 
 export function RotatingIntentPrompt() {

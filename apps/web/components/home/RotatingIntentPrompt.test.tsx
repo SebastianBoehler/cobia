@@ -18,12 +18,12 @@ describe("RotatingIntentPrompt", () => {
   it("rotates complete labelled prompts instead of changing isolated words", () => {
     render(<RotatingIntentPrompt />);
     expect(screen.getByText(/Move 10 USDG/)).toBeVisible();
-    expect(screen.getByText("Live capability")).toBeVisible();
+    expect(screen.getByText("Supported")).toBeVisible();
 
     act(() => vi.advanceTimersByTime(4_500));
 
-    expect(screen.getByText(/Buy a train ticket/)).toBeVisible();
-    expect(screen.getByText("Requires capability")).toBeVisible();
+    expect(screen.getByText(/Buy a listed resource/)).toBeVisible();
+    expect(screen.getByText("Supported when listed")).toBeVisible();
   });
 
   it("stays on the first prompt when reduced motion is requested", () => {
@@ -46,6 +46,6 @@ describe("RotatingIntentPrompt", () => {
 
     act(() => screen.getByRole("button", { name: "Play examples" }).click());
     act(() => vi.advanceTimersByTime(4_500));
-    expect(screen.getByText(/Buy a train ticket/)).toBeVisible();
+    expect(screen.getByText(/Buy a listed resource/)).toBeVisible();
   });
 });

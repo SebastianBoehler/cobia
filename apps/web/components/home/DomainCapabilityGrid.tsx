@@ -4,30 +4,30 @@ import Link from "next/link";
 const domains = [
   {
     icon: BadgeDollarSign,
-    title: "Investments",
-    description: "Exact-input swaps and Aave supply with verifier-owned bounds.",
-    status: "Live capability",
+    title: "DeFi strategies",
+    description: "Aave supply plus Curve and Uniswap exact-input swaps with semantic bounds.",
+    status: "Supported",
     live: true,
   },
   {
     icon: CreditCard,
     title: "Shopping and x402",
-    description: "Bounded payments and purchase receipts need a commerce capability.",
-    status: "Requires capability",
-    live: false,
+    description: "Registered offers bind merchant and product details to bounded payment and receipt evidence.",
+    status: "Supported · offer required",
+    live: true,
   },
   {
     icon: Boxes,
-    title: "Subscriptions",
-    description: "Recurring actions need scoped authorization and cancellation rules.",
-    status: "Requires capability",
-    live: false,
+    title: "Open protocol programs",
+    description: "Other exact wallet calls can compete when code, approvals, outcomes, and fork replay all verify.",
+    status: "Verified program lane",
+    live: true,
   },
   {
     icon: Landmark,
-    title: "Tokenized real-world assets",
-    description: "Issuer, oracle, custody, and redemption semantics must be verified first.",
-    status: "Requires capability",
+    title: "Recurring and regulated actions",
+    description: "Subscriptions and RWAs still need cancellation, issuer, custody, oracle, and redemption semantics.",
+    status: "Additional semantics needed",
     live: false,
   },
 ] as const;
@@ -37,7 +37,7 @@ export function DomainCapabilityGrid() {
     <section className="domain-section" aria-labelledby="domain-title">
       <header className="section-heading-row">
         <div><h2 id="domain-title">One intent model, explicit capabilities.</h2></div>
-        <p>Cobia is protocol-neutral by design. A domain becomes executable only after its semantics exist in the trusted verifier manifest.</p>
+        <p>Known workflows use semantic adapters. Other protocols can use the exact wallet-call lane when every call and outcome reproduces independently.</p>
       </header>
       <div className="domain-grid">
         {domains.map(({ icon: Icon, title, description, status, live }) => (
