@@ -15,10 +15,11 @@
 Implemented and covered by focused tests: Open V3 policy and staged program IR,
 generic raw-EVM verification, LI.FI normalization/verifier/read broker, strict
 OKX swap verification with Builder Code attribution, isolated open-program
-sandbox output parsing, the public intent listing API, solver SDK/example
-harness, developer docs, and segmented solver performance evidence.
+sandbox output parsing, the public intent listing API, signed community solver
+registration, solver SDK/example harness, developer docs, and segmented solver
+performance evidence.
 
-Still release-blocking: public signed community submission and registration,
+Still release-blocking: public signed community decision submission,
 production provider dispatch plus independent generic replay, exact staged
 wallet execution for Open V3, one independently registered tokenized
 instrument, and one HTTPS x402 merchant offer. V3 governance activation is
