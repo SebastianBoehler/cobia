@@ -70,6 +70,10 @@ export const CommerceOfferV1Schema = z.object({
   }).strict(),
   product: z.object({
     id: IdentifierSchema,
+    name: z.string().trim().min(1).max(200).optional(),
+    description: z.string().trim().min(1).max(2_000).optional(),
+    mimeType: z.string().trim().min(1).max(200).optional(),
+    tags: z.array(z.string().trim().min(1).max(32)).max(5).optional(),
     commitment: HashSchema,
     descriptionHash: HashSchema,
     quantity: PositiveIntegerStringSchema,
@@ -97,6 +101,9 @@ export const CommerceOfferV1Schema = z.object({
   }
   if (!sortedUnique(offer.product.mediaHashes)) {
     context.addIssue({ code: "custom", path: ["product", "mediaHashes"], message: "Media hashes must be sorted and unique" });
+  }
+  if (offer.product.tags && !sortedUnique(offer.product.tags)) {
+    context.addIssue({ code: "custom", path: ["product", "tags"], message: "Product tags must be sorted and unique" });
   }
   if (offer.eligibility.status === "executable" && offer.payment.chainId !== 196) {
     context.addIssue({ code: "custom", path: ["payment", "chainId"], message: "Executable offers require X Layer mainnet" });

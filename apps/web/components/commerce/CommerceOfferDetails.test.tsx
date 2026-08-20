@@ -28,11 +28,23 @@ describe("commerce offer details", () => {
   it("explains exact payment and why a discovered offer cannot execute", () => {
     const html = renderToStaticMarkup(<CommerceOfferDetails offer={offer} observedAtSec={2_000_000_010} />);
     expect(html).toContain("Example Merchant");
-    expect(html).toContain("10000 atomic units");
+    expect(html).toContain("10000 atomic · 0x2222222222222222222222222222222222222222");
     expect(html).toContain("Payment settled is not proof of delivery");
     expect(html).toContain("Merchant unregistered");
+    expect(html).toContain("Product details were not supplied by the source");
     expect(html).not.toContain("Execute");
     if (offer.placement.kind === "direct-contract") throw new Error("Fixture must expose a remote endpoint");
-    expect(html).not.toContain(offer.placement.endpoint);
+    expect(html).toContain(offer.placement.endpoint);
+  });
+
+  it("shows the external listing's actual network", () => {
+    const baseOffer = CommerceOfferV1Schema.parse({
+      ...offer,
+      payment: { ...offer.payment, chainId: 8453 },
+    });
+    const html = renderToStaticMarkup(<CommerceOfferDetails offer={baseOffer} observedAtSec={2_000_000_010} />);
+
+    expect(html).toContain("Base · 8453");
+    expect(html).not.toContain("X Layer · 196");
   });
 });

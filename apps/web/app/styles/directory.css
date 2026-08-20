@@ -18,6 +18,7 @@
 .discover-list a, .solver-directory article > a { align-items: center; color: var(--cobalt-dark); display: inline-flex; flex: 0 0 auto; font-size: 14px; font-weight: 650; gap: 7px; }
 .discover-view__rail .discover-list article { align-items: flex-start; flex-direction: column; gap: 14px; min-height: auto; padding: 18px; }
 .discover-view__rail .discover-list h3 { margin-top: 12px; }
+.discover-view__rail .commerce-offers { grid-template-columns: 1fr; }
 .commerce-offers { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .commerce-offers article { background: var(--wash); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
 .commerce-offers__heading { align-items: center; color: var(--muted); display: flex; font-size: 12px; justify-content: space-between; }
@@ -32,6 +33,10 @@
 .commerce-offers__more { margin-top: 14px; }
 .commerce-offers__more summary { border: 1px solid var(--line); border-radius: 12px; color: var(--ink); cursor: pointer; font-size: 13px; font-weight: 640; list-style-position: inside; padding: 13px 15px; }
 .commerce-offers--more { margin-top: 12px; }
+.commerce-offers__external { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 18px; }
+.commerce-offers__external > header { display: grid !important; gap: 5px; margin-bottom: 12px !important; }
+.commerce-offers__external > header h3 { font-size: 14px; margin: 0; }
+.commerce-offers__external > header p { font-size: 12px !important; margin: 0 !important; }
 .source-error { color: var(--muted); font-size: 12px; margin: 12px 0 0; }
 .empty-state { background: var(--wash); border: 1px dashed var(--line-strong); border-radius: 14px; color: var(--muted); font-size: 14px; line-height: 1.5; margin: 0; padding: 20px; }
 .empty-state--action { align-items: flex-start; display: grid; gap: 13px; }

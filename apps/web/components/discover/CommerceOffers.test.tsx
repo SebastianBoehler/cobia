@@ -34,37 +34,40 @@ const offer = CommerceOfferV1Schema.parse({
   },
   eligibility: { status: "discovery-only", blockedReason: "MERCHANT_UNREGISTERED" },
 });
+const executableOffer = CommerceOfferV1Schema.parse({
+  ...offer,
+  merchant: { ...offer.merchant, manifestHash: hash("4") },
+  evidence: { ...offer.evidence, receiptRecipient: "0x3333333333333333333333333333333333333333" },
+  eligibility: { status: "executable" },
+});
 
 describe("CommerceOffers", () => {
-  it("shows exact payment, provenance, evidence, expiry, and eligibility", () => {
-    const html = renderToStaticMarkup(<CommerceOffers offers={[offer]} observedAtSec={2_000_000_000} />);
+  it("shows exact payment, provenance, evidence, expiry, and eligibility for supported offers", () => {
+    const html = renderToStaticMarkup(<CommerceOffers offers={[executableOffer]} observedAtSec={2_000_000_000} />);
 
     expect(html).toContain("Example Merchant");
-    expect(html).toContain("12500000 atomic");
+    expect(html).toContain("12500000 atomic · 0x2222222222222222222222222222222222222222");
     expect(html).toContain("X Layer · chain 196");
     expect(html).toContain("Payment settlement evidence");
-    expect(html).toContain("Discovery only");
-    expect(html).toContain("Merchant unregistered");
+    expect(html).toContain("Executable");
     expect(html).toContain("bazaar.example");
     expect(html).toContain("Review offer");
   });
 
-  it("names networks accurately instead of presenting every EVM chain as X Layer", () => {
-    const baseOffer = CommerceOfferV1Schema.parse({
-      ...offer,
-      payment: { ...offer.payment, chainId: 8453 },
-    });
+  it("labels unsupported Base listings accurately without implying X Layer execution", () => {
+    const baseOffer = CommerceOfferV1Schema.parse({ ...offer, payment: { ...offer.payment, chainId: 8453 } });
     const html = renderToStaticMarkup(<CommerceOffers offers={[baseOffer]} observedAtSec={2_000_000_000} />);
 
     expect(html).toContain("Base · chain 8453");
     expect(html).not.toContain("X Layer · chain 8453");
+    expect(html).not.toContain("Executable");
   });
 
   it("keeps a long marketplace scan compact until the user asks for more", () => {
     const offers = Array.from({ length: 7 }, (_, index) => CommerceOfferV1Schema.parse({
-      ...offer,
+      ...executableOffer,
       offerId: `x402:merchant.example:resource-${index}`,
-      product: { ...offer.product, id: `resource-${index}` },
+      product: { ...executableOffer.product, id: `resource-${index}` },
     }));
     const html = renderToStaticMarkup(<CommerceOffers offers={offers} observedAtSec={2_000_000_000} />);
 
@@ -73,13 +76,7 @@ describe("CommerceOffers", () => {
   });
 
   it("links every immutable offer to commerce review rather than the DeFi composer", () => {
-    const executable = CommerceOfferV1Schema.parse({
-      ...offer,
-      merchant: { ...offer.merchant, manifestHash: hash("4") },
-      evidence: { ...offer.evidence, receiptRecipient: "0x3333333333333333333333333333333333333333" },
-      eligibility: { status: "executable" },
-    });
-    const html = renderToStaticMarkup(<CommerceOffers offers={[executable]} observedAtSec={2_000_000_000} />);
+    const html = renderToStaticMarkup(<CommerceOffers offers={[executableOffer]} observedAtSec={2_000_000_000} />);
 
     expect(html).toContain("Executable");
     expect(html).toContain("Review offer");
@@ -92,6 +89,60 @@ describe("CommerceOffers", () => {
 
   it("states the truthful empty case", () => {
     expect(renderToStaticMarkup(<CommerceOffers offers={[]} observedAtSec={2_000_000_000} />))
-      .toContain("No commerce offers are currently indexed");
+      .toContain("No supported paid resources are available yet");
+  });
+
+  it("keeps unsupported public listings in a details-only external index", () => {
+    const html = renderToStaticMarkup(<CommerceOffers offers={[offer]} observedAtSec={2_000_000_000} />);
+
+    expect(html).toContain("No supported paid resources are available yet");
+    expect(html).toContain("External x402 index");
+    expect(html).toContain("Example Merchant");
+    expect(html).toContain("View details");
+    expect(html).not.toContain("Executable");
+  });
+
+  it("shows each external resource endpoint only once", () => {
+    const duplicate = CommerceOfferV1Schema.parse({
+      ...offer,
+      offerId: "x402:merchant.example:coffee-alternative",
+      payment: { ...offer.payment, atomicAmount: "13000000" },
+    });
+    const html = renderToStaticMarkup(<CommerceOffers offers={[offer, duplicate]} observedAtSec={2_000_000_000} />);
+
+    expect(html.match(/<article>/g) ?? []).toHaveLength(1);
+  });
+
+  it("shows source-bound product details and a readable supported-token price", () => {
+    const detailed = CommerceOfferV1Schema.parse({
+      ...executableOffer,
+      product: {
+        ...executableOffer.product,
+        name: "Weather forecast API",
+        description: "A seven-day forecast delivered as JSON.",
+        mimeType: "application/json",
+      },
+      payment: {
+        ...executableOffer.payment,
+        asset: "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+      },
+    });
+    const html = renderToStaticMarkup(<CommerceOffers offers={[detailed]} observedAtSec={2_000_000_000} />);
+
+    expect(html).toContain("Weather forecast API");
+    expect(html).toContain("A seven-day forecast delivered as JSON.");
+    expect(html).toContain("12.5 USDt0");
+    expect(html).toContain("Example Merchant");
+  });
+
+  it("uses the resource name instead of a dynamic path parameter", () => {
+    const parameterized = CommerceOfferV1Schema.parse({
+      ...offer,
+      placement: { kind: "x402-exact", endpoint: "https://merchant.example/api/native-balance/:address" },
+    });
+    const html = renderToStaticMarkup(<CommerceOffers offers={[parameterized]} observedAtSec={2_000_000_000} />);
+
+    expect(html).toContain("Native balance");
+    expect(html).not.toContain("><h3>:address</h3>");
   });
 });

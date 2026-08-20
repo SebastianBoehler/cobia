@@ -13,6 +13,7 @@ describe("DiscoverView", () => {
     />);
 
     expect(html).toContain("Standing challenges");
+    expect(html.indexOf("Standing challenges")).toBeLessThan(html.indexOf("Paid resources"));
     expect(html).toContain("Between rounds");
     expect(html).toContain("Custom intents");
     expect(html).toContain("Past discoveries");
@@ -28,6 +29,6 @@ describe("DiscoverView", () => {
     expect(html).toContain('href="/intents/new"');
     expect(html).toContain("Create an intent");
     expect(html).toContain("Verified solver history will appear here after a program resolves.");
-    expect(html).toContain("No commerce offers are currently indexed");
+    expect(html).toContain("No supported paid resources are available yet");
   });
 });

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { createPageMetadata } from "../site-metadata";
+import styles from "./TermsPage.module.css";
 
 export const metadata = createPageMetadata({
   title: "Terms of Use",
@@ -11,7 +12,7 @@ export const metadata = createPageMetadata({
 export default function TermsPage() {
   return <>
     <AppHeader />
-    <main className="legal-page" id="main-content">
+    <main className={styles.page} id="main-content">
       <header>
         <h1>Terms of use</h1>
         <p>Effective August 12, 2026</p>
@@ -62,7 +63,7 @@ export default function TermsPage() {
           Cobia is not liable for indirect losses, lost profits, protocol failures, or transactions you approve.
         </p>
       </section>
-      <p className="legal-page__back"><Link href="/intents/new">← Back to new intent</Link></p>
+      <p className={styles.back}><Link href="/intents/new">← Back to new intent</Link></p>
     </main>
   </>;
 }

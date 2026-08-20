@@ -55,6 +55,11 @@ describe("x402 v2 commerce wire", () => {
     });
 
     expect(offer.payment).toMatchObject({ chainId: 196, atomicAmount: "12500000", asset });
+    expect(offer.product).toMatchObject({
+      name: "Example Merchant",
+      description: "One bag of coffee beans",
+      mimeType: "application/json",
+    });
     expect(offer.eligibility).toEqual({ status: "executable" });
     expect(offer.source.responseHash).toMatch(/^0x[0-9a-f]{64}$/);
   });

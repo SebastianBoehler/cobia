@@ -1,0 +1,99 @@
+.page {
+  margin: 0 auto;
+  max-width: 820px;
+  padding: clamp(56px, 8vw, 104px) 24px 112px;
+  width: 100%;
+}
+
+.page header {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 48px;
+  padding-bottom: 44px;
+}
+
+.page h1 {
+  font-size: clamp(48px, 7vw, 72px);
+  font-weight: 630;
+  letter-spacing: -.07em;
+  line-height: .96;
+  margin: 0 0 18px;
+  text-wrap: balance;
+}
+
+.page header p {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0;
+}
+
+.page section {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(180px, .42fr) minmax(0, 1fr);
+  padding: 28px 0;
+}
+
+.page section + section {
+  border-top: 1px solid var(--line);
+}
+
+.page h2 {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -.025em;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.page section p {
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.72;
+  margin: 0;
+  text-wrap: pretty;
+}
+
+.back {
+  border-top: 1px solid var(--line);
+  margin: 0;
+  padding-top: 36px;
+}
+
+.back a {
+  color: var(--cobalt-dark);
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklch, var(--cobalt) 45%, transparent);
+  text-underline-offset: 5px;
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 48px 20px 80px;
+  }
+
+  .page header {
+    margin-bottom: 24px;
+    padding-bottom: 32px;
+  }
+
+  .page h1 {
+    font-size: 48px;
+  }
+
+  .page section {
+    gap: 10px;
+    grid-template-columns: 1fr;
+    padding: 24px 0;
+  }
+
+  .page section p {
+    font-size: 15px;
+    line-height: 1.68;
+  }
+
+  .back {
+    padding-top: 30px;
+  }
+}

@@ -103,6 +103,8 @@ export function normalizeUcpCatalogProductV1(input: NormalizeUcpInput): Commerce
     },
     product: {
       id: product.id,
+      name: product.title,
+      ...(product.description ? { description: product.description } : {}),
       commitment: productCommitment,
       descriptionHash: keccak256(stringToHex(product.description ?? product.title)),
       quantity: "1",

@@ -126,6 +126,9 @@ export function normalizeX402ResourceV1(input: NormalizeX402Input): CommerceOffe
       ? "PLACEMENT_UNSUPPORTED"
       : "ASSET_UNSUPPORTED";
   const description = required.resource.description ?? required.resource.url;
+  const productName = required.resource.serviceName ?? new URL(required.resource.url).pathname.split("/")
+    .filter((part) => part && !part.startsWith(":"))
+    .at(-1);
 
   return CommerceOfferV1Schema.parse({
     version: 1,
@@ -147,6 +150,10 @@ export function normalizeX402ResourceV1(input: NormalizeX402Input): CommerceOffe
     },
     product: {
       id: input.productId,
+      ...(productName ? { name: productName.replaceAll("-", " ").replaceAll("_", " ") } : {}),
+      ...(required.resource.description ? { description: required.resource.description } : {}),
+      ...(required.resource.mimeType ? { mimeType: required.resource.mimeType } : {}),
+      ...(required.resource.tags?.length ? { tags: [...new Set(required.resource.tags)].sort() } : {}),
       commitment: input.productCommitment,
       descriptionHash: keccak256(stringToHex(description)),
       quantity: "1",

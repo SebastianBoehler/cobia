@@ -1,9 +1,9 @@
 import type { CommerceOfferV1 } from "@cobia/domain";
 import styles from "./CommerceOfferDetails.module.css";
+import { humanizeIdentifier, networkName, paymentDisplay, productName } from "./offer-display";
 
 function label(value: string) {
-  const words = value.replaceAll("-", " ").replaceAll("_", " ");
-  return words[0]?.toUpperCase() + words.slice(1).toLowerCase();
+  return humanizeIdentifier(value);
 }
 
 export function CommerceOfferDetails({ offer, observedAtSec }: {
@@ -16,19 +16,22 @@ export function CommerceOfferDetails({ offer, observedAtSec }: {
     ? null : label(offer.eligibility.blockedReason);
   return <article className={styles.view}>
     <header className={styles.hero}>
-      <span className={styles.status}>{executable ? "Executable" : "Discovery only"} · {offer.source.protocol}</span>
-      <h1>{offer.product.id}</h1>
-      <p>{offer.merchant.displayName}. Review the immutable product, payment, and evidence bounds before creating a commerce intent.</p>
+      <span className={styles.status}>{executable ? "Cobia-supported" : "External details only"} · {offer.source.protocol}</span>
+      <h1>{productName(offer)}</h1>
+      <p>{offer.product.description ?? `Sold by ${offer.merchant.displayName}. Product details were not supplied by the source.`}</p>
     </header>
     <div className={styles.grid}>
       <section className={styles.card}>
         <h2>Exact payment</h2>
         <dl>
-          <div><dt>Amount</dt><dd>{offer.payment.atomicAmount} atomic units</dd></div>
+          <div><dt>Price</dt><dd>{paymentDisplay(offer)}</dd></div>
           <div><dt>Asset</dt><dd>{offer.payment.asset}</dd></div>
+          <div><dt>Merchant</dt><dd>{offer.merchant.displayName} · {offer.merchant.id}</dd></div>
           <div><dt>Payee</dt><dd>{offer.merchant.payee}</dd></div>
-          <div><dt>Network</dt><dd>X Layer · 196</dd></div>
+          <div><dt>Network</dt><dd>{networkName(offer.payment.chainId)} · {offer.payment.chainId}</dd></div>
           <div><dt>Quantity</dt><dd>{offer.product.quantity}</dd></div>
+          {offer.product.mimeType ? <div><dt>Delivery</dt><dd>{offer.product.mimeType}</dd></div> : null}
+          {offer.placement.kind !== "direct-contract" ? <div><dt>Resource endpoint</dt><dd>{offer.placement.endpoint}</dd></div> : null}
         </dl>
       </section>
       <section className={styles.card}>
