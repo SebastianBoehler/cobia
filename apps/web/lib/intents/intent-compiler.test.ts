@@ -37,4 +37,19 @@ describe("intent compiler", () => {
       status: "clarification", question: "What is the maximum amount to spend?",
     });
   });
+
+  it("normalizes UI mention markers before asking the model", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify({
+      status: "review", question: null, templateId: "exact-input-swap",
+      inputSymbol: "USDG", outputSymbol: "USDt0", amount: "10", minimum: "9.95",
+      jurisdiction: null,
+    })));
+    const compiler = createOpenAiIntentCompiler({ apiKey: "test", model: "test-model", fetcher });
+
+    await compiler.compile("Swap 10 @USDG for at least 9.95 @USDt0 on @XLayer", "exact-input-swap");
+
+    const request = JSON.parse(fetcher.mock.calls[0]![1]!.body as string);
+    expect(request.input).toContain("Swap 10 USDG for at least 9.95 USDt0 on XLayer");
+    expect(request.input).not.toContain("@");
+  });
 });
