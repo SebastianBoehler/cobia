@@ -50,14 +50,16 @@ describe("home conversion path", () => {
   it("shows semantic and open verified lanes without overstating future domains", async () => {
     const html = renderToStaticMarkup(await Home());
 
-    expect(html).toContain("DeFi strategies");
+    expect(html).toContain("X Layer protocol intents");
     expect(html).toContain("Curve and Uniswap exact-input swaps");
     expect(html).toContain("Supported");
     expect(html).toContain("Shopping and x402");
     expect(html).toContain("Supported · offer required");
     expect(html).toContain("Open protocol programs");
     expect(html).toContain("Verified program lane");
-    expect(html).toContain("Recurring and regulated actions");
+    expect(html).toContain("Registered RWA acquisition");
+    expect(html).toContain("Supported · eligibility required");
+    expect(html).toContain("Recurring actions");
     expect(html).toContain("Additional semantics needed");
     expect(html).toContain('href="/solvers"');
   });

@@ -16,6 +16,15 @@
 .discover-list h3 { font-size: 18px; margin: 14px 0 7px; }
 .discover-list p { color: var(--muted); font-size: 14px; line-height: 1.5; margin: 0; }
 .discover-list a, .solver-directory article > a { align-items: center; color: var(--cobalt-dark); display: inline-flex; flex: 0 0 auto; font-size: 14px; font-weight: 650; gap: 7px; }
+.supported-protocols { border-top: 1px solid var(--line); display: grid; gap: 24px; grid-template-columns: minmax(180px, .7fr) minmax(0, 1fr); margin-top: 30px; padding-top: 28px; }
+.supported-protocols h3 { font-size: 18px; margin: 0 0 7px; }
+.supported-protocols > div > p { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 0; }
+.supported-protocols ul { display: grid; list-style: none; margin: 0; padding: 0; }
+.supported-protocols li { align-items: center; display: flex; gap: 12px; padding: 12px 0; }
+.supported-protocols li + li { border-top: 1px solid var(--line); }
+.supported-protocols span { display: grid; gap: 3px; }
+.supported-protocols strong { font-size: 14px; }
+.supported-protocols small { color: var(--muted); font-size: 12px; }
 .discover-view__rail .discover-list article { align-items: flex-start; flex-direction: column; gap: 14px; min-height: auto; padding: 18px; }
 .discover-view__rail .discover-list h3 { margin-top: 12px; }
 .discover-view__rail .commerce-offers { grid-template-columns: 1fr; }
@@ -127,6 +136,7 @@
   .directory-page__header h1 { font-size: 52px; }
   .discover-view { gap: 56px; }
   .discover-list article { align-items: flex-start; flex-direction: column; gap: 20px; }
+  .supported-protocols { grid-template-columns: 1fr; }
   .commerce-offers { grid-template-columns: 1fr; }
   .history-table a { gap: 6px; grid-template-columns: minmax(0, 1fr) 18px; padding: 16px 4px; }
   .history-table small, .history-table strong { grid-column: 1; }

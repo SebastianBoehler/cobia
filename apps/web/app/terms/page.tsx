@@ -5,7 +5,7 @@ import styles from "./TermsPage.module.css";
 
 export const metadata = createPageMetadata({
   title: "Terms of Use",
-  description: "Terms for Cobia's non-custodial X Layer route search, verification, simulation, reveal, and execution service.",
+  description: "Terms for Cobia's non-custodial intent, verification, payment, and execution service.",
   path: "/terms",
 });
 
@@ -15,12 +15,13 @@ export default function TermsPage() {
     <main className={styles.page} id="main-content">
       <header>
         <h1>Terms of use</h1>
-        <p>Effective August 12, 2026</p>
+        <p>Effective August 20, 2026</p>
       </header>
       <section>
         <h2>What Cobia provides</h2>
         <p>
-          Cobia searches, compares, verifies, and simulates non-custodial routes on X Layer.
+          Cobia searches, compares, verifies, and simulates non-custodial routes on X Layer and
+          explicitly identified payment or asset networks.
           A quote, forecast, APY, fee estimate, or simulation is information—not a guarantee of
           future performance or investment advice.
         </p>
@@ -46,7 +47,16 @@ export default function TermsPage() {
         <p>
           Route-reveal payments and protocol interactions use third-party wallets, networks, and smart
           contracts. Their own terms may apply. Cobia does not custody funds, reverse confirmed blockchain
-          transactions, or control third-party availability.
+          transactions, or control third-party availability. Payment settlement proves payment,
+          not the quality, accuracy, legality, or continued availability of a purchased service.
+        </p>
+      </section>
+      <section>
+        <h2>Tokenized assets</h2>
+        <p>
+          A registered token identity does not make an asset suitable or legally available to you.
+          Issuer eligibility, transfer, custody, redemption, sanctions, tax, and jurisdictional rules
+          still apply. Any eligibility acknowledgement is your attestation, not legal approval by Cobia.
         </p>
       </section>
       <section>

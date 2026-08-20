@@ -2,6 +2,13 @@ import type { CommerceOfferV1 } from "@cobia/domain";
 import { ArrowRight, Clock3, History, Repeat2, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 import { CommerceOffers } from "./CommerceOffers";
+import { ProtocolMark } from "../brand/ProtocolMark";
+
+const supportedProtocols = [
+  { name: "Aave V3" as const, capability: "Bounded supply with receipt-token floor" },
+  { name: "Curve" as const, capability: "StableSwap NG exact-input exchange" },
+  { name: "Uniswap V3" as const, capability: "Exact-input exchange and verified pool identity" },
+] as const;
 
 export interface DiscoverChallenge { id: string; title: string; goal: string; availability: "live" | "between-rounds" }
 export interface DiscoverIntent { id: string; goal: string; state: string; closesAt: string }
@@ -30,6 +37,13 @@ export function DiscoverView({
           <div><span className={`status ${item.availability === "live" ? "status--live" : ""}`}>{label(item.availability)}</span><h3>{item.title}</h3><p>{item.goal}</p></div>
           <Link href={`/intents/new?challenge=${item.id}`}>Use challenge <ArrowRight aria-hidden="true" size={15} /></Link>
         </article>)}</div> : <p className="empty-state">No standing challenges are published yet.</p>}
+        <div className="supported-protocols" aria-labelledby="protocols-title">
+          <div><h3 id="protocols-title">Supported X Layer protocols</h3><p>Semantic adapters are pinned and independently checked. Other contracts can compete through the exact-call replay lane.</p></div>
+          <ul>{supportedProtocols.map((protocol) => <li key={protocol.name}>
+            <ProtocolMark protocol={protocol.name} size={28} />
+            <span><strong>{protocol.name}</strong><small>{protocol.capability}</small></span>
+          </li>)}</ul>
+        </div>
       </section>
 
       <aside aria-label="Intent marketplace" className="discover-view__rail">

@@ -1,11 +1,11 @@
 # Cobia
 
-Cobia is a verified DeFi intent system for X Layer. A wallet signs an exact
-stablecoin policy, Cobia captures public wallet and protocol state at one pinned
-block, and a coding agent researches and simulates an unsigned typed capability
-program inside an isolated sandbox. A separate trusted verifier compiles the
-capabilities, checks policy and deployment identities, and reproduces the result
-on a fresh fork before any wallet execution is offered.
+Cobia is a verified intent system centered on X Layer protocols. A wallet signs
+an exact policy, Cobia captures public wallet and protocol state at pinned chain
+blocks, and a coding agent researches and simulates an unsigned typed program
+inside an isolated sandbox. A separate trusted verifier checks policy and
+deployment identities and reproduces the result on a fresh fork before any
+wallet execution is offered.
 
 Generation is open-world, while production authorization remains independently
 verified. The first semantic modules are USDG/USDt0 Aave V3 supply and
@@ -29,6 +29,8 @@ the owner can execute them. V1 allocation rounds remain readable as a control.
 | X Layer mainnet USDt0 and Aave aToken balances | Live reads |
 | Aave + Curve + Uniswap route planning | Implemented for one exact conserved leg: Aave supply, Curve/Uniswap swap-to-Aave, or one-sided full-range Uniswap LP entry |
 | Solver competition | Open signed intent intake, solver registration, immutable decision revisions, abstention, capability programs, exact wallet-call programs, and replay protection are implemented |
+| Registered RWA acquisition | Live signed-intent lane for issuer-sourced Ethereum token identities, explicit jurisdiction attestation, exact-call construction, and verified token-balance increase |
+| x402 resource purchase | Live for exactly pinned merchant resources on their declared payment network; the order policy binds product, price, payee, payer, deadline, and settlement evidence before wallet authorization |
 | Transaction construction/execution engine | Unit/fork-tested and wired as buyer-authenticated, one-step-at-a-time X Layer mainnet wallet execution |
 | X Layer mainnet-fork route rehearsal | Product-visible, persisted, and green for direct Aave, Curve/Uniswap-to-Aave, and full-range Uniswap LP-entry routes |
 | Verified stepwise X Layer mainnet execution | Product-wired for fresh, purchased, rehearsed V2 routes; every transaction requires an explicit buyer-wallet confirmation and durable receipt verification |
@@ -54,7 +56,7 @@ but Cobia does not yet build collect, rebalance, decrease-liquidity, or exit ste
 ```mermaid
 flowchart LR
     W["Owner wallet"] --> I["Signed stablecoin intent"]
-    I --> S["Pinned Aave + Curve + Uniswap snapshot"]
+    I --> S["Pinned X Layer and declared-chain snapshot"]
     S --> A["Ephemeral coding-agent sandbox"]
     A --> P["Unsigned typed capability program"]
     P --> V["Independent compiler + verifier"]
@@ -68,10 +70,11 @@ but executable calldata exists only when a verifier-owned capability module
 understands its semantics and deployment identities. Rejected programs are
 retained as evidence, never exposed as executable. Expired findings are labeled
 `Past discovery`; they require a new wallet-specific intent and fresh verification.
-Payment and execution both use X Layer mainnet chain 196; their chain fields
-remain separately recorded for auditability and historical receipt compatibility. The app stores
-credential hashes and receipt evidence, not raw spend-capable payment
-credentials.
+First-class Aave, Curve, and Uniswap execution uses X Layer mainnet chain 196.
+Registered RWA programs may execute on their issuer chain, and a supported x402
+resource uses the payment chain declared by its exact merchant manifest. Every
+chain remains explicit in the signed policy and evidence. The app stores
+credential hashes and receipt evidence, not raw spend-capable payment credentials.
 
 ## Run locally
 

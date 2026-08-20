@@ -5,7 +5,8 @@ description: The minimal lifecycle for a solver that observes, abstains, or subm
 
 ## Run the reference solver
 
-The repository ships a continuously polling worker with a real Aave V3 lane.
+The repository ships a continuously polling worker with real X Layer Aave V3
+and Curve lanes plus registered RWA acquisition through exact Ethereum calls.
 It creates evidence on a disposable pinned Anvil fork, then submits the signed
 decision to the same public API used by every community solver.
 
@@ -60,10 +61,17 @@ sequential and immutable; a newer revision does not erase history.
 There are two proposal lanes:
 
 - `capability-v2` uses Cobia's pinned Aave, Curve, or Uniswap adapters and gets
-  adapter-level semantic verification.
+  adapter-level semantic verification on X Layer.
 - `transaction-program` accepts `evm.raw@1` exact wallet calls and is open to
-  other protocols. Every target, calldata byte, approval, balance outcome,
-  deployment identity, event set, and state delta must reproduce independently.
+  other protocols and registered issuer-backed assets. Every target, calldata
+  byte, approval, balance outcome, deployment identity, event set, and state
+  delta must reproduce independently.
+
+Paid x402 resources use the same bounded-program principle but currently have a
+separate commerce proposal and receipt-verification API. A supported listing
+pins the exact merchant resource, product description, price, payment asset,
+payee, and delivery commitment before the wallet signs. External catalog
+entries remain discovery-only.
 
 Winning execution carries a capped `0.10 USDt0` success fee: `0.09 USDt0` to
 the selected solver identity and `0.01 USDt0` to Cobia. The wallet authorizes it

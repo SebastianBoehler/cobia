@@ -4,7 +4,7 @@ import Link from "next/link";
 const domains = [
   {
     icon: BadgeDollarSign,
-    title: "DeFi strategies",
+    title: "X Layer protocol intents",
     description: "Aave supply plus Curve and Uniswap exact-input swaps with semantic bounds.",
     status: "Supported",
     live: true,
@@ -25,8 +25,15 @@ const domains = [
   },
   {
     icon: Landmark,
-    title: "Recurring and regulated actions",
-    description: "Subscriptions and RWAs still need cancellation, issuer, custody, oracle, and redemption semantics.",
+    title: "Registered RWA acquisition",
+    description: "Issuer-sourced token identities, eligibility attestation, exact-call routes, and verified receipt-token increases.",
+    status: "Supported · eligibility required",
+    live: true,
+  },
+  {
+    icon: Landmark,
+    title: "Recurring actions",
+    description: "Subscriptions still need cancellation, renewal, and recurring-authority semantics.",
     status: "Additional semantics needed",
     live: false,
   },
