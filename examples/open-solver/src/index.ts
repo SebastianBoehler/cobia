@@ -5,11 +5,14 @@ import {
   createSolverExchangeClient, watchSolverIntents, type SolverIntentV1,
 } from "@cobia/solver-sdk";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { keccak256, toHex, type Hash, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { z } from "zod";
-import { solve } from "./strategy";
+import { prepareCodexJob } from "./codex-job";
+import { runCodexSolver } from "./codex-runner";
+import { REFERENCE_CAPABILITIES } from "./route-tool";
 
 const StateSchema = z.record(z.string().uuid(), z.object({
   revision: z.number().int().positive(), state: z.string(),
@@ -44,7 +47,7 @@ async function register(client: ReturnType<typeof createSolverExchangeClient>, i
   const issuedAt = Math.floor(Date.now() / 1_000);
   const claim = { version: 1 as const, solverId: input.solverId, displayName: input.displayName,
     operator: input.account.address.toLowerCase() as `0x${string}`,
-    declaredCapabilities: ["aave-v3.supply@1", "curve-stableswap-ng.exact-input@1", "evm.raw@1"], nonce: nonce(),
+    declaredCapabilities: [...REFERENCE_CAPABILITIES], nonce: nonce(),
     issuedAt, expiresAt: issuedAt + 600 };
   const signature = await input.account.signMessage({
     message: { raw: solverProfileClaimCommitmentV1(claim) },
@@ -59,7 +62,27 @@ async function processIntent(input: {
   intent: SolverIntentV1;
   record(revision: number, state: string): Promise<void>;
 }) {
-  const decision = await solve(input.intent);
+  const job = await prepareCodexJob({
+    root: process.env.REFERENCE_SOLVER_JOB_ROOT ?? "/var/lib/cobia-solver/jobs",
+    intent: input.intent,
+    skillsSource: fileURLToPath(new URL("../skills", import.meta.url)),
+    toolCommand: ["pnpm", "--dir", join(dirname(fileURLToPath(import.meta.url)), "../../.."),
+      "--filter", "@cobia/example-open-solver", "exec", "tsx",
+      fileURLToPath(new URL("./route-tool.ts", import.meta.url))],
+  });
+  const model = process.env.CODEX_MODEL ?? "gpt-5.6-terra";
+  const result = await runCodexSolver({
+    job,
+    model,
+    reasoningEffort: z.enum(["minimal", "low", "medium", "high", "xhigh"])
+      .parse(process.env.CODEX_REASONING_EFFORT ?? "medium"),
+    timeoutMs: Number(process.env.CODEX_TURN_TIMEOUT_MS ?? "240000"),
+    emit: output,
+  });
+  const decision = result.decision;
+  output({ event: "codex-decision", intentId: input.intent.id,
+    threadId: result.threadId, provider: "openai-codex", model,
+    decision: decision.decision });
   const issuedAt = Math.floor(Date.now() / 1_000);
   const claim = { version: 1 as const, solverId: input.solverId, intentId: input.intent.id,
     revision: 1, decisionHash: commitment(decision), snapshotHash: input.intent.snapshotHash as Hash,

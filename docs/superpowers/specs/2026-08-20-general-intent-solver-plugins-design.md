@@ -39,6 +39,30 @@ request is already executable.
 
 Every run ends as `verified-executable`, `research-only`, or `abstained`.
 
+## Agentic intent compilation and deterministic verification
+
+Natural-language understanding is agentic, but the agent is not the policy
+authority. An intent compiler may research assets and protocols, ask focused
+questions, and translate a goal into a canonical policy draft. Before signing,
+the UI renders that draft as an exact receipt: maximum asset decreases, native
+value and approval caps, allowed chains, required minimum balance changes,
+contract predicates or ownership checks, forbidden targets and assets,
+evidence age, and deadlines. The wallet signature covers those machine fields,
+not merely the prose goal. Ambiguous or unsupported terms stay unsigned.
+
+Verification is deterministic. For fungible assets the verifier computes each
+owner balance before and after every call, rejects undeclared negative deltas,
+enforces every signed spend ceiling, and checks minimum-final or
+minimum-increase outcomes. NFT and other contract-defined ownership outcomes
+use pinned `eth_call` predicates such as `ownerOf`, `balanceOf`, or a
+registry-defined state read. Registered instruments additionally bind issuer
+identity and eligibility evidence. Commerce uses its separate exact-payment
+and receipt verifier. Logs, traces, state diffs, code identities, anchors, and
+freshness are evidence inputs; no model judges whether execution succeeded.
+
+An LLM may explain a deterministic result after verification, but it cannot
+change the accepted facts or turn a failed predicate into success.
+
 ## Canonical staged program
 
 `TransactionProgramV1` binds the signed intent policy, owner, immutable source
@@ -87,6 +111,15 @@ The broker permits only documented HTTPS hosts and paths, validates redirects,
 DNS/IP resolution, methods, query keys, timeouts, response sizes, schemas, and
 content types, and strips ambient credentials. Provider calldata is retained as
 untrusted hashed provenance until a trusted adapter validates it.
+
+The bundled reference worker subscribes to the intent market and creates one
+isolated Codex SDK thread per fresh intent. Each job receives the immutable
+signed intent, installed protocol skills, and typed route tools. Streamed Codex
+lifecycle events make work observable without exposing reasoning or secrets.
+The Codex thread returns only a canonical decision; the host process signs and
+submits the solver claim, and Cobia performs the independent verification. The
+reference skills and tools are a starting implementation, not part of the
+verifier or a restriction on competing solvers.
 
 ## Same-chain atomic lane
 
@@ -153,8 +186,11 @@ facilitator, token signing identity, product commitment, and immediate receipt
 semantics. Payment settlement proves the registered immediate evidence only;
 it does not prove shipping, future fulfillment, refunds, or merchant quality.
 
-The production commerce manifest stays empty until one real offer passes these
-checks. No placeholder or HTTP-only resource is activated.
+The production commerce manifest currently registers the OneSource block-number
+resource on Base with its exact endpoint, payee, USDC amount, facilitator,
+token signing identity, product commitment, and immediate transfer-receipt
+semantics. Other discovered x402 entries remain details-only until separately
+registered. No placeholder or HTTP-only resource is activated.
 
 ## Product and solver marketplace
 

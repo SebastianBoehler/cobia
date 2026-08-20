@@ -6,8 +6,12 @@ services:
     restart: unless-stopped
     init: true
     env_file: .env
+    environment:
+      CODEX_HOME: /auth/codex
     volumes:
+      - codex-auth:/auth/codex
       - solver-state:/var/lib/cobia-solver
 
 volumes:
+  codex-auth:
   solver-state:

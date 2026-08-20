@@ -9,6 +9,7 @@ import { replayCapabilityProgramOnForkV2 } from
 import { deriveCapabilityAuthorityV2 } from "../../../apps/web/lib/open-exchange/capability-authority";
 import { startLocalFork } from "./local-fork";
 import { solveRegisteredInstrument } from "./rwa-strategy";
+import { buildSwapActions } from "./swap-routes";
 
 function aaveAsset(input: Address, output: Address) {
   return Object.values(PROTOCOL_REGISTRY.aaveV3.assets).find(({ underlying, aToken }) =>
@@ -18,8 +19,7 @@ function aaveAsset(input: Address, output: Address) {
 function registeredSwap(input: Address, output: Address) {
   const assets = Object.values(PROTOCOL_REGISTRY.aaveV3.assets);
   return assets.some(({ underlying }) => isAddressEqual(underlying.address, input)) &&
-    assets.some(({ underlying }) => isAddressEqual(underlying.address, output)) &&
-    !isAddressEqual(input, output);
+    assets.some(({ underlying }) => isAddressEqual(underlying.address, output));
 }
 
 /** Reference lane: a real, fork-replayed Aave supply. Other solvers remain free to use transaction programs. */
@@ -47,11 +47,23 @@ export async function solve(intent: SolverIntentV1): Promise<SolverDecisionV1> {
     return { version: 1, decision: "abstain", reasonCode: "SNAPSHOT_EXPIRED" };
   }
   const supply = Boolean(aaveAsset(input.token, outcome.token));
-  const capabilityId = supply ? "aave-v3.supply" : "curve-stableswap-ng.exact-input";
-  const parameters = supply
-    ? { asset: input.token, amountAtomic: input.maximumAtomic }
-    : { tokenIn: input.token, tokenOut: outcome.token, amountInAtomic: input.maximumAtomic,
-      minimumOutputAtomic: outcome.atomic };
+  const actions = supply ? [{
+    capabilityId: "aave-v3.supply", capabilityVersion: 1 as const,
+    valueAtomic: "0", parameters: { asset: input.token, amountAtomic: input.maximumAtomic },
+  }] : await buildSwapActions({
+    rpcUrl: upstreamRpc,
+    block: { number: BigInt(authority.snapshot.blockNumber), hash: authority.snapshot.blockHash,
+      timestamp: BigInt(Math.floor(Date.parse(authority.snapshot.capturedAt) / 1_000)) },
+    inputToken: input.token,
+    outputToken: outcome.token,
+    inputAtomic: BigInt(input.maximumAtomic),
+    minimumOutputAtomic: BigInt(outcome.atomic),
+  });
+  if (!actions) {
+    return { version: 1, decision: "abstain",
+      reasonCode: isAddressEqual(input.token, outcome.token)
+        ? "NO_PROFITABLE_ROUTE" : "NO_VERIFIED_SWAP_ROUTE" };
+  }
   const program = CapabilityProgramV2Schema.parse({
     version: 2, kind: "general-onchain", requestId: intent.id, chainId: 196,
     policyHash: commitment(authority.policy), manifestHash: authority.policy.manifestHash,
@@ -59,15 +71,19 @@ export async function solve(intent: SolverIntentV1): Promise<SolverDecisionV1> {
     pinnedBlock: { number: authority.snapshot.blockNumber, hash: authority.snapshot.blockHash },
     deadline, nonce: intent.policy.nonce,
     input: { token: input.token, atomic: input.maximumAtomic },
-    actions: [{ capabilityId, capabilityVersion: 1, valueAtomic: "0", parameters }],
+    actions,
     balanceConstraints: authority.policy.balanceConstraints,
     predicates: authority.policy.predicates,
     objective: authority.policy.objective,
   });
-  const module = productionCapabilityRegistryV1.resolve(capabilityId, 1);
-  const parsedParameters = module.parseParameters(program.actions[0]!.parameters);
-  const compiled = [module.compile({ program, actionIndex: 0,
-    parameters: parsedParameters, manifest: authority.manifest })];
+  const compiled = program.actions.map((action, actionIndex) => {
+    const module = productionCapabilityRegistryV1.resolve(
+      action.capabilityId,
+      action.capabilityVersion,
+    );
+    return module.compile({ program, actionIndex,
+      parameters: module.parseParameters(action.parameters), manifest: authority.manifest });
+  });
   const fork = await startLocalFork({ upstreamRpc, blockNumber: authority.snapshot.blockNumber,
     ...(process.env.ANVIL_PORT ? { port: Number(process.env.ANVIL_PORT) } : {}) });
   try {
@@ -81,7 +97,7 @@ export async function solve(intent: SolverIntentV1): Promise<SolverDecisionV1> {
         stateDiffHash: replay.stateDiffHash, eventsHash: replay.eventsHash,
         balanceDeltas: replay.balanceDeltas, deployments: replay.deployments,
         observations: replay.observations, ...(replay.objective ? { objective: replay.objective } : {}) },
-      provenance: { version: 1, runner: `cobia-reference-${supply ? "aave" : "curve"}@1`,
+      provenance: { version: 1, runner: `cobia-reference-${supply ? "aave" : "swap"}@2`,
         dependencies: [{ name: "anvil", version: "1.7.1" }], sources: [],
         commandHashes: [], generatedFiles: [] },
     };

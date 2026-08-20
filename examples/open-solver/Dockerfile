@@ -11,7 +11,10 @@ COPY packages/domain/package.json packages/domain/package.json
 COPY packages/solver-sdk/package.json packages/solver-sdk/package.json
 COPY packages/solvers/package.json packages/solvers/package.json
 COPY examples/open-solver/package.json examples/open-solver/package.json
-RUN pnpm install --filter @cobia/example-open-solver... --frozen-lockfile
+RUN --mount=type=cache,id=cobia-pnpm-store,target=/root/.local/share/pnpm/store \
+  pnpm config set fetch-timeout 300000 \
+  && pnpm config set fetch-retries 5 \
+  && pnpm install --filter @cobia/example-open-solver... --frozen-lockfile
 COPY apps/web apps/web
 COPY packages packages
 COPY examples/open-solver examples/open-solver
