@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { Pause, Play } from "lucide-react";
 
 const prompts = [
-  { text: "Move 10 USDG into the best verified position while keeping at least 10.04 USDt0.", status: "Supported", live: true },
-  { text: "Buy a listed resource with an x402 payment capped at 50 USDt0.", status: "Supported when listed", live: true },
-  { text: "Use another protocol only if its exact calls reproduce and satisfy my balance floor.", status: "Open solver lane", live: true },
-  { text: "Pay this subscription monthly, but stop before total spend exceeds 120 USDt0.", status: "Additional semantics needed", live: false },
+  "Move 10 USDG into the best verified position while keeping at least 10.04 USDt0.",
+  "Buy a listed resource with an x402 payment capped at 50 USDt0.",
+  "Use another protocol only if its exact calls reproduce and satisfy my balance floor.",
+  "Pay this subscription monthly, but stop before total spend exceeds 120 USDt0.",
 ] as const;
 
 export function RotatingIntentPrompt() {
@@ -31,9 +31,9 @@ export function RotatingIntentPrompt() {
       onPointerEnter={() => setInteractionPaused(true)}
       onPointerLeave={() => setInteractionPaused(false)}
     >
-      <div className="rotating-prompt__content" key={prompt.text}>
-        <div className="rotating-prompt__label"><span>Describe your goal</span><strong className={prompt.live ? "is-live" : ""}>{prompt.status}</strong></div>
-        <p>{prompt.text}</p>
+      <div className="rotating-prompt__content" key={prompt}>
+        <div className="rotating-prompt__label"><span>Describe your goal</span></div>
+        <p>{prompt}</p>
       </div>
       <div className="rotating-prompt__controls" aria-label="Example intents" role="group">
         <div className="rotating-prompt__pages">
@@ -41,7 +41,7 @@ export function RotatingIntentPrompt() {
             <button
               aria-label={`Show example ${index + 1}`}
               aria-pressed={active === index}
-              key={item.text}
+              key={item}
               onClick={() => setActive(index)}
               type="button"
             />

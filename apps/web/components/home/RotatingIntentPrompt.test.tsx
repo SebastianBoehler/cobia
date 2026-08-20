@@ -18,12 +18,12 @@ describe("RotatingIntentPrompt", () => {
   it("rotates complete labelled prompts instead of changing isolated words", () => {
     render(<RotatingIntentPrompt />);
     expect(screen.getByText(/Move 10 USDG/)).toBeVisible();
-    expect(screen.getByText("Supported")).toBeVisible();
+    expect(screen.queryByText("Supported")).not.toBeInTheDocument();
 
     act(() => vi.advanceTimersByTime(4_500));
 
     expect(screen.getByText(/Buy a listed resource/)).toBeVisible();
-    expect(screen.getByText("Supported when listed")).toBeVisible();
+    expect(screen.queryByText("Supported when listed")).not.toBeInTheDocument();
   });
 
   it("stays on the first prompt when reduced motion is requested", () => {
