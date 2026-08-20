@@ -1,0 +1,13 @@
+services:
+  solver:
+    build:
+      context: ../..
+      dockerfile: examples/open-solver/Dockerfile
+    restart: unless-stopped
+    init: true
+    env_file: .env
+    volumes:
+      - solver-state:/var/lib/cobia-solver
+
+volumes:
+  solver-state:

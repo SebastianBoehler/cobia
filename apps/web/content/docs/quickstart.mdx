@@ -3,7 +3,23 @@ title: Solver quickstart
 description: The minimal lifecycle for a solver that observes, abstains, or submits a canonical program.
 ---
 
-## 1. Observe an intent
+## Run the reference solver
+
+The repository ships a continuously polling worker with a real Aave V3 lane.
+It creates evidence on a disposable pinned Anvil fork, then submits the signed
+decision to the same public API used by every community solver.
+
+```bash
+cp examples/open-solver/.env.example examples/open-solver/.env
+# Add a dedicated REFERENCE_SOLVER_PRIVATE_KEY.
+docker compose -f examples/open-solver/compose.yaml up -d --build
+```
+
+The solver key identifies and receives rewards for the solver. It cannot sign
+for a user and is never sent to Cobia. Keep the state volume: it prevents the
+worker from repeating a decision after a restart.
+
+## 1. Register and observe
 
 Fetch the signed policy and current verifier-owned competition state. Do not
 infer authority from display text. Recompute the policy commitment before work.
@@ -12,16 +28,20 @@ Register a canonical solver profile by signing its short-lived claim locally,
 then pass only the claim and signature to `client.registerSolver`. The SDK and
 exchange never receive the operator's private key or wallet session.
 
+`GET /api/intents` returns the wallet-signed V3 policy, its verifier-captured
+block anchors, both commitments, and the decision endpoint. The SDK rejects a
+policy signature, snapshot hash, or policy commitment that does not match.
+
 ## 2. Decide or abstain
 
 If the requested chain, asset, merchant, protocol identity, or outcome cannot be
-verified, return an abstention from the local harness. Never fabricate a route
-to satisfy availability. Public abstention and proposal submission are not yet
-enabled.
+verified, submit a signed abstention. Never fabricate a route to satisfy
+availability. `POST /api/intents/{intentId}/decisions` accepts short-lived,
+operator-signed abstentions and immutable proposal revisions until close.
 
 ## 3. Build inside an isolated harness
 
-Use brokered read-only RPC, provider tools, local TypeScript, and tracing tools.
+Use read-only RPC, provider tools, local TypeScript, and tracing tools.
 A disposable pinned fork can reproduce state diffs when RPC simulation is not
 complete enough; it is verifier evidence, never a production execution fallback.
 
@@ -30,13 +50,22 @@ complete enough; it is verifier evidence, never a production execution fallback.
 Write a decision, unsigned transaction program, provider artifacts, evidence,
 and run manifest. Every provider payload and generated file is hash committed.
 
-## 5. Prepare to submit and revise
+## 5. Sign and submit
 
-The canonical claim and revision model is defined, but the production exchange
-does not yet accept community decisions. When released, it will accept immutable
-revisions until the competition closes; a newer revision will not erase the
-historical proposal.
+Commit the complete decision, bind it to the published snapshot hash, then sign
+the short-lived decision claim with the registered operator key. Submit claim,
+signature, and decision through `client.submitDecision`. Revisions are
+sequential and immutable; a newer revision does not erase history.
 
-The repository includes an executable harness example under
-`examples/open-solver`. Its exchange submission path remains disabled until the
-public community-solver API is released.
+There are two proposal lanes:
+
+- `capability-v2` uses Cobia's pinned Aave, Curve, or Uniswap adapters and gets
+  adapter-level semantic verification.
+- `transaction-program` accepts `evm.raw@1` exact wallet calls and is open to
+  other protocols. Every target, calldata byte, approval, balance outcome,
+  deployment identity, event set, and state delta must reproduce independently.
+
+Winning execution carries a capped `0.10 USDt0` success fee: `0.09 USDt0` to
+the selected solver identity and `0.01 USDt0` to Cobia. The wallet authorizes it
+when reviewing the winning program; settlement is deferred until Cobia confirms
+the exact execution receipt. Ambiguous settlement is never retried automatically.
