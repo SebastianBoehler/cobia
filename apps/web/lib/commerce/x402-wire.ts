@@ -30,7 +30,7 @@ export const X402PaymentRequiredV2Schema = z.object({
     description: z.string().max(2_000).optional(),
     mimeType: z.string().max(200).optional(),
     serviceName: z.string().max(32).optional(),
-    tags: z.array(z.string().max(32)).max(5).optional(),
+    tags: z.array(z.string().max(32)).max(32).optional(),
     iconUrl: z.url().max(2_048).optional(),
   }).strict(),
   accepts: z.array(X402PaymentRequirementV2Schema).max(32),
@@ -50,7 +50,7 @@ export const X402BazaarResourcesV2Schema = z.object({
     metadata: z.object({ description: z.string().max(2_000).optional() }).passthrough().optional(),
     description: z.string().max(2_000).optional(),
     serviceName: z.string().max(32).optional(),
-    tags: z.array(z.string().max(32)).max(5).optional(),
+    tags: z.array(z.string().max(32)).max(32).optional(),
     iconUrl: z.url().max(2_048).optional(),
   }).passthrough()).max(100),
   pagination: z.object({
@@ -154,7 +154,9 @@ export function normalizeX402ResourceV1(input: NormalizeX402Input): CommerceOffe
       ...(productName ? { name: productName.replaceAll("-", " ").replaceAll("_", " ") } : {}),
       ...(required.resource.description ? { description: required.resource.description } : {}),
       ...(required.resource.mimeType ? { mimeType: required.resource.mimeType } : {}),
-      ...(required.resource.tags?.length ? { tags: [...new Set(required.resource.tags)].sort() } : {}),
+      ...(required.resource.tags?.length
+        ? { tags: [...new Set(required.resource.tags)].sort().slice(0, 5) }
+        : {}),
       commitment: input.productCommitment,
       descriptionHash: keccak256(stringToHex(description)),
       quantity: "1",
@@ -176,5 +178,6 @@ export function normalizeX402ResourceV1(input: NormalizeX402Input): CommerceOffe
 }
 
 export function x402PaymentRequiredCommitmentV1(input: X402PaymentRequiredV2): Hash {
-  return keccak256(stringToHex(canonicalJson(X402PaymentRequiredV2Schema.parse(input))));
+  const { extensions: _extensions, ...paymentTerms } = X402PaymentRequiredV2Schema.parse(input);
+  return keccak256(stringToHex(canonicalJson(paymentTerms)));
 }

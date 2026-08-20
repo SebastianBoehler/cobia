@@ -5,7 +5,7 @@ import { Pause, Play } from "lucide-react";
 
 const prompts = [
   "Move 10 @USDG into the best verified position while keeping at least 10.04 @USDt0 on @XLayer.",
-  "Buy a listed service with an x402 payment capped at 50 @USDt0.",
+  "Buy a fresh crypto market brief with an x402 payment capped at 0.01 @USDC.",
   "Use @Uniswap only if its exact calls reproduce and satisfy my balance floor.",
   "Pay this subscription monthly on @XLayer, but stop before total spend exceeds 120 @USDt0.",
 ] as const;

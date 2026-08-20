@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { discoverCommerceOffersV1, type CommerceFetchV1 } from "./discovery-broker";
+import { x402PaymentRequiredCommitmentV1 } from "./x402-wire";
 
 const bazaarUrl = "https://api.cdp.coinbase.com/platform/v2/x402/discovery/resources?limit=20";
 const publicIp = "104.18.34.226";
@@ -16,8 +17,8 @@ const bazaar = {
       scheme: "exact",
       network: "eip155:196",
       amount: "12500000",
-      asset,
-      payTo: payee,
+      asset: asset as `0x${string}`,
+      payTo: payee as `0x${string}`,
       maxTimeoutSeconds: 60,
       extra: { assetTransferMethod: "eip3009" },
     }],
@@ -26,6 +27,29 @@ const bazaar = {
     serviceName: "Example Merchant",
   }],
   pagination: { limit: 20, offset: 0, total: 1 },
+};
+
+const bazaarRequired = {
+  x402Version: 2 as const,
+  resource: {
+    url: bazaar.items[0]!.resource,
+    description: bazaar.items[0]!.metadata.description,
+    serviceName: bazaar.items[0]!.serviceName,
+  },
+  accepts: bazaar.items[0]!.accepts,
+  extensions: {},
+};
+
+const resourceRequired = {
+  x402Version: 2 as const,
+  resource: {
+    url: "https://api.agentstools.dev/crypto/news",
+    description: "Aggregated crypto news with sentiment",
+    serviceName: "crypto-news",
+    tags: ["crypto", "news", "sentiment", "bitcoin", "ethereum", "headlines"],
+  },
+  accepts: bazaar.items[0]!.accepts,
+  extensions: {},
 };
 
 function response(body: unknown, overrides: Partial<Awaited<ReturnType<CommerceFetchV1>>> = {}) {
@@ -42,6 +66,19 @@ const source = {
   protocol: "x402-bazaar" as const,
   url: bazaarUrl,
   trustedResources: {},
+};
+
+const resourceSource = {
+  id: "agent-tools-crypto-news",
+  protocol: "x402-resource" as const,
+  url: "https://api.agentstools.dev/crypto/news",
+  trustedResources: {
+    "https://api.agentstools.dev/crypto/news": {
+      manifestHash: `0x${"44".repeat(32)}` as const,
+      merchantDisplayName: "Agent Tools",
+      productCommitment: x402PaymentRequiredCommitmentV1(resourceRequired),
+    },
+  },
 };
 
 describe("commerce discovery broker", () => {
@@ -75,6 +112,7 @@ describe("commerce discovery broker", () => {
         "https://merchant.example/api/coffee": {
           manifestHash: `0x${"44".repeat(32)}`,
           merchantDisplayName: "Example Merchant",
+          productCommitment: x402PaymentRequiredCommitmentV1(bazaarRequired),
         },
       } }],
       dnsResolver: async () => [publicIp], fetcher, nowSec: 2_000_000_000,
@@ -84,6 +122,29 @@ describe("commerce discovery broker", () => {
     expect(result.sourceErrors).toEqual([]);
     expect(result.offers[0]).toMatchObject({
       evidence: { receiptRecipient: "0x0000000000000000000000000000000000000000" },
+      eligibility: { status: "executable" },
+    });
+  });
+
+  it("discovers a pinned resource from its live x402 challenge", async () => {
+    const fetcher = vi.fn<CommerceFetchV1>().mockResolvedValue(response({}, {
+      status: 402,
+      headers: {
+        "content-type": "application/json",
+        "payment-required": Buffer.from(JSON.stringify(resourceRequired)).toString("base64"),
+      },
+    }));
+    const result = await discoverCommerceOffersV1({
+      sources: [resourceSource], dnsResolver: async () => [publicIp], fetcher,
+      nowSec: 2_000_000_000,
+      receiptRecipient: "0x0000000000000000000000000000000000000000",
+    });
+
+    expect(result.sourceErrors).toEqual([]);
+    expect(result.offers).toHaveLength(1);
+    expect(result.offers[0]).toMatchObject({
+      merchant: { displayName: "Agent Tools" },
+      product: { name: "crypto news", description: "Aggregated crypto news with sentiment" },
       eligibility: { status: "executable" },
     });
   });

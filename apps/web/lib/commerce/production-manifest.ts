@@ -5,14 +5,14 @@ export function productionCommerceMerchantManifestV1() {
     version: 1,
     chainId: 8453,
     entries: [{
-      merchantId: "api.onesource.io",
-      productCommitment: "0x7066f1edbf3615f12aabcfbcf50944743e505c55466871dbad84b724ff550566",
-      payee: "0x52e29e0d2aa49bfbfc548c0a9f2196f4aa51f3ea",
+      merchantId: "api.agentstools.dev",
+      productCommitment: "0xb748b1be9d28aebede0025fcaa4b5993e938ec57490383a05ab5014f5c11e0b7",
+      payee: "0xf22e558a00d91ee12a1f50c52186fecb8ddff493",
       paymentAsset: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
-      exactAtomicAmount: "1000",
+      exactAtomicAmount: "5000",
       placement: {
         kind: "x402-exact",
-        endpoint: "https://api.onesource.io/api/chain/block-number",
+        endpoint: "https://api.agentstools.dev/crypto/news",
         facilitator: "https://api.cdp.coinbase.com/platform/v2/x402",
         assetTransferMethod: "eip3009",
         token: {
@@ -29,7 +29,7 @@ export function productionCommerceMerchantManifestV1() {
       },
     }],
     officialSources: [
-      "https://api.cdp.coinbase.com/platform/v2/x402/discovery/resources?limit=100",
+      "https://api.agentstools.dev/crypto/news",
       "https://docs.cdp.coinbase.com/x402/welcome",
     ],
   });

@@ -4,6 +4,7 @@ import { assertPublicCommerceUrlV1 } from "./network-policy";
 import {
   normalizeX402ResourceV1,
   parseX402BazaarResourcesV2,
+  parseX402PaymentRequiredV2,
   x402PaymentRequiredCommitmentV1,
 } from "./x402-wire";
 
@@ -29,10 +30,44 @@ export type DnsResolverV1 = (hostname: string) => Promise<readonly string[]>;
 
 export type CommerceDiscoverySourceV1 = {
   id: string;
-  protocol: "x402-bazaar";
+  protocol: "x402-bazaar" | "x402-resource";
   url: string;
-  trustedResources: Readonly<Record<string, { manifestHash: Hash; merchantDisplayName: string }>>;
+  trustedResources: Readonly<Record<string, {
+    manifestHash: Hash;
+    merchantDisplayName: string;
+    productCommitment: Hash;
+  }>>;
 };
+
+function normalizeResource(
+  source: CommerceDiscoverySourceV1,
+  response: CommerceHttpResponseV1,
+  nowSec: number,
+  receiptRecipient: Address,
+): CommerceOfferV1[] {
+  const required = parseX402PaymentRequiredV2(response.headers["payment-required"] ?? "");
+  if (required.resource.url !== source.url) {
+    throw new Error("x402 challenge resource does not match its source URL");
+  }
+  const accepted = required.accepts[0]!;
+  const trusted = source.trustedResources[required.resource.url];
+  const productCommitment = x402PaymentRequiredCommitmentV1(required);
+  const merchantRegistered = trusted?.productCommitment === productCommitment;
+  return [normalizeX402ResourceV1({
+    paymentRequired: required,
+    rawResponse: response.body,
+    fetchedAt: nowSec,
+    expiresAt: nowSec + Math.min(300, accepted.maxTimeoutSeconds),
+    sourceUrl: source.url,
+    merchantId: new URL(required.resource.url).hostname,
+    manifestHash: merchantRegistered ? trusted.manifestHash : ZERO_HASH,
+    productId: keccak256(stringToHex(required.resource.url)).slice(2, 18),
+    productCommitment,
+    receiptRecipient,
+    merchantRegistered,
+    ...(trusted ? { merchantDisplayName: trusted.merchantDisplayName } : {}),
+  })];
+}
 
 export type CommerceDiscoverySourceErrorV1 = {
   sourceId: string;
@@ -104,6 +139,8 @@ function normalizeBazaar(
       accepts: item.accepts,
       extensions: {},
     };
+    const productCommitment = x402PaymentRequiredCommitmentV1(required);
+    const merchantRegistered = trusted?.productCommitment === productCommitment;
     const productId = keccak256(stringToHex(item.resource)).slice(2, 18);
     return normalizeX402ResourceV1({
       paymentRequired: required,
@@ -112,11 +149,11 @@ function normalizeBazaar(
       expiresAt: nowSec + Math.min(300, accepted.maxTimeoutSeconds),
       sourceUrl: source.url,
       merchantId: new URL(item.resource).hostname,
-      manifestHash: trusted?.manifestHash ?? ZERO_HASH,
+      manifestHash: merchantRegistered ? trusted.manifestHash : ZERO_HASH,
       productId,
-      productCommitment: x402PaymentRequiredCommitmentV1(required),
+      productCommitment,
       receiptRecipient,
-      merchantRegistered: Boolean(trusted),
+      merchantRegistered,
       ...(trusted ? { merchantDisplayName: trusted.merchantDisplayName } : {}),
     });
   });
@@ -144,14 +181,19 @@ export async function discoverCommerceOffersV1(input: {
   for (const source of input.sources) {
     try {
       const response = await fetchValidated(source, input.dnsResolver, input.fetcher);
-      if (response.status !== 200) throw new Error(`Commerce source returned HTTP ${response.status}`);
-      if (!response.headers["content-type"]?.toLowerCase().startsWith("application/json")) {
-        throw new Error("Commerce source returned unsupported content type");
-      }
       if (input.confirmDnsBeforeParse) {
         assertPublicCommerceUrlV1(source.url, await input.dnsResolver(new URL(source.url).hostname));
       }
-      offers.push(...normalizeBazaar(source, response, input.nowSec, input.receiptRecipient));
+      if (source.protocol === "x402-resource") {
+        if (response.status !== 402) throw new Error(`x402 resource returned HTTP ${response.status}`);
+        offers.push(...normalizeResource(source, response, input.nowSec, input.receiptRecipient));
+      } else {
+        if (response.status !== 200) throw new Error(`Commerce source returned HTTP ${response.status}`);
+        if (!response.headers["content-type"]?.toLowerCase().startsWith("application/json")) {
+          throw new Error("Commerce source returned unsupported content type");
+        }
+        offers.push(...normalizeBazaar(source, response, input.nowSec, input.receiptRecipient));
+      }
     } catch (error) {
       sourceErrors.push({
         sourceId: source.id,

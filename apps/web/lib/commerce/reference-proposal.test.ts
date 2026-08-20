@@ -9,14 +9,14 @@ import { describe, expect, it } from "vitest";
 const owner = "0x1111111111111111111111111111111111111111" as const;
 const executor = "0x2222222222222222222222222222222222222222" as const;
 const blockHash = `0x${"33".repeat(32)}` as const;
-const description = "Latest Ethereum block height - current chain tip via eth_blockNumber";
+const description = "Aggregated crypto news with sentiment";
 const required = {
   x402Version: 2 as const,
-  resource: { url: "https://api.onesource.io/api/chain/block-number", description },
-  accepts: [{ scheme: "exact", network: "eip155:8453", amount: "1000",
+  resource: { url: "https://api.agentstools.dev/crypto/news", description },
+  accepts: [{ scheme: "exact", network: "eip155:8453", amount: "5000",
     asset: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
-    payTo: "0x52e29e0d2aa49bfbfc548c0a9f2196f4aa51f3ea", maxTimeoutSeconds: 3_600,
-    extra: { credentialTypes: ["authorization"], name: "USD Coin", version: "2" } }],
+    payTo: "0xf22e558a00d91ee12a1f50c52186fecb8ddff493", maxTimeoutSeconds: 300,
+    extra: { name: "USD Coin", version: "2" } }],
   extensions: {},
 };
 
@@ -25,9 +25,9 @@ describe("reference commerce proposal", () => {
     const manifest = productionCommerceMerchantManifestV1();
     const offer = normalizeX402ResourceV1({ paymentRequired: required,
       rawResponse: Buffer.from(JSON.stringify(required)), fetchedAt: 2_000_000_000,
-      expiresAt: 2_000_000_300, sourceUrl: "https://api.cdp.coinbase.com/platform/v2/x402/discovery/resources?limit=100",
-      merchantId: "api.onesource.io", merchantDisplayName: "OneSource",
-      manifestHash: commerceMerchantManifestCommitmentV1(manifest), productId: "block-number",
+      expiresAt: 2_000_000_300, sourceUrl: "https://api.agentstools.dev/crypto/news",
+      merchantId: "api.agentstools.dev", merchantDisplayName: "Agent Tools",
+      manifestHash: commerceMerchantManifestCommitmentV1(manifest), productId: "crypto-news",
       productCommitment: manifest.entries[0]!.productCommitment,
       receiptRecipient: "0x0000000000000000000000000000000000000000",
       merchantRegistered: true });
@@ -35,7 +35,7 @@ describe("reference commerce proposal", () => {
       nowSec: 2_000_000_010, block: { number: 25_000_000n, hash: blockHash } });
 
     expect(proposal.policy).toMatchObject({ kind: "commerce-order", executionChainId: 8453,
-      payment: { maxAtomic: "1000" } });
+      payment: { maxAtomic: "5000" } });
     await expect(verifyCommerceProgramV1({ ...proposal, offer, manifest, wallet: owner, executor,
       nowSec: 2_000_000_011, confirmAnchor: async () => true,
       readCodeHash: async () => manifest.entries[0]!.placement.kind === "x402-exact"

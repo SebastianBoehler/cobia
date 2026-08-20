@@ -23,7 +23,7 @@ describe("RotatingIntentPrompt", () => {
 
     act(() => vi.advanceTimersByTime(4_500));
 
-    expect(screen.getByText(/Buy a listed service/)).toBeVisible();
+    expect(screen.getByText(/Buy a fresh crypto market brief/)).toBeVisible();
     expect(screen.queryByText("Supported when listed")).not.toBeInTheDocument();
   });
 
@@ -47,6 +47,6 @@ describe("RotatingIntentPrompt", () => {
 
     act(() => screen.getByRole("button", { name: "Play examples" }).click());
     act(() => vi.advanceTimersByTime(4_500));
-    expect(screen.getByText(/Buy a listed service/)).toBeVisible();
+    expect(screen.getByText(/Buy a fresh crypto market brief/)).toBeVisible();
   });
 });

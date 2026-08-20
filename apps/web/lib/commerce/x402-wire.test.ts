@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { parseX402PaymentRequiredV2, normalizeX402ResourceV1 } from "./x402-wire";
+import {
+  normalizeX402ResourceV1,
+  parseX402PaymentRequiredV2,
+  x402PaymentRequiredCommitmentV1,
+} from "./x402-wire";
 
 const hash = (byte: string) => `0x${byte.repeat(64)}` as const;
 const merchant = "0x1111111111111111111111111111111111111111" as const;
@@ -7,7 +11,7 @@ const asset = "0x2222222222222222222222222222222222222222" as const;
 const owner = "0x3333333333333333333333333333333333333333" as const;
 
 const required = {
-  x402Version: 2,
+  x402Version: 2 as const,
   error: "PAYMENT-SIGNATURE header is required",
   resource: {
     url: "https://merchant.example/api/order/coffee",
@@ -37,6 +41,12 @@ describe("x402 v2 commerce wire", () => {
 
     expect(parsed.x402Version).toBe(2);
     expect(parsed.accepts[0]?.network).toBe("eip155:196");
+  });
+
+  it("commits payment terms without volatile discovery extensions", () => {
+    expect(x402PaymentRequiredCommitmentV1({ ...required, extensions: {
+      bazaar: { info: { qualityScore: 0.66 } },
+    } })).toBe(x402PaymentRequiredCommitmentV1(required));
   });
 
   it("normalizes one exact EIP-3009 requirement into an executable offer", () => {
