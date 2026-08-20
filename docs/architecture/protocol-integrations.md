@@ -15,7 +15,7 @@ read adapter is not, by itself, an executable Cobia route.
 | Program evidence | Implemented product path | Snapshot, program, evidence, sanitized provenance, verdict, independent replay, V3 projection, authorization, and receipt are committed independently per revision |
 | Legacy V1/V2 route market | Removed from public product | Historical database rows remain inaccessible audit records; there is no request, market, route, payment, or MCP compatibility fallback |
 | Capped atomic Executor V3 beta | Deployed paused and product-wired | Limits selected wallets and cumulative principal and enforces verifier-signed targets, static predicates, deadlines, and final balances; activation and canary remain pending |
-| Coding-agent sandbox solver | Implemented general-intent path | Writes and runs route-search code in an isolated Vercel Sandbox, but can emit only typed capability programs; an independent compiler, verifier, and fresh fork remain authoritative |
+| Coding-agent sandbox solver | Implemented general-intent path | Writes and runs route-search code in an isolated Vercel Sandbox, but can emit only typed capability programs; block-pinned RPC preflight runs before an independent fresh replay, and neither path can broadcast to mainnet |
 | Bounded agentic selector | Not a public product path | Old deterministic and selector code is retained only where imported by verifier/fork controls; it is not a callable fallback |
 
 Production code has no sample protocol, fallback APY, or fabricated route. Unit
@@ -44,8 +44,15 @@ all strategy fields as equally enforceable:
 
 The solver authors a typed capability program inside an isolated sandbox. A
 deterministic verifier resolves every action through a registered semantic module,
-recompiles its calldata, checks the final enforceable outcome, and reproduces it
-on a fresh pinned fork. It never accepts model-authored calldata as authority.
+recompiles its calldata, checks the final enforceable outcome, and uses the pinned
+read-only RPC to reject anchor, runtime-code, declared implementation-code, and
+precondition drift before allocating replay compute. It then reproduces the exact
+program on a new non-persistent fork and commits its trace, events, state deltas,
+and final balances. Replay failure rejects the program; RPC success is never an
+acceptance fallback. The fork is destroyed after evidence capture and has no
+production send path. The verifier never accepts model-authored calldata as
+authority.
+
 The current manifest remains narrower than the protocol-neutral policy: Aave
 supply plus exact-input Curve and Uniswap swaps. Shopping/x402, subscriptions,
 bridges, LP lifecycle, and RWAs require new verifier-owned capabilities.
