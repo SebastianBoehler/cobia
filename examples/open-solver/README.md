@@ -23,8 +23,8 @@ it never controls user assets and is never sent to Cobia.
 
 ```bash
 cp examples/open-solver/.env.example examples/open-solver/.env
-# Set REFERENCE_SOLVER_PRIVATE_KEY and either OPENAI_API_KEY or authenticate the
-# persistent Codex runtime once, then start the worker:
+# Set REFERENCE_SOLVER_PRIVATE_KEY and either OPENAI_API_KEY, OPENROUTER_API_KEY,
+# or authenticate the persistent Codex runtime once, then start the worker:
 docker compose -f examples/open-solver/compose.yaml up -d --build
 ```
 
@@ -42,6 +42,13 @@ parallel jobs, retry ceiling, backoff, and per-turn timeout. Account-level apps
 are disabled so a dedicated worker loads only its local skills and bound route
 MCP. Every run logs its Codex thread id and records `config.toml` as the model
 source.
+
+The default remains the built-in OpenAI provider. To run through OpenRouter,
+set `model_provider = "openrouter"`, choose an OpenRouter model slug such as
+`model = "deepseek/deepseek-v3.2"`, and set `OPENROUTER_API_KEY` in `.env`.
+The provider uses OpenRouter's Responses API; OpenRouter currently labels that
+endpoint beta, so verify the selected model's tool behavior before leaving it
+unattended.
 
 The host process alone holds `REFERENCE_SOLVER_PRIVATE_KEY`. Codex receives no
 wallet provider or transaction-send method, and the shell environment policy

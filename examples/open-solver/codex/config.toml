@@ -5,6 +5,15 @@ model_reasoning_effort = "medium"
 web_search = "live"
 include_apps_instructions = false
 
+# Optional OpenRouter transport. To use it, set `model_provider = "openrouter"`
+# above, replace `model` with an OpenRouter model slug such as
+# `deepseek/deepseek-v3.2`, and provide OPENROUTER_API_KEY to the worker.
+[model_providers.openrouter]
+name = "OpenRouter"
+base_url = "https://openrouter.ai/api/v1"
+env_key = "OPENROUTER_API_KEY"
+wire_api = "responses"
+
 [features]
 apps = false
 skill_mcp_dependency_install = false

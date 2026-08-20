@@ -32,7 +32,7 @@ function runtimeEnvironment() {
   const result: Record<string, string> = {};
   for (const name of [
     "PATH", "HOME", "CODEX_HOME", "TMPDIR", "SSL_CERT_FILE", "SSL_CERT_DIR",
-    "NODE_EXTRA_CA_CERTS", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY",
+    "NODE_EXTRA_CA_CERTS", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "OPENROUTER_API_KEY",
   ]) {
     const value = process.env[name];
     if (value) result[name] = value;
