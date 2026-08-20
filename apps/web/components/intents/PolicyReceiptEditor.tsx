@@ -1,6 +1,6 @@
 import type { Address } from "viem";
 import {
-  CAPABILITY_TEMPLATES, INTENT_ASSETS, atomicLabel,
+  CAPABILITY_TEMPLATES, ETHEREUM_USDC, INTENT_ASSETS, RWA_INTENT_ASSETS, atomicLabel,
   type CapabilityTemplateId, type IntentReceiptValues,
 } from "../../lib/intents/capability-templates";
 
@@ -11,8 +11,13 @@ export function PolicyReceiptEditor({ values, owner, onChange }: {
   owner: Address | null;
   onChange(values: ReceiptValues): void;
 }) {
-  const input = INTENT_ASSETS.find(({ address }) => address === values.inputToken) ?? INTENT_ASSETS[0];
-  const output = INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? INTENT_ASSETS[1];
+  const rwa = values.templateId === "rwa-acquisition";
+  const input = rwa ? ETHEREUM_USDC
+    : INTENT_ASSETS.find(({ address }) => address === values.inputToken) ?? INTENT_ASSETS[0];
+  const output = rwa
+    ? RWA_INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? RWA_INTENT_ASSETS[0]
+    : INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? INTENT_ASSETS[1];
+  const instrument = rwa && "instrument" in output ? output.instrument : undefined;
   const set = <K extends keyof ReceiptValues>(key: K, value: ReceiptValues[K]) => onChange({ ...values, [key]: value });
   const minimumLabel = values.templateId === "aave-supply" ? "Minimum receipt is verifier-derived at 99.5%" : atomicLabel(values.minimum, values.templateId === "round-trip" ? input.symbol : output.symbol);
 
@@ -20,11 +25,33 @@ export function PolicyReceiptEditor({ values, owner, onChange }: {
     <section className="policy-editor" aria-labelledby="policy-receipt-title">
       <header><div><h2 id="policy-receipt-title">Policy receipt</h2><p>These typed fields—not the prose alone—define what may execute.</p></div><span>Unsigned draft</span></header>
       <div className="policy-fields">
-        <label>Verified capability<select value={values.templateId} onChange={(event) => set("templateId", event.target.value as CapabilityTemplateId)}>{CAPABILITY_TEMPLATES.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}</select></label>
+        <label>Verified capability<select value={values.templateId} onChange={(event) => {
+          const templateId = event.target.value as CapabilityTemplateId;
+          onChange(templateId === "rwa-acquisition"
+            ? { ...values, templateId, inputToken: ETHEREUM_USDC.address,
+              outputToken: RWA_INTENT_ASSETS[0]!.address,
+              jurisdiction: RWA_INTENT_ASSETS[0]!.instrument.eligibleJurisdictions[0]!,
+              eligibilityAccepted: false }
+            : { ...values, templateId, inputToken: INTENT_ASSETS[0]!.address,
+              outputToken: INTENT_ASSETS[1]!.address, eligibilityAccepted: false });
+        }}>{CAPABILITY_TEMPLATES.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}</select></label>
         <label>Maximum input<input inputMode="decimal" value={values.amount} onChange={(event) => set("amount", event.target.value)} /></label>
-        <label>Input asset<select value={values.inputToken} onChange={(event) => set("inputToken", event.target.value as Address)}>{INTENT_ASSETS.map(({ address, symbol }) => <option key={address} value={address}>{symbol}</option>)}</select></label>
+        <label>Input asset{rwa
+          ? <input readOnly value={`${ETHEREUM_USDC.symbol} · Ethereum`} />
+          : <select value={values.inputToken} onChange={(event) => set("inputToken", event.target.value as Address)}>{INTENT_ASSETS.map(({ address, symbol }) => <option key={address} value={address}>{symbol}</option>)}</select>}</label>
         {values.templateId === "exact-input-swap" ? <label>Output asset<select value={values.outputToken} onChange={(event) => set("outputToken", event.target.value as Address)}>{INTENT_ASSETS.filter(({ address }) => address !== values.inputToken).map(({ address, symbol }) => <option key={address} value={address}>{symbol}</option>)}</select></label> : null}
+        {rwa ? <label>Registered instrument<select value={values.outputToken} onChange={(event) => {
+          const outputToken = event.target.value as Address;
+          const selected = RWA_INTENT_ASSETS.find(({ address }) => address === outputToken)!;
+          onChange({ ...values, outputToken, jurisdiction: selected.instrument.eligibleJurisdictions[0]!,
+            eligibilityAccepted: false });
+        }}>{RWA_INTENT_ASSETS.map(({ address, symbol, instrument: item }) => <option key={address} value={address}>{symbol} · {item.platform}</option>)}</select></label> : null}
+        {rwa && instrument ? <label>Jurisdiction<select value={values.jurisdiction} onChange={(event) => onChange({ ...values,
+          jurisdiction: event.target.value, eligibilityAccepted: false })}>{instrument.eligibleJurisdictions.map((code) => <option key={code} value={code}>{code}</option>)}</select></label> : null}
         {values.templateId !== "aave-supply" ? <label>{values.templateId === "round-trip" ? "Minimum profit" : "Minimum output"}<input inputMode="decimal" value={values.minimum} onChange={(event) => set("minimum", event.target.value)} /></label> : null}
+        {rwa && instrument ? <label className="policy-attestation"><input checked={values.eligibilityAccepted}
+          onChange={(event) => set("eligibilityAccepted", event.target.checked)} type="checkbox" />
+          <span>I have reviewed the issuer restriction: {instrument.eligibilityNote}</span></label> : null}
       </div>
       <dl className="policy-summary">
         <div><dt>Owner</dt><dd>{owner ?? "Connect wallet"}</dd></div>
@@ -32,7 +59,7 @@ export function PolicyReceiptEditor({ values, owner, onChange }: {
         <div><dt>Minimum result</dt><dd>{minimumLabel}</dd></div>
         <div><dt>Competition</dt><dd>5 minutes · up to 5 revisions per solver</dd></div>
         <div><dt>Execution deadline</dt><dd>30 minutes from signing</dd></div>
-        <div><dt>Network</dt><dd>X Layer · chain 196</dd></div>
+        <div><dt>Network</dt><dd>{rwa ? "Ethereum · chain 1 (anchored with X Layer)" : "X Layer · chain 196"}</dd></div>
       </dl>
       <p className="policy-signing-note">No funds or approvals move when you sign this intent.</p>
     </section>

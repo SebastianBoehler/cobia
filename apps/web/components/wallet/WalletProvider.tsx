@@ -2,21 +2,37 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getAddress, isAddress, type Address } from "viem";
-import type { Eip1193Request, Eip6963ProviderDetail, XLayerWalletChainId } from "../../lib/wallet/eip1193";
+import type { Eip1193Request, Eip6963ProviderDetail, EvmWalletChainId, XLayerWalletChainId } from "../../lib/wallet/eip1193";
 import { parseChainId } from "../../lib/wallet/eip1193";
 
 const CHAINS = {
+  1: {
+    chainId: "0x1",
+    chainName: "Ethereum",
+    rpcUrls: ["https://ethereum-rpc.publicnode.com"],
+    blockExplorerUrls: ["https://etherscan.io"],
+    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+  },
   196: {
     chainId: "0xc4",
     chainName: "X Layer",
     rpcUrls: ["https://rpc.xlayer.tech"],
     blockExplorerUrls: ["https://www.okx.com/web3/explorer/xlayer"],
+    nativeCurrency: { name: "OKB", symbol: "OKB", decimals: 18 },
   },
   1952: {
     chainId: "0x7a0",
     chainName: "X Layer Testnet",
     rpcUrls: ["https://testrpc.xlayer.tech/terigon"],
     blockExplorerUrls: ["https://www.oklink.com/x-layer-test"],
+    nativeCurrency: { name: "OKB", symbol: "OKB", decimals: 18 },
+  },
+  8453: {
+    chainId: "0x2105",
+    chainName: "Base",
+    rpcUrls: ["https://mainnet.base.org"],
+    blockExplorerUrls: ["https://basescan.org"],
+    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
   },
 } as const;
 
@@ -31,7 +47,7 @@ interface WalletSession {
   connect(uuid: string): Promise<void>;
   disconnect(): void;
   request(input: Eip1193Request): Promise<unknown>;
-  switchChain(chainId: XLayerWalletChainId): Promise<void>;
+  switchChain(chainId: EvmWalletChainId): Promise<void>;
   switchToXLayer(): Promise<void>;
 }
 
@@ -48,7 +64,7 @@ function errorMessage(cause: unknown): string {
 
 async function requestChainSwitch(
   provider: Eip6963ProviderDetail["provider"],
-  target: XLayerWalletChainId,
+  target: EvmWalletChainId,
 ): Promise<void> {
   const chain = CHAINS[target];
   try {
@@ -60,7 +76,6 @@ async function requestChainSwitch(
       method: "wallet_addEthereumChain",
       params: [{
         ...chain,
-        nativeCurrency: { name: "OKB", symbol: "OKB", decimals: 18 },
       }],
     });
   }
@@ -138,7 +153,7 @@ export function WalletProvider({ children, targetChainId = 196 }: {
     return selected.provider.request(input);
   }, [selected]);
 
-  const switchChain = useCallback(async (target: XLayerWalletChainId) => {
+  const switchChain = useCallback(async (target: EvmWalletChainId) => {
     if (!selected) throw new Error("Connect an EVM wallet first.");
     if (chainId === target) return;
     await requestChainSwitch(selected.provider, target);

@@ -31,16 +31,26 @@ describe("open intent snapshot capture", () => {
     });
   });
 
-  it("fails closed for unsupported multi-chain intake or an invalid RPC identity", async () => {
-    await expect(captureOpenIntentSnapshotV1({
+  it("anchors each declared chain and fails closed on an invalid RPC identity", async () => {
+    const multichain = {
       ...policy,
       executionChainIds: [1, 196],
       limits: { ...policy.limits, maxNativeValueAtomicByChain: [
         { chainId: 1, atomic: "0" }, { chainId: 196, atomic: "0" },
       ] },
-    }, {
-      getChainId: async () => 196, getBlock: async () => ({ number: 1n, hash: hash("2"), timestamp: 1n }),
-    })).rejects.toThrow(/x layer only/i);
+    } as typeof policy;
+    await expect(captureOpenIntentSnapshotV1(multichain, {
+      1: { getChainId: async () => 1,
+        getBlock: async () => ({ number: 10n, hash: hash("3"), timestamp: 2_000_000_009n }) },
+      196: { getChainId: async () => 196,
+        getBlock: async () => ({ number: 20n, hash: hash("4"), timestamp: 2_000_000_010n }) },
+    })).resolves.toMatchObject({
+      capturedAt: "2033-05-18T03:33:29.000Z",
+      anchors: [
+        { chainId: 1, blockNumber: "10", blockHash: hash("3") },
+        { chainId: 196, blockNumber: "20", blockHash: hash("4") },
+      ],
+    });
     await expect(captureOpenIntentSnapshotV1(policy, {
       getChainId: async () => 1, getBlock: async () => ({ number: 1n, hash: hash("2"), timestamp: 1n }),
     })).rejects.toThrow(/chain/i);

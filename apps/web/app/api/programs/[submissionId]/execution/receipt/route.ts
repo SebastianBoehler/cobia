@@ -2,6 +2,7 @@ import { commitment, OpenIntentPolicyV3Schema } from "@cobia/domain";
 import { TransactionProgramEvidenceV1Schema } from "@cobia/solvers";
 import { NextResponse } from "next/server";
 import { createPublicClient, erc20Abi, http, isAddressEqual, type Hash, type Hex } from "viem";
+import { base, mainnet } from "viem/chains";
 import { z } from "zod";
 import { xLayer } from "../../../../../../lib/chain/xlayer";
 import { prepareAgentExecutionV3 } from "../../../../../../lib/coding-agent-sandbox/agent-execution-v3";
@@ -52,8 +53,17 @@ export async function POST(
       return NextResponse.json({ code: "NOT_FOUND", message: "Owner program not found." }, { status: 404 });
     }
     const config = readCodingAgentV3ExecutionConfig();
+    const executionArtifact = stored.artifacts.find(({ kind }) => kind === "execution");
+    const walletChainId = "transactionHashes" in body
+      ? z.object({ stages: z.array(z.object({ chainId: z.union([
+        z.literal(1), z.literal(196), z.literal(8453),
+      ]) }).passthrough()).min(1) }).passthrough().parse(executionArtifact?.payload).stages[0]!.chainId
+      : 196;
+    const chain = walletChainId === 1 ? mainnet : walletChainId === 8453 ? base : xLayer;
+    const rpcUrl = walletChainId === 1 ? config.ETHEREUM_RPC_URL
+      : walletChainId === 8453 ? config.BASE_RPC_URL : config.XLAYER_RPC_URL;
     const client = createPublicClient({
-      chain: xLayer, transport: http(config.XLAYER_RPC_URL, { timeout: 15_000 }), cacheTime: 0,
+      chain, transport: http(rpcUrl, { timeout: 15_000 }), cacheTime: 0,
     });
     const latestBlock = await client.getBlock();
     if (latestBlock.number === null) {
@@ -61,7 +71,7 @@ export async function POST(
     }
     let attributed: unknown;
     if ("transactionHashes" in body) {
-      const execution = stored.artifacts.find(({ kind }) => kind === "execution");
+      const execution = executionArtifact;
       if (!execution || commitment(execution.payload) !== execution.artifactHash) {
         throw new Error("Open execution artifact is unavailable");
       }
@@ -76,14 +86,16 @@ export async function POST(
       const evidenceArtifact = stored.artifacts.find(({ kind }) => kind === "evidence");
       const evidence = TransactionProgramEvidenceV1Schema.parse(evidenceArtifact?.payload);
       for (const outcome of policy.outcomes) {
-        if (outcome.kind !== "minimum-final" && outcome.kind !== "minimum-increase") continue;
+        if (outcome.kind !== "minimum-final" && outcome.kind !== "minimum-increase" &&
+            outcome.kind !== "registered-instrument") continue;
         const baseline = evidence.simulations.flatMap(({ assetDeltas }) => assetDeltas)
           .find(({ token, account }) => isAddressEqual(token, outcome.token) && isAddressEqual(account, proof.owner));
         if (!baseline) throw new Error("Open execution outcome baseline is unavailable");
         const balance = await client.readContract({ address: outcome.token, abi: erc20Abi,
           functionName: "balanceOf", args: [proof.owner], blockNumber: latestBlock.number });
         const required = outcome.kind === "minimum-final" ? BigInt(outcome.atomic)
-          : BigInt(baseline.beforeAtomic) + BigInt(outcome.atomic);
+          : BigInt(baseline.beforeAtomic) + BigInt(outcome.kind === "registered-instrument"
+            ? outcome.minimumIncreaseAtomic : outcome.atomic);
         if (balance < required) throw new Error("Confirmed execution did not satisfy the signed outcome");
       }
     } else {

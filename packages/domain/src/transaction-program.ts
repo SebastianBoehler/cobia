@@ -14,7 +14,7 @@ const SelectorSchema = z.string().regex(/^0x[0-9a-f]{8}$/).transform(
 );
 const AtomicSchema = z.string().regex(/^(0|[1-9][0-9]*)$/).max(78);
 const PositiveAtomicSchema = AtomicSchema.refine((value) => value !== "0");
-const ChainSchema = z.union([z.literal(1), z.literal(196)]);
+const ChainSchema = z.union([z.literal(1), z.literal(196), z.literal(8453)]);
 const StageIdSchema = z.string().regex(/^[a-z0-9]+(?:[._-][a-z0-9]+)+$/).max(96);
 const ProviderSchema = z.string().regex(/^[a-z0-9]+(?:[._-][a-z0-9]+)*@[1-9][0-9]*$/).max(96);
 const ReasonCodeSchema = z.string().regex(/^[A-Z][A-Z0-9_]*$/).max(96);
@@ -90,7 +90,7 @@ const CobiaV3StageSchema = z.object({
 const X402StageSchema = z.object({
   ...baseStage,
   kind: z.literal("x402-authorization"),
-  chainId: z.literal(196),
+  chainId: z.union([z.literal(196), z.literal(8453)]),
   payer: CanonicalAddressSchema,
   payee: CanonicalAddressSchema,
   asset: CanonicalAddressSchema,

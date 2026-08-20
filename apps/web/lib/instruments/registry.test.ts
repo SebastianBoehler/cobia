@@ -13,10 +13,15 @@ const entry = {
   version: 1 as const,
   chainId: 196 as const,
   token: "0x1111111111111111111111111111111111111111",
+  displayName: "Example Treasury Fund",
+  symbol: "ETF",
+  platform: "Example Platform",
   issuer: "Example Issuer AG",
   underlyingIdentifier: "US0123456789",
   claimClass: "beneficial-interest" as const,
   eligibleJurisdictions: ["DE"],
+  eligibilityNote: "Eligible verified investors only.",
+  acquisitionProvider: "lifi@1" as const,
   restrictionsHash: hash("1"),
   runtimeCodeHash: hash("2"),
   implementationCodeHash: hash("3"),
@@ -25,8 +30,8 @@ const entry = {
 };
 
 describe("tokenized instrument registry", () => {
-  it("keeps production empty until an issuer and live deployment are independently verified", () => {
-    expect(productionInstrumentRegistryV1()).toEqual([]);
+  it("ships only issuer-sourced production identities", () => {
+    expect(productionInstrumentRegistryV1()).toHaveLength(3);
     expect(() => resolveInstrumentV1({
       chainId: 196,
       token: entry.token,

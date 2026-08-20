@@ -1,6 +1,12 @@
-import { OpenIntentPolicyV3Schema, type GeneralIntentPolicyV2, type OpenIntentPolicyV3 } from "@cobia/domain";
-import { createPublicClient, http } from "viem";
+import {
+  OpenIntentPolicyV3Schema,
+  TransactionProgramV1Schema,
+  type GeneralIntentPolicyV2,
+  type OpenIntentPolicyV3,
+} from "@cobia/domain";
+import { createPublicClient, erc20Abi, http, type Address } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { base, mainnet } from "viem/chains";
 import { createDatabase } from "../db/client";
 import { createActivityRepository } from "../db/activity";
 import { createIntentRepository } from "../db/intents";
@@ -137,12 +143,18 @@ export async function publishOpenIntent(input: {
   ownerSignature: `0x${string}`;
 }) {
   const config = readMarketConfig();
-  const client = createPublicClient({
+  const xLayerClient = createPublicClient({
     chain: xLayer,
     transport: http(config.XLAYER_RPC_URL, { timeout: 15_000 }),
     cacheTime: 0,
   });
-  const snapshot = await captureOpenIntentSnapshotV1(input.policy, client);
+  const snapshot = await captureOpenIntentSnapshotV1(input.policy, {
+    1: createPublicClient({ chain: mainnet,
+      transport: http(config.ETHEREUM_RPC_URL, { timeout: 15_000 }), cacheTime: 0 }),
+    196: xLayerClient,
+    8453: createPublicClient({ chain: base,
+      transport: http(config.BASE_RPC_URL, { timeout: 15_000 }), cacheTime: 0 }),
+  });
   const intent = await getIntentRepository().create(input);
   await getOpenIntentSnapshotRepository().create(snapshot);
   return { intent, snapshot };
@@ -154,6 +166,39 @@ export function submitOpenSolverDecision(value: {
   const config = readCodingAgentV3RuntimeConfig();
   const client = createPublicClient({ chain: xLayer,
     transport: http(config.XLAYER_RPC_URL, { timeout: 15_000 }), cacheTime: 0 });
+  const ethereumClient = createPublicClient({ chain: mainnet,
+    transport: http(config.ETHEREUM_RPC_URL, { timeout: 15_000 }), cacheTime: 0 });
+  const baseClient = createPublicClient({ chain: base,
+    transport: http(config.BASE_RPC_URL, { timeout: 15_000 }), cacheTime: 0 });
+  const verificationClient = (read: {
+    getBlock(input: { blockNumber: bigint }): Promise<{ hash: `0x${string}` | null }>;
+    getCode(input: { address: Address; blockNumber: bigint }): Promise<`0x${string}` | undefined>;
+    readAllowance(input: { token: Address; owner: Address; spender: Address; blockNumber: bigint }):
+      Promise<bigint>;
+  }) => read;
+  const clients = {
+    1: verificationClient({
+      getBlock: ({ blockNumber }) => ethereumClient.getBlock({ blockNumber }),
+      getCode: ({ address, blockNumber }) => ethereumClient.getCode({ address, blockNumber }),
+      readAllowance: ({ token, owner, spender, blockNumber }) => ethereumClient.readContract({
+        address: token, abi: erc20Abi, functionName: "allowance", args: [owner, spender], blockNumber,
+      }),
+    }),
+    196: verificationClient({
+      getBlock: ({ blockNumber }) => client.getBlock({ blockNumber }),
+      getCode: ({ address, blockNumber }) => client.getCode({ address, blockNumber }),
+      readAllowance: ({ token, owner, spender, blockNumber }) => client.readContract({
+        address: token, abi: erc20Abi, functionName: "allowance", args: [owner, spender], blockNumber,
+      }),
+    }),
+    8453: verificationClient({
+      getBlock: ({ blockNumber }) => baseClient.getBlock({ blockNumber }),
+      getCode: ({ address, blockNumber }) => baseClient.getCode({ address, blockNumber }),
+      readAllowance: ({ token, owner, spender, blockNumber }) => baseClient.readContract({
+        address: token, abi: erc20Abi, functionName: "allowance", args: [owner, spender], blockNumber,
+      }),
+    }),
+  } as const;
   const verifier = privateKeyToAccount(config.COBIA_VERIFIER_PRIVATE_KEY);
   const intake = createOpenDecisionIntakeV1({
     intents: getIntentRepository(),
@@ -167,15 +212,22 @@ export function submitOpenSolverDecision(value: {
       if (input.proposalKind === "transaction-program") {
         return verifyOpenStagedProposalV1({ ...input,
           providerArtifacts: input.providerArtifacts }, {
-          client,
+          clients,
           async replay(replayInput) {
             const snapshot = replayInput.snapshot as { anchors?: { chainId: number; blockNumber: string }[] };
-            const anchor = snapshot.anchors?.find(({ chainId }) => chainId === 196);
-            if (!anchor) throw new Error("X Layer replay anchor is unavailable");
-            const broker = new URL(`/api/internal/coding-agent/rpc/${input.runId}`,
-              config.CODING_AGENT_PUBLIC_ORIGIN).toString();
+            const program = TransactionProgramV1Schema.parse(replayInput.program);
+            const walletChains = [...new Set(program.stages.filter(({ kind }) => kind === "wallet-transaction")
+              .map(({ chainId }) => chainId))];
+            if (walletChains.length !== 1) throw new Error("A replay run must use one wallet execution chain");
+            const chainId = walletChains[0]!;
+            const anchor = snapshot.anchors?.find((item) => item.chainId === chainId);
+            if (!anchor) throw new Error(`Chain ${chainId} replay anchor is unavailable`);
+            const broker = chainId === 196
+              ? new URL(`/api/internal/coding-agent/rpc/${input.runId}`,
+                config.CODING_AGENT_PUBLIC_ORIGIN).toString()
+              : chainId === 1 ? config.ETHEREUM_RPC_URL : config.BASE_RPC_URL;
             const fork = await startVercelAnvilForkV2({ jobId: input.runId,
-              brokerUrl: broker, blockNumber: anchor.blockNumber });
+              brokerUrl: broker, blockNumber: anchor.blockNumber, chainId });
             try { return await replayOpenTransactionProgramV1({ ...replayInput, rpc: fork.rpc }); }
             finally { await fork.stop(); }
           },

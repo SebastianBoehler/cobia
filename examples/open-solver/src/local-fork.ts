@@ -12,12 +12,14 @@ export async function startLocalFork(input: {
   upstreamRpc: string;
   blockNumber: string;
   port: number;
+  chainId?: 1 | 196 | 8453;
 }) {
+  const chainId = input.chainId ?? 196;
   const anvil = process.env.ANVIL_BIN ?? fileURLToPath(new URL("../node_modules/.bin/anvil", import.meta.url));
   const child = spawn(anvil, [
     "--fork-url", input.upstreamRpc,
     "--fork-block-number", input.blockNumber,
-    "--chain-id", "196",
+    "--chain-id", chainId.toString(),
     "--port", input.port.toString(),
     "--silent",
   ], { stdio: ["ignore", "pipe", "pipe"] });
@@ -36,7 +38,7 @@ export async function startLocalFork(input: {
   for (let attempt = 0; attempt < 40; attempt += 1) {
     if (child.exitCode !== null) throw new Error(`Local Anvil exited: ${stderr}`);
     try {
-      if (await rpc("eth_chainId") === "0xc4") { ready = true; break; }
+      if (Number(BigInt(String(await rpc("eth_chainId")))) === chainId) { ready = true; break; }
     } catch { /* Anvil is still starting. */ }
     await new Promise((resolve) => setTimeout(resolve, 250));
   }

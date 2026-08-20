@@ -1,7 +1,10 @@
 import { commitment, OpenIntentPolicyV3Schema } from "@cobia/domain";
 import { encodeAbiParameters, keccak256, padHex, type Address, type Hash, type Hex } from "viem";
 import { describe, expect, it } from "vitest";
-import { replayOpenTransactionProgramV1 } from "./transaction-fork-replay";
+import {
+  captureOpenTransactionProgramSimulationsV1,
+  replayOpenTransactionProgramV1,
+} from "./transaction-fork-replay";
 
 const hash = (byte: string) => `0x${byte.repeat(64)}` as Hash;
 const owner = "0x1111111111111111111111111111111111111111" as Address;
@@ -81,6 +84,15 @@ const placeholder = { stageId: "01-swap", chainId: 196 as const, blockNumber: "6
   codeIdentities: [] };
 
 describe("open transaction fork replay", () => {
+  it("captures fresh evidence without requiring fabricated prior evidence", async () => {
+    const simulations = await captureOpenTransactionProgramSimulationsV1({
+      program, providerArtifacts, snapshot, rpc: fakeRpc(),
+    });
+
+    expect(simulations[0]?.success).toBe(true);
+    expect(simulations[0]?.assetDeltas).toHaveLength(2);
+  });
+
   it("reconstructs wallet token deltas from fork receipts and matches only exact evidence", async () => {
     const first = await replayOpenTransactionProgramV1({ program,
       evidence: { version: 1, programHash: commitment(program), capturedAt: 2_000_000_020,

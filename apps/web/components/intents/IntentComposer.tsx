@@ -7,8 +7,10 @@ import { useMemo, useState, type FormEvent } from "react";
 import { keccak256, stringToHex } from "viem";
 import { buildOpenIntentPolicyV3 } from "../../lib/intents/open-policy";
 import {
-  DEFAULT_INTENT_RECEIPT_VALUES, decimalToAtomic, INTENT_ASSETS,
+  DEFAULT_INTENT_RECEIPT_VALUES, decimalToAtomic, ETHEREUM_USDC, INTENT_ASSETS,
+  RWA_INTENT_ASSETS,
 } from "../../lib/intents/capability-templates";
+import { instrumentCommitmentV1 } from "../../lib/instruments/production-registry";
 import type { IntentComposerDraft } from "../../lib/intents/challenge-draft";
 import { useWallet } from "../wallet/WalletProvider";
 import { IntentGoalInput } from "./IntentGoalInput";
@@ -27,11 +29,16 @@ export function IntentComposer({ initialDraft }: { initialDraft?: IntentComposer
   );
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
-  const inputAsset = INTENT_ASSETS.find(({ address }) => address === values.inputToken) ?? INTENT_ASSETS[0];
-  const outputAsset = INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? INTENT_ASSETS[1];
+  const rwa = values.templateId === "rwa-acquisition";
+  const inputAsset = rwa ? ETHEREUM_USDC
+    : INTENT_ASSETS.find(({ address }) => address === values.inputToken) ?? INTENT_ASSETS[0];
+  const outputAsset = rwa
+    ? RWA_INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? RWA_INTENT_ASSETS[0]
+    : INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? INTENT_ASSETS[1];
   const inputAtomic = useMemo(() => decimalToAtomic(values.amount, inputAsset.decimals), [inputAsset.decimals, values.amount]);
   const minimumAtomic = useMemo(() => decimalToAtomic(values.minimum, outputAsset.decimals), [outputAsset.decimals, values.minimum]);
-  const valid = Boolean(wallet.account && goal.trim() && inputAtomic && (values.templateId === "aave-supply" || minimumAtomic));
+  const valid = Boolean(wallet.account && goal.trim() && inputAtomic &&
+    (values.templateId === "aave-supply" || minimumAtomic) && (!rwa || values.eligibilityAccepted));
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,26 +46,37 @@ export function IntentComposer({ initialDraft }: { initialDraft?: IntentComposer
     setPending(true);
     setError(undefined);
     try {
-      await wallet.switchToXLayer();
+      if (rwa) await wallet.switchChain(1);
+      else await wallet.switchToXLayer();
       const requestId = crypto.randomUUID();
       const nowSec = Math.floor(Date.now() / 1_000);
       const nonce = keccak256(stringToHex(`${requestId}:${wallet.account}:${nowSec}:${crypto.randomUUID()}`));
       const common = {
         requestId,
         owner: wallet.account,
-        inputToken: values.inputToken,
+        inputToken: rwa ? ETHEREUM_USDC.address : values.inputToken,
         inputAtomic,
         nonce,
         nowSec,
         displayGoal: goal.trim(),
         competitionDurationSec: 300,
       } as const;
+      const instrument = rwa
+        ? RWA_INTENT_ASSETS.find(({ address }) => address === values.outputToken)?.instrument : undefined;
+      if (rwa && (!instrument || !instrument.eligibleJurisdictions.includes(values.jurisdiction))) {
+        throw new Error("This registered instrument is not enabled for the selected jurisdiction.");
+      }
       const policy = values.templateId === "aave-supply"
         ? buildOpenIntentPolicyV3({ ...common, templateId: "aave-supply", exposureBps: 10_000 })
         : values.templateId === "exact-input-swap" && minimumAtomic
           ? buildOpenIntentPolicyV3({ ...common, templateId: "exact-input-swap", outputToken: values.outputToken, minimumOutputAtomic: minimumAtomic })
           : values.templateId === "round-trip" && minimumAtomic
             ? buildOpenIntentPolicyV3({ ...common, templateId: "round-trip", minimumProfitAtomic: minimumAtomic })
+            : values.templateId === "rwa-acquisition" && minimumAtomic && instrument
+              ? buildOpenIntentPolicyV3({ ...common, templateId: "rwa-acquisition",
+                outputToken: instrument.token as `0x${string}`, minimumOutputAtomic: minimumAtomic,
+                instrumentCommitment: instrumentCommitmentV1(instrument),
+                jurisdiction: values.jurisdiction })
             : (() => { throw new Error("Complete the minimum result before signing."); })();
       const ownerSignature = await wallet.request({
         method: "personal_sign",

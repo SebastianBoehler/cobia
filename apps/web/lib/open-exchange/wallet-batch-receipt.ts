@@ -5,9 +5,13 @@ const HashSchema = z.string().regex(/^0x[0-9a-fA-F]{64}$/).transform((value) => 
 const BatchSchema = z.object({
   version: z.literal(1), kind: z.literal("wallet-call-batch"), owner: z.string(),
   deadline: z.number().int().positive(), assurance: z.literal("exact-call-fork-replay"),
-  stages: z.array(z.object({ stageId: z.string(), chainId: z.literal(196),
+  stages: z.array(z.object({ stageId: z.string(), chainId: z.union([
+    z.literal(1), z.literal(196), z.literal(8453),
+  ]),
     calls: z.array(z.object({ to: z.string(), data: z.string(), value: z.string() }).strict()) }).strict()),
-}).strict();
+}).strict().refine((batch) => new Set(batch.stages.map(({ chainId }) => chainId)).size === 1, {
+  message: "Wallet batch must execute on one chain",
+});
 
 export async function verifyOpenWalletBatchReceiptsV1(input: {
   batch: unknown; owner: Address; transactionHashes: unknown; latestBlockNumber: bigint;

@@ -7,7 +7,7 @@ const AddressSchema = z.string().refine(isAddress).refine(
 const HashSchema = z.string().regex(/^0x[0-9a-f]{64}$/).transform((value) => value as Hash);
 const AtomicSchema = z.string().regex(/^-?(0|[1-9][0-9]*)$/).max(79);
 const UnsignedAtomicSchema = z.string().regex(/^(0|[1-9][0-9]*)$/).max(78);
-const ChainSchema = z.union([z.literal(1), z.literal(196)]);
+const ChainSchema = z.union([z.literal(1), z.literal(196), z.literal(8453)]);
 
 const CodeIdentitySchema = z.object({
   address: AddressSchema,

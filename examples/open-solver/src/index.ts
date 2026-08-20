@@ -42,7 +42,7 @@ async function register(client: ReturnType<typeof createSolverExchangeClient>, i
   const issuedAt = Math.floor(Date.now() / 1_000);
   const claim = { version: 1 as const, solverId: input.solverId, displayName: input.displayName,
     operator: input.account.address.toLowerCase() as `0x${string}`,
-    declaredCapabilities: ["aave-v3.supply@1", "curve-stableswap-ng.exact-input@1"], nonce: nonce(),
+    declaredCapabilities: ["aave-v3.supply@1", "curve-stableswap-ng.exact-input@1", "evm.raw@1"], nonce: nonce(),
     issuedAt, expiresAt: issuedAt + 600 };
   const signature = await input.account.signMessage({
     message: { raw: solverProfileClaimCommitmentV1(claim) },

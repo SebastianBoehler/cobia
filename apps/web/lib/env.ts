@@ -28,6 +28,8 @@ const MarketEnvSchema = z.object({
   DATABASE_URL: z.string().url(),
   DETERMINISTIC_SOLVER_PRIVATE_KEY: z.string().regex(/^0x[0-9a-fA-F]{64}$/).transform((value) => value as Hex),
   XLAYER_RPC_URL: z.string().url().default("https://rpc.xlayer.tech"),
+  ETHEREUM_RPC_URL: z.string().url().default("https://ethereum-rpc.publicnode.com"),
+  BASE_RPC_URL: z.string().url().default("https://mainnet.base.org"),
 });
 
 const AgenticSolverEnvSchema = z.object({
@@ -65,6 +67,8 @@ const CodingAgentV3ExecutionEnvSchema = z.object({
   COBIA_VERIFIER_PRIVATE_KEY: z.string().regex(/^0x[0-9a-fA-F]{64}$/)
     .transform((value) => value as Hex),
   XLAYER_RPC_URL: z.url().default("https://rpc.xlayer.tech"),
+  ETHEREUM_RPC_URL: z.string().url().default("https://ethereum-rpc.publicnode.com"),
+  BASE_RPC_URL: z.string().url().default("https://mainnet.base.org"),
 });
 
 const CodingAgentV3RuntimeEnvSchema = CodingAgentV3ExecutionEnvSchema.extend({
@@ -77,6 +81,7 @@ const CommerceRuntimeEnvSchema = z.object({
   COBIA_EXECUTOR_V3_ADDRESS: z.string().refine(isAddress)
     .transform((value) => value as Address),
   XLAYER_RPC_URL: z.url().default("https://rpc.xlayer.tech"),
+  BASE_RPC_URL: z.url().default("https://mainnet.base.org"),
 });
 
 export function readDatabaseUrl(

@@ -20,7 +20,7 @@ export type OpenProgramRejectionCodeV1 =
 interface UnsignedCallV1 { to: Address; data: Hex; value: Hex }
 interface StageAuthorizationV1 {
   stageId: string;
-  chainId: 1 | 196;
+  chainId: 1 | 196 | 8453;
   calls: UnsignedCallV1[];
 }
 type ProviderVerificationV1 =
@@ -51,13 +51,13 @@ export async function verifyOpenTransactionProgramV1(input: {
   evidence: unknown;
   providerArtifacts: unknown;
   nowSec: number;
-  confirmAnchor(anchor: { chainId: 1 | 196; blockNumber: string; blockHash: Hash }): Promise<boolean>;
-  getCodeHash(chainId: 1 | 196, address: Address, blockNumber: string): Promise<Hash | undefined>;
+  confirmAnchor(anchor: { chainId: 1 | 196 | 8453; blockNumber: string; blockHash: Hash }): Promise<boolean>;
+  getCodeHash(chainId: 1 | 196 | 8453, address: Address, blockNumber: string): Promise<Hash | undefined>;
   verifyProviderStage(input: {
     stage: Extract<ReturnType<typeof TransactionProgramV1Schema.parse>["stages"][number],
       { kind: "wallet-transaction" }>;
     artifact: ProviderArtifactV1;
-    anchor: { chainId: 1 | 196; blockNumber: string; blockHash: Hash };
+    anchor: { chainId: 1 | 196 | 8453; blockNumber: string; blockHash: Hash };
   }): Promise<ProviderVerificationV1>;
   replay(input: {
     program: unknown;
@@ -177,8 +177,9 @@ export async function verifyOpenTransactionProgramV1(input: {
     else if (-delta > maximum) errors.add("INPUT_LIMIT_EXCEEDED");
   }
   for (const outcome of policy.outcomes) {
-    if (outcome.kind === "minimum-increase") {
-      if ((aggregateDeltas.get(key(outcome.chainId, outcome.token)) ?? 0n) < BigInt(outcome.atomic)) {
+    if (outcome.kind === "minimum-increase" || outcome.kind === "registered-instrument") {
+      const minimum = outcome.kind === "registered-instrument" ? outcome.minimumIncreaseAtomic : outcome.atomic;
+      if ((aggregateDeltas.get(key(outcome.chainId, outcome.token)) ?? 0n) < BigInt(minimum)) {
         errors.add("OUTCOME_NOT_REPRODUCED");
       }
     } else if (outcome.kind === "minimum-final") {
@@ -188,7 +189,7 @@ export async function verifyOpenTransactionProgramV1(input: {
     } else errors.add("OUTCOME_NOT_REPRODUCED");
   }
   const onlyOutcome = policy.outcomes.length === 1 ? policy.outcomes[0] : undefined;
-  const measuredAtomic = onlyOutcome?.kind === "minimum-increase"
+  const measuredAtomic = onlyOutcome?.kind === "minimum-increase" || onlyOutcome?.kind === "registered-instrument"
     ? aggregateDeltas.get(key(onlyOutcome.chainId, onlyOutcome.token))
     : onlyOutcome?.kind === "minimum-final"
       ? finalBalances.get(key(onlyOutcome.chainId, onlyOutcome.token)) : undefined;

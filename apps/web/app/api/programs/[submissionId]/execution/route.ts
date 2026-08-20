@@ -78,13 +78,17 @@ export async function POST(
     if (executionValue.kind === "wallet-call-batch") {
       const batch = z.object({ version: z.literal(1), kind: z.literal("wallet-call-batch"),
         owner: z.string(), deadline: z.number().int(), assurance: z.literal("exact-call-fork-replay"),
-        stages: z.array(z.object({ stageId: z.string(), chainId: z.literal(196),
+        stages: z.array(z.object({ stageId: z.string(), chainId: z.union([
+          z.literal(1), z.literal(196), z.literal(8453),
+        ]),
           calls: z.array(z.object({ to: z.string(), data: z.string(), value: z.string() }).strict()) }).strict()),
-      }).strict().parse(executionArtifact.payload);
+      }).strict().refine((value) => new Set(value.stages.map(({ chainId }) => chainId)).size === 1, {
+        message: "Wallet batch must execute on one chain",
+      }).parse(executionArtifact.payload);
       if (!isAddressEqual(batch.owner as `0x${string}`, proof.owner) || stored.state !== "attested") {
         throw new Error("Open transaction batch is not executable by this owner");
       }
-      return NextResponse.json({ chainId: 196, programVersion: 1, approvals: [],
+      return NextResponse.json({ chainId: batch.stages[0]!.chainId, programVersion: 1, approvals: [],
         transactions: batch.stages.flatMap((stage) => stage.calls.map((call) =>
           ({ ...call, stageId: stage.stageId }))),
         successFee: { amountAtomic: feeTerms.amount, asset: feeTerms.currency,

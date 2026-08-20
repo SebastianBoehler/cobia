@@ -39,9 +39,11 @@ export async function startVercelAnvilForkV1(input: {
   jobId: string;
   brokerUrl: string;
   blockNumber: string;
+  chainId?: 1 | 196 | 8453;
   create?: (options: NonNullable<Options>) => Promise<SandboxHandle>;
 }) {
   const broker = new URL(input.brokerUrl);
+  const chainId = input.chainId ?? 196;
   if (broker.protocol !== "https:" || broker.username || broker.password) {
     throw new Error("Fork broker must be a credential-free HTTPS URL");
   }
@@ -84,7 +86,7 @@ export async function startVercelAnvilForkV1(input: {
       args: [
         "--fork-url", input.brokerUrl,
         "--fork-block-number", input.blockNumber,
-        "--chain-id", "196", "--port", "8545", "--silent",
+        "--chain-id", chainId.toString(), "--port", "8545", "--silent",
       ],
       detached: true,
       timeoutMs: 90_000,
@@ -92,7 +94,7 @@ export async function startVercelAnvilForkV1(input: {
     let ready = false;
     for (let attempt = 0; attempt < 20; ++attempt) {
       try {
-        if (await rpc("eth_chainId") === "0xc4") {
+        if (await rpc("eth_chainId") === toHex(chainId)) {
           ready = true;
           break;
         }

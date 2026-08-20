@@ -8,7 +8,7 @@ const HashSchema = z.string().regex(/^0x[0-9a-fA-F]{64}$/).transform(
   (value) => value.toLowerCase() as Hash,
 );
 const AnchorSchema = z.object({
-  chainId: z.union([z.literal(1), z.literal(196)]),
+  chainId: z.union([z.literal(1), z.literal(196), z.literal(8453)]),
   blockNumber: z.string().regex(/^[1-9][0-9]*$/),
   blockHash: HashSchema,
 }).strict();
@@ -40,11 +40,11 @@ interface VerificationInputV1 {
   anchors: unknown[];
   nowSec: number;
   policy: unknown;
-  confirmAnchor(anchor: { chainId: 1 | 196; blockNumber: string; blockHash: Hash }): Promise<boolean>;
-  getCodeHash(chainId: 1 | 196, address: Address, blockNumber: string): Promise<Hash | undefined>;
+  confirmAnchor(anchor: { chainId: 1 | 196 | 8453; blockNumber: string; blockHash: Hash }): Promise<boolean>;
+  getCodeHash(chainId: 1 | 196 | 8453, address: Address, blockNumber: string): Promise<Hash | undefined>;
   simulate(input: {
     quote: NormalizedLifiQuoteV1;
-    anchor: { chainId: 1 | 196; blockNumber: string; blockHash: Hash };
+    anchor: { chainId: 1 | 196 | 8453; blockNumber: string; blockHash: Hash };
   }): Promise<LifiSimulationV1>;
 }
 

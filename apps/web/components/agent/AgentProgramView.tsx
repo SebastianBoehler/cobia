@@ -27,7 +27,7 @@ interface ProgramView {
   };
 }
 interface Prepared { approvals: TransactionCall[]; execution?: TransactionCall;
-  transactions?: (TransactionCall & { stageId: string })[] }
+  transactions?: (TransactionCall & { stageId: string })[]; chainId?: 1 | 196 | 8453 }
 
 function message(value: unknown, fallback: string) {
   return typeof value === "object" && value && "message" in value && typeof value.message === "string"
@@ -116,6 +116,9 @@ export function AgentProgramView({ programId }: { programId: string }) {
         body = await response.json();
       }
       if (!response.ok) throw new Error(message(body, "Execution preflight failed."));
+      if (body.chainId === 1 || body.chainId === 196 || body.chainId === 8453) {
+        await wallet.switchChain(body.chainId);
+      }
       setPrepared(body as Prepared);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Execution preflight failed.");
@@ -151,6 +154,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
     if (!prepared) return;
     setPending(true); setError(undefined);
     try {
+      if (prepared.chainId) await wallet.switchChain(prepared.chainId);
       await send(prepared.approvals[approvalIndex]!);
       setApprovalIndex((value) => value + 1);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Approval failed."); }
@@ -161,6 +165,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
     if (!prepared) return;
     setPending(true); setError(undefined);
     try {
+      if (prepared.chainId) await wallet.switchChain(prepared.chainId);
       const direct = prepared.transactions?.[transactionIndex];
       if (!prepared.execution && !direct) throw new Error("No verified execution call is available.");
       const transactionHash = await send((prepared.execution ?? direct)!, 1);
@@ -200,7 +205,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
       <p>{live
         ? "Agent-authored, independently replayed, and currently inside its signed freshness window."
         : "Historical research only. Create a fresh intent to regenerate and verify current calldata."}</p>
-      <p>{submission.owner ? `Owner ${shortAddress(submission.owner)} · ` : ""}X Layer mainnet block {submission.blockNumber}</p>
+      <p>{submission.owner ? `Owner ${shortAddress(submission.owner)} · ` : ""}Verified anchor block {submission.blockNumber}</p>
       {artifacts.program?.payload?.actions?.map((action, index) => <p key={`${action.capabilityId}-${index}`}>
         {action.capabilityId}@{action.capabilityVersion}
       </p>)}
@@ -209,7 +214,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
       </p>)}
       {provenance ? <p>{provenance.commandCount} commands · {provenance.fileCount} files · {provenance.networkRequestCount} fetched resources</p> : null}
       <p>{artifacts.replay?.payload?.reproduced
-        ? "Fresh fork replay reproduced the proposal. This is evidence only; execution below targets X Layer mainnet."
+        ? "Fresh fork replay reproduced the proposal. The wallet receives only the exact calls for its execution chain."
         : "No accepted replay."}</p>
       {artifacts.receipt?.payload?.transactionHash ? <p>Confirmed transaction {artifacts.receipt.payload.transactionHash}</p> : null}
     </div>
@@ -221,7 +226,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
       {pending ? "Waiting for approval…" : `Confirm bounded approval ${approvalIndex + 1}/${prepared.approvals.length}`}
     </button> : null}
     {prepared && approvalsDone && !confirmed ? <button className="button button--primary" disabled={pending} onClick={execute}>
-      {pending ? "Waiting for X Layer mainnet receipt…"
+      {pending ? "Waiting for the mainnet receipt…"
         : prepared.transactions
           ? `Confirm exact call ${transactionIndex + 1}/${prepared.transactions.length}`
           : "Confirm exact mainnet execution"}

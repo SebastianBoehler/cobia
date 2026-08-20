@@ -6,29 +6,43 @@ import {
 } from "@cobia/domain";
 import type { Hash } from "viem";
 
-interface XLayerSnapshotReadV1 {
+interface SnapshotReadV1 {
   getChainId(): Promise<number>;
   getBlock(): Promise<{ number: bigint; hash: Hash | null; timestamp: bigint }>;
 }
 
+type SnapshotReadsV1 = SnapshotReadV1 | Readonly<Partial<Record<1 | 196 | 8453, SnapshotReadV1>>>;
+
+function reader(reads: SnapshotReadsV1, chainId: 1 | 196 | 8453): SnapshotReadV1 {
+  if ("getChainId" in reads) return reads;
+  const value = reads[chainId];
+  if (!value) throw new Error(`Snapshot RPC for chain ${chainId} is unavailable`);
+  return value;
+}
+
 export async function captureOpenIntentSnapshotV1(
   value: OpenIntentPolicyV3,
-  read: XLayerSnapshotReadV1,
+  reads: SnapshotReadsV1,
 ): Promise<OpenIntentSnapshotV1> {
   const policy = OpenIntentPolicyV3Schema.parse(value);
-  if (policy.executionChainIds.length !== 1 || policy.executionChainIds[0] !== 196) {
-    throw new Error("The first public solver release supports X Layer only");
-  }
-  if (await read.getChainId() !== 196) throw new Error("Snapshot RPC chain identity mismatch");
-  const block = await read.getBlock();
-  if (block.number <= 0n || !block.hash || block.timestamp <= 0n) {
-    throw new Error("Snapshot RPC returned an invalid canonical block");
-  }
+  const blocks = await Promise.all(policy.executionChainIds.map(async (chainId) => {
+    const read = reader(reads, chainId);
+    if (await read.getChainId() !== chainId) throw new Error("Snapshot RPC chain identity mismatch");
+    const block = await read.getBlock();
+    if (block.number <= 0n || !block.hash || block.timestamp <= 0n) {
+      throw new Error("Snapshot RPC returned an invalid canonical block");
+    }
+    return { chainId, block };
+  }));
+  const capturedAt = blocks.reduce((minimum, { block }) =>
+    block.timestamp < minimum ? block.timestamp : minimum, blocks[0]!.block.timestamp);
   return OpenIntentSnapshotV1Schema.parse({
     version: 1,
     kind: "open-onchain",
     requestId: policy.requestId,
-    capturedAt: new Date(Number(block.timestamp) * 1_000).toISOString(),
-    anchors: [{ chainId: 196, blockNumber: block.number.toString(), blockHash: block.hash }],
+    capturedAt: new Date(Number(capturedAt) * 1_000).toISOString(),
+    anchors: blocks.map(({ chainId, block }) => ({
+      chainId, blockNumber: block.number.toString(), blockHash: block.hash!,
+    })),
   });
 }

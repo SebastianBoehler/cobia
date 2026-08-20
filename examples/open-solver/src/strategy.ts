@@ -8,6 +8,7 @@ import { replayCapabilityProgramOnForkV2 } from
   "../../../apps/web/lib/coding-agent-sandbox/capability-fork-replay-v2";
 import { deriveCapabilityAuthorityV2 } from "../../../apps/web/lib/open-exchange/capability-authority";
 import { startLocalFork } from "./local-fork";
+import { solveRegisteredInstrument } from "./rwa-strategy";
 
 function aaveAsset(input: Address, output: Address) {
   return Object.values(PROTOCOL_REGISTRY.aaveV3.assets).find(({ underlying, aToken }) =>
@@ -25,6 +26,10 @@ function registeredSwap(input: Address, output: Address) {
 export async function solve(intent: SolverIntentV1): Promise<SolverDecisionV1> {
   const input = intent.policy.inputs[0];
   const outcome = intent.policy.outcomes[0];
+  if (input && intent.policy.inputs.length === 1 && intent.policy.outcomes.length === 1 &&
+      outcome?.kind === "registered-instrument") {
+    return solveRegisteredInstrument(intent, input, outcome);
+  }
   if (!input || intent.policy.inputs.length !== 1 || intent.policy.outcomes.length !== 1 ||
       outcome?.kind !== "minimum-increase" ||
       (!aaveAsset(input.token, outcome.token) && !registeredSwap(input.token, outcome.token))) {

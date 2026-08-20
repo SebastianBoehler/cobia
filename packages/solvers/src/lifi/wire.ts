@@ -8,7 +8,7 @@ const HashSchema = z.string().regex(/^0x[0-9a-fA-F]{64}$/).transform(
   (value) => value.toLowerCase() as Hash,
 );
 const AtomicSchema = z.string().regex(/^[1-9][0-9]*$/).max(78);
-const ChainSchema = z.union([z.literal(1), z.literal(196)]);
+const ChainSchema = z.union([z.literal(1), z.literal(196), z.literal(8453)]);
 const HexQuantitySchema = z.string().regex(/^0x(?:0|[1-9a-fA-F][0-9a-fA-F]*)$/).transform(
   (value) => value.toLowerCase() as Hex,
 );

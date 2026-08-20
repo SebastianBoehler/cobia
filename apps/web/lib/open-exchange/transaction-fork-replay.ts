@@ -83,11 +83,10 @@ function discovered(receipts: Receipt[], owner: Address) {
   return { tokens, allowances };
 }
 
-export async function replayOpenTransactionProgramV1(input: {
-  program: unknown; evidence: unknown; providerArtifacts: unknown; snapshot: unknown; rpc: Rpc;
+export async function captureOpenTransactionProgramSimulationsV1(input: {
+  program: unknown; providerArtifacts: unknown; snapshot: unknown; rpc: Rpc;
 }) {
   const program = TransactionProgramV1Schema.parse(input.program);
-  const supplied = TransactionProgramEvidenceV1Schema.parse(input.evidence);
   const artifacts = ProviderArtifactsV1Schema.parse(input.providerArtifacts);
   const snapshot = OpenIntentSnapshotV1Schema.parse(input.snapshot);
   const owner = program.owner;
@@ -147,5 +146,13 @@ export async function replayOpenTransactionProgramV1(input: {
       });
     }
   } finally { await input.rpc("anvil_stopImpersonatingAccount", [owner]); }
+  return simulations;
+}
+
+export async function replayOpenTransactionProgramV1(input: {
+  program: unknown; evidence: unknown; providerArtifacts: unknown; snapshot: unknown; rpc: Rpc;
+}) {
+  const supplied = TransactionProgramEvidenceV1Schema.parse(input.evidence);
+  const simulations = await captureOpenTransactionProgramSimulationsV1(input);
   return { reproduced: commitment(simulations) === commitment(supplied.simulations), simulations };
 }

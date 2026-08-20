@@ -10,7 +10,7 @@ const HashSchema = z.string().regex(/^0x[0-9a-fA-F]{64}$/).transform(
 const SelectorSchema = z.string().regex(/^0x[0-9a-fA-F]{8}$/).transform(
   (value) => value.toLowerCase() as Hex,
 );
-const ChainSchema = z.union([z.literal(1), z.literal(196)]);
+const ChainSchema = z.union([z.literal(1), z.literal(196), z.literal(8453)]);
 
 const DeploymentSchema = z.object({
   chainId: ChainSchema,

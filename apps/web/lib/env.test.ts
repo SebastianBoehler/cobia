@@ -22,6 +22,8 @@ describe("market environment", () => {
     ).toEqual({
       DATABASE_URL: "postgresql://cobia:cobia@localhost:5432/cobia",
       DETERMINISTIC_SOLVER_PRIVATE_KEY: deterministicSigner,
+      ETHEREUM_RPC_URL: "https://ethereum-rpc.publicnode.com",
+      BASE_RPC_URL: "https://mainnet.base.org",
       XLAYER_RPC_URL: "https://rpc.xlayer.tech",
     });
   });
@@ -103,6 +105,8 @@ describe("market environment", () => {
       COBIA_EXECUTOR_V3_CODE_HASH: `0x${"44".repeat(32)}`,
       COBIA_VERIFIER_PRIVATE_KEY: verifier,
       XLAYER_RPC_URL: "https://rpc.xlayer.tech",
+      ETHEREUM_RPC_URL: "https://ethereum-rpc.publicnode.com",
+      BASE_RPC_URL: "https://mainnet.base.org",
     });
     expect(() => readCodingAgentV3ExecutionConfig({
       COBIA_EXECUTOR_V2_ADDRESS: "0x1111111111111111111111111111111111111111",

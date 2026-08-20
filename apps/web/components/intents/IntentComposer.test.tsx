@@ -9,7 +9,7 @@ import { INTENT_ASSETS } from "../../lib/intents/capability-templates";
 
 const owner = "0x1111111111111111111111111111111111111111";
 const state = vi.hoisted(() => ({
-  push: vi.fn(), request: vi.fn(), switchToXLayer: vi.fn(),
+  push: vi.fn(), request: vi.fn(), switchChain: vi.fn(), switchToXLayer: vi.fn(),
   account: "0x1111111111111111111111111111111111111111" as `0x${string}` | null,
 }));
 
@@ -17,7 +17,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: state.push }) }));
 vi.mock("../wallet/WalletProvider", () => ({
   useWallet: () => ({
     account: state.account, chainId: 196, targetChainId: 196,
-    request: state.request, switchToXLayer: state.switchToXLayer,
+    request: state.request, switchChain: state.switchChain, switchToXLayer: state.switchToXLayer,
   }),
 }));
 
@@ -26,6 +26,7 @@ beforeEach(() => {
   state.account = owner;
   state.push.mockReset();
   state.request.mockReset().mockResolvedValue(`0x${"ab".repeat(65)}`);
+  state.switchChain.mockReset().mockResolvedValue(undefined);
   state.switchToXLayer.mockReset().mockResolvedValue(undefined);
   vi.restoreAllMocks();
 });
@@ -63,6 +64,7 @@ describe("IntentComposer", () => {
     render(<IntentComposer initialDraft={{
       goal: "Exchange 10 USDG for at least 9.95 USDt0.",
       values: {
+        jurisdiction: "DE", eligibilityAccepted: false,
         templateId: "exact-input-swap",
         inputToken: INTENT_ASSETS[0].address,
         outputToken: INTENT_ASSETS[1].address,

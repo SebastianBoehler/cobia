@@ -24,7 +24,7 @@ export const RawWalletArtifactV1Schema = z.object({
   provider: z.literal("evm.raw@1"),
   stageId: z.string().regex(/^[a-z0-9]+(?:[._-][a-z0-9]+)+$/).max(96),
   transaction: z.object({
-    chainId: z.union([z.literal(1), z.literal(196)]),
+    chainId: z.union([z.literal(1), z.literal(196), z.literal(8453)]),
     from: AddressSchema,
     to: AddressSchema,
     data: CalldataSchema,

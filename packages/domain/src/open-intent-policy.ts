@@ -10,7 +10,7 @@ const AddressSchema = z.string().refine(isAddress).refine(
 const HashSchema = z.string().regex(/^0x[0-9a-f]{64}$/).transform((value) => value as Hash);
 const AtomicSchema = z.string().regex(/^(0|[1-9][0-9]*)$/).max(78);
 const PositiveAtomicSchema = AtomicSchema.refine((value) => value !== "0");
-const ChainSchema = z.union([z.literal(1), z.literal(196)]);
+const ChainSchema = z.union([z.literal(1), z.literal(196), z.literal(8453)]);
 
 const AssetSchema = z.object({
   chainId: ChainSchema,
@@ -32,15 +32,26 @@ const PredicateOutcomeSchema = z.object({
 
 const X402OutcomeSchema = z.object({
   kind: z.literal("x402-receipt"),
-  chainId: z.literal(196),
+  chainId: z.union([z.literal(196), z.literal(8453)]),
   offerCommitment: HashSchema,
   maximumPayment: z.object({ token: AddressSchema, atomic: PositiveAtomicSchema }).strict(),
+}).strict();
+
+const RegisteredInstrumentOutcomeSchema = z.object({
+  kind: z.literal("registered-instrument"),
+  chainId: z.union([z.literal(1), z.literal(196), z.literal(8453)]),
+  token: AddressSchema,
+  minimumIncreaseAtomic: PositiveAtomicSchema,
+  instrumentCommitment: HashSchema,
+  jurisdiction: z.string().regex(/^[A-Z]{2}$/),
+  eligibilityAttested: z.literal(true),
 }).strict();
 
 export const OpenIntentOutcomeV3Schema = z.discriminatedUnion("kind", [
   BalanceOutcomeSchema,
   PredicateOutcomeSchema,
   X402OutcomeSchema,
+  RegisteredInstrumentOutcomeSchema,
 ]);
 
 const NativeValueSchema = z.object({

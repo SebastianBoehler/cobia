@@ -39,4 +39,24 @@ describe("open intent policy builder", () => {
       maxNativeValueAtomicByChain: [{ chainId: 196, atomic: "0" }] });
     expect(policy.competition.closesAt).toBe(common.nowSec + 300);
   });
+
+  it("binds an RWA request to a registered instrument without choosing a route", () => {
+    const instrumentCommitment = `0x${"44".repeat(32)}` as const;
+    const policy = buildOpenIntentPolicyV3({
+      ...common, templateId: "rwa-acquisition",
+      inputToken: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+      outputToken: "0x45804880de22913dafe09f4980848ece6ecbaf78",
+      minimumOutputAtomic: "1000000000000000", instrumentCommitment, jurisdiction: "CH",
+    });
+
+    expect(policy).toMatchObject({
+      executionChainIds: [1, 196],
+      inputs: [{ chainId: 1, maximumAtomic: "10000000" }],
+      outcomes: [{ kind: "registered-instrument", chainId: 1,
+        token: "0x45804880de22913dafe09f4980848ece6ecbaf78",
+        minimumIncreaseAtomic: "1000000000000000", instrumentCommitment,
+        jurisdiction: "CH", eligibilityAttested: true }],
+    });
+    expect(policy).not.toHaveProperty("provider");
+  });
 });
