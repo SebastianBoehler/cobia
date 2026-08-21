@@ -1,7 +1,10 @@
 import { notFound } from "next/navigation";
+import { OpenIntentSnapshotV1Schema } from "@cobia/domain";
 import { IntentCompetitionView } from "@/components/intents/IntentCompetitionView";
 import { AppHeader } from "@/components/layout/AppHeader";
-import { getIntentRepository, getSolverSubmissionRepository } from "@/lib/runtime/market";
+import {
+  getIntentRepository, getOpenIntentSnapshotRepository, getSolverSubmissionRepository,
+} from "@/lib/runtime/market";
 import { currentUnixSeconds } from "@/lib/time";
 import { createPageMetadata } from "../../site-metadata";
 
@@ -17,7 +20,12 @@ export default async function IntentCompetitionPage({ params }: PageProps<"/inte
   const intent = await getIntentRepository().get(intentId);
   if (!intent) notFound();
   const observedAtSec = currentUnixSeconds();
-  const rows = await getSolverSubmissionRepository().listForIntent(intentId, observedAtSec);
+  const [rows, storedSnapshot] = await Promise.all([
+    getSolverSubmissionRepository().listForIntent(intentId, observedAtSec),
+    getOpenIntentSnapshotRepository().get(intentId),
+  ]);
+  if (!storedSnapshot) throw new Error("Published open intent snapshot is unavailable");
+  const snapshot = OpenIntentSnapshotV1Schema.parse(storedSnapshot.snapshot);
   const map = (item: (typeof rows.current)[number]) => ({
     id: item.id, solverId: item.solverId, revision: item.revision,
     state: item.presentationState, validUntil: item.validUntil.toISOString(),
@@ -32,6 +40,7 @@ export default async function IntentCompetitionPage({ params }: PageProps<"/inte
         observedAtSec={observedAtSec}
         current={rows.current.map(map)}
         history={rows.history.map(map)}
+        tokenEvidence={snapshot.tokenEvidence}
       />
     </main>
   </>;

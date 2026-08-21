@@ -84,6 +84,17 @@
 .intent-competition__deadline-label { align-items: center; color: var(--muted); display: inline-flex; font-size: 10px; gap: 7px; }
 .intent-competition__deadline-label svg { color: var(--muted); }
 .intent-competition__deadline strong { font-size: 11px; font-weight: 620; }
+.token-evidence-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.token-evidence-grid article { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; display: grid; gap: 16px; min-width: 0; padding: 18px; }
+.token-evidence-grid article > header { align-items: start; display: flex; justify-content: space-between; }
+.token-evidence-grid article > header div { display: grid; gap: 3px; }
+.token-evidence-grid article > header strong { color: var(--cobalt); font-family: var(--font-geist-mono), monospace; }
+.token-evidence-grid article > header span, .token-evidence-grid article > header small { color: var(--muted); font-size: 10px; }
+.token-evidence-grid dl { display: grid; gap: 12px; grid-template-columns: repeat(4, 1fr); margin: 0; }
+.token-evidence-grid dl div { display: grid; gap: 4px; }
+.token-evidence-grid dt, .token-evidence-grid footer { color: var(--muted); font-size: 9px; }
+.token-evidence-grid dd { font-family: var(--font-geist-mono), monospace; font-size: 11px; margin: 0; }
+.token-evidence-grid code { background: var(--wash); border-radius: 8px; font-size: 9px; overflow: hidden; padding: 8px; text-overflow: ellipsis; }
 .section-heading { align-items: end; display: flex; justify-content: space-between; margin-bottom: 18px; }
 .section-heading h2 { font-size: 26px; letter-spacing: -.045em; margin: 0; }
 .section-heading p { color: var(--muted); font-size: 12px; margin: 7px 0 0; }

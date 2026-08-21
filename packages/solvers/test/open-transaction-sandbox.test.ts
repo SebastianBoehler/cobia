@@ -30,6 +30,10 @@ const snapshot: OpenIntentSnapshotV1 = {
     { chainId: 1, blockNumber: "25795612", blockHash: hash("2") },
     { chainId: 196, blockNumber: "68451205", blockHash: hash("3") },
   ],
+  tokenEvidence: [{ provider: "okx-market-v6", chainId: 196, token: usdt0,
+    name: "Tether USD", symbol: "USDt0", decimals: 6, priceUsd: "1.0001",
+    liquidityUsd: "2500000", holderCount: "4200", top10HolderPercent: "19.75",
+    marketDataAt: "2026-08-20T09:59:59.000Z", communityRecognized: true }],
 };
 const program = {
   version: 1, programId: "550e8400-e29b-41d4-a716-446655440091", requestId: policy.requestId,
@@ -100,6 +104,7 @@ describe("open transaction-program sandbox", () => {
     expect(task).not.toMatch(/allowedCapabilities|manifestHash|private.?key|seed|walletProvider/i);
     expect(JSON.parse(task)).toMatchObject({
       kind: "open-onchain", wallet: owner,
+      tokenEvidence: snapshot.tokenEvidence,
       tools: { readRpc: { mode: "brokered-read-only" }, lifi: { mode: "brokered-read-only" } },
     });
     expect(result?.program.stages[0]).toMatchObject({ provider: "lifi@1" });

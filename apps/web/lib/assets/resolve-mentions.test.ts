@@ -57,4 +57,19 @@ describe("asset mention resolver", () => {
     expect(result.assets).toEqual([]);
     expect(result.unresolved).toEqual(["FAKE", "../TSLAx"]);
   });
+
+  it("resolves one exact OKX X Layer token as priced research evidence", async () => {
+    const token = "0x2222222222222222222222222222222222222222" as const;
+    const okx = { searchXLayerToken: vi.fn(async () => ({ chainId: 196 as const, token,
+      name: "Example Token", symbol: "EXAMPLE", decimals: 18, priceUsd: "2.50",
+      liquidityUsd: "100000", holderCount: "1200" })) };
+
+    const result = await resolveAssetMentionsV1(["example"], tool({ assets: [] }), okx);
+
+    expect(okx.searchXLayerToken).toHaveBeenCalledWith("example");
+    expect(result.assets).toEqual([{ symbol: "EXAMPLE", name: "Example Token", chainId: 196,
+      address: token, status: "research-only", priceUsd: "2.50",
+      liquidityUsd: "100000", holderCount: "1200" }]);
+    expect(result.unresolved).toEqual([]);
+  });
 });

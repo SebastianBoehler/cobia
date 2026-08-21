@@ -51,6 +51,11 @@ export async function captureOpenIntentSnapshotV1(
     provider: "okx-market-v6" as const,
     ...await market.getXLayerTokenEvidence(token),
   }))) : undefined;
+  if (tokenEvidence?.some(({ marketDataAt }) => {
+    const marketSec = Date.parse(marketDataAt) / 1_000;
+    return !Number.isFinite(marketSec) ||
+      Math.abs(marketSec - Number(capturedAt)) > policy.maxEvidenceAgeSec;
+  })) throw new Error("OKX token market evidence is stale");
   return OpenIntentSnapshotV1Schema.parse({
     version: 1,
     kind: "open-onchain",

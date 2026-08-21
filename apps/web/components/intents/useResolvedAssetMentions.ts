@@ -9,6 +9,9 @@ interface ResolvedAsset {
   chainId: 1 | 196;
   address: string;
   status: "supported" | "registered" | "research-only";
+  priceUsd?: string;
+  liquidityUsd?: string;
+  holderCount?: string;
 }
 
 export function extractGoalMentions(goal: string): string[] {
@@ -54,7 +57,7 @@ export function useResolvedAssetMentions(
     group: "Assets",
     mention: asset.symbol,
     detail: asset.status === "research-only"
-      ? `${asset.name} · ${shortAddress(asset.address)} · research only`
+      ? `${asset.name}${asset.priceUsd ? ` · $${asset.priceUsd}` : ""} · ${shortAddress(asset.address)} · research only`
       : `${asset.name} · ${asset.chainId === 196 ? "X Layer" : "Ethereum"}`,
   }));
 }

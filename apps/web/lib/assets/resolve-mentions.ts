@@ -8,6 +8,19 @@ type Tool = SolverToolV1<
   XStocksToolValueV1
 >;
 
+interface OkxTokenLookup {
+  searchXLayerToken(search: string): Promise<{
+    chainId: 196;
+    token: Address;
+    name: string;
+    symbol: string;
+    decimals: number;
+    priceUsd: string;
+    liquidityUsd: string;
+    holderCount: string;
+  } | undefined>;
+}
+
 export interface ResolvedAssetMentionV1 {
   symbol: string;
   name: string;
@@ -15,6 +28,9 @@ export interface ResolvedAssetMentionV1 {
   address: Address;
   status: "supported" | "registered" | "research-only";
   underlyingIdentifier?: string;
+  priceUsd?: string;
+  liquidityUsd?: string;
+  holderCount?: string;
 }
 
 function canonicalXStockSymbol(symbol: string): string | undefined {
@@ -22,7 +38,11 @@ function canonicalXStockSymbol(symbol: string): string | undefined {
   return `${symbol.slice(0, -1).toUpperCase()}x`;
 }
 
-export async function resolveAssetMentionsV1(symbols: readonly string[], xstocks: Tool): Promise<{
+export async function resolveAssetMentionsV1(
+  symbols: readonly string[],
+  xstocks: Tool,
+  okx?: OkxTokenLookup,
+): Promise<{
   assets: ResolvedAssetMentionV1[];
   unresolved: string[];
 }> {
@@ -46,15 +66,27 @@ export async function resolveAssetMentionsV1(symbols: readonly string[], xstocks
       return;
     }
     const canonical = canonicalXStockSymbol(symbol);
-    if (!canonical) { unresolved.push(symbol); return; }
-    const result = await xstocks.run({ operation: "get", symbol: canonical });
-    const discovered = result.status === "ok"
-      ? result.value.assets.find((asset) => asset.symbol.toLowerCase() === canonical.toLowerCase())
-      : undefined;
-    if (!discovered) { unresolved.push(symbol); return; }
-    assets.push({ symbol: discovered.symbol, name: discovered.name, chainId: 196,
-      address: discovered.deployment.address, status: "research-only",
-      underlyingIdentifier: discovered.underlyingIsin });
+    if (canonical) {
+      const result = await xstocks.run({ operation: "get", symbol: canonical });
+      const discovered = result.status === "ok"
+        ? result.value.assets.find((asset) => asset.symbol.toLowerCase() === canonical.toLowerCase())
+        : undefined;
+      if (discovered) {
+        assets.push({ symbol: discovered.symbol, name: discovered.name, chainId: 196,
+          address: discovered.deployment.address, status: "research-only",
+          underlyingIdentifier: discovered.underlyingIsin });
+        return;
+      }
+    }
+    if (!okx || !/^[A-Za-z0-9.$_-]{1,32}$/.test(symbol)) {
+      unresolved.push(symbol);
+      return;
+    }
+    const token = await okx.searchXLayerToken(symbol);
+    if (!token) { unresolved.push(symbol); return; }
+    assets.push({ symbol: token.symbol, name: token.name, chainId: 196,
+      address: token.token, status: "research-only", priceUsd: token.priceUsd,
+      liquidityUsd: token.liquidityUsd, holderCount: token.holderCount });
   }));
 
   const order = new Map(unique.map((symbol, index) => [symbol.toLowerCase(), index]));

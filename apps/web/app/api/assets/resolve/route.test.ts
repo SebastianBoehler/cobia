@@ -31,4 +31,19 @@ describe("POST /api/assets/resolve", () => {
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({ code: "ASSET_RESOLUTION_INVALID" });
   });
+
+  it("returns exact OKX contract and price evidence for research-only tokens", async () => {
+    const token = "0x2222222222222222222222222222222222222222" as const;
+    const okx = { searchXLayerToken: vi.fn(async () => ({ chainId: 196 as const, token,
+      name: "Example Token", symbol: "EXAMPLE", decimals: 18, priceUsd: "2.50",
+      liquidityUsd: "100000", holderCount: "1200" })) };
+    const response = await resolveAssetMentionRequest(new Request("https://getcobia.com/api/assets/resolve", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ symbols: ["EXAMPLE"] }),
+    }), xstocks, okx);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ assets: [{ symbol: "EXAMPLE",
+      address: token, priceUsd: "2.50", liquidityUsd: "100000", holderCount: "1200" }] });
+  });
 });

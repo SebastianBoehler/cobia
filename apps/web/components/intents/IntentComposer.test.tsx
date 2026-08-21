@@ -109,6 +109,22 @@ describe("IntentComposer", () => {
     expect(screen.queryByText("Unresolved token · research only")).not.toBeInTheDocument();
   });
 
+  it("shows OKX contract and price evidence on a resolved token mention", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ assets: [{
+      symbol: "EXAMPLE", name: "Example Token", chainId: 196,
+      address: "0x2222222222222222222222222222222222222222", status: "research-only",
+      priceUsd: "2.50", liquidityUsd: "100000", holderCount: "1200",
+    }], unresolved: [] })));
+    render(<IntentComposer />);
+
+    fireEvent.change(screen.getByLabelText("What should happen?"), {
+      target: { value: "Research @EXAMPLE on X Layer." },
+    });
+
+    expect(await within(screen.getByLabelText("Attached entities"))
+      .findByText(/\$2.50.*0x2222…2222/)).toBeVisible();
+  });
+
   it("closes mention and route popovers on an outside click", () => {
     render(<IntentComposer />);
     const goal = screen.getByLabelText("What should happen?");

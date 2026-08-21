@@ -87,7 +87,8 @@ export async function runOpenTransactionProgramSandboxV1(input: {
     ]));
     await traced.writeFile("in/task.json", JSON.stringify({
       version: 3, kind: "open-onchain", policy, wallet: input.wallet,
-      portfolio: input.portfolio, anchors: snapshot.anchors, tools,
+      portfolio: input.portfolio, anchors: snapshot.anchors,
+      tokenEvidence: snapshot.tokenEvidence ?? [], tools,
       outputs: ["out/decision.json", "out/program.json", "out/evidence.json",
         "out/provider-artifacts.json", "out/run-manifest.json"],
     }));

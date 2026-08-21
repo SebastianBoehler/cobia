@@ -60,6 +60,18 @@ describe("open intent snapshot capture", () => {
     ]);
   });
 
+  it("rejects stale OKX token evidence before publishing the snapshot", async () => {
+    await expect(captureOpenIntentSnapshotV1(policy, {
+      getChainId: async () => 196,
+      getBlock: async () => ({ number: 68_461_706n, hash: hash("2"), timestamp: 2_000_000_010n }),
+    }, { getXLayerTokenEvidence: async (token) => ({
+      chainId: 196, token: token.toLowerCase() as `0x${string}`, name: "Stale Token",
+      symbol: "OLD", decimals: 6, priceUsd: "1", liquidityUsd: "1", holderCount: "1",
+      top10HolderPercent: "100", marketDataAt: "2020-01-01T00:00:00.000Z",
+      communityRecognized: false,
+    }) })).rejects.toThrow(/stale/i);
+  });
+
   it("anchors each declared chain and fails closed on an invalid RPC identity", async () => {
     const multichain = {
       ...policy,

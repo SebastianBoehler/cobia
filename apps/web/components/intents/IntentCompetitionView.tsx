@@ -1,3 +1,4 @@
+import type { TokenMarketEvidenceV1 } from "@cobia/domain";
 import { ArrowRight, CircleDot, Clock3, History, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
@@ -32,12 +33,40 @@ function SubmissionRow({ item, current }: { item: CompetitionSubmission; current
   </article>;
 }
 
-export function IntentCompetitionView({ goal, closesAt, observedAtSec, current, history }: {
+function usd(value: string): string {
+  return `$${Number(value).toLocaleString("en-US", { maximumFractionDigits: 8 })}`;
+}
+
+function TokenEvidence({ items }: { items: TokenMarketEvidenceV1[] }) {
+  return <section aria-labelledby="token-evidence">
+    <header className="section-heading"><div><h2 id="token-evidence">Frozen token evidence</h2>
+      <p>Exact X Layer contracts and OKX market observations committed to the solver snapshot.</p>
+    </div><span>{items.length}</span></header>
+    <div className="token-evidence-grid">{items.map((item) => <article key={item.token}>
+      <header><div><strong>{item.symbol}</strong><span>{item.name}</span></div>
+        {item.communityRecognized ? <small>Community recognized</small> : null}</header>
+      <dl>
+        <div><dt>Price</dt><dd>{usd(item.priceUsd)}</dd></div>
+        <div><dt>Liquidity</dt><dd>{usd(item.liquidityUsd)}</dd></div>
+        <div><dt>Holders</dt><dd>{Number(item.holderCount).toLocaleString("en-US")}</dd></div>
+        <div><dt>Top 10</dt><dd>{item.top10HolderPercent}%</dd></div>
+      </dl>
+      <code>{item.token}</code>
+      <footer>OKX Market API v6 · observed {new Date(item.marketDataAt).toLocaleString("en-US", {
+        dateStyle: "medium", timeStyle: "short", timeZone: "UTC",
+      })} UTC</footer>
+    </article>)}</div>
+  </section>;
+}
+
+export function IntentCompetitionView({ goal, closesAt, observedAtSec, current, history,
+  tokenEvidence = [] }: {
   goal: string;
   closesAt: string;
   observedAtSec: number;
   current: CompetitionSubmission[];
   history: CompetitionSubmission[];
+  tokenEvidence?: TokenMarketEvidenceV1[];
 }) {
   const live = Date.parse(closesAt) > observedAtSec * 1_000;
   const emptyTitle = live ? "Waiting for solver submissions" : "Closed without a verified program";
@@ -58,6 +87,8 @@ export function IntentCompetitionView({ goal, closesAt, observedAtSec, current, 
         <strong>{new Date(closesAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" })} UTC</strong>
       </div>
     </section>
+
+    {tokenEvidence.length ? <TokenEvidence items={tokenEvidence} /> : null}
 
     <section aria-labelledby="current-programs">
       <header className="section-heading"><div><h2 id="current-programs">Current programs</h2><p>Newest live revision from each solver, ranked by verifier-owned objective evidence.</p></div><span>{current.length}</span></header>
