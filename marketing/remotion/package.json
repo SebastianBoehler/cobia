@@ -2,7 +2,7 @@
   "name": "@cobia/promo-remotion",
   "version": "0.1.0",
   "description": "Short proof-first promotional clips for Cobia",
-  "license": "UNLICENSED",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "private": true,
   "scripts": {
     "build": "remotion bundle",

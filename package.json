@@ -1,6 +1,7 @@
 {
   "name": "cobia",
   "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
   "packageManager": "pnpm@11.20.0",
   "engines": {
     "node": ">=24"

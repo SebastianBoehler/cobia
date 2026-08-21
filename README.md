@@ -1,5 +1,10 @@
 # Cobia
 
+[![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-2563eb.svg)](LICENSE.md)
+[![Source available](https://img.shields.io/badge/source-available-f59e0b.svg)](LICENSE.md)
+[![Node.js 24+](https://img.shields.io/badge/Node.js-24%2B-339933.svg?logo=node.js&logoColor=white)](package.json)
+[![Live on X Layer](https://img.shields.io/badge/live-X%20Layer-111827.svg)](https://getcobia.com)
+
 Cobia is a verified intent system centered on X Layer protocols. A wallet signs
 an exact policy, Cobia captures public wallet and protocol state at pinned chain
 blocks, and a coding agent researches and simulates an unsigned typed program
@@ -131,3 +136,16 @@ are documented in
 
 See [apps/web/README.md](apps/web/README.md) for the exact network and payment
 configuration boundary.
+
+## License
+
+Cobia is source-available under the
+[PolyForm Noncommercial License 1.0.0](LICENSE.md). You may use, modify, and
+share it only for permitted noncommercial purposes. Commercial use—including
+using Cobia or a modified version to provide a paid product or service—requires
+a separate commercial license from Sebastian Böhler.
+
+This is not an OSI-approved open-source license. Sebastian Böhler retains the
+right to use, license, and commercialize Cobia separately. The license does not
+grant rights to the Cobia name, logos, or branding. For commercial licensing,
+[contact Sebastian Böhler](https://github.com/SebastianBoehler).
