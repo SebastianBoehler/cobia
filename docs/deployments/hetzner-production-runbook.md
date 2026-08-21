@@ -42,6 +42,7 @@ docker compose up -d replay caddy
 curl --retry 12 --retry-delay 5 --fail https://api.getcobia.com/healthz
 docker compose up -d db cert-sync
 docker compose run --rm migrate
+docker compose run --rm --user root --entrypoint sh solver -c 'chown -R 1000:1000 /var/lib/cobia-solver; chown 1000:1000 /auth/codex; find /auth/codex -mindepth 1 -maxdepth 1 ! -name config.toml -exec chown -R 1000:1000 {} +'
 docker compose up -d solver
 docker compose ps
 docker compose logs --tail=100 db replay solver caddy
@@ -52,6 +53,8 @@ and the matching `REPLAY_SERVICE_SECRET`. The service uses the pinned
 `@foundry-rs/anvil` binary and accepts one replay at a time on the CX23.
 Set `DATABASE_URL` to the VPS database using `api.getcobia.com:15432` and
 `sslmode=verify-full`; never point Vercel at the Docker-internal `db` hostname.
+The migration command holds a PostgreSQL advisory lock, so concurrent operators
+cannot apply the schema twice. Vercel builds never run migrations.
 
 ## Local Compose rehearsal
 
@@ -67,6 +70,7 @@ chmod 600 .env.local
 docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml build
 docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml up -d db replay caddy
 docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml run --rm migrate
+docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml run --rm --user root --entrypoint sh solver -c 'chown -R 1000:1000 /var/lib/cobia-solver; chown 1000:1000 /auth/codex; find /auth/codex -mindepth 1 -maxdepth 1 ! -name config.toml -exec chown -R 1000:1000 {} +'
 docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml up -d solver
 ```
 
@@ -104,14 +108,19 @@ Tag the previous Git commit and container image before each update. Roll back
 application containers to that tag only when its database schema is compatible;
 database migrations are not automatically reversed.
 
-## Operations
+## Current small-scale operations
 
-- Send container logs to a remote log sink before public launch.
-- Alert on replay health failures, solver registration loss, disk usage, and any
-  `VERIFIER_FAILED` submission.
-- Back up the `postgres-data` volume and store a daily encrypted logical dump
-  outside the VM. A Hetzner server snapshot is useful but does not replace a
-  tested PostgreSQL restore.
-- Snapshot the `solver-state` volume daily; Codex auth should be recoverable
-  from the provider rather than treated as the sole credential copy.
+- Check `docker compose ps`, disk usage, and recent logs after updates. Compose
+  restarts unhealthy solver and replay processes within their resource limits.
+- Alert on replay health failures, solver registration loss, and repeated
+  `VERIFIER_FAILED` submissions when basic monitoring is available.
 - Apply unattended security updates and reboot during a documented window.
+
+## Before material user value or higher scale
+
+- Send container logs and health alerts to an external service.
+- Add encrypted off-VM PostgreSQL dumps, solver-state snapshots, and a tested
+  restore procedure. Backups are deliberately a scale-up gate, not a hackathon
+  launch dependency.
+- Move PostgreSQL behind a connection pooler or to a managed service before
+  increasing Vercel function concurrency or replay parallelism.

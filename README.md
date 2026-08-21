@@ -4,6 +4,7 @@
 [![Source available](https://img.shields.io/badge/source-available-f59e0b.svg)](LICENSE.md)
 [![Node.js 24+](https://img.shields.io/badge/Node.js-24%2B-339933.svg?logo=node.js&logoColor=white)](package.json)
 [![Live on X Layer](https://img.shields.io/badge/live-X%20Layer-111827.svg)](https://getcobia.com)
+[![CI](https://github.com/SebastianBoehler/cobia/actions/workflows/ci.yml/badge.svg)](https://github.com/SebastianBoehler/cobia/actions/workflows/ci.yml)
 
 Cobia is a verified intent system centered on X Layer protocols. A wallet signs
 an exact policy, Cobia captures public wallet and protocol state at pinned chain
@@ -17,6 +18,8 @@ registered Curve StableSwap NG or Uniswap V3 exact-input swaps. External solvers
 may also submit exact wallet-call programs; Cobia binds their code identities,
 approvals, asset deltas, events, and state diffs to a fresh fork replay before
 the owner can execute them. V1 allocation rounds remain readable as a control.
+
+![Cobia intent workspace](marketing/remotion/public/ui/cobia-new-ui-desktop.png)
 
 ## Current truth
 
@@ -138,6 +141,18 @@ command does not share one database for the whole run. It ignores ambient
 The opt-in fork command starts a digest-pinned Foundry/Anvil container and forks
 the public X Layer RPC at block `67,649,362`. It requires outbound network access
 to `ghcr.io` for the image and `https://rpc.xlayer.tech` for fork state.
+
+## Continuous verification
+
+- `CI` runs lint, type checks, unit tests, production builds, isolated database
+  integration tests, contract tests, and a rendered Compose topology on every
+  pull request and `main` update.
+- `Mainnet fork` runs the opt-in pinned-block rehearsal nightly and on demand.
+- `Security` audits production dependencies and runs CodeQL on every change;
+  weekly container scans fail on fixed high or critical vulnerabilities.
+
+Security reports belong in the private process described in
+[`SECURITY.md`](SECURITY.md), never in a public issue.
 
 The wallet-confirmed X Layer Testnet deployment and independent receipt checks
 are documented in
