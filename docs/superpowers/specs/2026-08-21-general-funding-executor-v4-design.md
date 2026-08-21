@@ -51,9 +51,9 @@ Generation is open-world. Authorization is verifier-bound and contract-bounded.
 A verifier signature is necessary but insufficient. A compromised verifier
 must not be able to bypass the immutable V4 invariants.
 
-## General policy V2
+## General policy V3
 
-`GeneralIntentPolicyV2` is strict canonical JSON and commits to:
+`GeneralIntentPolicyV3` is strict canonical JSON and commits to:
 
 - version, request ID, chain, owner, nonce, creation time, deadline, evidence
   age, and manifest commitment;
