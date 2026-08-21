@@ -70,6 +70,7 @@ export async function POST(request: Request): Promise<Response> {
   } catch (error) {
     if (leaseId) await auth.failCompilation(leaseId).catch(() => undefined);
     const invalid = error instanceof z.ZodError;
+    if (!invalid) console.error("Intent compilation failed", error);
     return NextResponse.json({
       code: invalid ? "INVALID_GOAL" : "INTENT_COMPILER_UNAVAILABLE",
       message: invalid ? "Describe a goal between 3 and 500 characters."

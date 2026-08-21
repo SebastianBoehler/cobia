@@ -7,6 +7,24 @@ function response(text: string) {
 }
 
 describe("intent compiler", () => {
+  it("keeps constrained extraction from spending its output budget on reasoning", async () => {
+    const fetcher = vi.fn().mockImplementation((_url, init: RequestInit) => {
+      const request = JSON.parse(init.body as string);
+      return Promise.resolve(request.reasoning?.effort === "none"
+        ? response(JSON.stringify({
+          status: "clarification", question: "Which xStock should be acquired?",
+          templateId: "rwa-acquisition", inputSymbol: "USDG", outputSymbol: "TSLAx",
+          amount: "1", minimum: "", jurisdiction: null,
+        }))
+        : Response.json({ status: "incomplete", incomplete_details: { reason: "max_output_tokens" }, output: [] }));
+    });
+    const compiler = createOpenAiIntentCompiler({ apiKey: "test", model: "gpt-5.6-luna", fetcher });
+
+    await expect(compiler.compile("Swap 1 USDG into any xStock", "any")).resolves.toEqual({
+      status: "clarification", question: "Which xStock should be acquired?",
+    });
+  });
+
   it("compiles prose to editable receipt values without creating wallet authority", async () => {
     const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify({
       status: "review", question: null, templateId: "exact-input-swap",
