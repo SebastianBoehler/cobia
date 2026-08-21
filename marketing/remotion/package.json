@@ -10,6 +10,7 @@
     "lint": "eslint src && tsc --noEmit",
     "render:clean-prompt": "remotion render Cobia-Clean-Prompt output/cobia-clean-prompt.mp4",
     "render:clean-prompt:x": "remotion render Cobia-Clean-Prompt-X output/cobia-clean-prompt-x-16x9.mp4",
+    "render:bouncy-prompt:x": "remotion render Cobia-Bouncy-Prompt-X output/cobia-bouncy-prompt-x-16x9.mp4",
     "render:prompt": "remotion render Cobia-Prompt-Tags-16x9 output/cobia-prompt-tags-16x9.mp4",
     "render:prompt:vertical": "remotion render Cobia-Prompt-Tags-9x16 output/cobia-prompt-tags-9x16.mp4",
     "render:reveal": "remotion render Cobia-Intent-UI-Reveal output/cobia-intent-ui-reveal.mp4",
@@ -18,6 +19,7 @@
   },
   "dependencies": {
     "@remotion/cli": "4.0.514",
+    "@remotion/media": "4.0.514",
     "@remotion/rough-notation": "4.0.514",
     "@remotion/transitions": "4.0.514",
     "react": "19.2.3",
