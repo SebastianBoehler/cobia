@@ -1,4 +1,4 @@
-import { commitment } from "@cobia/domain";
+import { canonicalJson, commitment } from "@cobia/domain";
 import { isAddress, isAddressEqual, type Address, type Hash } from "viem";
 import { z } from "zod";
 import type { CommerceFetchV1, DnsResolverV1 } from "./discovery-broker";
@@ -7,6 +7,7 @@ import {
   finalizeX402PaymentV2,
   X402AuthorizationTemplateV1Schema,
 } from "./x402-authorization";
+import { parseX402PaymentRequiredWireV2 } from "./x402-wire";
 
 const MAX_RESOURCE_BYTES = 1_048_576;
 const MAX_SETTLEMENT_HEADER_BYTES = 12_288;
@@ -41,6 +42,21 @@ function parseSettlementHeader(value: string | undefined) {
   }
 }
 
+function matchesAcceptedRequirement(
+  fresh: ReturnType<typeof parseX402PaymentRequiredWireV2>["accepts"][number],
+  expected: ReturnType<typeof X402AuthorizationTemplateV1Schema.parse>["accepted"],
+) {
+  return fresh.scheme === expected.scheme && fresh.network === expected.network &&
+    fresh.amount === expected.amount && isAddressEqual(fresh.asset as Address, expected.asset) &&
+    isAddressEqual(fresh.payTo as Address, expected.payTo) &&
+    fresh.maxTimeoutSeconds === expected.maxTimeoutSeconds &&
+    canonicalJson(fresh.extra ?? {}) === canonicalJson(expected.extra);
+}
+
+function paymentSignature(value: unknown) {
+  return Buffer.from(canonicalJson(value), "utf8").toString("base64");
+}
+
 export async function executeX402ResourceV1(input: {
   expected: unknown;
   submitted: unknown;
@@ -53,12 +69,39 @@ export async function executeX402ResourceV1(input: {
   const hostname = new URL(expected.endpoint).hostname;
   const addresses = await input.dnsResolver(hostname);
   const endpoint = assertPublicCommerceUrlV1(expected.endpoint, addresses);
-  const response = await input.fetcher({
+  const request = {
     url: endpoint.toString(), resolvedAddress: addresses[0]!, timeoutMs: 10_000,
     maxBytes: MAX_RESOURCE_BYTES,
+  };
+  const challengeResponse = await input.fetcher({
+    ...request,
+    headers: { accept: "application/json", "user-agent": "Cobia-Verified-Commerce/1" },
+  });
+  if (challengeResponse.status >= 300 && challengeResponse.status < 400) {
+    throw new Error("x402 paid-resource redirect is forbidden");
+  }
+  if (challengeResponse.status !== 402) {
+    throw new Error(`x402 fresh payment challenge returned HTTP ${challengeResponse.status}`);
+  }
+  const challenge = parseX402PaymentRequiredWireV2(
+    challengeResponse.headers["payment-required"] ?? "",
+  );
+  const accepted = challenge.accepts.find((candidate) =>
+    matchesAcceptedRequirement(candidate, expected.accepted));
+  if (challenge.resource.url !== expected.endpoint || !accepted) {
+    throw new Error("x402 fresh payment challenge does not match the authorized offer");
+  }
+  const signedPayload = {
+    ...finalized.paymentPayload,
+    resource: challenge.resource,
+    accepted,
+    extensions: challenge.extensions ?? {},
+  };
+  const response = await input.fetcher({
+    ...request,
     headers: {
       accept: "application/json",
-      "payment-signature": finalized.paymentSignature,
+      "payment-signature": paymentSignature(signedPayload),
       "user-agent": "Cobia-Verified-Commerce/1",
     },
   });

@@ -10,7 +10,7 @@ import { executeX402ResourceV1 } from "./x402-resource-client";
 const hash = (byte: string) => `0x${byte.repeat(64)}` as `0x${string}`;
 const account = privateKeyToAccount(hash("1"));
 const asset = "0x2222222222222222222222222222222222222222";
-const payee = "0x3333333333333333333333333333333333333333";
+const payee = "0xe8067e3c72f18054de14e4950480c093156130f8";
 const authorization = {
   from: account.address, to: payee, value: "10000", validAfter: "2000000070",
   validBefore: "2000000160", nonce: hash("2"),
@@ -40,31 +40,58 @@ function paymentResponse(value: unknown) {
   return Buffer.from(JSON.stringify(value), "utf8").toString("base64");
 }
 
+function paymentRequired(value: unknown) {
+  return Buffer.from(JSON.stringify(value), "utf8").toString("base64");
+}
+
+const freshAccepted = {
+  ...template.accepted,
+  payTo: "0xe8067E3C72F18054De14E4950480c093156130f8",
+};
+
+function freshChallenge() {
+  return {
+    status: 402,
+    headers: { "payment-required": paymentRequired({
+      x402Version: 2,
+      resource: { url: template.endpoint, description: "Paid result", mimeType: "application/json" },
+      accepts: [freshAccepted],
+    }) },
+    body: Buffer.from("{}"),
+  };
+}
+
 describe("x402 paid resource client", () => {
   it("sends the exact signed payload only to the registered pinned endpoint", async () => {
     const signature = await account.signTypedData(x402TypedDataV1(template));
-    const fetcher = vi.fn<CommerceFetchV1>().mockResolvedValue({
-      status: 200,
-      headers: {
-        "content-type": "application/json",
-        "payment-response": paymentResponse({
-          success: true, transaction: hash("7"), network: "eip155:196",
-          payer: account.address, amount: "10000",
-        }),
-      },
-      body: Buffer.from('{"result":"paid"}'),
-    });
+    const fetcher = vi.fn<CommerceFetchV1>()
+      .mockResolvedValueOnce(freshChallenge())
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          "payment-response": paymentResponse({
+            success: true, transaction: hash("7"), network: "eip155:196",
+            payer: account.address, amount: "10000",
+          }),
+        },
+        body: Buffer.from('{"result":"paid"}'),
+      });
     const result = await executeX402ResourceV1({
       expected: template, submitted: template, signature,
       dnsResolver: async () => ["93.184.216.34"], fetcher,
     });
-    expect(fetcher).toHaveBeenCalledWith(expect.objectContaining({
+    expect(fetcher).toHaveBeenNthCalledWith(2, expect.objectContaining({
       url: "https://api.example/resource", resolvedAddress: "93.184.216.34",
       headers: expect.objectContaining({
         accept: "application/json", "payment-signature": expect.any(String),
       }),
     }));
-    expect(fetcher.mock.calls[0]![0].headers).not.toHaveProperty("authorization");
+    const sent = JSON.parse(Buffer.from(
+      fetcher.mock.calls[1]![0].headers["payment-signature"]!, "base64",
+    ).toString("utf8"));
+    expect(sent.accepted).toEqual(freshAccepted);
+    expect(fetcher.mock.calls[1]![0].headers).not.toHaveProperty("authorization");
     expect(result.settlement).toMatchObject({
       success: true, network: "eip155:196", payer: account.address.toLowerCase(), amount: "10000",
     });
@@ -96,10 +123,11 @@ describe("x402 paid resource client", () => {
       paymentResponse({ success: true, transaction: hash("7"), network: "eip155:196", payer: account.address, amount: "9999" }),
     ];
     for (const header of cases) {
+      let requestCount = 0;
       await expect(executeX402ResourceV1({
         expected: template, submitted: template, signature,
         dnsResolver: async () => ["93.184.216.34"],
-        fetcher: async () => ({
+        fetcher: async () => requestCount++ === 0 ? freshChallenge() : ({
           status: 200,
           headers: header ? { "payment-response": header } : {} as Record<string, string>,
           body: new Uint8Array(),

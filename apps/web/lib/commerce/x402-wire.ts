@@ -38,6 +38,7 @@ export const X402PaymentRequiredV2Schema = z.object({
 }).strict();
 
 export type X402PaymentRequiredV2 = z.infer<typeof X402PaymentRequiredV2Schema>;
+export type X402PaymentRequiredWireV2 = z.input<typeof X402PaymentRequiredV2Schema>;
 
 export const X402BazaarResourcesV2Schema = z.object({
   x402Version: z.literal(2),
@@ -80,15 +81,23 @@ function decodeCanonicalBase64(input: string): Uint8Array {
   return bytes;
 }
 
-export function parseX402PaymentRequiredV2(header: string): X402PaymentRequiredV2 {
+function parseX402PaymentRequiredJson(header: string): unknown {
   const bytes = decodeCanonicalBase64(header);
-  let parsed: unknown;
   try {
-    parsed = JSON.parse(Buffer.from(bytes).toString("utf8"));
+    return JSON.parse(Buffer.from(bytes).toString("utf8"));
   } catch {
     throw new Error("PAYMENT-REQUIRED header contains invalid JSON");
   }
-  return X402PaymentRequiredV2Schema.parse(parsed);
+}
+
+export function parseX402PaymentRequiredV2(header: string): X402PaymentRequiredV2 {
+  return X402PaymentRequiredV2Schema.parse(parseX402PaymentRequiredJson(header));
+}
+
+export function parseX402PaymentRequiredWireV2(header: string): X402PaymentRequiredWireV2 {
+  const parsed = parseX402PaymentRequiredJson(header);
+  X402PaymentRequiredV2Schema.parse(parsed);
+  return parsed as X402PaymentRequiredWireV2;
 }
 
 type NormalizeX402Input = {
