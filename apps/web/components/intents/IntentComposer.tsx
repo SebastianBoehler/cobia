@@ -44,6 +44,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
   const [excludedProtocols, setExcludedProtocols] = useState<ProtocolExclusionId[]>([]);
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot>();
   const [offers, setOffers] = useState<CommerceOfferV1[]>([]);
+  const [assetPrices, setAssetPrices] = useState<Record<string, string | undefined>>({});
   const [mentionsLoaded, setMentionsLoaded] = useState(false);
   const [compiling, setCompiling] = useState(false);
   const [pending, setPending] = useState(false);
@@ -81,16 +82,26 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
         const parsed = CommerceOfferV1Schema.safeParse(offer);
         return parsed.success && parsed.data.eligibility.status === "executable" ? [parsed.data] : [];
       }))).catch(() => undefined);
+    fetch("/api/assets/resolve", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbols: [...INTENT_ASSETS, ...RWA_INTENT_ASSETS]
+        .slice(0, 8).map(({ symbol }) => symbol) }) })
+      .then(async (response): Promise<{ assets: Array<{ symbol: string; address: string; priceUsd?: string }> }> =>
+        response.ok ? response.json() : { assets: [] })
+      .then(({ assets }) => setAssetPrices(Object.fromEntries(assets.map((asset) =>
+        [asset.symbol.toLowerCase(), asset.priceUsd]))))
+      .catch(() => undefined);
   }
 
   const mentions = useMemo<IntentMention[]>(() => [
-    ...INTENT_ASSETS.map(({ symbol }) => ({ id: `asset:${symbol}`, group: "Assets" as const,
-      mention: symbol, detail: portfolio?.balances?.find((balance) => balance.symbol === symbol)
+    ...INTENT_ASSETS.map(({ symbol, address }) => ({ id: `asset:${symbol}`, group: "Assets" as const,
+      mention: symbol, address, priceUsd: assetPrices[symbol.toLowerCase()],
+      detail: portfolio?.balances?.find((balance) => balance.symbol === symbol)
         ? `${Number(portfolio.balances.find((balance) => balance.symbol === symbol)!.formatted)
           .toLocaleString("en-US", { maximumFractionDigits: 6 })} available`
         : "X Layer asset" })),
-    ...RWA_INTENT_ASSETS.map(({ symbol, instrument }) => ({ id: `asset:${symbol}`, group: "Assets" as const,
-      mention: symbol, detail: `Registered RWA · ${instrument.chainId === 196 ? "X Layer" : "Ethereum"}` })),
+    ...RWA_INTENT_ASSETS.map(({ symbol, address, instrument }) => ({ id: `asset:${symbol}`, group: "Assets" as const,
+      mention: symbol, address, priceUsd: assetPrices[symbol.toLowerCase()],
+      detail: `Registered RWA · ${instrument.chainId === 196 ? "X Layer" : "Ethereum"}` })),
     { id: "network:x-layer", group: "Networks", mention: "XLayer", detail: "Chain 196" },
     { id: "network:ethereum", group: "Networks", mention: "Ethereum", detail: "Chain 1" },
     { id: "protocol:aave", group: "Protocols", mention: "Aave", detail: "Earn on X Layer" },
@@ -100,7 +111,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
       group: "Services" as const,
       mention: `${offer.merchant.displayName}/${(offer.product.name ?? offer.product.id).replaceAll(" ", "-")}`,
       detail: `${offer.payment.atomicAmount} atomic · chain ${offer.payment.chainId}` })),
-  ], [offers, portfolio]);
+  ], [assetPrices, offers, portfolio]);
   const resolvedAssetMentions = useResolvedAssetMentions(goal, mentions);
   const allMentions = useMemo(() => [...mentions, ...resolvedAssetMentions], [mentions, resolvedAssetMentions]);
   const selectedMentions = useMemo(() => {
@@ -234,7 +245,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
       {step === "goal" ? <>
         <IntentGoalInput action={action} compiling={compiling}
           submitEnabled={Boolean(wallet.account)}
-          excludedProtocols={excludedProtocols} mentions={allMentions} selectedMentions={selectedMentions}
+          excludedProtocols={excludedProtocols} mentions={allMentions}
           value={goal} onActionChange={setAction} onChange={setGoal} onMention={mention}
           onMentionSuggestion={mentionSuggestion}
           onMentionMenuOpen={loadMentions}

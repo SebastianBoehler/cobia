@@ -21,15 +21,28 @@ function renderRecognizedPrompt(prompt: string) {
     part.startsWith("@") ? <strong key={`${part}-${index}`}>{part}</strong> : part);
 }
 
+function usdPrice(value: string): string {
+  const price = Number(value);
+  if (!Number.isFinite(price) || price < 0) return `$${value}`;
+  const maximumFractionDigits = price >= 1 ? 4 : price >= 0.01 ? 6 : 8;
+  return `$${price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits })}`;
+}
+
+function shortAddress(value: string): string {
+  return `${value.slice(0, 6)}…${value.slice(-4)}`;
+}
+
 export interface IntentMention {
   id: string;
   group: "Assets" | "Networks" | "Protocols" | "Services";
   mention: string;
   detail: string;
+  address?: string;
+  priceUsd?: string;
 }
 
 export function IntentGoalInput({ value, compiling, submitEnabled, action, excludedProtocols, mentions,
-  selectedMentions, onChange, onActionChange, onMention, onMentionMenuOpen,
+  onChange, onActionChange, onMention, onMentionMenuOpen,
   onMentionSuggestion, onExcludedProtocolsChange, onSubmit }: {
   value: string;
   compiling: boolean;
@@ -37,7 +50,6 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
   action: ActionPreference;
   excludedProtocols: readonly ProtocolExclusionId[];
   mentions: readonly IntentMention[];
-  selectedMentions: readonly IntentMention[];
   onChange(value: string): void;
   onActionChange(value: ActionPreference): void;
   onMention(value: IntentMention): void;
@@ -51,7 +63,8 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
   const highlightRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const caretRef = useRef<HTMLSpanElement>(null);
-  const [typeaheadPosition, setTypeaheadPosition] = useState({ left: 8, top: 8, width: 320 });
+  const typeaheadOpenedRef = useRef(false);
+  const [typeaheadPosition, setTypeaheadPosition] = useState({ left: 8, top: 8, width: 360 });
   const mentionQuery = value.match(/(?:^|\s)@([A-Za-z0-9.$_-]*)$/)?.[1];
   const mentionSuggestions = useMemo(() => mentionQuery === undefined ? [] : mentions
     .filter(({ mention }) => mention.toLowerCase().startsWith(mentionQuery.toLowerCase()))
@@ -63,7 +76,7 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
     const caret = caretRef.current;
     if (!input || !textarea || !caret) return;
 
-    const width = Math.min(320, Math.max(0, input.clientWidth - 16));
+    const width = Math.min(360, Math.max(0, input.clientWidth - 16));
     const maximumLeft = Math.max(8, input.clientWidth - width - 8);
     setTypeaheadPosition({
       left: Math.min(Math.max(8, caret.offsetLeft - textarea.scrollLeft), maximumLeft),
@@ -81,6 +94,15 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
     window.addEventListener("resize", positionTypeahead);
     return () => window.removeEventListener("resize", positionTypeahead);
   }, [mentionSuggestions.length, positionTypeahead]);
+
+  useEffect(() => {
+    if (mentionQuery === undefined) {
+      typeaheadOpenedRef.current = false;
+    } else if (!typeaheadOpenedRef.current) {
+      typeaheadOpenedRef.current = true;
+      onMentionMenuOpen();
+    }
+  }, [mentionQuery, onMentionMenuOpen]);
 
   useEffect(() => {
     function closeOnOutsideClick(event: PointerEvent) {
@@ -129,7 +151,11 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
           className="intent-typeahead" role="listbox" style={typeaheadPosition}>
           {mentionSuggestions.map((mention) => <button aria-selected="false" key={mention.id}
             onClick={() => onMentionSuggestion(mention)} role="option" type="button">
-            <strong>@{mention.mention}</strong><small>{mention.detail}</small>
+            <strong>@{mention.mention}</strong>
+            {mention.address ? <code title={mention.address}>{shortAddress(mention.address)}</code>
+              : <small>{mention.detail}</small>}
+            {mention.address ? <b>{mention.priceUsd ? usdPrice(mention.priceUsd) : "Price unavailable"}</b>
+              : null}
           </button>)}
         </div> : null}
       </div>
@@ -185,11 +211,6 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
             : <ArrowUp aria-hidden="true" size={20} />}
         </button>
       </div>
-      {selectedMentions.length ? <div className="intent-selected-mentions" aria-label="Attached entities">
-        {selectedMentions.map((mention) => <span key={mention.id}>
-          <strong>@{mention.mention}</strong><small>{mention.detail}</small>
-        </span>)}
-      </div> : null}
     </section>
   );
 }

@@ -1,4 +1,4 @@
-import { type Address } from "viem";
+import { isAddressEqual, type Address } from "viem";
 import { INTENT_ASSETS, RWA_INTENT_ASSETS } from "../intents/capability-templates";
 import type { SolverToolV1 } from "../solver-tools/types";
 import type { XStocksToolValueV1 } from "../solver-tools/xstocks";
@@ -38,6 +38,20 @@ function canonicalXStockSymbol(symbol: string): string | undefined {
   return `${symbol.slice(0, -1).toUpperCase()}x`;
 }
 
+async function exactXLayerPrice(
+  symbol: string,
+  address: Address,
+  okx?: OkxTokenLookup,
+): Promise<string | undefined> {
+  if (!okx) return undefined;
+  try {
+    const token = await okx.searchXLayerToken(symbol);
+    return token && isAddressEqual(token.token, address) ? token.priceUsd : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function resolveAssetMentionsV1(
   symbols: readonly string[],
   xstocks: Tool,
@@ -54,7 +68,8 @@ export async function resolveAssetMentionsV1(
     const supported = INTENT_ASSETS.find((asset) => asset.symbol.toLowerCase() === symbol.toLowerCase());
     if (supported) {
       assets.push({ symbol: supported.symbol, name: supported.symbol, chainId: 196,
-        address: supported.address, status: "supported" });
+        address: supported.address, status: "supported",
+        priceUsd: await exactXLayerPrice(supported.symbol, supported.address, okx) });
       return;
     }
     const registered = RWA_INTENT_ASSETS.find((asset) =>
@@ -62,6 +77,8 @@ export async function resolveAssetMentionsV1(
     if (registered) {
       assets.push({ symbol: registered.symbol, name: registered.instrument.displayName,
         chainId: registered.instrument.chainId, address: registered.address, status: "registered",
+        priceUsd: registered.instrument.chainId === 196
+          ? await exactXLayerPrice(registered.symbol, registered.address, okx) : undefined,
         underlyingIdentifier: registered.instrument.underlyingIdentifier });
       return;
     }

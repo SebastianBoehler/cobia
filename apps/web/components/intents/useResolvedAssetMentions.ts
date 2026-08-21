@@ -56,8 +56,10 @@ export function useResolvedAssetMentions(
     id: `resolved-asset:${asset.chainId}:${asset.address}`,
     group: "Assets",
     mention: asset.symbol,
+    address: asset.address,
+    priceUsd: asset.priceUsd,
     detail: asset.status === "research-only"
-      ? `${asset.name}${asset.priceUsd ? ` · $${asset.priceUsd}` : ""} · ${shortAddress(asset.address)} · research only`
+      ? `${asset.name} · ${shortAddress(asset.address)} · research only`
       : `${asset.name} · ${asset.chainId === 196 ? "X Layer" : "Ethereum"}`,
   }));
 }

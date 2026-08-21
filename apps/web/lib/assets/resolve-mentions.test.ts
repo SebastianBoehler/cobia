@@ -40,6 +40,24 @@ describe("asset mention resolver", () => {
     expect(result.unresolved).toEqual([]);
   });
 
+  it("adds a supported asset price only when OKX returns its canonical contract", async () => {
+    const canonical = "0x4ae46a509F6b1D9056937BA4500cb143933D2dc8" as const;
+    const okx = { searchXLayerToken: vi.fn(async () => ({ chainId: 196 as const, token: canonical,
+      name: "USDG", symbol: "USDG", decimals: 6, priceUsd: "0.9998",
+      liquidityUsd: "2500000", holderCount: "4200" })) };
+
+    const result = await resolveAssetMentionsV1(["USDG"], tool({ assets: [] }), okx);
+
+    expect(result.assets[0]).toMatchObject({ symbol: "USDG", address: canonical, priceUsd: "0.9998" });
+
+    const mismatchedOkx = { searchXLayerToken: vi.fn(async () => ({ chainId: 196 as const,
+      token: "0x1111111111111111111111111111111111111111" as const,
+      name: "USDG", symbol: "USDG", decimals: 6, priceUsd: "9.99",
+      liquidityUsd: "1", holderCount: "1" })) };
+    const mismatch = await resolveAssetMentionsV1(["USDG"], tool({ assets: [] }), mismatchedOkx);
+    expect(mismatch.assets[0]?.priceUsd).toBeUndefined();
+  });
+
   it("discovers other xStocks as exact research-only X Layer identities", async () => {
     const xstocks = tool({ assets: [aapl] });
     const result = await resolveAssetMentionsV1(["aaplx"], xstocks);

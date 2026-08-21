@@ -59,7 +59,8 @@ describe("IntentComposer", () => {
     );
     expect(screen.queryByLabelText("Example intents")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Review policy" })).toBeEnabled();
-    expect(within(screen.getByLabelText("Attached entities")).getByText("@USDG")).toBeVisible();
+    expect(screen.queryByLabelText("Attached entities")).not.toBeInTheDocument();
+    expect(within(screen.getByTestId("intent-goal-highlight")).getByText("@USDG")).toBeVisible();
     expect(within(screen.getByTestId("intent-goal-highlight")).getByText("@XLayer")).toBeVisible();
   });
 
@@ -73,20 +74,18 @@ describe("IntentComposer", () => {
     expect(screen.getByLabelText("What should happen?")).toHaveValue(
       "Acquire at least 0.01 @TSLAx with at most 10 @USDG on @XLayer for an eligible DE holder",
     );
-    expect(within(screen.getByLabelText("Attached entities")).getByText("@TSLAx")).toBeVisible();
+    expect(screen.queryByLabelText("Attached entities")).not.toBeInTheDocument();
+    expect(within(screen.getByTestId("intent-goal-highlight")).getByText("@TSLAx")).toBeVisible();
   });
 
-  it("recognizes typed tags as highlighted attached entities", () => {
+  it("recognizes typed tags inline without repeating attached-entity cards", () => {
     render(<IntentComposer />);
 
     fireEvent.change(screen.getByLabelText("What should happen?"), {
       target: { value: "Supply 10 @USDG to @Aave on @XLayer" },
     });
 
-    const attached = screen.getByLabelText("Attached entities");
-    expect(within(attached).getByText("@USDG")).toBeVisible();
-    expect(within(attached).getByText("@Aave")).toBeVisible();
-    expect(within(attached).getByText("@XLayer")).toBeVisible();
+    expect(screen.queryByLabelText("Attached entities")).not.toBeInTheDocument();
     expect(screen.getByTestId("intent-goal-highlight").querySelectorAll("strong")).toHaveLength(3);
   });
 
@@ -108,45 +107,61 @@ describe("IntentComposer", () => {
     fireEvent.change(screen.getByLabelText("What should happen?"), { target: { value: "@" } });
 
     const suggestions = screen.getByRole("listbox", { name: "Mention suggestions" });
-    expect(suggestions).toHaveStyle({ left: "72px", top: "53px", width: "320px" });
+    expect(suggestions).toHaveStyle({ left: "72px", top: "53px", width: "360px" });
     expect(within(suggestions).getByRole("option", { name: /@USDG/ })).toBeVisible();
     fireEvent.click(within(suggestions).getByRole("option", { name: /@USDG/ }));
     expect(screen.getByLabelText("What should happen?")).toHaveValue("@USDG ");
   });
 
+  it("shows the canonical contract and exact USD price while typing a known token", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string) => {
+      if (url === "/api/assets/resolve") return Promise.resolve(Response.json({ assets: [{
+        symbol: "USDG", address: INTENT_ASSETS[0].address, priceUsd: "0.9998",
+      }], unresolved: [] }));
+      if (url.includes("/portfolio")) return Promise.resolve(Response.json({ balances: [] }));
+      return Promise.resolve(Response.json({ offers: [] }));
+    }));
+    render(<IntentComposer />);
+
+    fireEvent.change(screen.getByLabelText("What should happen?"), { target: { value: "@USDG" } });
+
+    const suggestions = await screen.findByRole("listbox", { name: "Mention suggestions" });
+    expect(await within(suggestions).findByRole("option", {
+      name: /@USDG.*0x4ae4…2dc8.*\$0\.9998/i,
+    })).toBeVisible();
+  });
+
   it("highlights any token mention and resolves xStocks without granting execution trust", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ assets: [{
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(() => Promise.resolve(Response.json({ assets: [{
       symbol: "AAPLx", name: "Apple xStock", chainId: 196,
       address: "0x1111111111111111111111111111111111111111", status: "research-only",
-    }], unresolved: [] })));
+    }], unresolved: [] }))));
     render(<IntentComposer />);
 
     fireEvent.change(screen.getByLabelText("What should happen?"), {
-      target: { value: "Research a route to @AAPLx." },
+      target: { value: "Research a route to @AAPLx" },
     });
 
     expect(within(screen.getByTestId("intent-goal-highlight")).getByText("@AAPLx")).toBeVisible();
-    expect(within(screen.getByLabelText("Attached entities"))
-      .getByText("Unresolved token · research only")).toBeVisible();
-    expect(await within(screen.getByLabelText("Attached entities"))
-      .findByText(/Apple xStock.*research only/)).toBeVisible();
-    expect(screen.queryByText("Unresolved token · research only")).not.toBeInTheDocument();
+    expect(await within(await screen.findByRole("listbox", { name: "Mention suggestions" }))
+      .findByRole("option", { name: /@AAPLx.*0x1111…1111.*Price unavailable/ })).toBeVisible();
   });
 
   it("shows OKX contract and price evidence on a resolved token mention", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ assets: [{
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(() => Promise.resolve(Response.json({ assets: [{
       symbol: "EXAMPLE", name: "Example Token", chainId: 196,
       address: "0x2222222222222222222222222222222222222222", status: "research-only",
       priceUsd: "2.50", liquidityUsd: "100000", holderCount: "1200",
-    }], unresolved: [] })));
+    }], unresolved: [] }))));
     render(<IntentComposer />);
 
     fireEvent.change(screen.getByLabelText("What should happen?"), {
-      target: { value: "Research @EXAMPLE on X Layer." },
+      target: { value: "Research @EXAMPLE" },
     });
 
-    expect(await within(screen.getByLabelText("Attached entities"))
-      .findByText(/\$2.50.*0x2222…2222/)).toBeVisible();
+    const suggestion = await within(await screen.findByRole("listbox", { name: "Mention suggestions" }))
+      .findByRole("option", { name: /@EXAMPLE.*0x2222…2222.*\$2.50/ });
+    expect(suggestion).toBeVisible();
   });
 
   it("closes mention and route popovers on an outside click", () => {
