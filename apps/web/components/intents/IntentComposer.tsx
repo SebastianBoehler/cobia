@@ -125,6 +125,11 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
     }
   }
 
+  function mentionSuggestion(value: IntentMention) {
+    setGoal((current) => current.replace(/(^|\s)@[A-Za-z0-9.$_-]*$/, `$1@${value.mention} `));
+    if (value.group === "Services") setAction("service-purchase");
+  }
+
   async function compileGoal() {
     if (goal.trim().length < 3 || !wallet.account) return;
     if (action === "service-purchase") {
@@ -231,6 +236,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
           submitEnabled={Boolean(wallet.account)}
           excludedProtocols={excludedProtocols} mentions={allMentions} selectedMentions={selectedMentions}
           value={goal} onActionChange={setAction} onChange={setGoal} onMention={mention}
+          onMentionSuggestion={mentionSuggestion}
           onMentionMenuOpen={loadMentions}
           onExcludedProtocolsChange={setExcludedProtocols}
           onSubmit={compileGoal} />

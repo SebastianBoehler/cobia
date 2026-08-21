@@ -17,7 +17,7 @@ interface OkxTokenLookup {
     decimals: number;
     priceUsd: string;
     liquidityUsd: string;
-    holderCount: string;
+    holderCount?: string;
   } | undefined>;
 }
 

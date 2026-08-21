@@ -164,6 +164,21 @@ describe("OKX DeFi client", () => {
 });
 
 describe("OKX Market client", () => {
+  it("resolves native OKB when OKX omits its holder count", async () => {
+    const token = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+    const client = createOkxClient({ credentials, fetchImpl: vi.fn<typeof fetch>()
+      .mockResolvedValue(Response.json({ code: "0", msg: "", data: [{
+        chainIndex: "196", tokenContractAddress: token, tokenName: "X Layer",
+        tokenSymbol: "OKB", decimal: "18", price: "107.41",
+        liquidity: "86589137.50", holders: "", tagList: { communityRecognized: true },
+      }] })) });
+
+    await expect(client.searchXLayerToken("OKB")).resolves.toEqual({
+      chainId: 196, token, name: "X Layer", symbol: "OKB", decimals: 18,
+      priceUsd: "107.41", liquidityUsd: "86589137.50", holderCount: undefined,
+    });
+  });
+
   it("resolves one exact X Layer token symbol without guessing among partial matches", async () => {
     const token = "0x1111111111111111111111111111111111111111";
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(Response.json({

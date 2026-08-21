@@ -89,7 +89,8 @@ const TokenHolderSchema = z.object({
 }).passthrough();
 const TokenSearchSchema = TokenBasicSchema.extend({
   price: DecimalStringSchema, liquidity: DecimalStringSchema,
-  holders: z.string().regex(/^\d+$/),
+  holders: z.union([z.string().regex(/^\d+$/), z.literal("")])
+    .transform((value) => value || undefined),
 }).passthrough();
 
 function sumDecimalStrings(values: readonly string[]): string {

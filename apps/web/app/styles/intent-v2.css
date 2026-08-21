@@ -15,6 +15,11 @@
 .intent-goal__highlight strong { background: color-mix(in oklch, var(--cobalt) 10%, transparent); border-radius: 5px; box-decoration-break: clone; color: var(--cobalt); font-weight: inherit; -webkit-box-decoration-break: clone; }
 .intent-goal textarea:focus { outline: 0; }
 .intent-goal textarea::placeholder { color: var(--muted); }
+.intent-typeahead { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); display: grid; gap: 2px; left: 0; padding: 6px; position: absolute; right: 0; top: calc(100% + 8px); z-index: 6; }
+.intent-typeahead button { align-items: center; background: transparent; border: 0; border-radius: 9px; color: var(--ink); display: flex; justify-content: space-between; padding: 9px 10px; text-align: left; }
+.intent-typeahead button:hover, .intent-typeahead button:focus-visible { background: var(--wash); outline: 0; }
+.intent-typeahead strong { color: var(--cobalt); font-family: var(--font-geist-mono), monospace; font-size: 12px; }
+.intent-typeahead small { color: var(--muted); font-size: 10px; margin-left: 16px; }
 .intent-examples { display: grid; gap: 8px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0 0 14px; }
 .intent-examples button { background: var(--wash); border: 1px solid transparent; border-radius: 14px; color: var(--muted); font-size: 12px; line-height: 1.45; min-height: 54px; padding: 10px 12px; text-align: left; transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out, transform 120ms ease-out; }
 .intent-examples button strong { color: var(--cobalt); font-family: var(--font-geist-mono), monospace; font-weight: 600; }

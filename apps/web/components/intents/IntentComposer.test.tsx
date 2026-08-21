@@ -90,6 +90,17 @@ describe("IntentComposer", () => {
     expect(screen.getByTestId("intent-goal-highlight").querySelectorAll("strong")).toHaveLength(3);
   });
 
+  it("opens mention suggestions for bare @ and replaces the partial mention", () => {
+    render(<IntentComposer />);
+
+    fireEvent.change(screen.getByLabelText("What should happen?"), { target: { value: "@" } });
+
+    const suggestions = screen.getByRole("listbox", { name: "Mention suggestions" });
+    expect(within(suggestions).getByRole("option", { name: /@USDG/ })).toBeVisible();
+    fireEvent.click(within(suggestions).getByRole("option", { name: /@USDG/ }));
+    expect(screen.getByLabelText("What should happen?")).toHaveValue("@USDG ");
+  });
+
   it("highlights any token mention and resolves xStocks without granting execution trust", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ assets: [{
       symbol: "AAPLx", name: "Apple xStock", chainId: 196,

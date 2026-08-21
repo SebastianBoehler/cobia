@@ -1,5 +1,5 @@
 import { ArrowUp, AtSign, LoaderCircle, Route } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   ACTION_PREFERENCES, PROTOCOL_EXCLUSIONS, type ActionPreference, type ProtocolExclusionId,
 } from "../../lib/intents/intent-controls";
@@ -30,7 +30,7 @@ export interface IntentMention {
 
 export function IntentGoalInput({ value, compiling, submitEnabled, action, excludedProtocols, mentions,
   selectedMentions, onChange, onActionChange, onMention, onMentionMenuOpen,
-  onExcludedProtocolsChange, onSubmit }: {
+  onMentionSuggestion, onExcludedProtocolsChange, onSubmit }: {
   value: string;
   compiling: boolean;
   submitEnabled: boolean;
@@ -41,12 +41,17 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
   onChange(value: string): void;
   onActionChange(value: ActionPreference): void;
   onMention(value: IntentMention): void;
+  onMentionSuggestion(value: IntentMention): void;
   onMentionMenuOpen(): void;
   onExcludedProtocolsChange(value: ProtocolExclusionId[]): void;
   onSubmit(): void;
 }) {
   const controlsRef = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
+  const mentionQuery = value.match(/(?:^|\s)@([A-Za-z0-9.$_-]*)$/)?.[1];
+  const mentionSuggestions = useMemo(() => mentionQuery === undefined ? [] : mentions
+    .filter(({ mention }) => mention.toLowerCase().startsWith(mentionQuery.toLowerCase()))
+    .slice(0, 6), [mentionQuery, mentions]);
 
   useEffect(() => {
     function closeOnOutsideClick(event: PointerEvent) {
@@ -86,6 +91,13 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
             }
           }}
         />
+        {mentionSuggestions.length ? <div aria-label="Mention suggestions"
+          className="intent-typeahead" role="listbox">
+          {mentionSuggestions.map((mention) => <button aria-selected="false" key={mention.id}
+            onClick={() => onMentionSuggestion(mention)} role="option" type="button">
+            <strong>@{mention.mention}</strong><small>{mention.detail}</small>
+          </button>)}
+        </div> : null}
       </div>
       {!value.trim() ? <div aria-label="Example intents" className="intent-examples">
         {EXAMPLE_INTENTS.map((example) => <button aria-label={`Use example: ${example}`}
