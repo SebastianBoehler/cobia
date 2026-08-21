@@ -162,3 +162,76 @@ describe("OKX DeFi client", () => {
     expect(fetchImpl.mock.calls[0][1]?.method).toBe("GET");
   });
 });
+
+describe("OKX Market client", () => {
+  it("resolves one exact X Layer token symbol without guessing among partial matches", async () => {
+    const token = "0x1111111111111111111111111111111111111111";
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(Response.json({
+      code: "0", msg: "", data: [{ chainIndex: "196", tokenContractAddress: token,
+        tokenName: "Example Token", tokenSymbol: "EXAMPLE", decimal: "18",
+        price: "2.50", liquidity: "100000", holders: "1200", tagList: {} },
+      { chainIndex: "196", tokenContractAddress: "0x2222222222222222222222222222222222222222",
+        tokenName: "Example Two", tokenSymbol: "EXAMPLE2", decimal: "18",
+        price: "3", liquidity: "200000", holders: "900", tagList: {} }],
+    }));
+    const client = createOkxClient({ credentials, fetchImpl,
+      now: () => new Date("2026-08-21T10:00:00.000Z") });
+
+    await expect(client.searchXLayerToken("example")).resolves.toEqual({
+      chainId: 196, token, name: "Example Token", symbol: "EXAMPLE", decimals: 18,
+      priceUsd: "2.50", liquidityUsd: "100000", holderCount: "1200",
+    });
+    expect(fetchImpl.mock.calls[0]![0]).toBe(
+      "https://web3.okx.com/api/v6/dex/market/token/search?chains=196&search=example&limit=100",
+    );
+  });
+
+  it("returns exact X Layer token identity, price, liquidity, and holder concentration", async () => {
+    const token = "0x1111111111111111111111111111111111111111";
+    const fetchImpl = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json({ code: "0", msg: "", data: [{
+        chainIndex: "196", tokenContractAddress: token, tokenName: "USDG",
+        tokenSymbol: "USDG", decimal: "6", tagList: { communityRecognized: true },
+      }] }))
+      .mockResolvedValueOnce(Response.json({ code: "0", msg: "", data: [{
+        chainIndex: "196", tokenContractAddress: token, time: "1787299200000",
+        price: "0.9998", liquidity: "2500000.50", holders: "4200",
+      }] }))
+      .mockResolvedValueOnce(Response.json({ code: "0", msg: "", data: [
+        { holderWalletAddress: "0x2222222222222222222222222222222222222222", holdPercent: "12.5" },
+        { holderWalletAddress: "0x3333333333333333333333333333333333333333", holdPercent: "7.25" },
+      ] }));
+    const client = createOkxClient({ credentials, fetchImpl,
+      now: () => new Date("2026-08-21T10:00:00.000Z") });
+
+    await expect(client.getXLayerTokenEvidence(token)).resolves.toEqual({
+      chainId: 196, token, name: "USDG", symbol: "USDG", decimals: 6,
+      priceUsd: "0.9998", liquidityUsd: "2500000.50", holderCount: "4200",
+      top10HolderPercent: "19.75", marketDataAt: "2026-08-21T08:00:00.000Z",
+      communityRecognized: true,
+    });
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
+      "https://web3.okx.com/api/v6/dex/market/token/basic-info",
+      "https://web3.okx.com/api/v6/dex/market/price-info",
+      `https://web3.okx.com/api/v6/dex/market/token/holder?chainIndex=196&tokenContractAddress=${token}&limit=10`,
+    ]);
+  });
+
+  it("rejects market data for a different contract", async () => {
+    const token = "0x1111111111111111111111111111111111111111";
+    const other = "0x9999999999999999999999999999999999999999";
+    const client = createOkxClient({ credentials, fetchImpl: vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json({ code: "0", msg: "", data: [{
+        chainIndex: "196", tokenContractAddress: other, tokenName: "Fake",
+        tokenSymbol: "FAKE", decimal: "18", tagList: {},
+      }] }))
+      .mockResolvedValueOnce(Response.json({ code: "0", msg: "", data: [{
+        chainIndex: "196", tokenContractAddress: token, time: "1787299200000",
+        price: "1", liquidity: "1", holders: "1",
+      }] }))
+      .mockResolvedValueOnce(Response.json({ code: "0", msg: "", data: [] })),
+    });
+
+    await expect(client.getXLayerTokenEvidence(token)).rejects.toThrow(/identity/i);
+  });
+});

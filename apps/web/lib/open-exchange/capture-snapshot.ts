@@ -3,8 +3,9 @@ import {
   OpenIntentSnapshotV1Schema,
   type OpenIntentPolicyV3,
   type OpenIntentSnapshotV1,
+  type TokenMarketEvidenceV1,
 } from "@cobia/domain";
-import type { Hash } from "viem";
+import type { Address, Hash } from "viem";
 
 interface SnapshotReadV1 {
   getChainId(): Promise<number>;
@@ -12,6 +13,10 @@ interface SnapshotReadV1 {
 }
 
 type SnapshotReadsV1 = SnapshotReadV1 | Readonly<Partial<Record<1 | 196 | 8453, SnapshotReadV1>>>;
+
+interface TokenEvidenceReadV1 {
+  getXLayerTokenEvidence(token: string): Promise<Omit<TokenMarketEvidenceV1, "provider">>;
+}
 
 function reader(reads: SnapshotReadsV1, chainId: 1 | 196 | 8453): SnapshotReadV1 {
   if ("getChainId" in reads) return reads;
@@ -23,6 +28,7 @@ function reader(reads: SnapshotReadsV1, chainId: 1 | 196 | 8453): SnapshotReadV1
 export async function captureOpenIntentSnapshotV1(
   value: OpenIntentPolicyV3,
   reads: SnapshotReadsV1,
+  market?: TokenEvidenceReadV1,
 ): Promise<OpenIntentSnapshotV1> {
   const policy = OpenIntentPolicyV3Schema.parse(value);
   const blocks = await Promise.all(policy.executionChainIds.map(async (chainId) => {
@@ -36,6 +42,15 @@ export async function captureOpenIntentSnapshotV1(
   }));
   const capturedAt = blocks.reduce((minimum, { block }) =>
     block.timestamp < minimum ? block.timestamp : minimum, blocks[0]!.block.timestamp);
+  const tokenAddresses = market ? [...new Set([
+    ...policy.inputs.filter(({ chainId }) => chainId === 196).map(({ token }) => token),
+    ...policy.outcomes.filter((outcome) => outcome.chainId === 196 && "token" in outcome)
+      .map((outcome) => (outcome as { token: Address }).token),
+  ])].sort() : [];
+  const tokenEvidence = market ? await Promise.all(tokenAddresses.map(async (token) => ({
+    provider: "okx-market-v6" as const,
+    ...await market.getXLayerTokenEvidence(token),
+  }))) : undefined;
   return OpenIntentSnapshotV1Schema.parse({
     version: 1,
     kind: "open-onchain",
@@ -44,5 +59,6 @@ export async function captureOpenIntentSnapshotV1(
     anchors: blocks.map(({ chainId, block }) => ({
       chainId, blockNumber: block.number.toString(), blockHash: block.hash!,
     })),
+    ...(tokenEvidence?.length ? { tokenEvidence } : {}),
   });
 }

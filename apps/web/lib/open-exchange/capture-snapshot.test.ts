@@ -31,6 +31,35 @@ describe("open intent snapshot capture", () => {
     });
   });
 
+  it("freezes exact OKX token evidence into the solver snapshot", async () => {
+    const output = policy.outcomes[0]!;
+    if (!("token" in output)) throw new Error("Fixture outcome must carry a token");
+    const outputToken = output.token;
+    const getXLayerTokenEvidence = vi.fn(async (token: string) => ({
+      chainId: 196 as const, token: token.toLowerCase() as `0x${string}`,
+      name: token === policy.inputs[0]!.token ? "Input Token" : "Output Token",
+      symbol: token === policy.inputs[0]!.token ? "IN" : "OUT", decimals: 6,
+      priceUsd: "1.01", liquidityUsd: "2500000", holderCount: "4200",
+      top10HolderPercent: "19.75", marketDataAt: "2033-05-18T03:33:29.000Z",
+      communityRecognized: true,
+    }));
+
+    const snapshot = await captureOpenIntentSnapshotV1(policy, {
+      getChainId: async () => 196,
+      getBlock: async () => ({ number: 68_461_706n, hash: hash("2"), timestamp: 2_000_000_010n }),
+    }, { getXLayerTokenEvidence });
+
+    expect(getXLayerTokenEvidence).toHaveBeenCalledTimes(2);
+    expect(getXLayerTokenEvidence).toHaveBeenNthCalledWith(1, policy.inputs[0]!.token);
+    expect(getXLayerTokenEvidence).toHaveBeenNthCalledWith(2, outputToken);
+    expect(snapshot.tokenEvidence).toEqual([
+      expect.objectContaining({ token: policy.inputs[0]!.token, symbol: "IN", priceUsd: "1.01",
+        provider: "okx-market-v6" }),
+      expect.objectContaining({ token: outputToken, symbol: "OUT", priceUsd: "1.01",
+        provider: "okx-market-v6" }),
+    ]);
+  });
+
   it("anchors each declared chain and fails closed on an invalid RPC identity", async () => {
     const multichain = {
       ...policy,

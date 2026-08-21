@@ -136,6 +136,24 @@ export const OpenIntentPolicyV3Schema = z.object({
 
 export type OpenIntentPolicyV3 = z.infer<typeof OpenIntentPolicyV3Schema>;
 
+const TokenMarketEvidenceV1Schema = z.object({
+  provider: z.literal("okx-market-v6"),
+  chainId: z.literal(196),
+  token: AddressSchema,
+  name: z.string().min(1).max(128),
+  symbol: z.string().min(1).max(32),
+  decimals: z.number().int().min(0).max(36),
+  priceUsd: z.string().regex(/^\d+(?:\.\d+)?$/),
+  liquidityUsd: z.string().regex(/^\d+(?:\.\d+)?$/),
+  holderCount: AtomicSchema,
+  top10HolderPercent: z.string().regex(/^\d+(?:\.\d+)?$/)
+    .refine((value) => Number(value) <= 100, "Holder concentration cannot exceed 100 percent"),
+  marketDataAt: z.string().datetime({ offset: true }),
+  communityRecognized: z.boolean(),
+}).strict();
+
+export type TokenMarketEvidenceV1 = z.infer<typeof TokenMarketEvidenceV1Schema>;
+
 export const OpenIntentSnapshotV1Schema = z.object({
   version: z.literal(1),
   kind: z.literal("open-onchain"),
@@ -146,10 +164,15 @@ export const OpenIntentSnapshotV1Schema = z.object({
     blockNumber: z.string().regex(/^[1-9][0-9]*$/),
     blockHash: HashSchema,
   }).strict()).min(1).max(2),
+  tokenEvidence: z.array(TokenMarketEvidenceV1Schema).min(1).max(16).optional(),
 }).strict().superRefine((snapshot, context) => {
   const chains = snapshot.anchors.map(({ chainId }) => String(chainId));
   if (!sortedUnique(chains)) {
     context.addIssue({ code: "custom", path: ["anchors"], message: "Anchors must be sorted and unique" });
+  }
+  const tokens = snapshot.tokenEvidence?.map(({ token }) => token) ?? [];
+  if (!sortedUnique(tokens)) {
+    context.addIssue({ code: "custom", path: ["tokenEvidence"], message: "Token evidence must be sorted and unique" });
   }
 });
 

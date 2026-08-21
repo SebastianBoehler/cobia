@@ -20,7 +20,7 @@ import { createOpenIntentSnapshotRepository } from "../db/open-intent-snapshots"
 import { createSolverDecisionClaimRepository } from "../db/solver-decision-claims";
 import { createSolverSuccessFeeRepository } from "../db/solver-success-fees";
 import { createWalletAuthRepository } from "../db/wallet-auth";
-import { readCodingAgentV3RuntimeConfig, readDatabaseUrl } from "../env";
+import { readCodingAgentV3RuntimeConfig, readDatabaseUrl, readOkxCredentials } from "../env";
 import { openGeneralCodingAgentCompetition } from "./general-coding-agent";
 import { cobiaCodingAgentProfile } from "./solver-catalog";
 import { productionCapabilityManifestV1 } from "../capabilities/manifest";
@@ -40,6 +40,7 @@ import {
 } from "../coding-agent-sandbox/executor-preflight";
 import { startVercelAnvilForkV2 } from "../coding-agent-sandbox/vercel-anvil-fork";
 import { replayCapabilityProgramOnForkV2 } from "../coding-agent-sandbox/capability-fork-replay-v2";
+import { createOkxClient } from "../okx/client";
 
 let activityRepository: ReturnType<typeof createActivityRepository> | undefined;
 let database: ReturnType<typeof createDatabase> | undefined;
@@ -161,7 +162,7 @@ export async function publishOpenIntent(input: {
     196: xLayerClient,
     8453: createPublicClient({ chain: base,
       transport: http(config.BASE_RPC_URL, { timeout: 15_000 }), cacheTime: 0 }),
-  });
+  }, createOkxClient({ credentials: readOkxCredentials() }));
   const intent = await getIntentRepository().create(input);
   await getOpenIntentSnapshotRepository().create(snapshot);
   return { intent, snapshot };

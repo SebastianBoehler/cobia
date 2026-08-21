@@ -1,9 +1,14 @@
 import { z } from "zod";
+import type { Address } from "viem";
 import { signOkxRequest, type OkxCredentials } from "./auth";
 
 const OKX_ORIGIN = "https://web3.okx.com";
 const PRODUCT_SEARCH_PATH = "/api/v6/defi/product/search";
 const PRODUCT_DETAIL_PATH = "/api/v6/defi/product/detail";
+const TOKEN_BASIC_PATH = "/api/v6/dex/market/token/basic-info";
+const TOKEN_PRICE_PATH = "/api/v6/dex/market/price-info";
+const TOKEN_HOLDER_PATH = "/api/v6/dex/market/token/holder";
+const TOKEN_SEARCH_PATH = "/api/v6/dex/market/token/search";
 
 const NumericStringSchema = z.union([z.string(), z.number()]).transform(String);
 
@@ -64,6 +69,41 @@ const ProductSearchQuerySchema = z
   })
   .strict();
 
+const EvmAddressSchema = z.string().regex(/^0x[0-9a-fA-F]{40}$/)
+  .transform((value) => value.toLowerCase() as Address);
+const DecimalStringSchema = z.string().regex(/^\d+(?:\.\d+)?$/);
+const TokenBasicSchema = z.object({
+  chainIndex: z.literal("196"), tokenContractAddress: EvmAddressSchema,
+  tokenName: z.string().min(1), tokenSymbol: z.string().min(1),
+  decimal: z.string().regex(/^\d+$/).transform(Number),
+  tagList: z.object({ communityRecognized: z.boolean().optional() }).passthrough(),
+}).passthrough();
+const TokenPriceSchema = z.object({
+  chainIndex: z.literal("196"), tokenContractAddress: EvmAddressSchema,
+  time: z.string().regex(/^\d{13}$/), price: DecimalStringSchema,
+  liquidity: DecimalStringSchema, holders: z.string().regex(/^\d+$/),
+}).passthrough();
+const TokenHolderSchema = z.object({
+  holderWalletAddress: EvmAddressSchema,
+  holdPercent: DecimalStringSchema,
+}).passthrough();
+const TokenSearchSchema = TokenBasicSchema.extend({
+  price: DecimalStringSchema, liquidity: DecimalStringSchema,
+  holders: z.string().regex(/^\d+$/),
+}).passthrough();
+
+function sumDecimalStrings(values: readonly string[]): string {
+  const scale = 18;
+  const total = values.reduce((sum, value) => {
+    const [whole, fraction = ""] = value.split(".");
+    if (fraction.length > scale) throw new OkxApiError("INVALID_HOLDER_DATA", "Invalid OKX holder percentage");
+    return sum + BigInt(`${whole}${fraction.padEnd(scale, "0")}`);
+  }, 0n);
+  const text = total.toString().padStart(scale + 1, "0");
+  const fraction = text.slice(-scale).replace(/0+$/, "");
+  return fraction ? `${text.slice(0, -scale)}.${fraction}` : text.slice(0, -scale);
+}
+
 export type RawProduct = z.infer<typeof RawProductSchema>;
 export type RawProductDetail = z.infer<typeof RawProductDetailSchema>;
 export type ProductSearchQuery = z.input<typeof ProductSearchQuerySchema>;
@@ -105,6 +145,77 @@ export function createOkxClient(options: OkxClientOptions) {
   const now = options.now ?? (() => new Date());
 
   return {
+    async searchXLayerToken(searchInput: string) {
+      const search = z.string().trim().min(1).max(64).parse(searchInput);
+      const path = `${TOKEN_SEARCH_PATH}?chains=196&search=${encodeURIComponent(search)}&limit=100`;
+      const timestamp = now().toISOString();
+      const response = await fetchImpl(`${OKX_ORIGIN}${path}`, { method: "GET",
+        headers: signOkxRequest({ ...options.credentials, timestamp, method: "GET", path }),
+        cache: "no-store" });
+      if (!response.ok) throw new OkxApiError(`HTTP_${response.status}`,
+        `OKX request failed with HTTP ${response.status}`);
+      const envelope = readEnvelope(await response.json());
+      if (envelope.code !== "0") throw new OkxApiError(envelope.code,
+        envelope.msg || "OKX request failed");
+      const parsed = z.array(TokenSearchSchema).safeParse(envelope.data);
+      if (!parsed.success) throw new OkxApiError("INVALID_TOKEN_SEARCH", "Invalid OKX token search response");
+      const address = EvmAddressSchema.safeParse(search);
+      const exact = parsed.data.filter((item) => address.success
+        ? item.tokenContractAddress === address.data
+        : item.tokenSymbol.toLowerCase() === search.toLowerCase());
+      if (exact.length > 1) throw new OkxApiError("AMBIGUOUS_TOKEN", "OKX token symbol is ambiguous");
+      const item = exact[0];
+      return item ? { chainId: 196 as const, token: item.tokenContractAddress,
+        name: item.tokenName, symbol: item.tokenSymbol, decimals: item.decimal,
+        priceUsd: item.price, liquidityUsd: item.liquidity, holderCount: item.holders } : undefined;
+    },
+
+    async getXLayerTokenEvidence(tokenInput: string) {
+      const token = EvmAddressSchema.parse(tokenInput);
+      const body = JSON.stringify([{ chainIndex: "196", tokenContractAddress: token }]);
+      const holderPath = `${TOKEN_HOLDER_PATH}?chainIndex=196&tokenContractAddress=${token}&limit=10`;
+      const signedFetch = async (path: string, method: "GET" | "POST", requestBody?: string) => {
+        const timestamp = now().toISOString();
+        const response = await fetchImpl(`${OKX_ORIGIN}${path}`, {
+          method, headers: signOkxRequest({ ...options.credentials, timestamp, method, path,
+            body: requestBody }), body: requestBody, cache: "no-store",
+        });
+        if (!response.ok) throw new OkxApiError(`HTTP_${response.status}`,
+          `OKX request failed with HTTP ${response.status}`);
+        const envelope = readEnvelope(await response.json());
+        if (envelope.code !== "0") throw new OkxApiError(envelope.code,
+          envelope.msg || "OKX request failed");
+        return envelope.data;
+      };
+      const [basicValue, priceValue, holderValue] = await Promise.all([
+        signedFetch(TOKEN_BASIC_PATH, "POST", body),
+        signedFetch(TOKEN_PRICE_PATH, "POST", body),
+        signedFetch(holderPath, "GET"),
+      ]);
+      const basic = z.array(TokenBasicSchema).length(1).safeParse(basicValue);
+      const price = z.array(TokenPriceSchema).length(1).safeParse(priceValue);
+      const holders = z.array(TokenHolderSchema).max(10).safeParse(holderValue);
+      if (!basic.success || !price.success || !holders.success) {
+        throw new OkxApiError("INVALID_MARKET_DATA", "Invalid OKX token market response");
+      }
+      if (basic.data[0]!.tokenContractAddress !== token || price.data[0]!.tokenContractAddress !== token) {
+        throw new OkxApiError("TOKEN_IDENTITY_MISMATCH", "OKX token identity mismatch");
+      }
+      const marketTime = Number(price.data[0]!.time);
+      if (!Number.isSafeInteger(marketTime)) {
+        throw new OkxApiError("INVALID_MARKET_TIME", "Invalid OKX token market timestamp");
+      }
+      return {
+        chainId: 196 as const, token, name: basic.data[0]!.tokenName,
+        symbol: basic.data[0]!.tokenSymbol, decimals: basic.data[0]!.decimal,
+        priceUsd: price.data[0]!.price, liquidityUsd: price.data[0]!.liquidity,
+        holderCount: price.data[0]!.holders,
+        top10HolderPercent: sumDecimalStrings(holders.data.map(({ holdPercent }) => holdPercent)),
+        marketDataAt: new Date(marketTime).toISOString(),
+        communityRecognized: basic.data[0]!.tagList.communityRecognized ?? false,
+      };
+    },
+
     async searchProducts(query: ProductSearchQuery): Promise<RawProduct[]> {
       const parsedQuery = ProductSearchQuerySchema.parse(query);
       const body = JSON.stringify(parsedQuery);
