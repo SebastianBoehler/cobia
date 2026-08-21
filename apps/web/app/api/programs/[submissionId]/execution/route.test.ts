@@ -1,10 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { commitment } from "@cobia/domain";
+import { commitment, OpenIntentPolicyV3Schema } from "@cobia/domain";
 
 const mocks = vi.hoisted(() => ({
   verifyProof: vi.fn(),
   getExecutionContext: vi.fn(),
   profileIdentity: vi.fn(),
+  readPaymentConfig: vi.fn(),
+  readExecutionConfig: vi.fn(),
+  deriveAuthority: vi.fn(),
+  prepareExecution: vi.fn(),
+  assertExecutorReady: vi.fn(),
+  createPublicClient: vi.fn(),
 }));
 
 vi.mock("../../../../../lib/coding-agent-sandbox/execution-access", () => ({
@@ -13,6 +19,25 @@ vi.mock("../../../../../lib/coding-agent-sandbox/execution-access", () => ({
 vi.mock("../../../../../lib/runtime/market", () => ({
   getSolverSubmissionRepository: () => ({ getExecutionContext: mocks.getExecutionContext }),
   getSolverProfileRepository: () => ({ identity: mocks.profileIdentity }),
+}));
+vi.mock("../../../../../lib/payments/config", () => ({ readPaymentConfig: mocks.readPaymentConfig }));
+vi.mock("../../../../../lib/env", () => ({
+  readCodingAgentV3ExecutionConfig: mocks.readExecutionConfig,
+}));
+vi.mock("../../../../../lib/open-exchange/capability-authority", () => ({
+  deriveCapabilityAuthorityV2: mocks.deriveAuthority,
+}));
+vi.mock("../../../../../lib/coding-agent-sandbox/agent-execution-v3", () => ({
+  exactApprovalCalls: vi.fn(),
+  prepareAgentExecutionV3: mocks.prepareExecution,
+}));
+vi.mock("../../../../../lib/coding-agent-sandbox/executor-preflight", () => ({
+  assertAgentExecutorReadyV1: mocks.assertExecutorReady,
+  createAgentExecutorReadV1: vi.fn(),
+}));
+vi.mock("viem", async (importOriginal) => ({
+  ...await importOriginal<typeof import("viem")>(),
+  createPublicClient: mocks.createPublicClient,
 }));
 
 import { POST } from "./route";
@@ -64,6 +89,52 @@ describe("canonical program execution access", () => {
       code: "EXECUTION_UNAVAILABLE",
       message: "Program execution is unavailable.",
     });
+  });
+
+  it("checks executor readiness before requesting a success-fee credential", async () => {
+    const execution = { version: 3, program: { deadline: "2000001000" } };
+    const policy = OpenIntentPolicyV3Schema.parse({
+      version: 3, kind: "open-onchain", requestId: submissionId, displayGoal: "Swap USDG",
+      owner, executionChainIds: [196], nonce: `0x${"33".repeat(32)}`,
+      createdAt: 2_000_000_000, deadline: 2_000_001_000,
+      competition: { closesAt: 2_000_000_300, maxRevisionsPerSolver: 1 }, maxEvidenceAgeSec: 300,
+      inputs: [{ chainId: 196, token: "0x2222222222222222222222222222222222222222", maximumAtomic: "1000000" }],
+      outcomes: [{ kind: "minimum-increase", chainId: 196,
+        token: "0x3333333333333333333333333333333333333333", atomic: "1" }],
+      limits: { maxStages: 1, maxTransactions: 1, maxApprovals: 1, maxCalldataBytes: 4,
+        maxGasPerTransaction: "1", maxSolverFeeAtomic: "100000", maxNativeValueAtomicByChain: [{ chainId: 196, atomic: "0" }] },
+      forbiddenTargets: [], forbiddenAssets: [],
+    });
+    mocks.verifyProof.mockResolvedValue({
+      programId: submissionId, owner, realm: "getcobia.com", expiresAt: 2_000_000_300,
+    });
+    mocks.getExecutionContext.mockResolvedValue({
+      owner, solverId: "cobia-reference", state: "attested", policy, snapshot: {},
+      artifacts: [{ kind: "execution", payload: execution, artifactHash: commitment(execution) }],
+    });
+    mocks.deriveAuthority.mockReturnValue({ policy: {}, snapshot: {} });
+    mocks.prepareExecution.mockReturnValue({
+      approval: { to: "0x2222222222222222222222222222222222222222" },
+      inputAmountAtomic: "1000000",
+    });
+    mocks.readExecutionConfig.mockReturnValue({
+      COBIA_EXECUTOR_V3_ADDRESS: "0x3333333333333333333333333333333333333333",
+      COBIA_EXECUTOR_V3_CODE_HASH: `0x${"22".repeat(32)}`,
+      COBIA_VERIFIER_PRIVATE_KEY: `0x${"11".repeat(32)}`,
+      XLAYER_RPC_URL: "https://rpc.xlayer.tech",
+    });
+    mocks.createPublicClient.mockReturnValue({ readContract: vi.fn() });
+    mocks.assertExecutorReady.mockRejectedValue(new Error("Atomic execution is paused"));
+
+    const response = await POST(request(), context);
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      code: "EXECUTION_UNAVAILABLE", message: "Program execution is unavailable.",
+    });
+    expect(mocks.assertExecutorReady).toHaveBeenCalledTimes(1);
+    expect(mocks.profileIdentity).not.toHaveBeenCalled();
+    expect(mocks.readPaymentConfig).not.toHaveBeenCalled();
   });
 
   it("identifies a closed verified execution window without exposing internal details", async () => {
