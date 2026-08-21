@@ -157,9 +157,12 @@ export async function runCodexSolver(input: {
   const usage = { turns: 0, inputTokens: 0, cachedInputTokens: 0,
     outputTokens: 0, reasoningOutputTokens: 0, totalTokens: 0 };
   let prompt = input.job.prompt;
+  const deadlineMs = Date.now() + input.timeoutMs;
   for (let turnIndex = 0; turnIndex < input.exploration.maxTurns; turnIndex += 1) {
+    const remainingMs = deadlineMs - Date.now();
+    if (remainingMs <= 0) throw new Error("Codex solver exploration timed out");
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), input.timeoutMs);
+    const timer = setTimeout(() => controller.abort(), remainingMs);
     let finalMessage: string | undefined;
     let turnUsage: Usage | undefined;
     try {

@@ -13,10 +13,13 @@ import { z } from "zod";
 import { prepareCodexJob } from "./codex-job";
 import { readExistingCodexDecision } from "./codex-output";
 import { runCodexSolver } from "./codex-runner";
+import { decideCuratedFirst } from "./decision-source";
+import { canRetryBeforeCompetitionClose, competitionWorkTimeoutMs } from "./intent-deadline";
 import { IntentAttempts, SolverJobStateSchema, WorkLimiter, type SolverJobState } from "./job-control";
 import { writeHeartbeat } from "./heartbeat";
 import { REFERENCE_CAPABILITIES } from "./route-tool";
 import { readReferenceSolverConfig, type ReferenceSolverConfig } from "./solver-config";
+import { solve } from "./strategy";
 
 function nonce(): Hash {
   return keccak256(toHex(crypto.getRandomValues(new Uint8Array(32))));
@@ -64,30 +67,55 @@ async function processIntent(input: {
   config: ReferenceSolverConfig;
   record(revision: number, state: string): Promise<void>;
 }) {
-  const job = await prepareCodexJob({
-    root: input.config.job_root,
-    intent: input.intent,
-    skillsSource: fileURLToPath(new URL("../skills", import.meta.url)),
-    exploration: input.config,
+  const selected = await decideCuratedFirst({
+    solveCurated: () => solve(input.intent),
+    async solveOpen() {
+      const timeoutMs = competitionWorkTimeoutMs({
+        competitionClosesAt: input.intent.competitionClosesAt,
+        maximumMs: input.config.turn_timeout_ms,
+      });
+      if (timeoutMs === 0) {
+        return { version: 1, decision: "abstain", reasonCode: "COMPETITION_WINDOW_CLOSED" };
+      }
+      const job = await prepareCodexJob({
+        root: input.config.job_root,
+        intent: input.intent,
+        skillsSource: fileURLToPath(new URL("../skills", import.meta.url)),
+        exploration: input.config,
+      });
+      const existing = await readExistingCodexDecision(job.decisionPath);
+      if (existing) {
+        output({ event: "codex-decision-reused", intentId: input.intent.id,
+          revision: input.revision, decision: existing.decision });
+        return existing;
+      }
+      const runTimeoutMs = competitionWorkTimeoutMs({
+        competitionClosesAt: input.intent.competitionClosesAt,
+        maximumMs: timeoutMs,
+      });
+      if (runTimeoutMs === 0) {
+        return { version: 1, decision: "abstain", reasonCode: "COMPETITION_WINDOW_CLOSED" };
+      }
+      const result = await runCodexSolver({
+        job,
+        timeoutMs: runTimeoutMs,
+        exploration: { riskLevel: input.config.risk_level,
+          maxTurns: input.config.max_codex_turns_per_intent,
+          maxTotalTokens: input.config.max_total_tokens_per_intent },
+        emit: output,
+      });
+      output({ event: "codex-decision", intentId: input.intent.id,
+        threadId: result.threadId, provider: "codex-sdk", model: "config.toml",
+        decision: result.decision.decision, exploration: result.usage });
+      return result.decision;
+    },
+    onCuratedError() {
+      output({ event: "curated-error", intentId: input.intent.id });
+    },
   });
-  let decision = await readExistingCodexDecision(job.decisionPath);
-  if (decision) {
-    output({ event: "codex-decision-reused", intentId: input.intent.id,
-      revision: input.revision, decision: decision.decision });
-  } else {
-    const result = await runCodexSolver({
-      job,
-      timeoutMs: input.config.turn_timeout_ms,
-      exploration: { riskLevel: input.config.risk_level,
-        maxTurns: input.config.max_codex_turns_per_intent,
-        maxTotalTokens: input.config.max_total_tokens_per_intent },
-      emit: output,
-    });
-    decision = result.decision;
-    output({ event: "codex-decision", intentId: input.intent.id,
-      threadId: result.threadId, provider: "openai-codex", model: "config.toml",
-      decision: decision.decision, exploration: result.usage });
-  }
+  const decision = selected.decision;
+  output({ event: "decision-selected", source: selected.source, intentId: input.intent.id,
+    revision: input.revision, decision: decision.decision });
   const issuedAt = Math.floor(Date.now() / 1_000);
   const claim = { version: 1 as const, solverId: input.solverId, intentId: input.intent.id,
     revision: input.revision, decisionHash: commitment(decision), snapshotHash: input.intent.snapshotHash as Hash,
@@ -139,24 +167,41 @@ await watchSolverIntents({
   signal: controller.signal,
   pollIntervalMs: config.poll_interval_ms,
   onPoll: () => writeHeartbeat(worker.statePath),
-  isHandled: (intent) => attempts.isHandled(intent.id),
+  isHandled: (intent) => competitionWorkTimeoutMs({
+    competitionClosesAt: intent.competitionClosesAt,
+    maximumMs: config.turn_timeout_ms,
+  }) === 0 || attempts.isHandled(intent.id),
   async onError(error, intent) {
     if (!intent) {
       output({ event: "poll-error", message: error instanceof Error ? error.message : String(error) });
       return;
     }
     const failed = attempts.failed(intent.id);
+    const retryable = failed.attempts < maxAttempts && canRetryBeforeCompetitionClose({
+      competitionClosesAt: intent.competitionClosesAt,
+      retryAfterMs: failed.retryAfterMs,
+    });
+    if (!retryable && failed.attempts < maxAttempts) attempts.stop(intent.id);
     await persistState();
     output({ event: "intent-error", intentId: intent.id,
       message: error instanceof Error ? error.message : String(error), attempts: failed.attempts,
-      retry: failed.attempts >= maxAttempts ? "stopped" : new Date(failed.retryAfterMs).toISOString() });
+      retry: retryable ? new Date(failed.retryAfterMs).toISOString() : "stopped" });
   },
   async onIntent(intent) {
-    const revision = (state[intent.id]?.attempts ?? 0) + 1;
-    await limiter.run(() => processIntent({ ...worker, config, intent, revision,
-      record(revision, receiptState) {
-      attempts.completed(intent.id, revision, receiptState);
-      return persistState();
-    } }));
+    await limiter.run(async () => {
+      if (competitionWorkTimeoutMs({ competitionClosesAt: intent.competitionClosesAt,
+        maximumMs: config.turn_timeout_ms }) === 0) {
+        attempts.stop(intent.id);
+        await persistState();
+        output({ event: "intent-expired", intentId: intent.id });
+        return;
+      }
+      const revision = (state[intent.id]?.attempts ?? 0) + 1;
+      await processIntent({ ...worker, config, intent, revision,
+        record(revision, receiptState) {
+          attempts.completed(intent.id, revision, receiptState);
+          return persistState();
+        } });
+    });
   },
 });

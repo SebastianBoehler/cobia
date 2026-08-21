@@ -125,4 +125,46 @@ describe("Codex solver runner", () => {
     expect(result).toMatchObject({ decision: { reasonCode: "NO_ROUTE_AFTER_RESEARCH" },
       usage: { turns: 2, totalTokens: 220, stopReason: "turn-limit" } });
   });
+
+  it("shares one timeout across continuation turns", async () => {
+    vi.useFakeTimers();
+    try {
+      let turn = 0;
+      const runStreamed = vi.fn(async (_prompt: string, options: { signal: AbortSignal }) => ({
+        events: (async function* () {
+          turn += 1;
+          if (turn === 1) {
+            yield { type: "thread.started", thread_id: "thread-timeout" } as const;
+            await new Promise((resolve) => setTimeout(resolve, 600));
+            yield { type: "item.completed", item: { id: "message-timeout", type: "agent_message",
+              text: JSON.stringify({ decisionJson: JSON.stringify({ version: 1,
+                decision: "abstain", reasonCode: "NO_VERIFIED_SWAP_ROUTE",
+              }) }),
+            } } as const;
+            yield { type: "turn.completed", usage: { input_tokens: 10, cached_input_tokens: 0,
+              cache_write_input_tokens: 0, output_tokens: 1, reasoning_output_tokens: 0 } } as const;
+            return;
+          }
+          await new Promise<void>((_resolve, reject) => {
+            options.signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+          });
+        })(),
+      }));
+      const result = runCodexSolver({
+        job: { cwd: "/tmp", intentPath: "/tmp/intent.json",
+          decisionPath: "/tmp/decision.json", prompt: "solve" },
+        timeoutMs: 1_000,
+        exploration: { riskLevel: "opportunistic", maxTurns: 2, maxTotalTokens: 1_000 },
+        codex: { startThread: () => ({ runStreamed }) },
+        emit: vi.fn(),
+      });
+      const rejection = expect(result).rejects.toThrow("aborted");
+
+      await vi.advanceTimersByTimeAsync(1_000);
+      await rejection;
+      expect(runStreamed).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

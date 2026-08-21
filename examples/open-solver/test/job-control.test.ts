@@ -22,6 +22,17 @@ describe("solver job controls", () => {
     expect(attempts.isHandled("intent", 0)).toBe(true);
   });
 
+  it("can stop a retry that cannot finish before the competition closes", () => {
+    const state = {};
+    const attempts = new IntentAttempts(state, { maxAttempts: 2, retryBaseMs: 30_000 });
+    attempts.failed("intent", 1_000);
+
+    attempts.stop("intent");
+
+    expect(attempts.isHandled("intent", 1_000)).toBe(true);
+    expect(state).toEqual({ intent: { state: "expired", attempts: 1 } });
+  });
+
   it("never starts more work than the concurrency ceiling", async () => {
     const limiter = new WorkLimiter(2);
     let active = 0;

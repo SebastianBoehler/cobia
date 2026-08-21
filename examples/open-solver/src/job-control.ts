@@ -36,6 +36,14 @@ export class IntentAttempts {
     return entry;
   }
 
+  stop(intentId: string, state = "expired") {
+    const entry = this.state[intentId];
+    this.state[intentId] = {
+      state,
+      attempts: entry?.attempts ?? 0,
+    };
+  }
+
   completed(intentId: string, revision: number, state: string) {
     this.state[intentId] = {
       revision,
