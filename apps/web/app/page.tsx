@@ -41,7 +41,7 @@ export default async function Home() {
             <p>Cobia’s Build X submission makes agent-authored programs inspectable—from public deployments and protocol adapters to replay evidence and an explicit roadmap.</p>
           </div>
           <Link className="button button--paper" href="/buildx">
-            View judge evidence <ArrowRight aria-hidden="true" size={17} />
+            Explore Build X proof <ArrowRight aria-hidden="true" size={17} />
           </Link>
         </section>
         <nav className="product-strip" aria-label="Cobia product">

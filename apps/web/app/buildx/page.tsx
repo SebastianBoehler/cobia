@@ -3,8 +3,8 @@ import { AppHeader } from "../../components/layout/AppHeader";
 import { createPageMetadata } from "../site-metadata";
 
 export const metadata = createPageMetadata({
-  title: "BuildX AI Season evidence",
-  description: "Inspect Cobia's X Layer deployments, verifier boundary, public implementation and measurable roadmap.",
+  title: "Cobia for X Layer AI Season",
+  description: "Explore Cobia's verified programs, X Layer deployments, protocol support and public roadmap.",
   path: "/buildx",
 });
 

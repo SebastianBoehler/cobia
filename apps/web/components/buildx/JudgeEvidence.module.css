@@ -38,7 +38,7 @@
 .protocols li { align-items: center; display: flex; flex-direction: column; gap: 15px; padding: 26px 10px; text-align: center; }
 .protocols li + li { border-inline-start: 1px solid var(--line); }
 .protocols li strong { font-size: 15px; letter-spacing: -.02em; }
-.evidence, .rubric, .roadmap { margin: 0 auto; max-width: 1328px; padding: clamp(88px, 10vw, 148px) clamp(24px, 5.1vw, 68px); }
+.evidence, .foundations, .roadmap { margin: 0 auto; max-width: 1328px; padding: clamp(88px, 10vw, 148px) clamp(24px, 5.1vw, 68px); }
 .sectionHeader { align-items: end; display: flex; gap: 40px; justify-content: space-between; }
 .sectionHeader h2 { max-width: 850px; }
 .sectionHeader > a { align-items: center; color: var(--cobalt-dark); display: flex; flex: 0 0 auto; font-size: 13px; font-weight: 650; gap: 7px; }
@@ -53,11 +53,11 @@
 .evidenceList article > a { align-items: center; color: var(--cobalt-dark); display: flex; font-size: 12px; font-weight: 650; gap: 8px; justify-self: end; }
 .evidenceList article > a svg, .sectionHeader > a svg, .closeActions a svg { transition: transform 150ms ease-out; }
 .evidenceList article > a:hover svg, .sectionHeader > a:hover svg, .closeActions a:hover svg { transform: translate(2px, -2px); }
-.rubric { background: var(--wash); max-width: none; padding-inline: max(24px, calc((100vw - 1192px) / 2)); }
-.rubric dl { border-top: 1px solid var(--line-strong); margin: 64px 0 0; }
-.rubric dl > div { border-bottom: 1px solid var(--line); display: grid; gap: 42px; grid-template-columns: minmax(170px, .7fr) minmax(0, 1.7fr); padding: 24px 0; }
-.rubric dt { font-size: 13px; font-weight: 660; }
-.rubric dd { color: var(--muted); font-size: 15px; line-height: 1.6; margin: 0; max-width: 70ch; }
+.foundations { background: var(--wash); max-width: none; padding-inline: max(24px, calc((100vw - 1192px) / 2)); }
+.foundations dl { border-top: 1px solid var(--line-strong); margin: 64px 0 0; }
+.foundations dl > div { border-bottom: 1px solid var(--line); display: grid; gap: 42px; grid-template-columns: minmax(170px, .7fr) minmax(0, 1.7fr); padding: 24px 0; }
+.foundations dt { font-size: 13px; font-weight: 660; }
+.foundations dd { color: var(--muted); font-size: 15px; line-height: 1.6; margin: 0; max-width: 70ch; }
 .roadmap ol { list-style: none; margin: 70px 0 0; padding: 0; }
 .roadmap li { display: grid; gap: 30px; grid-template-columns: 32px minmax(0, 1fr); min-height: 156px; }
 .roadmapMarker { align-items: center; display: flex; flex-direction: column; }
@@ -99,8 +99,8 @@
   .evidenceList { margin-top: 48px; }
   .evidenceList article { gap: 18px; grid-template-columns: 1fr; }
   .evidenceList article > a { grid-column: 1; }
-  .rubric { padding-inline: 20px; }
-  .rubric dl > div { gap: 10px; grid-template-columns: 1fr; }
+  .foundations { padding-inline: 20px; }
+  .foundations dl > div { gap: 10px; grid-template-columns: 1fr; }
   .roadmap li { gap: 22px; grid-template-columns: 32px minmax(0, 1fr); }
   .close { grid-template-columns: 1fr; padding-inline: 20px; }
   .closeActions { align-items: stretch; }

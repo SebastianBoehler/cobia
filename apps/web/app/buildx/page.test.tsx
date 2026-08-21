@@ -3,10 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../components/layout/AppHeader", () => ({ AppHeader: () => null }));
 
-import BuildXEvidencePage from "./page";
+import BuildXEvidencePage, { metadata } from "./page";
 
-describe("BuildX judge evidence page", () => {
-  it("leads judges from the trust boundary to public proof and the roadmap", () => {
+describe("Build X project page", () => {
+  it("leads visitors from the trust boundary to public proof and the roadmap", () => {
     const html = renderToStaticMarkup(<BuildXEvidencePage />);
     const text = html.replace(/<[^>]+>/g, "");
     const boundaryIndex = html.indexOf('id="boundary"');
@@ -51,5 +51,12 @@ describe("BuildX judge evidence page", () => {
     expect(html).toContain('aria-label="Aave V3"');
     expect(html).toContain('aria-label="Curve StableSwap"');
     expect(html).toContain('aria-label="Uniswap V3"');
+  });
+
+  it("keeps internal evaluation strategy out of the public experience", () => {
+    const html = renderToStaticMarkup(<BuildXEvidencePage />);
+
+    expect(html).not.toMatch(/judg(?:e|ing)/i);
+    expect(metadata.title).toBe("Cobia for X Layer AI Season");
   });
 });

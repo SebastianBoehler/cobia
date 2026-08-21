@@ -52,7 +52,7 @@ describe("home conversion path", () => {
     expect(architectureIndex).toBeGreaterThan(standingIndex);
   });
 
-  it("gives the AI Season submission a dedicated path to judge evidence", async () => {
+  it("gives the AI Season submission a dedicated product-facing path", async () => {
     const html = renderToStaticMarkup(await Home());
     const heroIndex = html.indexOf('class="general-hero"');
     const seasonIndex = html.indexOf('id="buildx-callout-title"');
@@ -62,7 +62,8 @@ describe("home conversion path", () => {
     expect(seasonIndex).toBeLessThan(productIndex);
     expect(html).toContain("Proudly built for X Layer’s AI Season.");
     expect(html).toContain("Cobia’s Build X submission");
-    expect(html).toContain("View judge evidence");
+    expect(html).toContain("Explore Build X proof");
+    expect(html).not.toMatch(/judg(?:e|ing)/i);
     expect(html).toContain('href="/buildx"');
   });
 

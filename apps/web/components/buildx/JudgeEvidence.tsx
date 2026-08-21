@@ -58,13 +58,13 @@ const evidence = [
 
 const supportedProtocols = ["Aave V3", "Curve StableSwap", "Uniswap V3"] as const;
 
-const rubric = [
-  ["AI application", "Agents research and propose programs; deterministic verification retains authorization authority."],
-  ["Innovation", "Open-world generation is separated from fail-closed execution permission."],
-  ["Product completeness", "A public product, two network deployments, persistent evidence and wallet-owned signing paths."],
-  ["X Layer integration", "Chain 196 protocols, chain 1952 evidence, USD₮0 x402 settlement and Builder Code attribution."],
-  ["Growth potential", "Each new solver, merchant and protocol expands the same independently verified intent market."],
-  ["Ecosystem contribution", "Cobia is a transaction firewall that can turn agent demand into safer X Layer activity."],
+const foundations = [
+  ["Agent intelligence", "Agents research and propose programs; deterministic verification retains authorization authority."],
+  ["Execution boundary", "Open-world generation is separated from fail-closed execution permission."],
+  ["Live infrastructure", "A public product, two network deployments, persistent evidence and wallet-owned signing paths."],
+  ["X Layer native", "Chain 196 protocols, chain 1952 evidence, USD₮0 x402 settlement and Builder Code attribution."],
+  ["Open network effects", "Each new solver, merchant and protocol expands the same independently verified intent market."],
+  ["Ecosystem utility", "Cobia is a transaction firewall that can turn agent demand into safer X Layer activity."],
 ] as const;
 
 const roadmap = [
@@ -138,7 +138,7 @@ export function JudgeEvidence() {
       <header className={styles.sectionHeader}>
         <div><h2>Claims that resolve to something inspectable.</h2></div>
         <a href="https://x.com/Cobia_Web3/status/2090604315052302774" rel="noreferrer" target="_blank">
-          BuildX post <ArrowUpRight aria-hidden="true" size={15} />
+          Build X post <ArrowUpRight aria-hidden="true" size={15} />
         </a>
       </header>
       <div className={styles.evidenceList}>{evidence.map((item) => <article key={item.title}>
@@ -148,9 +148,9 @@ export function JudgeEvidence() {
       </article>)}</div>
     </section>
 
-    <section className={styles.rubric}>
-      <header className={styles.sectionHeader}><div><h2>Built around the judging lens.</h2></div></header>
-      <dl>{rubric.map(([term, detail]) => <div key={term}><dt>{term}</dt><dd>{detail}</dd></div>)}</dl>
+    <section className={styles.foundations}>
+      <header className={styles.sectionHeader}><div><h2>Built to scale trust, not custody.</h2></div></header>
+      <dl>{foundations.map(([term, detail]) => <div key={term}><dt>{term}</dt><dd>{detail}</dd></div>)}</dl>
     </section>
 
     <section className={styles.roadmap} id="roadmap">
@@ -168,7 +168,7 @@ export function JudgeEvidence() {
       <div><h2>State the outcome.<br />Keep the keys.</h2></div>
       <div className={styles.closeActions}>
         <a className="button button--paper" href="https://getcobia.com" rel="noreferrer" target="_blank">Review Cobia <ArrowUpRight aria-hidden="true" size={16} /></a>
-        <a href="https://web3.okx.com/xlayer/build-x-series" rel="noreferrer" target="_blank">BuildX AI Season rules <ArrowUpRight aria-hidden="true" size={14} /></a>
+        <a href="https://web3.okx.com/xlayer/build-x-series" rel="noreferrer" target="_blank">AI Season rules <ArrowUpRight aria-hidden="true" size={14} /></a>
       </div>
       <p className={styles.closeNote}><Clock3 aria-hidden="true" size={14} /> Financial controls remain gated until their independent production release checks pass.</p>
     </section>
