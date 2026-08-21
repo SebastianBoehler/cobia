@@ -111,13 +111,12 @@ export function projectSolverPerformance(input: {
     const firstRunSec = Math.min(...runs.map(({ createdAt }) => Math.floor(createdAt.getTime() / 1_000)));
     const firstSubmissionSec = resolved.length === 0 ? null : Math.min(...resolved.map(({ createdAt }) =>
       Math.floor(createdAt.getTime() / 1_000)));
-    if (firstSubmissionSec !== null && firstSubmissionSec < firstRunSec) {
-      throw new Error("Solver submission predates its run");
-    }
+    const firstSubmissionLatencySec = firstSubmissionSec !== null && firstSubmissionSec >= firstRunSec
+      ? firstSubmissionSec - firstRunSec : undefined;
     const record = {
       intentId,
       observedAtSec: firstRunSec,
-      firstSubmissionLatencySec: firstSubmissionSec === null ? undefined : firstSubmissionSec - firstRunSec,
+      firstSubmissionLatencySec,
       decision,
       submissionCount: resolved.length,
       acceptedSubmissionCount: accepted.length,

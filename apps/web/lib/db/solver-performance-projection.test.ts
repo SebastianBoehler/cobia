@@ -67,4 +67,27 @@ describe("solver performance projection", () => {
 
     expect(reports.map(({ segment }) => segment.intentClass)).toEqual(["cross-chain", "x402"]);
   });
+
+  it("keeps historical submissions without a trustworthy latency sample", () => {
+    const observedAtSec = 2_000_000_000;
+    const intentId = "11111111-1111-4111-8111-111111111111";
+    const report = projectSolverPerformance({
+      solverId: "alpha-solver",
+      observedAtSec,
+      runs: [{ intentId, state: "completed", createdAt: new Date(observedAtSec * 1_000) }],
+      intents: [{ id: intentId, chainId: 196, selectedSubmissionId: null, policy }],
+      submissions: [{
+        id: "historical", intentId, revision: 1, state: "verified", failureCodes: [],
+        createdAt: new Date((observedAtSec - 60) * 1_000),
+        objective: { direction: "maximize", atomic: "10100000" },
+      }],
+    })[0];
+
+    expect(report?.counts).toMatchObject({ observedIntents: 1, submittedIntents: 1, submissions: 1 });
+    expect(report?.responsiveness).toEqual({
+      medianFirstSubmissionLatencySec: null,
+      sampleSize: 0,
+      status: "unavailable",
+    });
+  });
 });
