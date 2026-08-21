@@ -1,6 +1,5 @@
 import {
-  ArrowRight, ArrowDownUp, Blocks, Bot, CircleAlert, CircleCheck, Clock3, FileCode2,
-  Globe2, History, Route, ShieldCheck, TerminalSquare,
+  ArrowRight, ArrowDownUp, Blocks, Bot, CircleAlert, CircleCheck, Clock3, History, Route, ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { formatUnits } from "viem";
@@ -46,7 +45,6 @@ export function AgentProgramSummary({ program, action }: {
   const { submission, artifacts } = program;
   const state = status(program);
   const StatusIcon = state.icon;
-  const provenance = artifacts.provenance?.summary;
   const actions = artifacts.program?.payload?.actions ?? [];
   const tokenEvidence = artifacts.snapshot?.payload?.tokenEvidence ?? [];
   const balanceDeltas = artifacts.evidence?.payload?.balanceDeltas ?? [];
@@ -147,16 +145,6 @@ export function AgentProgramSummary({ program, action }: {
         <div><dt><ShieldCheck aria-hidden="true" /> Owner</dt><dd>{submission.owner ? shortAddress(submission.owner) : "Unavailable"}</dd></div>
         <div className={styles.hash}><dt>Program commitment</dt><dd title={submission.programHash}>{shortHash(submission.programHash)}</dd></div>
         <div className={styles.hash}><dt>Block commitment</dt><dd title={submission.blockHash}>{shortHash(submission.blockHash)}</dd></div>
-      </dl>
-    </section>
-
-    <section className={styles.provenance} aria-labelledby="provenance-heading">
-      <div><p className={styles.kicker}>Agent provenance</p><h2 id="provenance-heading">Research footprint</h2>
-        <p>Public counts only. Commands, private paths, credentials, and raw RPC data are never exposed.</p></div>
-      <dl>
-        <div><TerminalSquare aria-hidden="true" /><dd>{provenance?.commandCount ?? 0}</dd><dt>Commands</dt></div>
-        <div><FileCode2 aria-hidden="true" /><dd>{provenance?.fileCount ?? 0}</dd><dt>Files</dt></div>
-        <div><Globe2 aria-hidden="true" /><dd>{provenance?.networkRequestCount ?? 0}</dd><dt>Fetched resources</dt></div>
       </dl>
     </section>
 

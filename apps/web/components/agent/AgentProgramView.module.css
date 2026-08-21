@@ -15,7 +15,7 @@
 .failed .statusIcon, .failed .statusLabel { color: var(--rejected); }
 .history .statusIcon, .history .statusLabel { color: var(--estimated); }
 .primaryGrid { display: grid; gap: 18px; grid-template-columns: minmax(0, 1.1fr) minmax(360px, .9fr); }
-.card, .ledger, .provenance, .footerAction { background: var(--surface); border-radius: 22px; box-shadow: var(--shadow-soft); }
+.card, .ledger, .footerAction { background: var(--surface); border-radius: 22px; box-shadow: var(--shadow-soft); }
 .card { min-width: 0; padding: clamp(22px, 3vw, 30px); }
 .outcomeCard { background: color-mix(in oklch, var(--cobalt-wash) 36%, var(--surface)); }
 .cardHeader, .cardHeader > div { align-items: center; display: flex; justify-content: space-between; }
@@ -23,7 +23,7 @@
 .sectionIcon { align-items: center; background: var(--cobalt-wash); border-radius: 11px; color: var(--cobalt); display: flex; height: 40px; justify-content: center; width: 40px; }
 .sectionIcon svg { height: 19px; stroke-width: 1.5; width: 19px; }
 .kicker { color: var(--muted); font-size: 10px; font-weight: 680; letter-spacing: .08em; margin: 0 0 5px; text-transform: uppercase; }
-.card h2, .ledger h2, .provenance h2 { font-size: 20px; letter-spacing: -.035em; margin: 0; }
+.card h2, .ledger h2 { font-size: 20px; letter-spacing: -.035em; margin: 0; }
 .count { background: var(--wash); border-radius: 999px; color: var(--muted); font-size: 11px; font-weight: 650; padding: 6px 9px; }
 .balanceList { display: grid; gap: 12px; list-style: none; margin: 28px 0 0; padding: 0; }
 .balanceList li { background: var(--surface); border: 1px solid color-mix(in oklch, var(--cobalt) 15%, var(--line)); border-radius: 14px; padding: 17px 18px; }
@@ -62,14 +62,6 @@
 .ledger dt { align-items: center; color: var(--muted); display: flex; font-size: 10px; gap: 6px; margin-bottom: 9px; }
 .ledger dt svg { height: 13px; stroke-width: 1.5; width: 13px; }
 .ledger dd { font: 12px/1.5 var(--font-geist-mono), monospace; margin: 0; overflow-wrap: anywhere; }
-.provenance { align-items: center; border: 1px solid var(--line); box-shadow: none; display: grid; gap: 36px; grid-template-columns: minmax(0, 1fr) auto; padding: 26px 28px; }
-.provenance > div > p:last-child { color: var(--muted); font-size: 12px; line-height: 1.55; margin: 9px 0 0; max-width: 58ch; }
-.provenance dl { display: grid; grid-template-columns: repeat(3, minmax(110px, 1fr)); margin: 0; }
-.provenance dl > div { display: grid; gap: 4px; grid-template-columns: 22px auto; padding: 4px 22px; }
-.provenance dl > div + div { border-left: 1px solid var(--line); }
-.provenance svg { color: var(--cobalt); grid-row: 1 / 3; height: 18px; margin-top: 3px; stroke-width: 1.5; width: 18px; }
-.provenance dd { font-size: 18px; font-weight: 680; margin: 0; }
-.provenance dt { color: var(--muted); font-size: 10px; }
 .receipt { background: color-mix(in oklch, var(--verified) 9%, var(--surface)); border-radius: 14px; color: var(--verified); font-size: 12px; margin: 0; padding: 15px 18px; }
 .receipt code { overflow-wrap: anywhere; }
 .footerAction { align-items: center; display: flex; gap: 28px; justify-content: space-between; padding: 22px 24px; }
@@ -84,7 +76,6 @@
   .ledger dl { grid-template-columns: 1fr 1fr; }
   .ledger dl > div:nth-child(odd) { border-left: 0; }
   .ledger .hash { grid-column: span 1; }
-  .provenance { align-items: start; grid-template-columns: 1fr; }
   .replaySummary { grid-template-columns: 40px minmax(0, 1fr); }
   .replaySummary .failureCodes { grid-column: 1 / -1; }
 }
@@ -93,14 +84,11 @@
   .shell { gap: 14px; }
   .hero { gap: 22px; padding-top: 4px; }
   .hero h1 { font-size: 2.9rem; }
-  .card, .ledger > header, .provenance, .footerAction { padding: 20px; }
+  .card, .ledger > header, .footerAction { padding: 20px; }
   .ledger > header, .footerAction { align-items: flex-start; flex-direction: column; }
   .ledger > header > p { margin-top: 10px; }
   .ledger dl { grid-template-columns: 1fr; }
   .ledger dl > div:nth-child(n) { border-left: 0; }
-  .provenance dl { grid-template-columns: 1fr; width: 100%; }
-  .provenance dl > div { padding: 12px 0; }
-  .provenance dl > div + div { border-left: 0; border-top: 1px solid var(--line); }
   .footerAction a, .footerAction button { width: 100%; }
   .balanceList li > div { align-items: flex-start; flex-direction: column; gap: 4px; }
   .balanceList li strong { white-space: normal; }

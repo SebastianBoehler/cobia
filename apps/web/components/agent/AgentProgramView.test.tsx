@@ -56,6 +56,7 @@ describe("AgentProgramView", () => {
     expect(screen.getByText("Approve up to 1.000000 USDG")).toBeVisible();
     expect(screen.getByText("Swap 1.000000 USDG for at least 0.995000 USDt0")).toBeVisible();
     expect(screen.getByText("cobia-reference")).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Research footprint" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /prepare execution/i })).not.toBeInTheDocument();
   });
 
