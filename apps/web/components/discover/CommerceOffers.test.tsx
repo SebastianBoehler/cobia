@@ -87,6 +87,16 @@ describe("CommerceOffers", () => {
     expect(html).not.toContain(offer.placement.endpoint);
   });
 
+  it("does not advertise an expired executable offer as purchasable", () => {
+    const html = renderToStaticMarkup(
+      <CommerceOffers offers={[executableOffer]} observedAtSec={executableOffer.expiresAt} />,
+    );
+
+    expect(html).toContain("No supported paid resources are available yet");
+    expect(html).not.toContain("Review offer");
+    expect(html).not.toContain("Example Merchant");
+  });
+
   it("states the truthful empty case", () => {
     expect(renderToStaticMarkup(<CommerceOffers offers={[]} observedAtSec={2_000_000_000} />))
       .toContain("No supported paid resources are available yet");

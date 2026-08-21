@@ -11,9 +11,13 @@ function evidenceLabel(profile: CommerceOfferV1["evidence"]["profile"]) {
   return profile === "onchain-order" ? "Onchain order evidence" : "Payment settlement evidence";
 }
 
+function isFreshExecutableOffer(offer: CommerceOfferV1, observedAtSec: number) {
+  return offer.eligibility.status === "executable" && observedAtSec < offer.expiresAt;
+}
+
 function CommerceOfferCard({ offer, observedAtSec }: { offer: CommerceOfferV1; observedAtSec: number }) {
   const commitment = commerceOfferCommitmentV1(offer);
-  const executable = offer.eligibility.status === "executable";
+  const executable = isFreshExecutableOffer(offer, observedAtSec);
   const secondsLeft = Math.max(0, offer.expiresAt - observedAtSec);
   return <article>
     <div className="commerce-offers__heading">
@@ -55,7 +59,7 @@ export function CommerceOffers({ offers, observedAtSec, sourceErrors = [] }: {
   observedAtSec: number;
   sourceErrors?: Array<{ sourceId: string; code: string }>;
 }) {
-  const supportedOffers = offers.filter((offer) => offer.eligibility.status === "executable");
+  const supportedOffers = offers.filter((offer) => isFreshExecutableOffer(offer, observedAtSec));
   const externalOffers = uniqueExternalX402Offers(offers);
   const visibleOffers = supportedOffers.slice(0, 6);
   const moreOffers = supportedOffers.slice(6);
