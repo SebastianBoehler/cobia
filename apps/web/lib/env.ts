@@ -178,3 +178,13 @@ export function readExecutionSessionSecret(
   }
   return parsed.data;
 }
+
+export function readWalletAuthSecret(
+  source: Record<string, string | undefined> = process.env,
+): string {
+  const parsed = z.string().min(32).safeParse(source.WALLET_AUTH_SECRET);
+  if (!parsed.success) {
+    throw new Error("Missing or invalid wallet authentication configuration: WALLET_AUTH_SECRET");
+  }
+  return parsed.data;
+}

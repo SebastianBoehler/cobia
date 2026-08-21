@@ -141,6 +141,13 @@
       "when": 1787211600000,
       "tag": "0019_open_solver_exchange",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1787275828240,
+      "tag": "0020_wallet_auth",
+      "breakpoints": true
     }
   ]
 }

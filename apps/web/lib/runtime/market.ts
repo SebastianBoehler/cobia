@@ -19,6 +19,7 @@ import { createSolverSubmissionRepository } from "../db/solver-submissions";
 import { createOpenIntentSnapshotRepository } from "../db/open-intent-snapshots";
 import { createSolverDecisionClaimRepository } from "../db/solver-decision-claims";
 import { createSolverSuccessFeeRepository } from "../db/solver-success-fees";
+import { createWalletAuthRepository } from "../db/wallet-auth";
 import { readCodingAgentV3RuntimeConfig, readDatabaseUrl } from "../env";
 import { openGeneralCodingAgentCompetition } from "./general-coding-agent";
 import { cobiaCodingAgentProfile } from "./solver-catalog";
@@ -52,6 +53,7 @@ let solverSubmissionRepository: ReturnType<typeof createSolverSubmissionReposito
 let openIntentSnapshotRepository: ReturnType<typeof createOpenIntentSnapshotRepository> | undefined;
 let solverDecisionClaimRepository: ReturnType<typeof createSolverDecisionClaimRepository> | undefined;
 let solverSuccessFeeRepository: ReturnType<typeof createSolverSuccessFeeRepository> | undefined;
+let walletAuthRepository: ReturnType<typeof createWalletAuthRepository> | undefined;
 
 function getDatabase() {
   database ??= createDatabase(readDatabaseUrl());
@@ -111,6 +113,11 @@ export function getSolverDecisionClaimRepository() {
 export function getSolverSuccessFeeRepository() {
   solverSuccessFeeRepository ??= createSolverSuccessFeeRepository(getDatabase());
   return solverSuccessFeeRepository;
+}
+
+export function getWalletAuthRepository() {
+  walletAuthRepository ??= createWalletAuthRepository(getDatabase());
+  return walletAuthRepository;
 }
 
 export function openGeneralIntentMarket(input: {

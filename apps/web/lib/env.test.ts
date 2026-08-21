@@ -8,6 +8,7 @@ import {
   readCodingAgentV3RuntimeConfig,
   readExecutionSessionSecret,
   readMarketConfig,
+  readWalletAuthSecret,
 } from "./env";
 
 describe("market environment", () => {
@@ -50,6 +51,13 @@ describe("market environment", () => {
     expect(readExecutionSessionSecret({ EXECUTION_SESSION_SECRET: secret })).toBe(secret);
     expect(() => readExecutionSessionSecret({ EXECUTION_SESSION_SECRET: "short" }))
       .toThrow("EXECUTION_SESSION_SECRET");
+  });
+
+  it("requires a separate high-entropy wallet authentication secret", () => {
+    const secret = "22".repeat(32);
+    expect(readWalletAuthSecret({ WALLET_AUTH_SECRET: secret })).toBe(secret);
+    expect(() => readWalletAuthSecret({ WALLET_AUTH_SECRET: "short" }))
+      .toThrow("WALLET_AUTH_SECRET");
   });
 
   it("requires an exact Vercel identity and public origin for the sandbox RPC proxy", () => {

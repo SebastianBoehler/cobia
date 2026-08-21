@@ -23,8 +23,8 @@ pnpm --filter @cobia/web dev
 fresh deterministic and agentic signing wallets, a separate recoverable dev
 treasury, an MPP secret, and a canonical local payment realm. It never overwrites an
 existing value or prints private keys. When migrating an older file, it may
-append the missing non-secret `PAYMENT_REALM` and a new local
-`EXECUTION_SESSION_SECRET`. Fill in the blank OKX credentials before exercising
+append the missing non-secret `PAYMENT_REALM`, a local `EXECUTION_SESSION_SECRET`,
+and a separate local `WALLET_AUTH_SECRET`. Fill in the blank OKX credentials before exercising
 live discovery.
 
 Open <http://localhost:3000>. The MCP endpoint is
