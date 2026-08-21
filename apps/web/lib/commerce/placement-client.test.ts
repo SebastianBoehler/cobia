@@ -4,6 +4,8 @@ import {
   confirmCommerceSettlementClientV1,
   prepareCommercePlacementClientV1,
 } from "./placement-client";
+import { X402AuthorizationTemplateV1Schema } from "./x402-authorization";
+import { X402AuthorizationPlanV1Schema } from "./x402-plan";
 
 const hash = (byte: string) => `0x${byte.repeat(64)}` as `0x${string}`;
 const placementId = "550e8400-e29b-41d4-a716-446655440077";
@@ -15,7 +17,7 @@ const template = {
     scheme: "exact", network: "eip155:196", amount: "10000",
     asset: "0x2222222222222222222222222222222222222222",
     payTo: "0x3333333333333333333333333333333333333333", maxTimeoutSeconds: 60,
-    extra: { assetTransferMethod: "eip3009", paymentFlow: "authorization", name: "USD Coin", version: "2" },
+    extra: { name: "USD Coin", version: "2" },
   },
   authorization: {
     from: "0x1111111111111111111111111111111111111111",
@@ -116,5 +118,22 @@ describe("commerce wallet client", () => {
         payer: template.authorization.from, amount: "10000",
       }, fetcher: rejected,
     })).rejects.toThrow("wait");
+  });
+
+  it("retains recovery identifiers when a signed authorization has an uncertain outcome", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response({
+      code: "SETTLEMENT_UNCERTAIN",
+      message: "The paid request may have settled; inspect the authorization nonce before any further action",
+    }, 409));
+    const wallet = { signTypedData: vi.fn(async () => signature) };
+
+    await expect(authorizeCommercePlacementClientV1({
+      placement: { id: placementId, state: "prepared" },
+      plan: X402AuthorizationPlanV1Schema.parse(plan),
+      authorization: X402AuthorizationTemplateV1Schema.parse(template), wallet, fetcher,
+    })).rejects.toMatchObject({
+      placementId,
+      authorizationNonce: template.authorization.nonce,
+    });
   });
 });

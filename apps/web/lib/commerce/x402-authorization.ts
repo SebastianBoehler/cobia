@@ -38,10 +38,7 @@ const AuthorizationSchema = z.object({
 const AcceptedSchema = z.object({
   scheme: z.literal("exact"), network: z.enum(["eip155:196", "eip155:8453"]), amount: AtomicSchema,
   asset: AddressSchema, payTo: AddressSchema, maxTimeoutSeconds: z.number().int().min(1).max(3_600),
-  extra: z.object({
-    assetTransferMethod: z.literal("eip3009"), paymentFlow: z.literal("authorization"),
-    name: z.string().min(1).max(128), version: z.string().min(1).max(32),
-  }).strict(),
+  extra: z.object({ name: z.string().min(1).max(128), version: z.string().min(1).max(32) }).strict(),
 }).strict();
 
 export const X402AuthorizationTemplateV1Schema = z.object({
@@ -155,7 +152,6 @@ export function prepareX402AuthorizationFromPlanV1(
       scheme: "exact", network: `eip155:${plan.chainId}` as "eip155:196" | "eip155:8453", amount: plan.amount,
       asset: plan.asset, payTo: plan.payee, maxTimeoutSeconds: plan.maxTimeoutSec,
       extra: {
-        assetTransferMethod: "eip3009", paymentFlow: "authorization",
         name: domain.name, version: domain.version,
       },
     },

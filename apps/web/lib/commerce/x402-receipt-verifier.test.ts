@@ -34,9 +34,7 @@ const template = X402AuthorizationTemplateV1Schema.parse({
   accepted: {
     scheme: "exact", network: "eip155:196", amount: plan.amount, asset, payTo: payee,
     maxTimeoutSeconds: 60,
-    extra: {
-      assetTransferMethod: "eip3009", paymentFlow: "authorization", name: "USD Coin", version: "2",
-    },
+    extra: { name: "USD Coin", version: "2" },
   },
   authorization,
   typedData: {

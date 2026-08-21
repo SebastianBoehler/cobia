@@ -15,7 +15,7 @@ const template = X402AuthorizationTemplateV1Schema.parse({
     scheme: "exact", network: "eip155:196", amount: "10000",
     asset: "0x2222222222222222222222222222222222222222",
     payTo: "0x3333333333333333333333333333333333333333", maxTimeoutSeconds: 60,
-    extra: { assetTransferMethod: "eip3009", paymentFlow: "authorization", name: "USD Coin", version: "2" },
+    extra: { name: "USD Coin", version: "2" },
   },
   authorization: {
     from: owner.address, to: "0x3333333333333333333333333333333333333333", value: "10000",

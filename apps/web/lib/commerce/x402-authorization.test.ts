@@ -85,6 +85,7 @@ describe("x402 exact authorization", () => {
       typedData: { domain: { name: "USD Coin", version: "2", chainId: 196, verifyingContract: asset } },
       accepted: { scheme: "exact", network: "eip155:196", amount: "10000", asset, payTo: payee },
     });
+    expect(prepared.accepted.extra).toEqual({ name: "USD Coin", version: "2" });
     expect(prepared.authorization.nonce).toBe(prepareX402AuthorizationV1({
       program, policy, offer, manifest, nowSec,
     }).authorization.nonce);

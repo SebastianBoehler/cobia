@@ -5,6 +5,7 @@ import { LoaderCircle, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import type { Hex } from "viem";
 import {
+  CommerceAuthorizationSubmissionError,
   authorizeCommercePlacementClientV1,
   confirmCommerceSettlementClientV1,
   prepareCommercePlacementClientV1,
@@ -26,10 +27,13 @@ export function CommercePurchaseAction({ offerCommitment }: { offerCommitment: s
   const [error, setError] = useState<string>();
   const [submitted, setSubmitted] = useState<Submitted>();
   const [confirmed, setConfirmed] = useState(false);
+  const [uncertainAuthorization, setUncertainAuthorization] = useState<{
+    placementId: string; authorizationNonce: string;
+  }>();
 
   async function buy() {
     if (!wallet.account) { setError("Connect the wallet that will own and pay for this intent."); return; }
-    setPending(true); setError(undefined);
+    setPending(true); setError(undefined); setUncertainAuthorization(undefined);
     try {
       const proposalResponse = await fetch(`/api/commerce/offers/${offerCommitment}/proposal`, {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -54,7 +58,14 @@ export function CommercePurchaseAction({ offerCommitment }: { offerCommitment: s
         } },
       });
       setSubmitted(authorization);
-    } catch (cause) { setError(errorMessage(cause)); }
+    } catch (cause) {
+      if (cause instanceof CommerceAuthorizationSubmissionError) {
+        setUncertainAuthorization({
+          placementId: cause.placementId, authorizationNonce: cause.authorizationNonce,
+        });
+      }
+      setError(errorMessage(cause));
+    }
     finally { setPending(false); }
   }
 
@@ -78,9 +89,11 @@ export function CommercePurchaseAction({ offerCommitment }: { offerCommitment: s
       <p>Sign the bounded order first, then one exact authorization for the offer&apos;s pinned chain and asset. Cobia verifies the token transfer; delivery remains merchant-provided.</p>
       {submitted ? <pre className={styles.resource}>{resource}</pre> : null}
       {confirmed ? <p className="status status--live">Payment settlement confirmed</p> : null}
-      {error ? <p className="form-alert" role="alert">{error}</p> : null}
+      {uncertainAuthorization ? <p className="form-alert" role="status">
+        Signed authorization outcome is pending review. Do not retry. Placement {uncertainAuthorization.placementId}; nonce {uncertainAuthorization.authorizationNonce}.
+      </p> : error ? <p className="form-alert" role="alert">{error}</p> : null}
     </div>
-    {!submitted ? <button className="button button--primary" disabled={pending} onClick={buy}>
+    {!submitted && !uncertainAuthorization ? <button className="button button--primary" disabled={pending} onClick={buy}>
       {pending ? <><LoaderCircle className="spin" size={16} /> Preparing…</> : "Review and buy"}
     </button> : null}
     {submitted && !confirmed ? <button className="button button--primary" disabled={pending} onClick={verifySettlement}>

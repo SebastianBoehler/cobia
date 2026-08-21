@@ -32,6 +32,17 @@ const ConfirmationResponseSchema = z.object({
   transactionHash: HashSchema, evidence: z.unknown(), evidenceHash: HashSchema,
 }).passthrough();
 
+export class CommerceAuthorizationSubmissionError extends Error {
+  constructor(
+    message: string,
+    readonly placementId: string,
+    readonly authorizationNonce: string,
+  ) {
+    super(message);
+    this.name = "CommerceAuthorizationSubmissionError";
+  }
+}
+
 async function responseJson(response: Response): Promise<unknown> {
   let body: unknown;
   try { body = await response.json(); } catch { throw new Error("Commerce API returned invalid JSON"); }
@@ -68,14 +79,21 @@ export async function authorizeCommercePlacementClientV1(input: {
   const signature = SignatureSchema.parse(await input.wallet.signTypedData(
     x402WalletTypedDataV1(input.authorization),
   ));
-  const response = await fetcher(`/api/commerce/placements/${input.placement.id}/authorization`, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ template: input.authorization, signature }),
-  });
-  return {
-    ...AuthorizationResponseSchema.parse(await responseJson(response)),
-    placementId: input.placement.id, plan: input.plan, template: input.authorization, signature,
-  };
+  try {
+    const response = await fetcher(`/api/commerce/placements/${input.placement.id}/authorization`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ template: input.authorization, signature }),
+    });
+    return {
+      ...AuthorizationResponseSchema.parse(await responseJson(response)),
+      placementId: input.placement.id, plan: input.plan, template: input.authorization, signature,
+    };
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : "Commerce authorization submission failed";
+    throw new CommerceAuthorizationSubmissionError(
+      message, input.placement.id, input.authorization.authorization.nonce,
+    );
+  }
 }
 
 export async function confirmCommerceSettlementClientV1(input: {
