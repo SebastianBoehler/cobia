@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { OpenIntentSnapshotV1Schema } from "@cobia/domain";
 import { IntentCompetitionView } from "@/components/intents/IntentCompetitionView";
+import { IntentCompetitionRefresh } from "@/components/intents/IntentCompetitionRefresh";
 import { AppHeader } from "@/components/layout/AppHeader";
 import {
   getIntentRepository, getOpenIntentSnapshotRepository, getSolverSubmissionRepository,
@@ -34,6 +35,7 @@ export default async function IntentCompetitionPage({ params }: PageProps<"/inte
   return <>
     <AppHeader />
     <main className="directory-page" id="main-content">
+      <IntentCompetitionRefresh closesAt={intent.competitionClosesAt.toISOString()} />
       <IntentCompetitionView
         goal={intent.displayGoal}
         closesAt={intent.competitionClosesAt.toISOString()}
