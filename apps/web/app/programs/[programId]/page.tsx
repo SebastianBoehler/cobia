@@ -9,10 +9,6 @@ export default async function AgentProgramPage(
 ) {
   const { programId } = await context.params;
   return <><AppHeader /><main className={styles.page} id="main-content">
-    <header className={styles.heading}>
-      <h1>Coding-agent program</h1>
-      <p>Agent-authored route research, independent fork evidence, and owner-wallet execution are separate trust boundaries.</p>
-    </header>
     <AgentProgramView programId={programId} />
   </main></>;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleCheck, LoaderCircle, ShieldCheck } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { isAddressEqual, type Address, type Hash, type Hex } from "viem";
 import { buildAgentExecutionAccessProof } from "../../lib/coding-agent-sandbox/execution-access";
@@ -9,23 +9,11 @@ import type { PaymentTerms } from "../../lib/payments/terms";
 import { randomBytes32 } from "../../lib/payments/random";
 import { shortAddress } from "../../lib/wallet/eip1193";
 import { useWallet } from "../wallet/WalletProvider";
+import { AgentProgramSummary } from "./AgentProgramSummary";
+import type { ProgramView } from "./agent-program-types";
+import styles from "./AgentProgramView.module.css";
 
 interface TransactionCall { to: Address; data: Hex; value: "0x0" }
-interface PublicArtifact<T> { payload?: T; summary?: T }
-interface ProgramView {
-  submission: {
-    id: string; state: string; executable: boolean; owner: Address | null;
-    blockNumber: string; displayGoal: string | null;
-  };
-  artifacts: {
-    program?: PublicArtifact<{ actions?: { capabilityId: string; capabilityVersion: number }[];
-      stages?: { id: string; provider?: string; kind: string }[] }>;
-    verdict?: PublicArtifact<{ accepted: boolean; errorCodes: string[] }>;
-    provenance?: PublicArtifact<{ commandCount: number; fileCount: number; networkRequestCount: number }>;
-    replay?: PublicArtifact<{ reproduced?: boolean }>;
-    receipt?: PublicArtifact<{ transactionHash?: Hash }>;
-  };
-}
 interface Prepared { approvals: TransactionCall[]; execution?: TransactionCall;
   transactions?: (TransactionCall & { stageId: string })[]; chainId?: 1 | 196 | 8453 }
 
@@ -191,33 +179,11 @@ export function AgentProgramView({ programId }: { programId: string }) {
     finally { setPending(false); }
   }
 
-  if (!program && !error) return <section className="request-created"><LoaderCircle className="spin" /> Loading verified program…</section>;
+  if (!program && !error) return <section className={styles.loading}><LoaderCircle className="spin" /> Loading program evidence…</section>;
   if (!program) return <p role="alert" className="form-alert">{error}</p>;
-  const { submission, artifacts } = program;
-  const live = submission.state === "current";
-  const provenance = artifacts.provenance?.summary;
+  const { submission } = program;
   const approvalsDone = approvalIndex >= (prepared?.approvals.length ?? 0);
-  return <section className="request-created">
-    {live ? <ShieldCheck aria-hidden="true" /> : <CircleCheck aria-hidden="true" />}
-    <div>
-      <h2>{live ? "Live verified program" : "Past discovery"}</h2>
-      {submission.displayGoal ? <p><strong>{submission.displayGoal}</strong></p> : null}
-      <p>{live
-        ? "Agent-authored, independently replayed, and currently inside its signed freshness window."
-        : "Historical research only. Create a fresh intent to regenerate and verify current calldata."}</p>
-      <p>{submission.owner ? `Owner ${shortAddress(submission.owner)} · ` : ""}Verified anchor block {submission.blockNumber}</p>
-      {artifacts.program?.payload?.actions?.map((action, index) => <p key={`${action.capabilityId}-${index}`}>
-        {action.capabilityId}@{action.capabilityVersion}
-      </p>)}
-      {artifacts.program?.payload?.stages?.map((stage) => <p key={stage.id}>
-        {stage.provider ?? stage.kind} · {stage.id}
-      </p>)}
-      {provenance ? <p>{provenance.commandCount} commands · {provenance.fileCount} files · {provenance.networkRequestCount} fetched resources</p> : null}
-      <p>{artifacts.replay?.payload?.reproduced
-        ? "Fresh fork replay reproduced the proposal. The wallet receives only the exact calls for its execution chain."
-        : "No accepted replay."}</p>
-      {artifacts.receipt?.payload?.transactionHash ? <p>Confirmed transaction {artifacts.receipt.payload.transactionHash}</p> : null}
-    </div>
+  const action = <>
     {error ? <p role="alert" className="form-alert">{error}</p> : null}
     {submission.executable && !prepared ? <button className="button button--primary" disabled={pending} onClick={prepare}>
       {pending ? "Checking live bounds…" : "Prepare execution"}
@@ -231,5 +197,6 @@ export function AgentProgramView({ programId }: { programId: string }) {
           ? `Confirm exact call ${transactionIndex + 1}/${prepared.transactions.length}`
           : "Confirm exact mainnet execution"}
     </button> : null}
-  </section>;
+  </>;
+  return <AgentProgramSummary program={program} action={submission.executable || error ? action : undefined} />;
 }
