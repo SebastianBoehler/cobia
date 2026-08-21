@@ -7,7 +7,7 @@ import {
 const EXAMPLE_INTENTS = [
   "Swap 10 @USDG into at least 9.95 @USDt0 on @XLayer",
   "Supply 10 @USDG to @Aave on @XLayer",
-  "Acquire at least 0.01 @PAXG on @Ethereum",
+  "Acquire at least 0.01 @TSLAx with at most 10 @USDG on @XLayer for an eligible DE holder",
 ] as const;
 
 function renderTaggedPrompt(prompt: string) {
@@ -16,12 +16,9 @@ function renderTaggedPrompt(prompt: string) {
     : part);
 }
 
-function renderRecognizedPrompt(prompt: string, mentions: readonly IntentMention[]) {
-  const recognized = new Set(mentions.map(({ mention }) => mention.toLocaleLowerCase()));
-  return prompt.split(/(@[A-Za-z0-9][A-Za-z0-9/-]*)/g).map((part, index) => {
-    const mention = part.startsWith("@") ? part.slice(1).toLocaleLowerCase() : "";
-    return recognized.has(mention) ? <strong key={`${part}-${index}`}>{part}</strong> : part;
-  });
+function renderRecognizedPrompt(prompt: string) {
+  return prompt.split(/(@[A-Za-z0-9]+(?:[./-][A-Za-z0-9]+)*)/g).map((part, index) =>
+    part.startsWith("@") ? <strong key={`${part}-${index}`}>{part}</strong> : part);
 }
 
 export interface IntentMention {
@@ -67,7 +64,7 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
       <div className="intent-goal__input">
         <div aria-hidden="true" className="intent-goal__highlight"
           data-testid="intent-goal-highlight" ref={highlightRef}>
-          {renderRecognizedPrompt(value, mentions)}
+          {renderRecognizedPrompt(value)}
         </div>
         <textarea
           id="intent-goal"

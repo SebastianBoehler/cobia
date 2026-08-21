@@ -25,7 +25,7 @@ type BuildInput = CommonInput & (
   | { templateId: "exact-input-swap"; outputToken: Address; minimumOutputAtomic: string }
   | { templateId: "round-trip"; minimumProfitAtomic: string }
   | { templateId: "rwa-acquisition"; outputToken: Address; minimumOutputAtomic: string;
-      instrumentCommitment: Hash; jurisdiction: string }
+      instrumentCommitment: Hash; jurisdiction: string; instrumentChainId: 1 | 196 }
 );
 
 function positive(value: string, label: string): bigint {
@@ -70,22 +70,23 @@ export function buildOpenIntentPolicyV3(input: BuildInput): OpenIntentPolicyV3 {
     throw new Error("Competition duration must be between 1 and 900 seconds");
   }
   if (input.templateId === "rwa-acquisition") {
+    const chainIds = input.instrumentChainId === 196 ? [196] : [1, 196];
     return OpenIntentPolicyV3Schema.parse({
       version: 3, kind: "open-onchain", requestId: input.requestId,
       displayGoal: input.displayGoal.trim(), owner: input.owner.toLowerCase(),
-      executionChainIds: [1, 196], nonce: input.nonce, createdAt: input.nowSec,
+      executionChainIds: chainIds, nonce: input.nonce, createdAt: input.nowSec,
       deadline: input.nowSec + DEADLINE_LIFETIME_SEC,
       competition: { closesAt: input.nowSec + input.competitionDurationSec,
         maxRevisionsPerSolver: MAX_REVISIONS_PER_SOLVER },
       maxEvidenceAgeSec: 300,
-      inputs: [{ chainId: 1, token: input.inputToken.toLowerCase(), maximumAtomic: input.inputAtomic }],
-      outcomes: [{ kind: "registered-instrument", chainId: 1,
+      inputs: [{ chainId: input.instrumentChainId, token: input.inputToken.toLowerCase(), maximumAtomic: input.inputAtomic }],
+      outcomes: [{ kind: "registered-instrument", chainId: input.instrumentChainId,
         token: input.outputToken.toLowerCase(), minimumIncreaseAtomic: input.minimumOutputAtomic,
         instrumentCommitment: input.instrumentCommitment, jurisdiction: input.jurisdiction,
         eligibilityAttested: true }],
       limits: { maxStages: 4, maxTransactions: 2, maxApprovals: 2, maxCalldataBytes: 32_768,
         maxGasPerTransaction: "5000000", maxSolverFeeAtomic: input.maxSolverFeeAtomic,
-        maxNativeValueAtomicByChain: [{ chainId: 1, atomic: "0" }, { chainId: 196, atomic: "0" }] },
+        maxNativeValueAtomicByChain: chainIds.map((chainId) => ({ chainId, atomic: "0" })) },
       forbiddenTargets: input.forbiddenTargets, forbiddenAssets: [],
     });
   }

@@ -5,7 +5,9 @@ import { commitment } from "@cobia/domain";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IntentComposer } from "./IntentComposer";
-import { DEFAULT_INTENT_RECEIPT_VALUES, INTENT_ASSETS } from "../../lib/intents/capability-templates";
+import {
+  DEFAULT_INTENT_RECEIPT_VALUES, INTENT_ASSETS, RWA_INTENT_ASSETS,
+} from "../../lib/intents/capability-templates";
 
 const owner = "0x1111111111111111111111111111111111111111";
 const state = vi.hoisted(() => ({
@@ -61,6 +63,19 @@ describe("IntentComposer", () => {
     expect(within(screen.getByTestId("intent-goal-highlight")).getByText("@XLayer")).toBeVisible();
   });
 
+  it("offers a bounded Tesla xStock intent on X Layer", () => {
+    render(<IntentComposer />);
+
+    fireEvent.click(screen.getByRole("button", {
+      name: "Use example: Acquire at least 0.01 @TSLAx with at most 10 @USDG on @XLayer for an eligible DE holder",
+    }));
+
+    expect(screen.getByLabelText("What should happen?")).toHaveValue(
+      "Acquire at least 0.01 @TSLAx with at most 10 @USDG on @XLayer for an eligible DE holder",
+    );
+    expect(within(screen.getByLabelText("Attached entities")).getByText("@TSLAx")).toBeVisible();
+  });
+
   it("recognizes typed tags as highlighted attached entities", () => {
     render(<IntentComposer />);
 
@@ -73,6 +88,25 @@ describe("IntentComposer", () => {
     expect(within(attached).getByText("@Aave")).toBeVisible();
     expect(within(attached).getByText("@XLayer")).toBeVisible();
     expect(screen.getByTestId("intent-goal-highlight").querySelectorAll("strong")).toHaveLength(3);
+  });
+
+  it("highlights any token mention and resolves xStocks without granting execution trust", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ assets: [{
+      symbol: "AAPLx", name: "Apple xStock", chainId: 196,
+      address: "0x1111111111111111111111111111111111111111", status: "research-only",
+    }], unresolved: [] })));
+    render(<IntentComposer />);
+
+    fireEvent.change(screen.getByLabelText("What should happen?"), {
+      target: { value: "Research a route to @AAPLx." },
+    });
+
+    expect(within(screen.getByTestId("intent-goal-highlight")).getByText("@AAPLx")).toBeVisible();
+    expect(within(screen.getByLabelText("Attached entities"))
+      .getByText("Unresolved token · research only")).toBeVisible();
+    expect(await within(screen.getByLabelText("Attached entities"))
+      .findByText(/Apple xStock.*research only/)).toBeVisible();
+    expect(screen.queryByText("Unresolved token · research only")).not.toBeInTheDocument();
   });
 
   it("closes mention and route popovers on an outside click", () => {
@@ -208,5 +242,41 @@ describe("IntentComposer", () => {
     });
     expect(body.policy).not.toHaveProperty("allowedCapabilities");
     expect(state.push).toHaveBeenCalledWith("/intents/550e8400-e29b-41d4-a716-446655440000");
+  });
+
+  it("signs an X Layer xStock policy bound to the exact registered contract", async () => {
+    const tesla = RWA_INTENT_ASSETS.find(({ symbol }) => symbol === "TSLAx")!;
+    const values = {
+      templateId: "rwa-acquisition" as const,
+      inputToken: INTENT_ASSETS.find(({ symbol }) => symbol === "USDG")!.address,
+      outputToken: tesla.address,
+      amount: "10",
+      minimum: "0.01",
+      maxSolverFeeUsd: "0.10",
+      jurisdiction: "DE",
+      eligibilityAccepted: true,
+    };
+    const fetchMock = vi.fn().mockImplementation((url: string) => url === "/api/intents/compile"
+      ? Promise.resolve(Response.json({ status: "review", values }))
+      : Promise.resolve(Response.json({ links: { intent: "/intents/tesla" } }, { status: 202 })));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<IntentComposer />);
+    fireEvent.change(screen.getByLabelText("What should happen?"), {
+      target: { value: "Acquire a bounded Tesla xStock position on X Layer." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Review policy" }));
+    await screen.findByRole("heading", { name: "Review the policy" });
+    fireEvent.click(screen.getByRole("button", { name: "Sign and publish intent" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const body = JSON.parse(String(fetchMock.mock.calls[1]![1].body));
+    expect(state.switchChain).toHaveBeenCalledWith(196);
+    expect(body.policy).toMatchObject({
+      executionChainIds: [196],
+      inputs: [{ chainId: 196, token: values.inputToken.toLowerCase() }],
+      outcomes: [{ kind: "registered-instrument", chainId: 196,
+        token: tesla.address.toLowerCase(), minimumIncreaseAtomic: "10000000000000000" }],
+    });
+    expect(body.policy.outcomes[0].instrumentCommitment).toMatch(/^0x[0-9a-f]{64}$/);
   });
 });

@@ -9,8 +9,8 @@ import { useMemo, useState, type FormEvent } from "react";
 import { keccak256, stringToHex } from "viem";
 import { buildOpenIntentPolicyV3 } from "../../lib/intents/open-policy";
 import {
-  DEFAULT_INTENT_RECEIPT_VALUES, decimalToAtomic, ETHEREUM_USDC, INTENT_ASSETS,
-  RWA_INTENT_ASSETS,
+  DEFAULT_INTENT_RECEIPT_VALUES, decimalToAtomic, INTENT_ASSETS,
+  RWA_INTENT_ASSETS, rwaInputAsset,
 } from "../../lib/intents/capability-templates";
 import { instrumentCommitmentV1 } from "../../lib/instruments/production-registry";
 import type { IntentComposerDraft } from "../../lib/intents/challenge-draft";
@@ -23,6 +23,7 @@ import { PolicyReceiptEditor, type ReceiptValues } from "./PolicyReceiptEditor";
 import type { IntentMention } from "./IntentGoalInput";
 import type { PortfolioSnapshot } from "../../lib/portfolio/read-portfolio";
 import { authenticateIntentCompiler } from "../../lib/wallet-auth/client";
+import { extractGoalMentions, useResolvedAssetMentions } from "./useResolvedAssetMentions";
 
 function errorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : "The intent could not be published.";
@@ -48,7 +49,11 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   const rwa = values.templateId === "rwa-acquisition";
-  const inputAsset = rwa ? ETHEREUM_USDC
+  const selectedInstrument = rwa
+    ? RWA_INTENT_ASSETS.find(({ address }) => address === values.outputToken)?.instrument
+      ?? RWA_INTENT_ASSETS[0]!.instrument
+    : undefined;
+  const inputAsset = selectedInstrument ? rwaInputAsset(selectedInstrument)
     : INTENT_ASSETS.find(({ address }) => address === values.inputToken) ?? INTENT_ASSETS[0];
   const outputAsset = rwa
     ? RWA_INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? RWA_INTENT_ASSETS[0]
@@ -84,8 +89,8 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
         ? `${Number(portfolio.balances.find((balance) => balance.symbol === symbol)!.formatted)
           .toLocaleString("en-US", { maximumFractionDigits: 6 })} available`
         : "X Layer asset" })),
-    ...RWA_INTENT_ASSETS.map(({ symbol }) => ({ id: `asset:${symbol}`, group: "Assets" as const,
-      mention: symbol, detail: "Registered RWA · Ethereum" })),
+    ...RWA_INTENT_ASSETS.map(({ symbol, instrument }) => ({ id: `asset:${symbol}`, group: "Assets" as const,
+      mention: symbol, detail: `Registered RWA · ${instrument.chainId === 196 ? "X Layer" : "Ethereum"}` })),
     { id: "network:x-layer", group: "Networks", mention: "XLayer", detail: "Chain 196" },
     { id: "network:ethereum", group: "Networks", mention: "Ethereum", detail: "Chain 1" },
     { id: "protocol:aave", group: "Protocols", mention: "Aave", detail: "Earn on X Layer" },
@@ -96,10 +101,18 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
       mention: `${offer.merchant.displayName}/${(offer.product.name ?? offer.product.id).replaceAll(" ", "-")}`,
       detail: `${offer.payment.atomicAmount} atomic · chain ${offer.payment.chainId}` })),
   ], [offers, portfolio]);
-  const selectedMentions = useMemo(() => mentions.filter(({ mention }) => {
+  const resolvedAssetMentions = useResolvedAssetMentions(goal, mentions);
+  const allMentions = useMemo(() => [...mentions, ...resolvedAssetMentions], [mentions, resolvedAssetMentions]);
+  const selectedMentions = useMemo(() => {
+    const selected = allMentions.filter(({ mention }) => {
     const escaped = mention.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     return new RegExp(`(^|\\s)@${escaped}(?=$|[\\s.,!?;:])`, "i").test(goal);
-  }), [goal, mentions]);
+    });
+    const resolved = new Set(selected.map(({ mention }) => mention.toLowerCase()));
+    return [...selected, ...extractGoalMentions(goal).filter((mention) => !resolved.has(mention.toLowerCase()))
+      .map((mention) => ({ id: `unresolved-asset:${mention.toLowerCase()}`, group: "Assets" as const,
+        mention, detail: "Unresolved token · research only" }))];
+  }, [allMentions, goal]);
   const selectedService = selectedMentions.find(({ group }) => group === "Services")
     ?.id.slice("service:".length);
 
@@ -153,7 +166,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
     setPending(true);
     setError(undefined);
     try {
-      if (rwa) await wallet.switchChain(1);
+      if (selectedInstrument) await wallet.switchChain(selectedInstrument.chainId);
       else await wallet.switchToXLayer();
       const requestId = crypto.randomUUID();
       const nowSec = Math.floor(Date.now() / 1_000);
@@ -161,7 +174,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
       const common = {
         requestId,
         owner: wallet.account,
-        inputToken: rwa ? ETHEREUM_USDC.address : values.inputToken,
+        inputToken: inputAsset.address,
         inputAtomic,
         nonce,
         nowSec,
@@ -185,7 +198,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
               ? buildOpenIntentPolicyV3({ ...common, templateId: "rwa-acquisition",
                 outputToken: instrument.token as `0x${string}`, minimumOutputAtomic: minimumAtomic,
                 instrumentCommitment: instrumentCommitmentV1(instrument),
-                jurisdiction: values.jurisdiction })
+                jurisdiction: values.jurisdiction, instrumentChainId: instrument.chainId })
             : (() => { throw new Error("Complete the minimum result before signing."); })();
       const ownerSignature = await wallet.request({
         method: "personal_sign",
@@ -216,7 +229,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
       {step === "goal" ? <>
         <IntentGoalInput action={action} compiling={compiling}
           submitEnabled={Boolean(wallet.account)}
-          excludedProtocols={excludedProtocols} mentions={mentions} selectedMentions={selectedMentions}
+          excludedProtocols={excludedProtocols} mentions={allMentions} selectedMentions={selectedMentions}
           value={goal} onActionChange={setAction} onChange={setGoal} onMention={mention}
           onMentionMenuOpen={loadMentions}
           onExcludedProtocolsChange={setExcludedProtocols}

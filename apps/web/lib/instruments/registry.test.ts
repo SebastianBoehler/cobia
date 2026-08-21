@@ -31,7 +31,18 @@ const entry = {
 
 describe("tokenized instrument registry", () => {
   it("ships only issuer-sourced production identities", () => {
-    expect(productionInstrumentRegistryV1()).toHaveLength(3);
+    expect(productionInstrumentRegistryV1()).toHaveLength(4);
+    expect(resolveInstrumentV1({
+      chainId: 196,
+      token: "0x8ad3c73f833d3f9a523ab01476625f269aeb7cf0",
+      jurisdiction: "DE",
+      nowSec: 1_787_298_527,
+    })).toMatchObject({
+      symbol: "TSLAx",
+      issuer: "Backed Assets (JE) Limited",
+      underlyingIdentifier: "US88160R1014",
+      runtimeCodeHash: "0xe7cbfea5a664672738dd729f7774677b0fa82dbdda74320df20eec49d2211b4c",
+    });
     expect(() => resolveInstrumentV1({
       chainId: 196,
       token: entry.token,

@@ -50,6 +50,7 @@ describe("open intent policy builder", () => {
       inputToken: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
       outputToken: "0x45804880de22913dafe09f4980848ece6ecbaf78",
       minimumOutputAtomic: "1000000000000000", instrumentCommitment, jurisdiction: "CH",
+      instrumentChainId: 1,
     });
 
     expect(policy).toMatchObject({
@@ -61,5 +62,22 @@ describe("open intent policy builder", () => {
         jurisdiction: "CH", eligibilityAttested: true }],
     });
     expect(policy).not.toHaveProperty("provider");
+  });
+
+  it("binds an X Layer instrument to its exact token balance outcome", () => {
+    const instrumentCommitment = `0x${"55".repeat(32)}` as const;
+    const policy = buildOpenIntentPolicyV3({
+      ...common, templateId: "rwa-acquisition", instrumentChainId: 196,
+      outputToken: "0x8ad3c73f833d3f9a523ab01476625f269aeb7cf0",
+      minimumOutputAtomic: "10000000000000000", instrumentCommitment, jurisdiction: "DE",
+    });
+
+    expect(policy).toMatchObject({
+      executionChainIds: [196],
+      inputs: [{ chainId: 196, token: common.inputToken.toLowerCase() }],
+      outcomes: [{ kind: "registered-instrument", chainId: 196,
+        token: "0x8ad3c73f833d3f9a523ab01476625f269aeb7cf0",
+        minimumIncreaseAtomic: "10000000000000000", instrumentCommitment }],
+    });
   });
 });

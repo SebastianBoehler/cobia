@@ -1,6 +1,6 @@
 import type { Address } from "viem";
 import {
-  CAPABILITY_TEMPLATES, ETHEREUM_USDC, INTENT_ASSETS, RWA_INTENT_ASSETS, atomicLabel,
+  CAPABILITY_TEMPLATES, INTENT_ASSETS, RWA_INTENT_ASSETS, atomicLabel, rwaInputAsset,
   type CapabilityTemplateId, type IntentReceiptValues,
 } from "../../lib/intents/capability-templates";
 
@@ -12,7 +12,11 @@ export function PolicyReceiptEditor({ values, owner, onChange }: {
   onChange(values: ReceiptValues): void;
 }) {
   const rwa = values.templateId === "rwa-acquisition";
-  const input = rwa ? ETHEREUM_USDC
+  const selectedInstrument = rwa
+    ? RWA_INTENT_ASSETS.find(({ address }) => address === values.outputToken)?.instrument
+      ?? RWA_INTENT_ASSETS[0]!.instrument
+    : undefined;
+  const input = selectedInstrument ? rwaInputAsset(selectedInstrument)
     : INTENT_ASSETS.find(({ address }) => address === values.inputToken) ?? INTENT_ASSETS[0];
   const output = rwa
     ? RWA_INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? RWA_INTENT_ASSETS[0]
@@ -28,7 +32,7 @@ export function PolicyReceiptEditor({ values, owner, onChange }: {
         <label>Verified capability<select value={values.templateId} onChange={(event) => {
           const templateId = event.target.value as CapabilityTemplateId;
           onChange(templateId === "rwa-acquisition"
-            ? { ...values, templateId, inputToken: ETHEREUM_USDC.address,
+            ? { ...values, templateId, inputToken: rwaInputAsset(RWA_INTENT_ASSETS[0]!.instrument).address,
               outputToken: RWA_INTENT_ASSETS[0]!.address,
               jurisdiction: RWA_INTENT_ASSETS[0]!.instrument.eligibleJurisdictions[0]!,
               eligibilityAccepted: false }
@@ -37,13 +41,14 @@ export function PolicyReceiptEditor({ values, owner, onChange }: {
         }}>{CAPABILITY_TEMPLATES.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}</select></label>
         <label>Maximum input<input inputMode="decimal" value={values.amount} onChange={(event) => set("amount", event.target.value)} /></label>
         <label>Input asset{rwa
-          ? <input readOnly value={`${ETHEREUM_USDC.symbol} · Ethereum`} />
+          ? <input readOnly value={`${input.symbol} · ${instrument?.chainId === 196 ? "X Layer" : "Ethereum"}`} />
           : <select value={values.inputToken} onChange={(event) => set("inputToken", event.target.value as Address)}>{INTENT_ASSETS.map(({ address, symbol }) => <option key={address} value={address}>{symbol}</option>)}</select>}</label>
         {values.templateId === "exact-input-swap" ? <label>Output asset<select value={values.outputToken} onChange={(event) => set("outputToken", event.target.value as Address)}>{INTENT_ASSETS.filter(({ address }) => address !== values.inputToken).map(({ address, symbol }) => <option key={address} value={address}>{symbol}</option>)}</select></label> : null}
         {rwa ? <label>Registered instrument<select value={values.outputToken} onChange={(event) => {
           const outputToken = event.target.value as Address;
           const selected = RWA_INTENT_ASSETS.find(({ address }) => address === outputToken)!;
-          onChange({ ...values, outputToken, jurisdiction: selected.instrument.eligibleJurisdictions[0]!,
+          onChange({ ...values, inputToken: rwaInputAsset(selected.instrument).address,
+            outputToken, jurisdiction: selected.instrument.eligibleJurisdictions[0]!,
             eligibilityAccepted: false });
         }}>{RWA_INTENT_ASSETS.map(({ address, symbol, instrument: item }) => <option key={address} value={address}>{symbol} · {item.platform}</option>)}</select></label> : null}
         {rwa && instrument ? <label>Jurisdiction<select value={values.jurisdiction} onChange={(event) => onChange({ ...values,
@@ -67,7 +72,8 @@ export function PolicyReceiptEditor({ values, owner, onChange }: {
         <div><dt>Competition</dt><dd>5 minutes · up to 5 revisions per solver</dd></div>
         <div><dt>Solver fee cap</dt><dd>{Number(values.maxSolverFeeUsd).toFixed(2)} USDt0 · success only</dd></div>
         <div><dt>Execution deadline</dt><dd>30 minutes from signing</dd></div>
-        <div><dt>Network</dt><dd>{rwa ? "Ethereum · chain 1 (anchored with X Layer)" : "X Layer · chain 196"}</dd></div>
+        <div><dt>Network</dt><dd>{rwa && instrument?.chainId === 1
+          ? "Ethereum · chain 1 (anchored with X Layer)" : "X Layer · chain 196"}</dd></div>
       </dl>
       <p className="policy-signing-note">No funds or approvals move when you sign this intent.</p>
     </section>

@@ -4,10 +4,7 @@ import {
   type TransactionProgramEvidenceV1,
 } from "@cobia/solvers";
 import { keccak256, type Address, type Hash, type Hex } from "viem";
-import {
-  instrumentCommitmentV1,
-  resolveInstrumentV1,
-} from "../instruments/production-registry";
+import { verifyRegisteredInstrumentIdentityV1 } from "../instruments/verify-identity";
 
 export interface OpenProposalVerificationClientV1 {
   getBlock(input: { blockNumber: bigint }): Promise<{ hash: Hash | null }>;
@@ -26,37 +23,37 @@ export async function verifyOpenStagedProposalV1(input: {
 }) {
   const policy = OpenIntentPolicyV3Schema.parse(input.policy);
   const snapshot = OpenIntentSnapshotV1Schema.parse(input.snapshot);
-  for (const outcome of policy.outcomes) {
-    if (outcome.kind !== "registered-instrument") continue;
-    try {
-      const instrument = resolveInstrumentV1({
-        chainId: outcome.chainId,
-        token: outcome.token,
-        jurisdiction: outcome.jurisdiction,
-        nowSec: input.nowSec,
-      });
-      if (instrumentCommitmentV1(instrument) !== outcome.instrumentCommitment) {
-        return { accepted: false as const, errorCodes: ["INSTRUMENT_IDENTITY_CHANGED"] };
-      }
-    } catch (error) {
-      const code = error && typeof error === "object" && "code" in error
-        ? String(error.code) : "INSTRUMENT_NOT_REGISTERED";
-      return { accepted: false as const, errorCodes: [code] };
-    }
-  }
   const client = (chainId: 1 | 196 | 8453) => {
     const value = dependencies.clients[chainId];
     if (!value) throw new Error(`Chain ${chainId} verifier client is unavailable`);
     return value;
   };
+  const codeHash = async (chainId: 1 | 196 | 8453, address: Address, blockNumber: bigint) => {
+    const code = await client(chainId).getCode({ address, blockNumber });
+    return !code || code === "0x" ? undefined : keccak256(code);
+  };
+  for (const outcome of policy.outcomes) {
+    if (outcome.kind !== "registered-instrument") continue;
+    if (outcome.chainId !== 1 && outcome.chainId !== 196) {
+      return { accepted: false as const, errorCodes: ["INSTRUMENT_NOT_REGISTERED"] };
+    }
+    const instrumentChainId: 1 | 196 = outcome.chainId;
+    const anchor = snapshot.anchors.find(({ chainId }) => chainId === instrumentChainId);
+    if (!anchor) return { accepted: false as const, errorCodes: ["INSTRUMENT_ANCHOR_MISSING"] };
+    const identity = await verifyRegisteredInstrumentIdentityV1({
+      chainId: instrumentChainId, token: outcome.token, jurisdiction: outcome.jurisdiction,
+      instrumentCommitment: outcome.instrumentCommitment,
+      nowSec: input.nowSec, blockNumber: BigInt(anchor.blockNumber),
+    }, { getCodeHash: codeHash });
+    if (!identity.accepted) return identity;
+  }
   const verification = await verifyOpenTransactionProgramV1({ ...input,
     async confirmAnchor(anchor) {
       const block = await client(anchor.chainId).getBlock({ blockNumber: BigInt(anchor.blockNumber) });
       return block.hash?.toLowerCase() === anchor.blockHash.toLowerCase();
     },
     async getCodeHash(chainId, address, blockNumber) {
-      const code = await client(chainId).getCode({ address, blockNumber: BigInt(blockNumber) });
-      return !code || code === "0x" ? undefined : keccak256(code);
+      return codeHash(chainId, address, BigInt(blockNumber));
     },
     async verifyProviderStage({ stage, artifact, anchor }) {
       if (stage.provider !== "evm.raw@1") {

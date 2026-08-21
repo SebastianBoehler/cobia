@@ -39,6 +39,13 @@ export const RWA_INTENT_ASSETS = productionInstrumentRegistryV1().map((instrumen
   instrument,
 }));
 
+export function rwaInputAsset(instrument: (typeof RWA_INTENT_ASSETS)[number]["instrument"]) {
+  if (instrument.chainId === 1) return ETHEREUM_USDC;
+  const asset = INTENT_ASSETS.find(({ symbol }) => symbol === "USDG");
+  if (!asset) throw new Error("X Layer USDG is unavailable");
+  return asset;
+}
+
 export const DEFAULT_INTENT_RECEIPT_VALUES: IntentReceiptValues = {
   templateId: "aave-supply",
   inputToken: INTENT_ASSETS[0].address,

@@ -32,6 +32,26 @@ export function createInstrumentRegistryV1(entries: readonly unknown[]): readonl
 
 const PRODUCTION_REGISTRY = createInstrumentRegistryV1([
   {
+    version: 1, chainId: 196, token: "0x8ad3c73f833d3f9a523ab01476625f269aeb7cf0",
+    displayName: "Tesla xStock", symbol: "TSLAx", platform: "xStocks",
+    issuer: "Backed Assets (JE) Limited", underlyingIdentifier: "US88160R1014",
+    claimClass: "debt-claim", eligibleJurisdictions: ["DE"],
+    eligibilityNote: "Available only to eligible non-restricted users. Issuer, platform, geographic, and local-law restrictions apply; this token provides price exposure without Tesla shareholder rights.",
+    acquisitionProvider: "xstocks@1",
+    restrictionsHash: "0x51ddf5df94529310ce048a78caf77e379f23e801af3adb67d3a3445d316f0c6b",
+    runtimeCodeHash: "0xe7cbfea5a664672738dd729f7774677b0fa82dbdda74320df20eec49d2211b4c",
+    implementationCodeHash: "0x867df49d5c7ab1198b64f29e6be9b2c1be8482d35a59b38d0f9e243be448ae68",
+    officialSources: [
+      { url: "https://api.xstocks.fi/api/v2/public/assets/TSLAx",
+        contentHash: "0x1bbb1b62b8fc455017cf33df95f19e78174b7f9d5e27c55004168927696261fc" },
+      { url: "https://assets.backed.fi/products/tesla-xstock",
+        contentHash: "0x3fa4eae577719df8abb1a056ba56d9962b79fddcb1bcb1478bb7d8fb168e7972" },
+      { url: "https://xstocks.com/partner",
+        contentHash: "0x51ddf5df94529310ce048a78caf77e379f23e801af3adb67d3a3445d316f0c6b" },
+    ],
+    evidenceExpiresAt: 1_789_830_572,
+  },
+  {
     version: 1, chainId: 1, token: "0x45804880de22913dafe09f4980848ece6ecbaf78",
     displayName: "Pax Gold", symbol: "PAXG", platform: "Paxos",
     issuer: "Paxos Trust Company, N.A.", underlyingIdentifier: "LBMA-ALLOCATED-GOLD",

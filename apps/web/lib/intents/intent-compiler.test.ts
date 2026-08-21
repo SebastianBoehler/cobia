@@ -52,4 +52,27 @@ describe("intent compiler", () => {
     expect(request.input).toContain("Swap 10 USDG for at least 9.95 USDt0 on XLayer");
     expect(request.input).not.toContain("@");
   });
+
+  it("resolves an xStock to its exact registered X Layer token", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify({
+      status: "review", question: null, templateId: "rwa-acquisition",
+      inputSymbol: "USDG", outputSymbol: "TSLAx", amount: "10", minimum: "0.01",
+      jurisdiction: "DE",
+    })));
+    const compiler = createOpenAiIntentCompiler({ apiKey: "test", model: "test-model", fetcher });
+
+    await expect(compiler.compile(
+      "Acquire at least 0.01 TSLAx with at most 10 USDG on X Layer for an eligible DE holder",
+      "any",
+    )).resolves.toMatchObject({
+      status: "review",
+      values: {
+        templateId: "rwa-acquisition",
+        inputToken: "0x4ae46a509F6b1D9056937BA4500cb143933D2dc8",
+        outputToken: "0x8ad3c73f833d3f9a523ab01476625f269aeb7cf0",
+        minimum: "0.01",
+        jurisdiction: "DE",
+      },
+    });
+  });
 });
