@@ -58,8 +58,8 @@ export function PublicLaunchBanner() {
   return (
     <div className="public-launch" role="status">
       <Clock3 aria-hidden="true" size={16} strokeWidth={1.8} />
-      {remaining > 0 ? <span>Public execution opens in <strong>{countdown(remaining)}</strong></span>
-        : <span><strong>Activation ready</strong> · governance action pending</span>}
+      {remaining > 0 ? <span>Mainnet launch ready in <strong>{countdown(remaining)}</strong></span>
+        : <span><strong>Mainnet launch ready</strong> · governance action pending</span>}
     </div>
   );
 }
