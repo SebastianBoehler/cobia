@@ -29,6 +29,7 @@ describe("AgentProgramView", () => {
     render(<AgentProgramView programId="550e8400-e29b-41d4-a716-446655440000" />);
     expect(await screen.findByText("Verified history")).toBeVisible();
     expect(screen.getByRole("heading", { name: "Supply USDG" })).toBeVisible();
+    expect(screen.queryByText(/program audit/i)).not.toBeInTheDocument();
     expect(screen.getByText("aave-v3.supply @ 1")).toBeVisible();
     expect(screen.getByText("cobia-reference")).toBeVisible();
     expect(screen.queryByRole("button", { name: /prepare execution/i })).not.toBeInTheDocument();

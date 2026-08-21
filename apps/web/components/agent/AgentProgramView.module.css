@@ -2,8 +2,6 @@
 .loading { align-items: center; color: var(--muted); display: flex; gap: 12px; justify-content: center; min-height: 52svh; }
 .hero { align-items: end; display: grid; gap: clamp(28px, 5vw, 72px); grid-template-columns: minmax(0, 1.45fr) minmax(310px, .55fr); padding: 18px 0 34px; }
 .heroCopy { max-width: 780px; }
-.eyebrow { align-items: center; color: var(--cobalt-dark); display: flex; font-size: 12px; font-weight: 680; gap: 8px; letter-spacing: .03em; margin: 0 0 20px; text-transform: uppercase; }
-.eyebrow svg { height: 16px; stroke-width: 2; width: 16px; }
 .hero h1 { font-size: clamp(3rem, 6vw, 5.75rem); font-weight: 620; letter-spacing: -.075em; line-height: .92; margin: 0; max-width: 12ch; text-wrap: balance; }
 .lead { color: var(--muted); font-size: clamp(15px, 1.4vw, 18px); line-height: 1.6; margin: 24px 0 0; max-width: 62ch; text-wrap: pretty; }
 .statusCard { align-items: start; background: var(--surface); border-radius: 20px; box-shadow: var(--shadow-soft); display: grid; gap: 14px; grid-template-columns: 42px minmax(0, 1fr); padding: 20px; }

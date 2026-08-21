@@ -49,7 +49,6 @@ export function AgentProgramSummary({ program, action }: {
   return <div className={styles.shell}>
     <header className={styles.hero}>
       <div className={styles.heroCopy}>
-        <p className={styles.eyebrow}><Bot aria-hidden="true" /> Program audit · Revision {submission.revision}</p>
         <h1>{submission.displayGoal ?? "Agent-authored route"}</h1>
         <p className={styles.lead}>A solver proposal with its route, pinned chain state, and independent verification boundary shown separately.</p>
       </div>
