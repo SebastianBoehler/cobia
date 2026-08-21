@@ -178,6 +178,7 @@ export function normalizeX402ResourceV1(input: NormalizeX402Input): CommerceOffe
 }
 
 export function x402PaymentRequiredCommitmentV1(input: X402PaymentRequiredV2): Hash {
-  const { extensions: _extensions, ...paymentTerms } = X402PaymentRequiredV2Schema.parse(input);
+  const paymentTerms = X402PaymentRequiredV2Schema.parse(input);
+  delete paymentTerms.extensions;
   return keccak256(stringToHex(canonicalJson(paymentTerms)));
 }

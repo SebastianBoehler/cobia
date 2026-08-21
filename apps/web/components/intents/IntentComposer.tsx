@@ -71,11 +71,11 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
     if (mentionsLoaded) return;
     setMentionsLoaded(true);
     if (wallet.account && wallet.targetChainId === 196) {
-      fetch(`/api/wallets/${wallet.account}/portfolio?chainId=196`, { cache: "no-store" })
+      fetch(`/api/wallets/${wallet.account}/portfolio?chainId=196`)
         .then(async (response) => response.ok ? response.json() as Promise<PortfolioSnapshot> : undefined)
         .then(setPortfolio).catch(() => undefined);
     }
-    fetch("/api/commerce/discover?limit=12", { cache: "no-store" })
+    fetch("/api/commerce/discover?limit=12")
       .then(async (response): Promise<{ offers: unknown[] }> => response.ok
         ? response.json() as Promise<{ offers: unknown[] }> : { offers: [] })
       .then((result) => setOffers(result.offers.flatMap((offer) => {

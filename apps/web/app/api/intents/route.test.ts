@@ -3,14 +3,13 @@ import { privateKeyToAccount } from "viem/accounts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  listDiscover: vi.fn(),
-  getSnapshot: vi.fn(),
+  listDiscoverWithSnapshots: vi.fn(),
   publish: vi.fn(async () => undefined),
 }));
 vi.mock("../../../lib/runtime/market", () => ({
-  getIntentRepository: () => ({ listDiscover: mocks.listDiscover }),
-  getOpenIntentSnapshotRepository: () => ({ get: mocks.getSnapshot }),
+  getIntentRepository: () => ({ listDiscoverWithSnapshots: mocks.listDiscoverWithSnapshots }),
   publishOpenIntent: mocks.publish,
+  OwnerBalanceRequiredError: class OwnerBalanceRequiredError extends Error {},
   ActiveManifestMismatchError: class ActiveManifestMismatchError extends Error {},
 }));
 
@@ -52,38 +51,39 @@ describe("general intent competition API", () => {
   beforeEach(() => {
     vi.spyOn(Date, "now").mockReturnValue(nowSec * 1_000);
     vi.clearAllMocks();
-    mocks.listDiscover.mockResolvedValue([]);
-    mocks.getSnapshot.mockResolvedValue(null);
+    mocks.listDiscoverWithSnapshots.mockResolvedValue([]);
     mocks.publish.mockResolvedValue(undefined);
   });
 
   it("lists fresh signed intents for independent solver harnesses", async () => {
-    mocks.listDiscover.mockResolvedValue([{ ...policy, id: policy.requestId }]);
-    mocks.listDiscover.mockResolvedValueOnce([{
-      id: policy.requestId,
-      owner: policy.owner,
-      chainId: 196,
-      displayGoal: policy.displayGoal,
-      policyHash: commitment(policy),
-      policy,
-      ownerSignature: await account.signMessage({ message: { raw: commitment(policy) } }),
-      state: "collecting",
-      competitionClosesAt: new Date(policy.competition.closesAt * 1_000),
-      selectedSubmissionId: null,
-      createdAt: new Date((nowSec - 100) * 1_000),
-      updatedAt: new Date((nowSec - 100) * 1_000),
+    mocks.listDiscoverWithSnapshots.mockResolvedValueOnce([{
+      intent: {
+        id: policy.requestId,
+        owner: policy.owner,
+        chainId: 196,
+        displayGoal: policy.displayGoal,
+        policyHash: commitment(policy),
+        policy,
+        ownerSignature: await account.signMessage({ message: { raw: commitment(policy) } }),
+        state: "collecting",
+        competitionClosesAt: new Date(policy.competition.closesAt * 1_000),
+        selectedSubmissionId: null,
+        createdAt: new Date((nowSec - 100) * 1_000),
+        updatedAt: new Date((nowSec - 100) * 1_000),
+      },
+      snapshot: {
+        intentId: policy.requestId,
+        snapshotHash: commitment(snapshot),
+        snapshot,
+        createdAt: new Date((nowSec - 90) * 1_000),
+      },
     }]);
-    mocks.getSnapshot.mockResolvedValue({
-      intentId: policy.requestId,
-      snapshotHash: commitment(snapshot),
-      snapshot,
-      createdAt: new Date((nowSec - 90) * 1_000),
-    });
 
     const response = await GET();
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("cache-control"))
+      .toBe("public, max-age=0, s-maxage=10, stale-while-revalidate=30");
     await expect(response.json()).resolves.toEqual({
       observedAt: nowSec,
       intents: [{
@@ -98,7 +98,7 @@ describe("general intent competition API", () => {
           decisions: `/api/intents/${policy.requestId}/decisions` },
       }],
     });
-    expect(mocks.listDiscover).toHaveBeenCalledWith(nowSec);
+    expect(mocks.listDiscoverWithSnapshots).toHaveBeenCalledWith(nowSec);
   });
 
   it("publishes the signed open intent for independent competing solvers", async () => {
@@ -121,5 +121,18 @@ describe("general intent competition API", () => {
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({ code: "INVALID_SIGNATURE" });
     expect(mocks.publish).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unfunded owner without charging for intent submission", async () => {
+    const { OwnerBalanceRequiredError } = await import("../../../lib/runtime/market");
+    mocks.publish.mockRejectedValueOnce(new OwnerBalanceRequiredError());
+
+    const response = await POST(await signedRequest());
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "OWNER_BALANCE_REQUIRED",
+      message: "The owner needs a positive native balance on every execution chain.",
+    });
   });
 });

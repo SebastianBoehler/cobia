@@ -6,6 +6,7 @@ import { createSolverProfileRepository } from "./solver-profiles";
 import { createSolverRunRepository } from "./solver-runs";
 import { createSolverSubmissionRepository } from "./solver-submissions";
 import { createOpenIntentTestPolicy } from "./open-intent-test-fixture";
+import { createOpenIntentSnapshotRepository } from "./open-intent-snapshots";
 
 type Database = Awaited<ReturnType<typeof startIntegrationDatabase>>;
 let database: Database | undefined;
@@ -61,9 +62,23 @@ describe("solver competition projections", () => {
   });
 
   it("ranks only the newest fresh accepted revision and preserves history", async () => {
-    await createIntentRepository(db()).create({
+    const intents = createIntentRepository(db());
+    await intents.create({
       policy, ownerSignature: `0x${"44".repeat(65)}`,
     });
+    await createOpenIntentSnapshotRepository(db()).create({
+      version: 1,
+      kind: "open-onchain",
+      requestId: policy.requestId,
+      capturedAt: new Date((nowSec - 1) * 1_000).toISOString(),
+      anchors: [{ chainId: 196, blockNumber: "123456", blockHash: hash("3") }],
+    });
+    await expect(intents.listDiscoverWithSnapshots(nowSec)).resolves.toEqual([
+      expect.objectContaining({
+        intent: expect.objectContaining({ id: policy.requestId }),
+        snapshot: expect.objectContaining({ intentId: policy.requestId }),
+      }),
+    ]);
     const submissions = createSolverSubmissionRepository(db());
     const runs = createSolverRunRepository(db());
     const completeRun = async (solverId: string, revision: number, blockNumber: string, blockHash: `0x${string}`) => {

@@ -51,8 +51,19 @@ describe("solver exchange client", () => {
 
     expect(result.intents[0]?.policy).toEqual(policy);
     expect(fetch).toHaveBeenCalledWith("https://getcobia.com/api/intents", {
-      headers: { accept: "application/json" }, cache: "no-store",
+      headers: { accept: "application/json" }, signal: expect.any(AbortSignal),
     });
+  });
+
+  it("accepts the explicit local Compose exchange without weakening public HTTPS", () => {
+    expect(() => createSolverExchangeClient({
+      baseUrl: "http://host.docker.internal:3000",
+      fetch: vi.fn(),
+    })).not.toThrow();
+    expect(() => createSolverExchangeClient({
+      baseUrl: "http://example.com",
+      fetch: vi.fn(),
+    })).toThrow(/HTTPS/);
   });
 
   it("rejects commitment drift, invalid owner signatures, and credential-bearing origins", async () => {

@@ -10,7 +10,6 @@ export function ThemeToggle() {
     const next = current === "dark" ? "light" : "dark";
     root.dataset.theme = next;
     localStorage.setItem("cobia-theme", next);
-    document.cookie = `cobia-theme=${next}; Path=/; Max-Age=31536000; SameSite=Lax`;
   }
 
   return (

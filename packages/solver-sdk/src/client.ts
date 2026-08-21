@@ -66,7 +66,7 @@ export class SolverExchangeHttpError extends Error {
 
 function exchangeOrigin(value: string): string {
   const url = new URL(value);
-  const local = ["localhost", "127.0.0.1", "::1"].includes(url.hostname);
+  const local = ["localhost", "127.0.0.1", "::1", "host.docker.internal"].includes(url.hostname);
   if ((!local && url.protocol !== "https:") || (local && !["http:", "https:"].includes(url.protocol))) {
     throw new Error("Solver exchange origin must use HTTPS");
   }
@@ -108,10 +108,14 @@ export function createSolverExchangeClient(input: {
 }) {
   const origin = exchangeOrigin(input.baseUrl);
   const fetchImpl = input.fetch ?? globalThis.fetch;
+  const request = (url: string, init: RequestInit = {}) => fetchImpl(url, {
+    ...init,
+    signal: init.signal ?? AbortSignal.timeout(15_000),
+  });
   return {
     async listIntents(): Promise<SolverIntentListV1> {
-      const response = await fetchImpl(`${origin}/api/intents`, {
-        headers: { accept: "application/json" }, cache: "no-store",
+      const response = await request(`${origin}/api/intents`, {
+        headers: { accept: "application/json" },
       });
       const list = IntentListSchema.parse(await boundedJson(response, "Intent exchange"));
       await Promise.all(list.intents.map(verifyIntentSignature));
@@ -125,7 +129,7 @@ export function createSolverExchangeClient(input: {
         message: { raw: solverProfileClaimCommitmentV1(claim) }, signature,
       });
       if (!isAddressEqual(signer, claim.operator)) throw new Error("Solver profile signature mismatch");
-      const response = await fetchImpl(`${origin}/api/solvers`, {
+      const response = await request(`${origin}/api/solvers`, {
         method: "POST",
         headers: { accept: "application/json", "content-type": "application/json" },
         body: JSON.stringify({ claim, signature }),
@@ -150,7 +154,7 @@ export function createSolverExchangeClient(input: {
       await recoverMessageAddress({
         message: { raw: solverDecisionClaimCommitmentV1(claim) }, signature,
       });
-      const response = await fetchImpl(`${origin}/api/intents/${claim.intentId}/decisions`, {
+      const response = await request(`${origin}/api/intents/${claim.intentId}/decisions`, {
         method: "POST",
         headers: { accept: "application/json", "content-type": "application/json" },
         body: JSON.stringify({ claim, signature, decision }),

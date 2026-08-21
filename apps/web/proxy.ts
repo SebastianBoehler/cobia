@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { networkAllowsPath, resolveSiteNetwork } from "./lib/network/site-network";
+import { VERCEL_PUBLIC_CACHE_10_SECONDS } from "./lib/http/cache-policy";
 
 export function proxy(request: NextRequest): NextResponse {
   let network;
@@ -13,7 +14,13 @@ export function proxy(request: NextRequest): NextResponse {
     }, { status: 421 });
   }
 
-  if (networkAllowsPath(network.mode, request.nextUrl.pathname)) return NextResponse.next();
+  if (networkAllowsPath(network.mode, request.nextUrl.pathname)) {
+    const response = NextResponse.next();
+    if (!request.nextUrl.pathname.startsWith("/api/") && ["GET", "HEAD"].includes(request.method)) {
+      response.headers.set("Vercel-CDN-Cache-Control", VERCEL_PUBLIC_CACHE_10_SECONDS);
+    }
+    return response;
+  }
   if (request.nextUrl.pathname.startsWith("/api/")) {
     return NextResponse.json({
       code: "NETWORK_UNAVAILABLE",

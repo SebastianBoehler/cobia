@@ -36,4 +36,11 @@ describe("hostname network proxy", () => {
 
     expect(response.status).toBe(409);
   });
+
+  it("gives public pages a short host-scoped CDN lifetime", () => {
+    const response = proxy(new NextRequest("https://getcobia.com/discover"));
+
+    expect(response.headers.get("vercel-cdn-cache-control"))
+      .toBe("public, s-maxage=10, stale-while-revalidate=30");
+  });
 });

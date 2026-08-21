@@ -1,6 +1,5 @@
 import { SolverDecisionV1Schema, type SolverDecisionV1, type SolverIntentV1 } from "@cobia/solver-sdk";
 import { readFile, writeFile } from "node:fs/promises";
-import { pathToFileURL } from "node:url";
 import { solve } from "./strategy";
 
 export const REFERENCE_CAPABILITIES = [
@@ -39,8 +38,4 @@ export async function runRouteTool(args: readonly string[], dependencies: Depend
   await writeFile(outputPath, `${JSON.stringify(decision, null, 2)}\n`, { mode: 0o600 });
   dependencies.write(`${JSON.stringify({ version: 1, output: outputPath,
     decision: decision.decision })}\n`);
-}
-
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  await runRouteTool(process.argv.slice(2));
 }

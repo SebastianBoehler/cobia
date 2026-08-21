@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { POST, resolveAssetMentionRequest } from "./route";
+import { POST, resolveAssetMentionRequest, type AssetResolution } from "./route";
+import { createTtlAsyncCache } from "../../../../lib/cache/ttl-async-cache";
 
 const xstocks = {
   id: "rwa.instruments" as const,
@@ -45,5 +46,22 @@ describe("POST /api/assets/resolve", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({ assets: [{ symbol: "EXAMPLE",
       address: token, priceUsd: "2.50", liquidityUsd: "100000", holderCount: "1200" }] });
+  });
+
+  it("reuses fresh resolution evidence for repeated requests", async () => {
+    const token = "0x2222222222222222222222222222222222222222" as const;
+    const okx = { searchXLayerToken: vi.fn(async () => ({ chainId: 196 as const, token,
+      name: "Example Token", symbol: "EXAMPLE", decimals: 18, priceUsd: "2.50",
+      liquidityUsd: "100000", holderCount: "1200" })) };
+    const cache = createTtlAsyncCache<AssetResolution>({ ttlMs: 60_000, maxEntries: 8 });
+    const request = () => new Request("https://getcobia.com/api/assets/resolve", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ symbols: ["EXAMPLE"] }),
+    });
+
+    await resolveAssetMentionRequest(request(), xstocks, okx, cache);
+    await resolveAssetMentionRequest(request(), xstocks, okx, cache);
+
+    expect(okx.searchXLayerToken).toHaveBeenCalledTimes(1);
   });
 });

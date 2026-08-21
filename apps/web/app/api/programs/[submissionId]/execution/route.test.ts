@@ -50,4 +50,16 @@ describe("canonical program execution access", () => {
     expect(response.status).toBe(404);
     expect(await response.json()).toMatchObject({ code: "NOT_FOUND" });
   });
+
+  it("does not expose internal execution failures", async () => {
+    mocks.verifyProof.mockRejectedValue(new Error("DATABASE_URL contains secret-host"));
+
+    const response = await POST(request(), context);
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      code: "EXECUTION_UNAVAILABLE",
+      message: "Program execution is unavailable.",
+    });
+  });
 });

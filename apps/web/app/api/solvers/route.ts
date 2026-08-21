@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { isAddressEqual, recoverMessageAddress, type Hex } from "viem";
 import { z } from "zod";
 import { getSolverProfileRepository } from "../../../lib/runtime/market";
+import { PUBLIC_CACHE_30_SECONDS } from "../../../lib/http/cache-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,7 +34,7 @@ export async function GET(): Promise<Response> {
         performance: profile.performance,
         links: { profile: `/solvers/${profile.id}` },
       })),
-    }, { headers: { "Cache-Control": "no-store" } });
+    }, { headers: { "Cache-Control": PUBLIC_CACHE_30_SECONDS } });
   } catch {
     return NextResponse.json({
       code: "SOLVER_LIST_FAILED",

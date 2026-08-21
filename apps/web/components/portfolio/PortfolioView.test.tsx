@@ -16,6 +16,11 @@ afterEach(() => {
 });
 
 describe("PortfolioView", () => {
+  it("offers wallet connection inside the empty state", () => {
+    render(<WalletProvider><PortfolioView /></WalletProvider>);
+    expect(screen.getByRole("button", { name: "Connect wallet" })).toBeVisible();
+  });
+
   it("reads the coherent mainnet portfolio even when the wallet starts on testnet", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({
       address: owner,
@@ -63,12 +68,11 @@ describe("PortfolioView", () => {
     act(() => window.dispatchEvent(
       new CustomEvent("eip6963:announceProvider", { detail }),
     ));
-    fireEvent.click(screen.getByRole("button", { name: "Connect wallet" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Connect wallet" })[0]!);
 
     expect(await screen.findByText("X Layer Mainnet")).toBeVisible();
     expect(fetch).toHaveBeenCalledWith(
       `/api/wallets/${owner}/portfolio?chainId=196`,
-      { cache: "no-store" },
     );
     expect(screen.queryByText(/payment rehearsal/i)).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Wallet balances" })).toBeVisible();
@@ -102,10 +106,10 @@ describe("PortfolioView", () => {
 
     render(<WalletProvider targetChainId={1952}><WalletButton /><PortfolioView /></WalletProvider>);
     act(() => window.dispatchEvent(new CustomEvent("eip6963:announceProvider", { detail })));
-    fireEvent.click(screen.getByRole("button", { name: "Connect wallet" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Connect wallet" })[0]!);
 
     expect(await screen.findByText("X Layer Testnet")).toBeVisible();
-    expect(fetch).toHaveBeenCalledWith(`/api/wallets/${owner}/portfolio?chainId=1952`, { cache: "no-store" });
+    expect(fetch).toHaveBeenCalledWith(`/api/wallets/${owner}/portfolio?chainId=1952`);
     expect(screen.getByText("0.001 OKB")).toBeVisible();
     expect(screen.queryByRole("heading", { name: "Protocol positions" })).not.toBeInTheDocument();
   });

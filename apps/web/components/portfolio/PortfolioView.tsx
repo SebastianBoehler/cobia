@@ -4,6 +4,7 @@ import { CircleAlert, LoaderCircle, WalletCards } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { PortfolioSnapshot } from "../../lib/portfolio/read-portfolio";
 import { useWallet } from "../wallet/WalletProvider";
+import { WalletButton } from "../wallet/WalletButton";
 import styles from "../product/ProductShell.module.css";
 import { PortfolioAssetMark } from "./PortfolioAssetMark";
 
@@ -23,7 +24,7 @@ export function PortfolioView() {
     if (!wallet.account) return;
     let active = true;
     const account = wallet.account;
-    fetch(`/api/wallets/${wallet.account}/portfolio?chainId=${wallet.targetChainId}`, { cache: "no-store" })
+    fetch(`/api/wallets/${wallet.account}/portfolio?chainId=${wallet.targetChainId}`)
       .then(async (response) => {
         const body = await response.json();
         if (!response.ok) throw new Error(body.message ?? "Portfolio read failed.");
@@ -35,7 +36,7 @@ export function PortfolioView() {
   }, [wallet.account, wallet.chainId, wallet.targetChainId]);
 
   const testnet = wallet.targetChainId === 1952;
-  if (!wallet.account) return <section className={styles.empty}><WalletCards size={28} /><h2>Connect your wallet</h2><p>{testnet ? "Your testnet OKB balance is read directly from chain 1952." : "Your X Layer balances and protocol positions are read directly from chain state."}</p></section>;
+  if (!wallet.account) return <section className={styles.empty}><WalletCards size={28} /><h2>Connect your wallet</h2><p>{testnet ? "Your testnet OKB balance is read directly from chain 1952." : "Your X Layer balances and protocol positions are read directly from chain state."}</p><WalletButton placement="empty-state" /></section>;
   if (result?.account !== wallet.account) return <section className={styles.empty}><LoaderCircle className="spin" /><h2>Reading {testnet ? "X Layer Testnet" : "X Layer"}</h2></section>;
   if (result.error) return <section className={styles.empty}><CircleAlert /><h2>Portfolio unavailable</h2><p className={styles.error}>{result.error}</p></section>;
   const snapshot = result.snapshot;

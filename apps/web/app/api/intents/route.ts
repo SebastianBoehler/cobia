@@ -3,9 +3,10 @@ import { NextResponse } from "next/server";
 import type { Hex } from "viem";
 import { z } from "zod";
 import { verifyPolicyOwnerSignature } from "../../../lib/intents/signature";
+import { PUBLIC_CACHE_10_SECONDS } from "../../../lib/http/cache-policy";
 import {
   getIntentRepository,
-  getOpenIntentSnapshotRepository,
+  OwnerBalanceRequiredError,
   publishOpenIntent,
 } from "../../../lib/runtime/market";
 
@@ -23,10 +24,8 @@ class InvalidOwnerSignatureError extends Error {}
 export async function GET(): Promise<Response> {
   const observedAt = Math.floor(Date.now() / 1_000);
   try {
-    const rows = await getIntentRepository().listDiscover(observedAt);
-    const intents = await Promise.all(rows.map(async (row) => {
-      const snapshot = await getOpenIntentSnapshotRepository().get(row.id);
-      if (!snapshot) throw new Error("Published open intent snapshot is unavailable");
+    const rows = await getIntentRepository().listDiscoverWithSnapshots(observedAt);
+    const intents = rows.map(({ intent: row, snapshot }) => {
       return {
         id: row.id,
         policy: OpenIntentPolicyV3Schema.parse(row.policy),
@@ -40,9 +39,9 @@ export async function GET(): Promise<Response> {
           decisions: `/api/intents/${row.id}/decisions`,
         },
       };
-    }));
+    });
     return NextResponse.json({ observedAt, intents }, {
-      headers: { "Cache-Control": "no-store" },
+      headers: { "Cache-Control": PUBLIC_CACHE_10_SECONDS },
     });
   } catch {
     return NextResponse.json({
@@ -76,13 +75,17 @@ export async function POST(request: Request): Promise<Response> {
   } catch (error) {
     const invalid = error instanceof z.ZodError;
     const invalidSignature = error instanceof InvalidOwnerSignatureError;
+    const balanceRequired = error instanceof OwnerBalanceRequiredError;
     return NextResponse.json({
       code: invalid ? "INVALID_INTENT"
-        : invalidSignature ? "INVALID_SIGNATURE" : "INTENT_UNAVAILABLE",
+        : invalidSignature ? "INVALID_SIGNATURE"
+          : balanceRequired ? "OWNER_BALANCE_REQUIRED" : "INTENT_UNAVAILABLE",
       message: invalid ? "The signed general intent is invalid."
         : invalidSignature ? "The owner signature is invalid."
-          : "The intent could not be published.",
+          : balanceRequired
+            ? "The owner needs a positive native balance on every execution chain."
+            : "The intent could not be published.",
       intentId,
-    }, { status: invalid || invalidSignature ? 400 : 503 });
+    }, { status: invalid || invalidSignature ? 400 : balanceRequired ? 409 : 503 });
   }
 }

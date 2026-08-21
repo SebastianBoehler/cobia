@@ -5,7 +5,8 @@
   "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "scripts": {
-    "start": "tsx src/index.ts",
+    "build": "node scripts/build-runtime.mjs",
+    "start": "node dist/index.mjs",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
@@ -14,17 +15,17 @@
     "@cobia/domain": "workspace:*",
     "@cobia/solver-sdk": "workspace:*",
     "@cobia/solvers": "workspace:*",
-    "@cobia/web": "workspace:*",
     "@foundry-rs/anvil": "1.7.1",
     "@modelcontextprotocol/server": "2.0.0",
     "@openai/codex": "0.148.0",
     "@openai/codex-sdk": "^0.148.0",
-    "smol-toml": "1.4.2",
+    "smol-toml": "1.8.0",
     "viem": "2.55.11",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "26.2.0",
+    "esbuild": "0.28.2",
     "tsx": "4.23.11",
     "typescript": "6.0.3",
     "vitest": "4.1.10"

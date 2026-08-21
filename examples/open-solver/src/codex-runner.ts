@@ -61,7 +61,7 @@ export function solverCodexConfig(job: CodexJob) {
     mcp_servers: {
       cobia_route: {
         command: process.execPath,
-        args: ["--import", "tsx", fileURLToPath(new URL("./route-mcp-server.ts", import.meta.url)),
+        args: [fileURLToPath(new URL("./route-mcp-server.mjs", import.meta.url)),
           "--intent", job.intentPath],
         cwd: repositoryRoot,
         env: routeEnvironment(),

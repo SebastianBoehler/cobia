@@ -5,7 +5,9 @@ import { useState } from "react";
 import { shortAddress } from "../../lib/wallet/eip1193";
 import { useWallet } from "./WalletProvider";
 
-export function WalletButton() {
+export function WalletButton({ placement = "header" }: {
+  placement?: "header" | "empty-state";
+}) {
   const wallet = useWallet();
   const [open, setOpen] = useState(false);
   const [localError, setLocalError] = useState<string>();
@@ -43,13 +45,17 @@ export function WalletButton() {
 
   return (
     <div className="wallet-control">
-      <button className="button button--quiet app-header__action" type="button" onClick={toggle}
+      <button className={placement === "header"
+        ? "button button--quiet app-header__action"
+        : "button button--primary"} type="button" onClick={toggle}
         aria-expanded={open} aria-label={label}>
         <Wallet aria-hidden="true" size={16} />
-        <span className="wallet-control__label--desktop" aria-hidden="true">{label}</span>
-        <span className="wallet-control__label--mobile" aria-hidden="true">
-          {wallet.account ? shortAddress(wallet.account) : "Wallet"}
-        </span>
+        {placement === "header" ? <>
+          <span className="wallet-control__label--desktop" aria-hidden="true">{label}</span>
+          <span className="wallet-control__label--mobile" aria-hidden="true">
+            {wallet.account ? shortAddress(wallet.account) : "Wallet"}
+          </span>
+        </> : <span aria-hidden="true">Connect wallet</span>}
         <ChevronDown aria-hidden="true" size={14} />
       </button>
       {open ? (

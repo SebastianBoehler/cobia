@@ -2,14 +2,8 @@ import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
 export function vercelBuildSteps(environment) {
-  const steps = [];
-
-  if (environment.VERCEL_ENV === "production") {
-    steps.push(["pnpm", ["exec", "drizzle-kit", "migrate"]]);
-  }
-
-  steps.push(["pnpm", ["exec", "next", "build"]]);
-  return steps;
+  void environment;
+  return [["pnpm", ["exec", "next", "build"]]];
 }
 
 function runBuild(environment) {

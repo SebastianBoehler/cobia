@@ -21,6 +21,8 @@ describe("commerce discovery API", () => {
     const response = await GET(new Request("https://cobia.example/api/commerce/discover?limit=20"));
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control"))
+      .toBe("public, max-age=0, s-maxage=30, stale-while-revalidate=60");
     await expect(response.json()).resolves.toEqual({
       offers: [{ offerId: "x402:merchant:coffee", eligibility: { status: "discovery-only" } }],
       sourceErrors: [{ sourceId: "cdp", code: "DISCOVERY_SOURCE_INVALID", message: "bad row" }],

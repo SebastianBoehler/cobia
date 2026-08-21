@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { AppFooter } from "../components/layout/AppFooter";
@@ -20,6 +19,8 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+const themeInitializer = `try{const theme=localStorage.getItem("cobia-theme");if(theme==="dark"||theme==="light")document.documentElement.dataset.theme=theme}catch{}`;
 
 const mainnetMetadata: Metadata = {
   metadataBase: new URL(SITE_ORIGIN),
@@ -82,17 +83,15 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const network = await getSiteNetwork();
-  const savedTheme = (await cookies()).get("cobia-theme")?.value;
-  const theme = savedTheme === "dark" || savedTheme === "light" ? savedTheme : undefined;
   return (
     <html
       lang="en"
       data-network={network.mode}
-      data-theme={theme}
       data-scroll-behavior="smooth"
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head><script id="cobia-theme-init">{themeInitializer}</script></head>
       <body className="min-h-full flex flex-col">
         <WalletProvider targetChainId={network.chainId}>{children}</WalletProvider>
         <AppFooter targetChainId={network.chainId} />

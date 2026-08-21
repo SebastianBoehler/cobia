@@ -53,7 +53,7 @@ export async function POST(request: Request, context: RouteContext<
     const invalid = error instanceof z.ZodError;
     return NextResponse.json({
       code: invalid ? "INVALID_REQUEST" : "PROPOSAL_UNAVAILABLE",
-      message: error instanceof Error ? error.message : "Commerce proposal is unavailable.",
+      message: invalid ? "Commerce proposal request is invalid." : "Commerce proposal is unavailable.",
     }, { status: invalid ? 400 : 409 });
   }
 }

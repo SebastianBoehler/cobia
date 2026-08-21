@@ -33,4 +33,23 @@ describe("canonical program receipt access", () => {
     expect(await response.json()).toMatchObject({ code: "INVALID_PROOF" });
     expect(mocks.getExecutionContext).not.toHaveBeenCalled();
   });
+
+  it("does not expose internal receipt-attribution failures", async () => {
+    mocks.verifyProof.mockRejectedValue(new Error("RPC secret-host failed"));
+    const response = await POST(new Request(
+      `https://getcobia.com/api/programs/${submissionId}/execution/receipt`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          proof: {}, ownerSignature: `0x${"11".repeat(65)}`,
+          transactionHash: `0x${"22".repeat(32)}`,
+        }),
+      },
+    ), context);
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      code: "RECEIPT_UNAVAILABLE",
+      message: "Could not attribute execution receipt.",
+    });
+  });
 });

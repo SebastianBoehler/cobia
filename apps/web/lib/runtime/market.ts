@@ -54,6 +54,12 @@ let solverDecisionClaimRepository: ReturnType<typeof createSolverDecisionClaimRe
 let solverSuccessFeeRepository: ReturnType<typeof createSolverSuccessFeeRepository> | undefined;
 let walletAuthRepository: ReturnType<typeof createWalletAuthRepository> | undefined;
 
+export class OwnerBalanceRequiredError extends Error {
+  constructor() {
+    super("Intent owner has no native execution balance");
+  }
+}
+
 function getDatabase() {
   database ??= createDatabase(readDatabaseUrl());
   return database.db;
@@ -154,12 +160,18 @@ export async function publishOpenIntent(input: {
     transport: http(config.XLAYER_RPC_URL, { timeout: 15_000 }),
     cacheTime: 0,
   });
-  const snapshot = await captureOpenIntentSnapshotV1(input.policy, {
+  const clients = {
     1: createPublicClient({ chain: mainnet,
       transport: http(config.ETHEREUM_RPC_URL, { timeout: 15_000 }), cacheTime: 0 }),
     196: xLayerClient,
     8453: createPublicClient({ chain: base,
       transport: http(config.BASE_RPC_URL, { timeout: 15_000 }), cacheTime: 0 }),
+  } as const;
+  const balances = await Promise.all(input.policy.executionChainIds.map((chainId) =>
+    clients[chainId].getBalance({ address: input.policy.owner as Address })));
+  if (balances.some((balance) => balance === 0n)) throw new OwnerBalanceRequiredError();
+  const snapshot = await captureOpenIntentSnapshotV1(input.policy, {
+    ...clients,
   }, createOkxClient({ credentials: readOkxCredentials() }));
   const intent = await getIntentRepository().create(input);
   await getOpenIntentSnapshotRepository().create(snapshot);

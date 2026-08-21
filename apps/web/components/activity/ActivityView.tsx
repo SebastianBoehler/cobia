@@ -3,6 +3,7 @@
 import { Activity, BadgeCheck, CircleAlert, LoaderCircle, Radio, ReceiptText, Route } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useWallet } from "../wallet/WalletProvider";
+import { WalletButton } from "../wallet/WalletButton";
 import styles from "../product/ProductShell.module.css";
 
 interface WalletEvent {
@@ -47,14 +48,14 @@ export function ActivityView() {
     if (!wallet.account) return;
     let active = true;
     const account = wallet.account;
-    fetch(`/api/wallets/${wallet.account}/activity`, { cache: "no-store" })
+    fetch(`/api/wallets/${wallet.account}/activity`)
       .then(async (response) => { const body = await response.json(); if (!response.ok) throw new Error(body.message); return body.events as WalletEvent[]; })
       .then((body) => { if (active) setResult({ account, events: body }); })
       .catch((cause) => { if (active) setResult({ account, error: cause instanceof Error ? cause.message : "Activity read failed." }); });
     return () => { active = false; };
   }, [wallet.account]);
 
-  if (!wallet.account) return <section className={styles.empty}><Activity size={28} /><h2>Connect your wallet</h2><p>Signed policies, quote purchases, and payment receipts appear here in order.</p></section>;
+  if (!wallet.account) return <section className={styles.empty}><Activity size={28} /><h2>Connect your wallet</h2><p>Signed policies, quote purchases, and payment receipts appear here in order.</p><WalletButton placement="empty-state" /></section>;
   if (result?.account !== wallet.account) return <section className={styles.empty}><LoaderCircle className="spin" /><h2>Loading activity</h2></section>;
   if (result.error) return <section className={styles.empty}><CircleAlert /><h2>Activity unavailable</h2><p className={styles.error}>{result.error}</p></section>;
   const events = result.events;

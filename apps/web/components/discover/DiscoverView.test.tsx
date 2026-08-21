@@ -38,4 +38,19 @@ describe("DiscoverView", () => {
     expect(html).toContain("Verified solver history will appear here after a program resolves.");
     expect(html).toContain("No supported paid resources are available yet");
   });
+
+  it("keeps healthy sections usable when one source is unavailable", () => {
+    const html = renderToStaticMarkup(<DiscoverView
+      challenges={[{ id: "stable-outcome", title: "Stable outcome", goal: "Find it.", availability: "live" }]}
+      history={[]}
+      intents={[]}
+      commerceOffers={[]}
+      observedAtSec={2_000_000_000}
+      sectionErrors={{ commerce: "Paid-resource discovery is temporarily unavailable." }}
+    />);
+
+    expect(html).toContain("Stable outcome");
+    expect(html).toContain("Paid-resource discovery is temporarily unavailable.");
+    expect(html).not.toContain("No supported paid resources are available yet");
+  });
 });

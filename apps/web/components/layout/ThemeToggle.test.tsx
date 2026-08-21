@@ -9,6 +9,7 @@ describe("ThemeToggle", () => {
   beforeEach(() => {
     document.documentElement.dataset.theme = "light";
     localStorage.clear();
+    document.cookie = "cobia-theme=; Path=/; Max-Age=0";
   });
 
   it("persists and applies the opposite theme", () => {
@@ -16,6 +17,6 @@ describe("ThemeToggle", () => {
     fireEvent.click(screen.getByRole("button", { name: "Toggle color theme" }));
     expect(document.documentElement.dataset.theme).toBe("dark");
     expect(localStorage.getItem("cobia-theme")).toBe("dark");
-    expect(document.cookie).toContain("cobia-theme=dark");
+    expect(document.cookie).not.toContain("cobia-theme");
   });
 });

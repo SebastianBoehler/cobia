@@ -28,16 +28,25 @@ export async function watchSolverIntents(input: {
   onError(error: unknown, intent?: SolverIntentV1): void | Promise<void>;
   isHandled?(intent: SolverIntentV1): boolean;
   pollIntervalMs?: number;
+  maxConsecutivePollFailures?: number;
+  onPoll?(): void | Promise<void>;
   signal: AbortSignal;
 }) {
-  const pollIntervalMs = input.pollIntervalMs ?? 1_000;
+  const pollIntervalMs = input.pollIntervalMs ?? 10_000;
+  const maxFailures = input.maxConsecutivePollFailures ?? 12;
   if (!Number.isSafeInteger(pollIntervalMs) || pollIntervalMs < 1) {
     throw new Error("Solver intent poll interval must be a positive integer");
   }
+  if (!Number.isSafeInteger(maxFailures) || maxFailures < 1) {
+    throw new Error("Solver poll failure limit must be a positive integer");
+  }
   const jobs = new Map<string, Promise<void>>();
+  let consecutiveFailures = 0;
   while (!input.signal.aborted) {
     try {
       const { intents } = await input.client.listIntents();
+      consecutiveFailures = 0;
+      await input.onPoll?.();
       for (const intent of intents) {
         if (jobs.has(intent.id) || input.isHandled?.(intent)) continue;
         const job = Promise.resolve().then(() => input.onIntent(intent))
@@ -47,6 +56,12 @@ export async function watchSolverIntents(input: {
       }
     } catch (error) {
       await input.onError(error);
+      consecutiveFailures += 1;
+      if (consecutiveFailures >= maxFailures) {
+        throw new Error(`Solver exchange remained unavailable for ${consecutiveFailures} consecutive failures`, {
+          cause: error,
+        });
+      }
     }
     await waitForNextPoll(pollIntervalMs, input.signal);
   }

@@ -14,6 +14,7 @@ import { prepareCodexJob } from "./codex-job";
 import { readExistingCodexDecision } from "./codex-output";
 import { runCodexSolver } from "./codex-runner";
 import { IntentAttempts, SolverJobStateSchema, WorkLimiter, type SolverJobState } from "./job-control";
+import { writeHeartbeat } from "./heartbeat";
 import { REFERENCE_CAPABILITIES } from "./route-tool";
 import { readReferenceSolverConfig, type ReferenceSolverConfig } from "./solver-config";
 
@@ -137,6 +138,7 @@ await watchSolverIntents({
   client,
   signal: controller.signal,
   pollIntervalMs: config.poll_interval_ms,
+  onPoll: () => writeHeartbeat(worker.statePath),
   isHandled: (intent) => attempts.isHandled(intent.id),
   async onError(error, intent) {
     if (!intent) {

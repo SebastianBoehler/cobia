@@ -145,7 +145,7 @@ export async function POST(
     const invalid = error instanceof z.ZodError;
     return NextResponse.json({
       code: invalid ? "INVALID_REQUEST" : "EXECUTION_UNAVAILABLE",
-      message: error instanceof Error ? error.message : "Program execution is unavailable.",
+      message: invalid ? "Execution request is invalid." : "Program execution is unavailable.",
     }, { status: invalid ? 400 : 409 });
   }
 }

@@ -6,9 +6,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ActivityView } from "./ActivityView";
 
 const account = "0x1111111111111111111111111111111111111111";
+const wallet = vi.hoisted(() => ({
+  account: null as string | null,
+  providers: [],
+  selected: null,
+  error: null,
+  connect: vi.fn(),
+  disconnect: vi.fn(),
+}));
 
 vi.mock("../wallet/WalletProvider", () => ({
-  useWallet: () => ({ account }),
+  useWallet: () => wallet,
 }));
 
 afterEach(() => {
@@ -17,7 +25,14 @@ afterEach(() => {
 });
 
 describe("ActivityView", () => {
+  it("offers wallet connection inside the empty state", () => {
+    wallet.account = null;
+    render(<ActivityView />);
+    expect(screen.getByRole("button", { name: "Connect wallet" })).toBeVisible();
+  });
+
   it("presents wallet events as a readable proof timeline", async () => {
+    wallet.account = account;
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ events: [{
       id: "event-1",
       kind: "route_revealed",
@@ -34,6 +49,6 @@ describe("ActivityView", () => {
     expect(screen.getByText(/Transaction 0x22222222/)).toBeVisible();
     expect(screen.getByText("Archived route proof")).toBeVisible();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
-    expect(fetch).toHaveBeenCalledWith(`/api/wallets/${account}/activity`, { cache: "no-store" });
+    expect(fetch).toHaveBeenCalledWith(`/api/wallets/${account}/activity`);
   });
 });

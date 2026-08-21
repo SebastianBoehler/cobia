@@ -65,4 +65,16 @@ describe("commerce proposal API", () => {
     });
     expect(mocks.build).not.toHaveBeenCalled();
   });
+
+  it("does not expose internal proposal failures", async () => {
+    mocks.get.mockRejectedValue(new Error("DATABASE_URL contains secret-host"));
+
+    const response = await POST(request(), context);
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      code: "PROPOSAL_UNAVAILABLE",
+      message: "Commerce proposal is unavailable.",
+    });
+  });
 });

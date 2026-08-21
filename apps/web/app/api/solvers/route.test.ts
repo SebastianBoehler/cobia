@@ -77,7 +77,7 @@ describe("solver profile API", () => {
     expect(mocks.register).not.toHaveBeenCalled();
   });
 
-  it("lists public solver evidence without caching it", async () => {
+  it("briefly caches public solver evidence", async () => {
     mocks.list.mockResolvedValue([{ id: claim.solverId, displayName: claim.displayName,
       operatorKind: "community", declaredCapabilities: claim.declaredCapabilities,
       performance: [{ segment: { chainId: 196, intentClass: "general" } }] }]);
@@ -85,7 +85,8 @@ describe("solver profile API", () => {
     const response = await GET();
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("cache-control"))
+      .toBe("public, max-age=0, s-maxage=30, stale-while-revalidate=60");
     await expect(response.json()).resolves.toEqual({ observedAt: nowSec, solvers: [{
       id: claim.solverId,
       displayName: claim.displayName,

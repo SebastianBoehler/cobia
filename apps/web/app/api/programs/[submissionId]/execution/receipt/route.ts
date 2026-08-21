@@ -142,7 +142,7 @@ export async function POST(
     const invalid = error instanceof z.ZodError;
     return NextResponse.json({
       code: invalid ? "INVALID_REQUEST" : "RECEIPT_UNAVAILABLE",
-      message: error instanceof Error ? error.message : "Could not attribute execution receipt.",
+      message: invalid ? "Execution receipt is invalid." : "Could not attribute execution receipt.",
     }, { status: invalid ? 400 : 409 });
   }
 }
