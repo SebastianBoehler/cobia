@@ -35,6 +35,15 @@ export default async function Home() {
       <AppHeader />
       <main className="home" id="main-content">
         <GeneralIntentHero />
+        <section className="buildx-callout" aria-labelledby="buildx-callout-title">
+          <div>
+            <h2 id="buildx-callout-title">Proudly built for X Layer’s AI Season.</h2>
+            <p>Cobia’s Build X submission makes agent-authored programs inspectable—from public deployments and protocol adapters to replay evidence and an explicit roadmap.</p>
+          </div>
+          <Link className="button button--paper" href="/buildx">
+            View judge evidence <ArrowRight aria-hidden="true" size={17} />
+          </Link>
+        </section>
         <nav className="product-strip" aria-label="Cobia product">
           {productLinks.map(({ href, icon: Icon, title, description }) => (
             <Link href={href} key={href}>

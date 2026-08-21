@@ -44,6 +44,13 @@
 .landing-prompt__tags button:hover { background: var(--cobalt-wash); }
 .rotating-prompt p strong { background: var(--cobalt-wash); border-radius: .28em; box-decoration-break: clone; color: var(--cobalt-dark); font-weight: 630; padding: .02em .18em .06em; -webkit-box-decoration-break: clone; }
 
+.buildx-callout { align-items: center; background: var(--cobalt); border-radius: 22px; color: white; display: grid; gap: 42px; grid-template-columns: minmax(0, 1fr) auto; margin: 0 auto 24px; max-width: min(1192px, calc(100% - 48px)); overflow: hidden; padding: 38px 42px; position: relative; }
+.buildx-callout::after { color: color-mix(in oklch, white 9%, transparent); content: "X"; font-size: 210px; font-weight: 780; inset-inline-end: 180px; line-height: .7; pointer-events: none; position: absolute; top: -12px; transform: rotate(-7deg); }
+.buildx-callout > * { position: relative; z-index: 1; }
+.buildx-callout h2 { font-size: clamp(30px, 3.3vw, 44px); font-weight: 640; letter-spacing: -.055em; line-height: 1; margin: 0; }
+.buildx-callout p { color: color-mix(in oklch, white 78%, transparent); font-size: 15px; line-height: 1.55; margin: 15px 0 0; max-width: 70ch; }
+.buildx-callout .button { white-space: nowrap; }
+
 .product-strip { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; display: grid; grid-template-columns: repeat(3, 1fr); margin: 0 auto; max-width: min(1192px, calc(100% - 48px)); overflow: hidden; }
 .product-strip a { align-items: center; display: grid; gap: 14px; grid-template-columns: 40px minmax(0, 1fr) auto; min-height: 104px; padding: 20px 22px; transition: background 150ms ease; }
 .product-strip a + a { border-inline-start: 1px solid var(--line); }
@@ -109,6 +116,9 @@
   .general-hero__actions .text-link { align-self: flex-start; }
   .intent-composer-preview { border-radius: 24px; padding: 8px; }
   .rotating-prompt { min-height: 220px; }
+  .buildx-callout { align-items: stretch; grid-template-columns: 1fr; margin-bottom: 18px; max-width: calc(100% - 40px); padding: 30px 24px; }
+  .buildx-callout::after { font-size: 160px; inset-inline-end: -10px; top: 24px; }
+  .buildx-callout .button { width: 100%; }
   .product-strip { grid-template-columns: 1fr; max-width: calc(100% - 40px); }
   .product-strip a { min-height: 90px; }
   .product-strip a + a { border-inline-start: 0; border-top: 1px solid var(--line); }

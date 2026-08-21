@@ -52,6 +52,20 @@ describe("home conversion path", () => {
     expect(architectureIndex).toBeGreaterThan(standingIndex);
   });
 
+  it("gives the AI Season submission a dedicated path to judge evidence", async () => {
+    const html = renderToStaticMarkup(await Home());
+    const heroIndex = html.indexOf('class="general-hero"');
+    const seasonIndex = html.indexOf('id="buildx-callout-title"');
+    const productIndex = html.indexOf('aria-label="Cobia product"');
+
+    expect(seasonIndex).toBeGreaterThan(heroIndex);
+    expect(seasonIndex).toBeLessThan(productIndex);
+    expect(html).toContain("Proudly built for X Layer’s AI Season.");
+    expect(html).toContain("Cobia’s Build X submission");
+    expect(html).toContain("View judge evidence");
+    expect(html).toContain('href="/buildx"');
+  });
+
   it("shows semantic and open verified lanes without overstating future domains", async () => {
     const html = renderToStaticMarkup(await Home());
 
