@@ -91,11 +91,24 @@ describe("IntentComposer", () => {
   });
 
   it("opens mention suggestions for bare @ and replaces the partial mention", () => {
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains("intent-goal__input") ? 600 : 0;
+    });
+    vi.spyOn(HTMLElement.prototype, "offsetLeft", "get").mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains("intent-caret-anchor") ? 72 : 0;
+    });
+    vi.spyOn(HTMLElement.prototype, "offsetTop", "get").mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains("intent-caret-anchor") ? 20 : 0;
+    });
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains("intent-caret-anchor") ? 29 : 0;
+    });
     render(<IntentComposer />);
 
     fireEvent.change(screen.getByLabelText("What should happen?"), { target: { value: "@" } });
 
     const suggestions = screen.getByRole("listbox", { name: "Mention suggestions" });
+    expect(suggestions).toHaveStyle({ left: "72px", top: "53px", width: "320px" });
     expect(within(suggestions).getByRole("option", { name: /@USDG/ })).toBeVisible();
     fireEvent.click(within(suggestions).getByRole("option", { name: /@USDG/ }));
     expect(screen.getByLabelText("What should happen?")).toHaveValue("@USDG ");

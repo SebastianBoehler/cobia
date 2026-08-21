@@ -1,5 +1,5 @@
 import { ArrowUp, AtSign, LoaderCircle, Route } from "lucide-react";
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ACTION_PREFERENCES, PROTOCOL_EXCLUSIONS, type ActionPreference, type ProtocolExclusionId,
 } from "../../lib/intents/intent-controls";
@@ -47,11 +47,40 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
   onSubmit(): void;
 }) {
   const controlsRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const caretRef = useRef<HTMLSpanElement>(null);
+  const [typeaheadPosition, setTypeaheadPosition] = useState({ left: 8, top: 8, width: 320 });
   const mentionQuery = value.match(/(?:^|\s)@([A-Za-z0-9.$_-]*)$/)?.[1];
   const mentionSuggestions = useMemo(() => mentionQuery === undefined ? [] : mentions
     .filter(({ mention }) => mention.toLowerCase().startsWith(mentionQuery.toLowerCase()))
     .slice(0, 6), [mentionQuery, mentions]);
+
+  const positionTypeahead = useCallback(() => {
+    const input = inputRef.current;
+    const textarea = textareaRef.current;
+    const caret = caretRef.current;
+    if (!input || !textarea || !caret) return;
+
+    const width = Math.min(320, Math.max(0, input.clientWidth - 16));
+    const maximumLeft = Math.max(8, input.clientWidth - width - 8);
+    setTypeaheadPosition({
+      left: Math.min(Math.max(8, caret.offsetLeft - textarea.scrollLeft), maximumLeft),
+      top: Math.max(8, caret.offsetTop - textarea.scrollTop + caret.offsetHeight + 4),
+      width,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (mentionSuggestions.length) positionTypeahead();
+  }, [mentionSuggestions.length, positionTypeahead, value]);
+
+  useEffect(() => {
+    if (!mentionSuggestions.length) return;
+    window.addEventListener("resize", positionTypeahead);
+    return () => window.removeEventListener("resize", positionTypeahead);
+  }, [mentionSuggestions.length, positionTypeahead]);
 
   useEffect(() => {
     function closeOnOutsideClick(event: PointerEvent) {
@@ -66,10 +95,13 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
   return (
     <section className="intent-goal">
       <label className="sr-only" htmlFor="intent-goal">What should happen?</label>
-      <div className="intent-goal__input">
+      <div className="intent-goal__input" ref={inputRef}>
         <div aria-hidden="true" className="intent-goal__highlight"
           data-testid="intent-goal-highlight" ref={highlightRef}>
           {renderRecognizedPrompt(value)}
+        </div>
+        <div aria-hidden="true" className="intent-caret-mirror">
+          {value}<span className="intent-caret-anchor" ref={caretRef}>&#8203;</span>
         </div>
         <textarea
           id="intent-goal"
@@ -77,12 +109,14 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
           placeholder="Ask Cobia to do something onchain…"
           rows={3}
           value={value}
+          ref={textareaRef}
           onChange={(event) => onChange(event.target.value)}
           onScroll={(event) => {
             if (highlightRef.current) {
               highlightRef.current.scrollLeft = event.currentTarget.scrollLeft;
               highlightRef.current.scrollTop = event.currentTarget.scrollTop;
             }
+            positionTypeahead();
           }}
           onKeyDown={(event) => {
             if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && value.trim().length >= 3) {
@@ -92,7 +126,7 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
           }}
         />
         {mentionSuggestions.length ? <div aria-label="Mention suggestions"
-          className="intent-typeahead" role="listbox">
+          className="intent-typeahead" role="listbox" style={typeaheadPosition}>
           {mentionSuggestions.map((mention) => <button aria-selected="false" key={mention.id}
             onClick={() => onMentionSuggestion(mention)} role="option" type="button">
             <strong>@{mention.mention}</strong><small>{mention.detail}</small>
