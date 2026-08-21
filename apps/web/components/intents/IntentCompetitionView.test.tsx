@@ -56,4 +56,28 @@ describe("IntentCompetitionView", () => {
     expect(html).toContain("19.75%");
     expect(html).toContain("OKX Market API v6");
   });
+
+  it("compares the simulated outcome and wallet steps beside each current program", () => {
+    const html = renderToStaticMarkup(<IntentCompetitionView
+      goal="Swap the input token"
+      closesAt={closesAt}
+      observedAtSec={2_000_000_000}
+      history={[]}
+      current={[{
+        id: "11111111-1111-4111-8111-111111111111", solverId: "alpha", revision: 1,
+        state: "current", validUntil: closesAt, objective: null,
+        preview: {
+          outcomes: [{ symbol: "USDt0", decimals: 6, beforeAtomic: "525665", afterAtomic: "1526002", minimumAtomic: "950000" }],
+          stepCount: 2,
+        },
+      }]}
+    />);
+
+    expect(html).toContain("Simulated outcome");
+    expect(html).toContain("+1.000337 USDt0");
+    expect(html).toContain("Minimum: +0.950000 USDt0");
+    expect(html).toContain("Up to 2 wallet steps");
+    expect(html).not.toContain("Verified objective");
+    expect(html).toContain("View details");
+  });
 });

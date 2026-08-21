@@ -2,21 +2,13 @@ import {
   ArrowRight, ArrowDownUp, Blocks, Bot, CircleAlert, CircleCheck, Clock3, History, Route, ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
-import { formatUnits } from "viem";
+import { formatTokenAmount } from "../../lib/token-amount";
 import { shortAddress } from "../../lib/wallet/eip1193";
 import type { ProgramView } from "./agent-program-types";
 import styles from "./AgentProgramView.module.css";
 
 const shortHash = (value: string) => `${value.slice(0, 10)}…${value.slice(-8)}`;
 const readableCode = (value: string) => value.toLowerCase().replaceAll("_", " ");
-
-function formatAmount(atomic: string, decimals: number): string {
-  if (!/^-?\d+$/.test(atomic)) return atomic;
-  const amount = formatUnits(BigInt(atomic), decimals);
-  if (decimals === 0) return amount;
-  const [whole, fraction = ""] = amount.split(".");
-  return `${whole}.${fraction.padEnd(decimals, "0")}`;
-}
 
 function status(program: ProgramView) {
   const { submission, artifacts } = program;
@@ -59,7 +51,7 @@ export function AgentProgramSummary({ program, action }: {
   const routeSteps = actions.map((action) => {
     const parameters = action.parameters;
     if (parameters?.tokenIn && parameters.tokenOut && parameters.amountInAtomic && parameters.minimumOutputAtomic) {
-      return `Swap ${formatAmount(parameters.amountInAtomic, tokenDecimals(parameters.tokenIn))} ${tokenLabel(parameters.tokenIn)} for at least ${formatAmount(parameters.minimumOutputAtomic, tokenDecimals(parameters.tokenOut))} ${tokenLabel(parameters.tokenOut)}`;
+      return `Swap ${formatTokenAmount(parameters.amountInAtomic, tokenDecimals(parameters.tokenIn))} ${tokenLabel(parameters.tokenIn)} for at least ${formatTokenAmount(parameters.minimumOutputAtomic, tokenDecimals(parameters.tokenOut))} ${tokenLabel(parameters.tokenOut)}`;
     }
     return `${action.capabilityId} @ ${action.capabilityVersion}`;
   });
@@ -91,9 +83,9 @@ export function AgentProgramSummary({ program, action }: {
           const decimals = tokenDecimals(delta.token);
           const label = tokenLabel(delta.token);
           return <li key={delta.token}>
-            <div><span>{label}</span><strong>{change >= 0n ? "+" : ""}{formatAmount(change.toString(), decimals)} {label}</strong></div>
-            <p>{formatAmount(delta.beforeAtomic, decimals)} → {formatAmount(delta.afterAtomic, decimals)} {label}</p>
-            {constraint ? <small>Minimum signed outcome: +{formatAmount(constraint.atomic, decimals)} {label}</small> : null}
+            <div><span>{label}</span><strong>{change >= 0n ? "+" : ""}{formatTokenAmount(change.toString(), decimals)} {label}</strong></div>
+            <p>{formatTokenAmount(delta.beforeAtomic, decimals)} → {formatTokenAmount(delta.afterAtomic, decimals)} {label}</p>
+            {constraint ? <small>Minimum signed outcome: +{formatTokenAmount(constraint.atomic, decimals)} {label}</small> : null}
           </li>;
         })}</ul> : <p className={styles.empty}>No simulated wallet balance changes were recorded.</p>}
       </article>
@@ -107,7 +99,7 @@ export function AgentProgramSummary({ program, action }: {
         </header>
         {approvals.length + routeSteps.length > 0 ? <ol className={styles.routeList}>
           {approvals.map((approval, index) => <li key={`${approval.token}-${index}`}><span>{index + 1}</span>
-            <div><strong>Approve up to {formatAmount(approval.amount, tokenDecimals(approval.token))} {tokenLabel(approval.token)}</strong>
+            <div><strong>Approve up to {formatTokenAmount(approval.amount, tokenDecimals(approval.token))} {tokenLabel(approval.token)}</strong>
               <p>Only requested if the executor needs additional allowance.</p></div>
           </li>)}
           {routeSteps.map((step, index) => <li key={`${step}-${index}`}><span>{approvals.length + index + 1}</span>

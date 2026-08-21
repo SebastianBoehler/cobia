@@ -100,13 +100,18 @@
 .section-heading p { color: var(--muted); font-size: 12px; margin: 7px 0 0; }
 .section-heading > span { background: var(--wash); border-radius: 999px; font: 11px var(--font-geist-mono), monospace; padding: 6px 9px; }
 .competition-list { border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
-.competition-row { align-items: center; background: var(--surface); display: grid; gap: 24px; grid-template-columns: minmax(220px, 1fr) minmax(160px, .65fr) auto; min-height: 136px; padding: 22px 24px; }
+.competition-row { align-items: center; background: var(--surface); display: grid; gap: 24px; grid-template-columns: minmax(180px, 1fr) minmax(180px, .85fr) minmax(112px, .45fr) auto; min-height: 136px; padding: 22px 24px; }
 .competition-row + .competition-row { border-top: 1px solid var(--line); }
 .competition-row h3 { font-size: 17px; margin: 12px 0 5px; }
 .competition-row p { color: var(--muted); font-size: 11px; margin: 0; }
 .competition-row__result { display: grid; gap: 6px; }
-.competition-row__result small { color: var(--muted); font-size: 10px; }
-.competition-row__result strong { font: 12px var(--font-geist-mono), monospace; }
+.competition-row__result small, .competition-row__steps small { color: var(--muted); font-size: 10px; }
+.competition-row__result strong, .competition-row__steps strong { font: 12px var(--font-geist-mono), monospace; }
+.competition-row__outcomes { display: grid; gap: 8px; }
+.competition-row__outcomes > div { display: grid; gap: 3px; }
+.competition-row__outcomes span, .competition-row__outcomes em { color: var(--muted); font-size: 10px; font-style: normal; }
+.competition-row__outcomes em { color: var(--cobalt-dark); }
+.competition-row__steps { display: grid; gap: 6px; }
 .competition-row > a { align-items: center; color: var(--cobalt-dark); display: inline-flex; font-size: 12px; font-weight: 650; gap: 7px; }
 .competition-list--history .competition-row { opacity: .74; }
 .competition-waiting { align-items: start; background: var(--wash); border: 1px solid var(--line); border-radius: 18px; color: var(--muted); display: grid; gap: 14px; grid-template-columns: 22px minmax(0, 1fr); padding: 22px 24px; }

@@ -4,6 +4,7 @@ import {
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { ObjectiveMeasurementV1Schema } from "../competitions/objective-measurement";
+import { projectCompetitionProgramPreview } from "../competitions/submission-preview";
 import { projectSubmissionState } from "../competitions/submission-state";
 import type { CobiaDatabase } from "./client";
 import {
@@ -160,13 +161,20 @@ export function createSolverSubmissionRepository(db: CobiaDatabase) {
       });
       const artifacts = rows.length === 0 ? [] : await db.query.cobiaProgramArtifactsV2.findMany({
         where: and(inArray(cobiaProgramArtifactsV2.submissionId, rows.map(({ id }) => id)),
-          eq(cobiaProgramArtifactsV2.kind, "objective")),
+          inArray(cobiaProgramArtifactsV2.kind, ["objective", "snapshot", "program", "evidence", "execution"])),
       });
-      const objectives = new Map(artifacts.map(({ submissionId, payload }) => [
+      const artifactsBySubmission = new Map<string, (typeof artifacts)[number][]>();
+      for (const artifact of artifacts) {
+        artifactsBySubmission.set(artifact.submissionId, [
+          ...(artifactsBySubmission.get(artifact.submissionId) ?? []), artifact,
+        ]);
+      }
+      const objectives = new Map(artifacts.filter(({ kind }) => kind === "objective").map(({ submissionId, payload }) => [
         submissionId, ObjectiveMeasurementV1Schema.parse(payload),
       ]));
       return rows.map((row) => ({
         ...row, objective: objectives.get(row.id) ?? null,
+        preview: projectCompetitionProgramPreview(artifactsBySubmission.get(row.id) ?? []),
         presentationState: projectSubmissionState(row, observedAtSec),
       }));
     },

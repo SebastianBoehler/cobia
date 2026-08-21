@@ -1,6 +1,8 @@
 import type { TokenMarketEvidenceV1 } from "@cobia/domain";
 import { ArrowRight, CircleDot, Clock3, History, ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import { formatTokenAmount } from "../../lib/token-amount";
+import type { CompetitionProgramPreview } from "../../lib/competitions/submission-preview";
 
 export interface CompetitionSubmission {
   id: string;
@@ -9,11 +11,29 @@ export interface CompetitionSubmission {
   state: string;
   validUntil: string;
   objective: { atomic: string; direction: "maximize" | "minimize" } | null;
+  preview: CompetitionProgramPreview | null;
 }
 
 function stateLabel(value: string) {
   const words = value.replaceAll("-", " ");
   return words[0]?.toUpperCase() + words.slice(1);
+}
+
+function OutcomePreview({ preview }: { preview: CompetitionProgramPreview | null }) {
+  if (!preview) return <div className="competition-row__result">
+    <small>Simulated outcome</small><strong>Outcome unavailable</strong>
+  </div>;
+  return <div className="competition-row__result">
+    <small>Simulated outcome</small>
+    <div className="competition-row__outcomes">{preview.outcomes.map((outcome) => {
+      const change = BigInt(outcome.afterAtomic) - BigInt(outcome.beforeAtomic);
+      return <div key={outcome.symbol}>
+        <strong>{change >= 0n ? "+" : ""}{formatTokenAmount(change.toString(), outcome.decimals)} {outcome.symbol}</strong>
+        <span>{formatTokenAmount(outcome.beforeAtomic, outcome.decimals)} → {formatTokenAmount(outcome.afterAtomic, outcome.decimals)} {outcome.symbol}</span>
+        {outcome.minimumAtomic ? <em>Minimum: +{formatTokenAmount(outcome.minimumAtomic, outcome.decimals)} {outcome.symbol}</em> : null}
+      </div>;
+    })}</div>
+  </div>;
 }
 
 function SubmissionRow({ item, current }: { item: CompetitionSubmission; current: boolean }) {
@@ -25,11 +45,12 @@ function SubmissionRow({ item, current }: { item: CompetitionSubmission; current
         hour: "2-digit", minute: "2-digit", timeZone: "UTC",
       })} UTC</p>
     </div>
-    <div className="competition-row__result">
-      <small>Verified objective</small>
-      <strong>{item.objective ? `${item.objective.atomic} atomic units` : "Policy satisfied"}</strong>
+    <OutcomePreview preview={item.preview} />
+    <div className="competition-row__steps">
+      <small>Wallet sequence</small>
+      <strong>{item.preview ? `Up to ${item.preview.stepCount} wallet ${item.preview.stepCount === 1 ? "step" : "steps"}` : "Not recorded"}</strong>
     </div>
-    <Link href={`/programs/${item.id}`}>Inspect program <ArrowRight aria-hidden="true" size={15} /></Link>
+    <Link href={`/programs/${item.id}`}>View details <ArrowRight aria-hidden="true" size={15} /></Link>
   </article>;
 }
 

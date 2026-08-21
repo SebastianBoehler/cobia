@@ -30,7 +30,7 @@ export default async function IntentCompetitionPage({ params }: PageProps<"/inte
   const map = (item: (typeof rows.current)[number]) => ({
     id: item.id, solverId: item.solverId, revision: item.revision,
     state: item.presentationState, validUntil: item.validUntil.toISOString(),
-    objective: item.objective,
+    objective: item.objective, preview: item.preview,
   });
   return <>
     <AppHeader />
