@@ -90,4 +90,49 @@ describe("solver performance projection", () => {
       status: "unavailable",
     });
   });
+
+  it("recovers selection and execution counts from an executed submission", () => {
+    const observedAtSec = 2_000_000_000;
+    const intentId = "11111111-1111-4111-8111-111111111111";
+    const report = projectSolverPerformance({
+      solverId: "alpha-solver",
+      observedAtSec,
+      runs: [{ intentId, state: "completed", createdAt: new Date((observedAtSec - 10) * 1_000) }],
+      intents: [{ id: intentId, chainId: 196, selectedSubmissionId: null, policy }],
+      submissions: [{
+        id: "executed", intentId, revision: 1, state: "executed", failureCodes: [],
+        createdAt: new Date(observedAtSec * 1_000),
+        objective: { direction: "maximize", atomic: "10100000" },
+      }],
+    })[0];
+
+    expect(report?.counts).toMatchObject({
+      wonIntents: 1,
+      executionAttempts: 1,
+      successfulExecutions: 1,
+    });
+    expect(report?.rates.executionSuccess).toMatchObject({
+      numerator: 1,
+      denominator: 1,
+      rateBps: 10_000,
+    });
+  });
+
+  it("does not infer a winner from ambiguous legacy execution rows", () => {
+    const observedAtSec = 2_000_000_000;
+    const intentId = "11111111-1111-4111-8111-111111111111";
+    const submission = {
+      intentId, revision: 1, state: "executed" as const, failureCodes: [],
+      createdAt: new Date(observedAtSec * 1_000),
+      objective: { direction: "maximize" as const, atomic: "10100000" },
+    };
+    const report = projectSolverPerformance({
+      solverId: "alpha-solver", observedAtSec,
+      runs: [{ intentId, state: "completed", createdAt: new Date(observedAtSec * 1_000) }],
+      intents: [{ id: intentId, chainId: 196, selectedSubmissionId: null, policy }],
+      submissions: [{ ...submission, id: "first" }, { ...submission, id: "second", revision: 2 }],
+    })[0];
+
+    expect(report?.counts).toMatchObject({ wonIntents: 0, executionAttempts: 0 });
+  });
 });

@@ -76,6 +76,12 @@ describe("wallet activity projection", () => {
       blockNumber: "68572243",
     });
     await submissions.resolve(submission.id, "executed", []);
+    await expect(intents.get(executed.requestId)).resolves.toMatchObject({
+      state: "executed",
+      selectedSubmissionId: submission.id,
+    });
+    await expect(createSolverProfileRepository(db()).read("activity-solver", nowSec))
+      .resolves.toMatchObject({ stats: { accepted: 2, rejected: 0, wins: 1 } });
 
     const legacyId = crypto.randomUUID();
     await db().insert(cobiaActivityEvents).values({

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { projectIntentResolution } from "../../../../lib/competitions/intent-resolution";
 import {
   getIntentRepository,
   getSolverSubmissionRepository,
@@ -42,12 +43,16 @@ export async function GET(
     }
     const submissions = await getSolverSubmissionRepository()
       .listForIntent(parsed.data, Math.floor(Date.now() / 1_000));
+    const resolution = projectIntentResolution(intent, [
+      ...submissions.current,
+      ...submissions.history,
+    ]);
     return NextResponse.json({
       intent: {
         id: intent.id, owner: intent.owner, displayGoal: intent.displayGoal,
-        policyHash: intent.policyHash, state: intent.state,
+        policyHash: intent.policyHash, state: resolution.state,
         competitionClosesAt: intent.competitionClosesAt.toISOString(),
-        selectedSubmissionId: intent.selectedSubmissionId,
+        selectedSubmissionId: resolution.selectedSubmissionId,
       },
       submissions: {
         current: submissions.current.map(publicSubmission),

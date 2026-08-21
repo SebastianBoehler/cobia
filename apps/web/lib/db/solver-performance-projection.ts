@@ -1,4 +1,5 @@
 import { aggregateSolverPerformanceV1 } from "@cobia/domain";
+import { projectSelectedSubmissionId } from "../competitions/intent-resolution";
 
 type RunRow = {
   intentId: string;
@@ -102,7 +103,8 @@ export function projectSolverPerformance(input: {
       submission.intentId === intentId && (ACCEPTED.has(submission.state) || REJECTED.has(submission.state)));
     const accepted = resolved.filter(({ state }) => ACCEPTED.has(state));
     const rejected = resolved.filter(({ state }) => REJECTED.has(state));
-    const selected = resolved.find(({ id }) => id === intent.selectedSubmissionId);
+    const selectedSubmissionId = projectSelectedSubmissionId(intent, resolved);
+    const selected = resolved.find(({ id }) => id === selectedSubmissionId);
     const decision: "submitted" | "failed" | "abstained" | null = resolved.length > 0 ? "submitted"
       : runs.some(({ state }) => state === "failed") ? "failed"
       : runs.some(({ state }) => state === "abstained") ? "abstained"

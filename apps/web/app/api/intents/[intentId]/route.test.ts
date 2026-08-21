@@ -45,4 +45,26 @@ describe("intent competition reads", () => {
     expect(response.status).toBe(400);
     expect(mocks.get).not.toHaveBeenCalledWith("nope");
   });
+
+  it("projects a legacy executed submission as the selected intent result", async () => {
+    const submissionId = "33333333-3333-4333-8333-333333333333";
+    mocks.get.mockResolvedValue({
+      id: intentId, owner: "0x1111111111111111111111111111111111111111",
+      displayGoal: "Swap USDG", policyHash: `0x${"22".repeat(32)}`,
+      state: "collecting", competitionClosesAt: new Date("2033-05-18T03:35:00Z"),
+      selectedSubmissionId: null,
+    });
+    mocks.list.mockResolvedValue({
+      current: [],
+      history: [{ id: submissionId, intentId, solverId: "alpha", revision: 1,
+        state: "executed", programHash: `0x${"44".repeat(32)}`,
+        presentationState: "executed", objective: null, failureCodes: [] }],
+    });
+
+    const response = await GET(new Request(`https://cobia.example/api/intents/${intentId}`), context(intentId));
+
+    await expect(response.json()).resolves.toMatchObject({
+      intent: { state: "executed", selectedSubmissionId: submissionId },
+    });
+  });
 });

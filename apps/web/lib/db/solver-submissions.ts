@@ -144,6 +144,18 @@ export function createSolverSubmissionRepository(db: CobiaDatabase) {
         if (resolution.state === "attested" && stored.challengeRoundId) {
           throw new Error("Standing challenge submissions cannot receive execution authority");
         }
+        if (resolution.state === "executed") {
+          if (!stored.intentId) throw new Error("Executed submission requires an intent");
+          const intent = (await tx.select().from(cobiaIntents)
+            .where(eq(cobiaIntents.id, stored.intentId)).for("update"))[0];
+          if (!intent) throw new Error("Executed submission intent is unavailable");
+          if (intent.selectedSubmissionId && intent.selectedSubmissionId !== id) {
+            throw new Error("Intent selected a different submission");
+          }
+          await tx.update(cobiaIntents).set({
+            selectedSubmissionId: id, state: "executed", updatedAt: new Date(),
+          }).where(eq(cobiaIntents.id, stored.intentId));
+        }
         const failures = ["rejected", "failed"].includes(resolution.state);
         if (failures !== (resolution.failureCodes.length > 0)) throw new Error("Submission failure codes mismatch");
         const rows = await tx.update(cobiaSolverSubmissions).set({

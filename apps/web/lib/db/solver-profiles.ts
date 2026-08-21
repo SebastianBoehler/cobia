@@ -2,6 +2,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { projectSubmissionState } from "../competitions/submission-state";
 import { ObjectiveMeasurementV1Schema } from "../competitions/objective-measurement";
+import { projectSelectedSubmissionId } from "../competitions/intent-resolution";
 import type { CobiaDatabase } from "./client";
 import { cobiaProgramArtifactsV2, cobiaSolverSubmissions, cobiaSolvers } from "./schema";
 import { cobiaSolverRuns } from "./schema";
@@ -76,8 +77,10 @@ export function createSolverProfileRepository(db: CobiaDatabase) {
         return [submissionId, { direction: objective.direction, atomic: objective.atomic }] as const;
       }));
       const selected = submissions.length === 0 ? [] : await db.query.cobiaIntents.findMany();
-      const selectedIds = new Set(selected.flatMap(({ selectedSubmissionId }) =>
-        selectedSubmissionId ? [selectedSubmissionId] : []));
+      const selectedIds = new Set(selected.flatMap((intent) => {
+        const selectedSubmissionId = projectSelectedSubmissionId(intent, submissions);
+        return selectedSubmissionId ? [selectedSubmissionId] : [];
+      }));
       const projected = submissions.map((submission) => ({
         ...submission,
         presentationState: projectSubmissionState(submission, observedAtSec),
