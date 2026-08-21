@@ -42,8 +42,6 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
   const [excludedProtocols, setExcludedProtocols] = useState<ProtocolExclusionId[]>([]);
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot>();
   const [offers, setOffers] = useState<CommerceOfferV1[]>([]);
-  const [selectedMentions, setSelectedMentions] = useState<IntentMention[]>([]);
-  const [selectedService, setSelectedService] = useState<string>();
   const [mentionsLoaded, setMentionsLoaded] = useState(false);
   const [compiling, setCompiling] = useState(false);
   const [pending, setPending] = useState(false);
@@ -97,15 +95,18 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
       mention: `${offer.merchant.displayName}/${(offer.product.name ?? offer.product.id).replaceAll(" ", "-")}`,
       detail: `${offer.payment.atomicAmount} atomic · chain ${offer.payment.chainId}` })),
   ], [offers, portfolio]);
+  const selectedMentions = useMemo(() => mentions.filter(({ mention }) => {
+    const escaped = mention.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(^|\\s)@${escaped}(?=$|[\\s.,!?;:])`, "i").test(goal);
+  }), [goal, mentions]);
+  const selectedService = selectedMentions.find(({ group }) => group === "Services")
+    ?.id.slice("service:".length);
 
   function mention(value: IntentMention) {
     const token = `@${value.mention}`;
     setGoal((current) => current.includes(token) ? current
       : `${current}${current && !current.endsWith(" ") ? " " : ""}${token} `);
-    setSelectedMentions((current) => current.some(({ id }) => id === value.id)
-      ? current : [...current, value]);
     if (value.group === "Services") {
-      setSelectedService(value.id.slice("service:".length));
       setAction("service-purchase");
     }
   }

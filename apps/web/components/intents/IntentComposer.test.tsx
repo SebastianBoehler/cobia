@@ -2,7 +2,7 @@
 
 import "@testing-library/jest-dom/vitest";
 import { commitment } from "@cobia/domain";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IntentComposer } from "./IntentComposer";
 import { DEFAULT_INTENT_RECEIPT_VALUES, INTENT_ASSETS } from "../../lib/intents/capability-templates";
@@ -57,6 +57,36 @@ describe("IntentComposer", () => {
     );
     expect(screen.queryByLabelText("Example intents")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Review policy" })).toBeEnabled();
+    expect(within(screen.getByLabelText("Attached entities")).getByText("@USDG")).toBeVisible();
+    expect(within(screen.getByTestId("intent-goal-highlight")).getByText("@XLayer")).toBeVisible();
+  });
+
+  it("recognizes typed tags as highlighted attached entities", () => {
+    render(<IntentComposer />);
+
+    fireEvent.change(screen.getByLabelText("What should happen?"), {
+      target: { value: "Supply 10 @USDG to @Aave on @XLayer" },
+    });
+
+    const attached = screen.getByLabelText("Attached entities");
+    expect(within(attached).getByText("@USDG")).toBeVisible();
+    expect(within(attached).getByText("@Aave")).toBeVisible();
+    expect(within(attached).getByText("@XLayer")).toBeVisible();
+    expect(screen.getByTestId("intent-goal-highlight").querySelectorAll("strong")).toHaveLength(3);
+  });
+
+  it("closes mention and route popovers on an outside click", () => {
+    render(<IntentComposer />);
+    const goal = screen.getByLabelText("What should happen?");
+
+    for (const name of ["Mention", "Routes"]) {
+      const summary = screen.getByText(name);
+      const details = summary.closest("details");
+      fireEvent.click(summary);
+      expect(details).toHaveAttribute("open");
+      fireEvent.pointerDown(goal);
+      expect(details).not.toHaveAttribute("open");
+    }
   });
 
   it("compiles the goal before showing editable signed bounds", async () => {

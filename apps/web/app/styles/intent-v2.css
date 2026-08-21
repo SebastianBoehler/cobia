@@ -8,7 +8,11 @@
 .policy-editor { grid-column: 2; grid-row: 1 / span 4; position: sticky; top: 96px; }
 .intent-goal, .policy-editor { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: clamp(20px, 3vw, 30px); }
 .intent-goal { border-radius: 28px; box-shadow: 0 18px 50px color-mix(in oklch, var(--ink) 10%, transparent); padding: 12px 14px 12px 22px; }
-.intent-goal textarea { background: transparent; border: 0; color: var(--ink); font-size: 20px; line-height: 1.45; min-height: 112px; padding: 12px 4px; resize: none; width: 100%; }
+.intent-goal__input { min-height: 112px; position: relative; }
+.intent-goal textarea, .intent-goal__highlight { border: 0; font: inherit; font-size: 20px; line-height: 1.45; min-height: 112px; padding: 12px 4px; white-space: pre-wrap; width: 100%; }
+.intent-goal textarea { background: transparent; caret-color: var(--ink); color: transparent; position: relative; resize: none; z-index: 1; }
+.intent-goal__highlight { color: var(--ink); inset: 0; overflow: hidden; pointer-events: none; position: absolute; word-break: break-word; }
+.intent-goal__highlight strong { background: color-mix(in oklch, var(--cobalt) 10%, transparent); border-radius: 5px; box-decoration-break: clone; color: var(--cobalt); font-weight: inherit; -webkit-box-decoration-break: clone; }
 .intent-goal textarea:focus { outline: 0; }
 .intent-goal textarea::placeholder { color: var(--muted); }
 .intent-examples { display: grid; gap: 8px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0 0 14px; }
@@ -75,7 +79,7 @@
   .intent-page__header { margin-bottom: 30px; }
   .intent-page__header h1 { font-size: 48px; }
   .intent-goal, .policy-editor { border-radius: 18px; padding: 18px; }
-  .intent-goal textarea { font-size: 16px; }
+  .intent-goal textarea, .intent-goal__highlight { font-size: 16px; }
   .intent-examples { display: flex; margin-inline: -4px; overflow-x: auto; padding: 2px 4px 8px; scrollbar-width: none; }
   .intent-examples::-webkit-scrollbar { display: none; }
   .intent-examples button { flex: 0 0 220px; }
