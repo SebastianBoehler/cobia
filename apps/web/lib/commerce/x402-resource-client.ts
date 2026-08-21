@@ -19,7 +19,8 @@ const HashSchema = z.string().regex(/^0x[0-9a-fA-F]{64}$/).transform(
 ).refine((value) => !/^0x0{64}$/.test(value));
 
 export const X402SettlementResponseV2Schema = z.object({
-  success: z.literal(true), transaction: HashSchema, network: z.enum(["eip155:196", "eip155:8453"]),
+  success: z.literal(true), status: z.literal("success").optional(),
+  transaction: HashSchema, network: z.enum(["eip155:196", "eip155:8453"]),
   payer: AddressSchema, amount: z.string().regex(/^[1-9][0-9]*$/).max(78).optional(),
   extensions: z.record(z.string(), z.unknown()).optional(),
 }).strict();

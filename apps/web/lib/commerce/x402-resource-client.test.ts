@@ -98,6 +98,29 @@ describe("x402 paid resource client", () => {
     expect(Buffer.from(result.resourceBody).toString("utf8")).toBe('{"result":"paid"}');
   });
 
+  it("accepts OKX immediate-success settlement status", async () => {
+    const signature = await account.signTypedData(x402TypedDataV1(template));
+    const fetcher = vi.fn<CommerceFetchV1>()
+      .mockResolvedValueOnce(freshChallenge())
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: {
+          "payment-response": paymentResponse({
+            success: true, status: "success", transaction: hash("7"),
+            network: "eip155:196", payer: account.address, amount: "10000",
+          }),
+        },
+        body: Buffer.from('{"result":"paid"}'),
+      });
+
+    await expect(executeX402ResourceV1({
+      expected: template, submitted: template, signature,
+      dnsResolver: async () => ["93.184.216.34"], fetcher,
+    })).resolves.toMatchObject({
+      settlement: { success: true, status: "success", transaction: hash("7") },
+    });
+  });
+
   it("never forwards an authorization across redirects or private DNS", async () => {
     const signature = await account.signTypedData(x402TypedDataV1(template));
     const redirect = vi.fn<CommerceFetchV1>().mockResolvedValue({
