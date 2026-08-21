@@ -1,6 +1,6 @@
 import { commitment } from "@cobia/domain";
 import { privateKeyToAccount } from "viem/accounts";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { X402AuthorizationTemplateV1Schema, x402TypedDataV1 } from "./x402-authorization";
 import { authorizeCommercePlacementV1 } from "./authorization-service";
 
@@ -70,6 +70,8 @@ function dependencies(placement: unknown = root) {
 }
 
 describe("commerce authorization service", () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it("persists authorization before a single paid request and then records submission", async () => {
     const deps = dependencies();
     const value = await input();
@@ -106,10 +108,15 @@ describe("commerce authorization service", () => {
 
   it("keeps an ambiguous paid request in authorizing state instead of retrying", async () => {
     const deps = dependencies();
-    deps.execute.mockRejectedValueOnce(new Error("connection closed"));
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    deps.execute.mockRejectedValueOnce(new Error("x402 paid resource returned HTTP 422"));
     await expect(authorizeCommercePlacementV1(await input(), deps)).rejects.toMatchObject({ code: "SETTLEMENT_UNCERTAIN" });
     expect(deps.placements.append).toHaveBeenCalledTimes(1);
     expect(deps.placements.append).toHaveBeenCalledWith(expect.objectContaining({ state: "authorizing" }));
+    expect(warning).toHaveBeenCalledWith("[commerce-authorization] uncertain settlement", {
+      placementId,
+      failure: "merchant-http-422",
+    });
   });
 
   it("rejects a stale unfunded authorization before changing state or contacting the merchant", async () => {

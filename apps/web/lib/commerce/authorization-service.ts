@@ -32,6 +32,22 @@ export class CommerceAuthorizationErrorV1 extends Error {
   }
 }
 
+function settlementDiagnostic(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  const status = message.match(/^x402 paid resource returned HTTP ([45][0-9]{2})$/)?.[1];
+  if (status) return `merchant-http-${status}`;
+  const known = new Map([
+    ["x402 paid-resource redirect is forbidden", "merchant-redirect"],
+    ["x402 settlement header is missing or invalid", "settlement-header-invalid"],
+    ["x402 settlement header is not valid JSON", "settlement-header-json-invalid"],
+    ["x402 settlement evidence does not match the supported response", "settlement-evidence-unsupported"],
+    ["x402 settlement evidence does not match the authorization", "settlement-evidence-mismatch"],
+    ["Commerce discovery request timed out", "merchant-timeout"],
+    ["Authorization hash changed", "authorization-hash-mismatch"],
+  ]);
+  return [...known].find(([expected]) => message === expected)?.[1] ?? "unclassified";
+}
+
 export async function authorizeCommercePlacementV1(
   raw: { placementId: unknown; template: unknown; signature: unknown },
   dependencies: {
@@ -119,7 +135,11 @@ export async function authorizeCommercePlacementV1(
       authorizationHash, settlement: result.settlement, resourceHash: result.resourceHash,
       resourceBodyBase64: Buffer.from(result.resourceBody).toString("base64"),
     };
-  } catch {
+  } catch (error) {
+    console.warn("[commerce-authorization] uncertain settlement", {
+      placementId,
+      failure: settlementDiagnostic(error),
+    });
     throw new CommerceAuthorizationErrorV1(
       "SETTLEMENT_UNCERTAIN",
       "The paid request may have settled; inspect the authorization nonce before any further action",
