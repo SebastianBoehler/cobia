@@ -144,7 +144,22 @@ describe("AgentProgramView", () => {
         blockNumber: "123", blockHash: `0x${"22".repeat(32)}`, displayGoal: "Swap USDG",
         failureCodes: [],
       },
-      artifacts: { program: { payload: { actions: [] } }, replay: { payload: { reproduced: true } } },
+      artifacts: {
+        snapshot: { payload: { tokenEvidence: [{
+          token: "0x3333333333333333333333333333333333333333", symbol: "USDG", decimals: 6,
+        }] } },
+        program: { payload: { actions: [{
+          capabilityId: "uniswap-v3.exact-input", capabilityVersion: 1,
+          parameters: {
+            tokenIn: "0x3333333333333333333333333333333333333333",
+            tokenOut: "0x2222222222222222222222222222222222222222",
+          },
+        }] } },
+        execution: { payload: { program: { actions: [{ approvals: [{
+          token: "0x3333333333333333333333333333333333333333", amount: "1000000",
+        }] }] } } },
+        replay: { payload: { reproduced: true } },
+      },
     };
     let receiptRecorded = false;
     vi.mocked(fetch).mockImplementation(async (input) => {
@@ -165,7 +180,9 @@ describe("AgentProgramView", () => {
         } }));
       }
       return new Response(JSON.stringify({
-        chainId: 196, approvals: [],
+        chainId: 196, approvals: [{
+          to: "0x3333333333333333333333333333333333333333", data: "0x1234", value: "0x0",
+        }],
         execution: { to: "0x2222222222222222222222222222222222222222", data: "0x1234", value: "0x0" },
       }));
     });
@@ -179,7 +196,8 @@ describe("AgentProgramView", () => {
 
     render(<AgentProgramView programId="550e8400-e29b-41d4-a716-446655440000" />);
     fireEvent.click(await screen.findByRole("button", { name: "Prepare execution" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Confirm exact mainnet execution" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Allow 1 USDG" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Swap now" }));
 
     expect(await screen.findByText("Swap complete")).toBeVisible();
     await waitFor(() => expect(wallet.request.mock.calls.filter(

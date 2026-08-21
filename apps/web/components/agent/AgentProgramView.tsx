@@ -9,6 +9,7 @@ import {
 import { authorizePayment } from "../../lib/payments/eip3009";
 import type { PaymentTerms } from "../../lib/payments/terms";
 import { randomBytes32 } from "../../lib/payments/random";
+import { formatTokenAmount } from "../../lib/token-amount";
 import { shortAddress } from "../../lib/wallet/eip1193";
 import { useWallet } from "../wallet/WalletProvider";
 import { AgentProgramSummary } from "./AgentProgramSummary";
@@ -24,6 +25,27 @@ function message(value: unknown, fallback: string) {
   return typeof value === "object" && value && "message" in value && typeof value.message === "string"
     ? value.message
     : fallback;
+}
+
+function approvalLabel(program: ProgramView, index: number, count: number) {
+  const approval = program.artifacts.execution?.payload?.program?.actions
+    ?.flatMap((action) => action.approvals ?? [])[0];
+  if (!approval) return "Allow token spending";
+  const token = program.artifacts.snapshot?.payload?.tokenEvidence?.find((item) =>
+    item.token.toLowerCase() === approval.token.toLowerCase());
+  const symbol = token?.symbol ?? "token";
+  if (count > 1 && index === 0) return `Reset ${symbol} allowance`;
+  const amount = formatTokenAmount(approval.amount, token?.decimals ?? 6)
+    .replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+  return `Allow ${amount} ${symbol}`;
+}
+
+function executionLabel(program: ProgramView, prepared: Prepared, transactionIndex: number) {
+  if (prepared.transactions) return `Submit wallet call ${transactionIndex + 1}/${prepared.transactions.length}`;
+  const action = program.artifacts.program?.payload?.actions?.[0];
+  if (action?.parameters?.tokenIn && action.parameters.tokenOut) return "Swap now";
+  if (action?.capabilityId.includes("supply")) return "Supply now";
+  return "Execute now";
 }
 
 export function hasRequiredConfirmations(
@@ -203,13 +225,10 @@ export function AgentProgramView({ programId }: { programId: string }) {
       {pending ? "Checking live bounds…" : "Prepare execution"}
     </button> : null}
     {prepared && !approvalsDone ? <button className="button button--primary" disabled={pending} onClick={approve}>
-      {pending ? "Waiting for approval…" : `Confirm bounded approval ${approvalIndex + 1}/${prepared.approvals.length}`}
+      {pending ? "Waiting for approval…" : approvalLabel(program, approvalIndex, prepared.approvals.length)}
     </button> : null}
     {prepared && approvalsDone && !confirmed ? <button className="button button--primary" disabled={pending} onClick={execute}>
-      {pending ? "Waiting for the mainnet receipt…"
-        : prepared.transactions
-          ? `Confirm exact call ${transactionIndex + 1}/${prepared.transactions.length}`
-          : "Confirm exact mainnet execution"}
+      {pending ? "Waiting for the mainnet receipt…" : executionLabel(program, prepared, transactionIndex)}
     </button> : null}
   </>;
   return <AgentProgramSummary program={program} action={submission.executable || error ? action : undefined} />;
