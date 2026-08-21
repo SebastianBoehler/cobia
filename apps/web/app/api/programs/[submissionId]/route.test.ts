@@ -1,6 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ read: vi.fn() }));
+const mocks = vi.hoisted(() => ({ read: vi.fn(), readContract: vi.fn() }));
+vi.mock("viem", async (importOriginal) => ({
+  ...await importOriginal<typeof import("viem")>(),
+  createPublicClient: () => ({ readContract: mocks.readContract }),
+  http: vi.fn(),
+}));
+vi.mock("../../../../lib/env", () => ({
+  readCodingAgentV3ExecutionConfig: () => ({ XLAYER_RPC_URL: "https://rpc.example" }),
+}));
 vi.mock("../../../../lib/runtime/market", () => ({
   getSolverSubmissionRepository: () => ({ read: mocks.read }),
 }));
@@ -66,5 +74,38 @@ describe("public solver program reads", () => {
     const body = await response.json();
     expect(body.submission.executable).toBe(false);
     expect(body.artifacts.authorization).toEqual({ artifactHash: `0x${"55".repeat(32)}` });
+  });
+
+  it("enriches an existing V3 receipt with its confirmed token balance change", async () => {
+    mocks.readContract.mockResolvedValue(1_525_994n);
+    mocks.read.mockResolvedValue({
+      id: submissionId, solverId: "cobia-coding-agent", revision: 1,
+      state: "executed", presentationState: "executed", programHash: `0x${"11".repeat(32)}`,
+      owner: "0x1111111111111111111111111111111111111111", displayGoal: "Swap USDG",
+      validUntil: new Date("2033-05-18T03:35:00Z"), blockNumber: "123",
+      blockHash: `0x${"22".repeat(32)}`, failureCodes: [], objective: null,
+      artifacts: [{
+        kind: "evidence", artifactHash: `0x${"33".repeat(32)}`, payload: { balanceDeltas: [{
+          token: "0x2222222222222222222222222222222222222222",
+          account: "0x1111111111111111111111111111111111111111",
+          beforeAtomic: "525665", afterAtomic: "1525994",
+        }] },
+      }, {
+        kind: "receipt", artifactHash: `0x${"44".repeat(32)}`, payload: {
+          version: 3, owner: "0x1111111111111111111111111111111111111111",
+          transactionHash: `0x${"55".repeat(32)}`, blockNumber: "456",
+        },
+      }],
+    });
+
+    const response = await GET(
+      new Request(`https://cobia.example/api/programs/${submissionId}`), context(submissionId),
+    );
+    const body = await response.json();
+    expect(body.artifacts.receipt.payload.balanceChanges).toEqual([{
+      token: "0x2222222222222222222222222222222222222222",
+      beforeAtomic: "525665", afterAtomic: "1525994",
+    }]);
+    expect(mocks.readContract).toHaveBeenCalledWith(expect.objectContaining({ blockNumber: 456n }));
   });
 });

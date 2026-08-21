@@ -69,6 +69,10 @@ export interface ProgramView {
       networkRequestCount: number;
     }>;
     replay?: PublicArtifact<{ reproduced?: boolean }>;
-    receipt?: PublicArtifact<{ transactionHash?: Hash }>;
+    receipt?: PublicArtifact<{
+      transactionHash?: Hash;
+      blockNumber?: string;
+      balanceChanges?: { token: Address; beforeAtomic: string; afterAtomic: string }[];
+    }>;
   };
 }

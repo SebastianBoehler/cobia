@@ -3,7 +3,9 @@
 import { LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { isAddressEqual, type Address, type Hash, type Hex } from "viem";
-import { buildAgentExecutionAccessProof } from "../../lib/coding-agent-sandbox/execution-access";
+import {
+  buildAgentExecutionAccessProof, type AgentExecutionAccessProof,
+} from "../../lib/coding-agent-sandbox/execution-access";
 import { authorizePayment } from "../../lib/payments/eip3009";
 import type { PaymentTerms } from "../../lib/payments/terms";
 import { randomBytes32 } from "../../lib/payments/random";
@@ -16,6 +18,7 @@ import styles from "./AgentProgramView.module.css";
 interface TransactionCall { to: Address; data: Hex; value: "0x0" }
 interface Prepared { approvals: TransactionCall[]; execution?: TransactionCall;
   transactions?: (TransactionCall & { stageId: string })[]; chainId?: 1 | 196 | 8453 }
+interface ExecutionAccess { value: AgentExecutionAccessProof; signature: Hex }
 
 function message(value: unknown, fallback: string) {
   return typeof value === "object" && value && "message" in value && typeof value.message === "string"
@@ -46,6 +49,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
   const wallet = useWallet();
   const [program, setProgram] = useState<ProgramView>();
   const [prepared, setPrepared] = useState<Prepared>();
+  const [executionAccess, setExecutionAccess] = useState<ExecutionAccess>();
   const [approvalIndex, setApprovalIndex] = useState(0);
   const [transactionIndex, setTransactionIndex] = useState(0);
   const [transactionHashes, setTransactionHashes] = useState<Hash[]>([]);
@@ -86,6 +90,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
     try {
       await wallet.switchToXLayer();
       const access = await accessProof();
+      setExecutionAccess(access);
       const requestBody = JSON.stringify({ proof: access.value, ownerSignature: access.signature });
       let response = await fetch(`/api/programs/${programId}/execution`, {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -163,7 +168,10 @@ export function AgentProgramView({ programId }: { programId: string }) {
         setTransactionIndex((value) => value + 1);
         return;
       }
-      const receiptAccess = await accessProof();
+      const receiptAccess = executionAccess?.value.expiresAt &&
+        executionAccess.value.expiresAt > Math.floor(Date.now() / 1_000) + 10
+        ? executionAccess
+        : await accessProof();
       const response = await fetch(`/api/programs/${programId}/execution/receipt`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -175,6 +183,12 @@ export function AgentProgramView({ programId }: { programId: string }) {
       const body = await response.json();
       if (!response.ok) throw new Error(message(body, "Receipt attribution failed."));
       setConfirmed(transactionHash);
+      setProgram((current) => current ? {
+        ...current,
+        submission: { ...current.submission, state: "executed", executable: false },
+        artifacts: { ...current.artifacts, receipt: { payload: body.receipt } },
+      } : current);
+      load(programId).then(setProgram).catch(() => undefined);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Execution failed."); }
     finally { setPending(false); }
   }

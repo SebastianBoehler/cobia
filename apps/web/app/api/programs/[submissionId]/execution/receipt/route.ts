@@ -6,6 +6,7 @@ import { base, mainnet } from "viem/chains";
 import { z } from "zod";
 import { xLayer } from "../../../../../../lib/chain/xlayer";
 import { prepareAgentExecutionV3 } from "../../../../../../lib/coding-agent-sandbox/agent-execution-v3";
+import { readConfirmedBalanceChanges } from "../../../../../../lib/coding-agent-sandbox/confirmed-balance-changes";
 import { verifyAgentExecutionAccessProof } from "../../../../../../lib/coding-agent-sandbox/execution-access";
 import {
   assertCanonicalAgentExecutionReceipt, validateAgentExecutionReceiptV3,
@@ -70,6 +71,7 @@ export async function POST(
       throw new Error("Execution receipt block metadata is unavailable");
     }
     let attributed: unknown;
+    let attributedBlockNumber: bigint | undefined;
     if ("transactionHashes" in body) {
       const execution = executionArtifact;
       if (!execution || commitment(execution.payload) !== execution.artifactHash) {
@@ -132,6 +134,19 @@ export async function POST(
         blockNumber: receipt.blockNumber, blockHash: receipt.blockHash, logs: receipt.logs,
       },
       });
+      attributedBlockNumber = receipt.blockNumber;
+    }
+    if (attributedBlockNumber !== undefined) {
+      const evidence = stored.artifacts.find(({ kind }) => kind === "evidence")?.payload;
+      const balanceChanges = await readConfirmedBalanceChanges({
+        evidence,
+        owner: proof.owner,
+        blockNumber: attributedBlockNumber,
+        readBalance: (token, owner, blockNumber) => client.readContract({
+          address: token, abi: erc20Abi, functionName: "balanceOf", args: [owner], blockNumber,
+        }),
+      });
+      if (balanceChanges.length > 0) attributed = { ...(attributed as object), balanceChanges };
     }
     await repository.appendArtifact(submissionId, "receipt", attributed);
     await repository.resolve(submissionId, "executed", []);
