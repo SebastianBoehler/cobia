@@ -167,6 +167,8 @@ are documented in
 - `packages/solvers` — deterministic builder and bounded agentic candidate selector
 - `deploy/hetzner` — production and local Docker Compose topology
 - `docs/architecture` — current/target architecture and intent-compatibility boundaries
+- `docs/design/cobia-brand-system.md` — canonical brand, visual, and product-language system
+- `docs/design/cobia-x-community-playbook.md` — X publishing and community voice playbook
 
 See [apps/web/README.md](apps/web/README.md) for the exact network and payment
 configuration boundary.
