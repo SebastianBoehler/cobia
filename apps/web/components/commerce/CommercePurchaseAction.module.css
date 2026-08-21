@@ -31,6 +31,24 @@
   white-space: pre-wrap;
 }
 
+.settlementLink { margin-top: 12px !important; }
+
+.settlementLink a,
+.purchase :global(.form-alert) a {
+  color: inherit;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.purchase :global(.form-alert) {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.purchase :global(.form-alert) p { color: inherit; }
+
 @media (max-width: 720px) {
   .purchase {
     grid-template-columns: auto minmax(0, 1fr);

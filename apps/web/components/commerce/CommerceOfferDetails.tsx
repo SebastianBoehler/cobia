@@ -32,7 +32,7 @@ export function CommerceOfferDetails({ offer, observedAtSec }: {
           <div><dt>Network</dt><dd>{networkName(offer.payment.chainId)} · {offer.payment.chainId}</dd></div>
           <div><dt>Quantity</dt><dd>{offer.product.quantity}</dd></div>
           {offer.product.mimeType ? <div><dt>Delivery</dt><dd>{offer.product.mimeType}</dd></div> : null}
-          {offer.placement.kind !== "direct-contract" ? <div><dt>Resource endpoint</dt><dd>{offer.placement.endpoint}</dd></div> : null}
+          {offer.placement.kind !== "direct-contract" ? <div><dt>Merchant resource</dt><dd><a href={offer.placement.endpoint} target="_blank" rel="noreferrer">Open {new URL(offer.placement.endpoint).hostname}</a></dd></div> : null}
         </dl>
       </section>
       <section className={styles.card}>

@@ -58,6 +58,7 @@ function dependencies(placement: unknown = root) {
       append: vi.fn(async (event) => ({ ...root, ...event })),
     },
     readBalance: vi.fn(async () => 10_000n),
+    readAuthorizationState: vi.fn(async () => false),
     execute: vi.fn(async () => ({
       settlement: {
         success: true, transaction: hash("7"), network: "eip155:196",
@@ -117,6 +118,32 @@ describe("commerce authorization service", () => {
       placementId,
       failure: "merchant-http-422",
     });
+  });
+
+  it("records a merchant 402 as not settled when the authorization nonce is unused", async () => {
+    const deps = dependencies();
+    deps.execute.mockRejectedValueOnce(new Error("x402 paid resource returned HTTP 402"));
+
+    await expect(authorizeCommercePlacementV1(await input(), deps)).rejects.toMatchObject({
+      code: "PAYMENT_NOT_SETTLED",
+      details: {
+        merchantStatus: 402,
+        merchantUrl: template.endpoint,
+        authorizationState: "unused",
+      },
+    });
+    expect(deps.readAuthorizationState).toHaveBeenCalledWith({
+      chainId: 196,
+      asset: template.accepted.asset,
+      owner: owner.address.toLowerCase(),
+      nonce: template.authorization.nonce,
+    });
+    expect(deps.placements.append.mock.calls).toEqual([
+      [expect.objectContaining({ state: "authorizing" })],
+      [expect.objectContaining({
+        expectedState: "authorizing", state: "rejected", rejectionCode: "MERCHANT_PAYMENT_REJECTED",
+      })],
+    ]);
   });
 
   it("rejects a stale unfunded authorization before changing state or contacting the merchant", async () => {

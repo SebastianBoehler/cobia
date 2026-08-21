@@ -30,10 +30,13 @@ export function CommercePurchaseAction({ offerCommitment }: { offerCommitment: s
   const [uncertainAuthorization, setUncertainAuthorization] = useState<{
     placementId: string; authorizationNonce: string;
   }>();
+  const [notSettled, setNotSettled] = useState<{
+    placementId: string; authorizationNonce: string; merchantStatus: 402; merchantUrl: string;
+  }>();
 
   async function buy() {
     if (!wallet.account) { setError("Connect the wallet that will own and pay for this intent."); return; }
-    setPending(true); setError(undefined); setUncertainAuthorization(undefined);
+    setPending(true); setError(undefined); setUncertainAuthorization(undefined); setNotSettled(undefined);
     try {
       const proposalResponse = await fetch(`/api/commerce/offers/${offerCommitment}/proposal`, {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -60,9 +63,16 @@ export function CommercePurchaseAction({ offerCommitment }: { offerCommitment: s
       setSubmitted(authorization);
     } catch (cause) {
       if (cause instanceof CommerceAuthorizationSubmissionError) {
-        setUncertainAuthorization({
-          placementId: cause.placementId, authorizationNonce: cause.authorizationNonce,
-        });
+        if (cause.outcome?.kind === "not-settled") {
+          setNotSettled({
+            placementId: cause.placementId,
+            authorizationNonce: cause.authorizationNonce,
+            merchantStatus: cause.outcome.merchantStatus,
+            merchantUrl: cause.outcome.merchantUrl,
+          });
+          return;
+        }
+        setUncertainAuthorization({ placementId: cause.placementId, authorizationNonce: cause.authorizationNonce });
       }
       setError(errorMessage(cause));
     }
@@ -89,11 +99,21 @@ export function CommercePurchaseAction({ offerCommitment }: { offerCommitment: s
       <p>Sign the bounded order first, then one exact authorization for the offer&apos;s pinned chain and asset. Cobia verifies the token transfer; delivery remains merchant-provided.</p>
       {submitted ? <pre className={styles.resource}>{resource}</pre> : null}
       {confirmed ? <p className="status status--live">Payment settlement confirmed</p> : null}
+      {submitted ? <p className={styles.settlementLink}>
+        <a href={`https://web3.okx.com/explorer/xlayer/tx/${submitted.transactionHash}`} target="_blank" rel="noreferrer">
+          View settlement transaction on X Layer explorer
+        </a>
+      </p> : null}
+      {notSettled ? <div className="form-alert" role="status">
+        <strong>Not settled — no transaction exists.</strong>
+        <p>Ethy AI rejected the signed payment credential (HTTP {notSettled.merchantStatus}). Cobia checked the authorization nonce on X Layer and it is unused, so no payment was transferred.</p>
+        <p><a href={notSettled.merchantUrl} target="_blank" rel="noreferrer">Open Ethy AI&apos;s merchant resource</a> <span aria-hidden="true">·</span> Placement {notSettled.placementId} <span aria-hidden="true">·</span> Nonce {notSettled.authorizationNonce}</p>
+      </div> : null}
       {uncertainAuthorization ? <p className="form-alert" role="status">
         Signed authorization outcome is pending review. Do not retry. Placement {uncertainAuthorization.placementId}; nonce {uncertainAuthorization.authorizationNonce}.
       </p> : error ? <p className="form-alert" role="alert">{error}</p> : null}
     </div>
-    {!submitted && !uncertainAuthorization ? <button className="button button--primary" disabled={pending} onClick={buy}>
+    {!submitted && !uncertainAuthorization && !notSettled ? <button className="button button--primary" disabled={pending} onClick={buy}>
       {pending ? <><LoaderCircle className="spin" size={16} /> Preparing…</> : "Review and buy"}
     </button> : null}
     {submitted && !confirmed ? <button className="button button--primary" disabled={pending} onClick={verifySettlement}>

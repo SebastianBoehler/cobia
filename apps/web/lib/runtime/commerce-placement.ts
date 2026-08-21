@@ -1,4 +1,4 @@
-import { createPublicClient, erc20Abi, http, keccak256 } from "viem";
+import { createPublicClient, erc20Abi, http, keccak256, parseAbi } from "viem";
 import { base } from "viem/chains";
 import { xLayer } from "../chain/xlayer";
 import { authorizeCommercePlacementV1 } from "../commerce/authorization-service";
@@ -13,6 +13,10 @@ import { verifyX402SettlementReceiptV1 } from "../commerce/x402-receipt-verifier
 import { confirmCommerceSettlementV1 } from "../commerce/settlement-service";
 import { readCommerceRuntimeConfig } from "../env";
 import { getCommerceOfferRepository, getCommercePlacementRepository } from "./market";
+
+const EIP3009_AUTHORIZATION_STATE_ABI = parseAbi([
+  "function authorizationState(address authorizer, bytes32 nonce) view returns (bool)",
+]);
 
 export async function prepareProductionCommercePlacementV1(input: {
   policy: unknown; ownerSignature: unknown; program: unknown; evidence: unknown;
@@ -66,6 +70,18 @@ export function authorizeProductionCommercePlacementV1(input: {
       });
       return client.readContract({
         address: asset, abi: erc20Abi, functionName: "balanceOf", args: [owner],
+      });
+    },
+    async readAuthorizationState({ chainId, asset, owner, nonce }) {
+      const client = createPublicClient({
+        chain: chainId === 8453 ? base : xLayer,
+        transport: http(chainId === 8453 ? config.BASE_RPC_URL : config.XLAYER_RPC_URL,
+          { timeout: 15_000 }),
+        cacheTime: 0,
+      });
+      return client.readContract({
+        address: asset, abi: EIP3009_AUTHORIZATION_STATE_ABI,
+        functionName: "authorizationState", args: [owner, nonce],
       });
     },
     execute: (value) => executeX402ResourceV1({

@@ -19,6 +19,7 @@ const statusByCode = {
   INSUFFICIENT_PAYMENT_BALANCE: 409,
   SETTLEMENT_ALREADY_ATTEMPTED: 409,
   SETTLEMENT_UNCERTAIN: 409,
+  PAYMENT_NOT_SETTLED: 422,
 } as const;
 
 export async function POST(
@@ -35,7 +36,7 @@ export async function POST(
     });
   } catch (error) {
     if (error instanceof CommerceAuthorizationErrorV1) {
-      return NextResponse.json({ code: error.code, message: error.message }, {
+      return NextResponse.json({ code: error.code, message: error.message, details: error.details }, {
         status: statusByCode[error.code],
       });
     }

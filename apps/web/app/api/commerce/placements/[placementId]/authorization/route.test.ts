@@ -44,6 +44,27 @@ describe("commerce authorization API", () => {
     expect(mocks.authorize).toHaveBeenCalledTimes(1);
   });
 
+  it("reports a merchant-rejected payment as definitively not settled", async () => {
+    mocks.authorize.mockRejectedValue(new CommerceAuthorizationErrorV1(
+      "PAYMENT_NOT_SETTLED", "No payment transaction was created", {
+        merchantStatus: 402,
+        merchantUrl: "https://api.example/paid-resource",
+        authorizationState: "unused",
+      },
+    ));
+    const response = await POST(request({ template: {}, signature }), context);
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({
+      code: "PAYMENT_NOT_SETTLED",
+      message: "No payment transaction was created",
+      details: {
+        merchantStatus: 402,
+        merchantUrl: "https://api.example/paid-resource",
+        authorizationState: "unused",
+      },
+    });
+  });
+
   it("rejects malformed signatures before runtime execution", async () => {
     const response = await POST(request({ template: {}, signature: "0x12" }), context);
     expect(response.status).toBe(400);

@@ -35,6 +35,7 @@ describe("commerce offer details", () => {
     expect(html).not.toContain("Execute");
     if (offer.placement.kind === "direct-contract") throw new Error("Fixture must expose a remote endpoint");
     expect(html).toContain(offer.placement.endpoint);
+    expect(html).toContain(`href="${offer.placement.endpoint}"`);
   });
 
   it("shows the external listing's actual network", () => {

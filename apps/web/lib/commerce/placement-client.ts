@@ -31,12 +31,32 @@ const ConfirmationResponseSchema = z.object({
   state: z.literal("confirmed"), outcome: z.literal("payment-settled"),
   transactionHash: HashSchema, evidence: z.unknown(), evidenceHash: HashSchema,
 }).passthrough();
+const MerchantPaymentRejectionSchema = z.object({
+  merchantStatus: z.literal(402),
+  merchantUrl: z.url().refine((value) => new URL(value).protocol === "https:"),
+  authorizationState: z.literal("unused"),
+}).strict();
+
+class CommerceApiError extends Error {
+  constructor(
+    readonly code: string | undefined,
+    message: string,
+    readonly details: unknown,
+  ) {
+    super(message);
+  }
+}
 
 export class CommerceAuthorizationSubmissionError extends Error {
   constructor(
     message: string,
     readonly placementId: string,
     readonly authorizationNonce: string,
+    readonly outcome?: {
+      kind: "not-settled";
+      merchantStatus: 402;
+      merchantUrl: string;
+    },
   ) {
     super(message);
     this.name = "CommerceAuthorizationSubmissionError";
@@ -47,8 +67,14 @@ async function responseJson(response: Response): Promise<unknown> {
   let body: unknown;
   try { body = await response.json(); } catch { throw new Error("Commerce API returned invalid JSON"); }
   if (!response.ok) {
-    const parsed = z.object({ message: z.string().min(1) }).passthrough().safeParse(body);
-    throw new Error(parsed.success ? parsed.data.message : `Commerce API returned HTTP ${response.status}`);
+    const parsed = z.object({
+      code: z.string().min(1).optional(), message: z.string().min(1).optional(), details: z.unknown().optional(),
+    }).passthrough().safeParse(body);
+    throw new CommerceApiError(
+      parsed.success ? parsed.data.code : undefined,
+      parsed.success && parsed.data.message ? parsed.data.message : `Commerce API returned HTTP ${response.status}`,
+      parsed.success ? parsed.data.details : undefined,
+    );
   }
   return body;
 }
@@ -90,8 +116,16 @@ export async function authorizeCommercePlacementClientV1(input: {
     };
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : "Commerce authorization submission failed";
+    const merchantRejection = cause instanceof CommerceApiError && cause.code === "PAYMENT_NOT_SETTLED"
+      ? MerchantPaymentRejectionSchema.safeParse(cause.details)
+      : undefined;
     throw new CommerceAuthorizationSubmissionError(
       message, input.placement.id, input.authorization.authorization.nonce,
+      merchantRejection?.success ? {
+        kind: "not-settled",
+        merchantStatus: merchantRejection.data.merchantStatus,
+        merchantUrl: merchantRejection.data.merchantUrl,
+      } : undefined,
     );
   }
 }

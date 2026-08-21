@@ -136,4 +136,31 @@ describe("commerce wallet client", () => {
       authorizationNonce: template.authorization.nonce,
     });
   });
+
+  it("reports an unused authorization nonce as a payment that did not settle", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response({
+      code: "PAYMENT_NOT_SETTLED",
+      message: "No payment transaction was created",
+      details: {
+        merchantStatus: 402,
+        merchantUrl: template.endpoint,
+        authorizationState: "unused",
+      },
+    }, 422));
+    const wallet = { signTypedData: vi.fn(async () => signature) };
+
+    await expect(authorizeCommercePlacementClientV1({
+      placement: { id: placementId, state: "prepared" },
+      plan: X402AuthorizationPlanV1Schema.parse(plan),
+      authorization: X402AuthorizationTemplateV1Schema.parse(template), wallet, fetcher,
+    })).rejects.toMatchObject({
+      placementId,
+      authorizationNonce: template.authorization.nonce,
+      outcome: {
+        kind: "not-settled",
+        merchantStatus: 402,
+        merchantUrl: template.endpoint,
+      },
+    });
+  });
 });

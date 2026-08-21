@@ -24,10 +24,15 @@ const PlacementSchema = z.object({
 export type CommerceAuthorizationErrorCodeV1 =
   | "PLACEMENT_NOT_FOUND" | "PLACEMENT_MISMATCH"
   | "AUTHORIZATION_EXPIRED" | "INSUFFICIENT_PAYMENT_BALANCE"
-  | "SETTLEMENT_ALREADY_ATTEMPTED" | "SETTLEMENT_UNCERTAIN";
+  | "SETTLEMENT_ALREADY_ATTEMPTED" | "SETTLEMENT_UNCERTAIN"
+  | "PAYMENT_NOT_SETTLED";
 
 export class CommerceAuthorizationErrorV1 extends Error {
-  constructor(readonly code: CommerceAuthorizationErrorCodeV1, message: string) {
+  constructor(
+    readonly code: CommerceAuthorizationErrorCodeV1,
+    message: string,
+    readonly details?: unknown,
+  ) {
     super(message);
   }
 }
@@ -57,6 +62,9 @@ export async function authorizeCommercePlacementV1(
       append(event: Record<string, unknown>): Promise<unknown>;
     };
     readBalance(input: { chainId: 196 | 8453; asset: Address; owner: Address }): Promise<bigint>;
+    readAuthorizationState(input: {
+      chainId: 196 | 8453; asset: Address; owner: Address; nonce: Hash;
+    }): Promise<boolean>;
     execute(input: { expected: unknown; submitted: unknown; signature: unknown }): Promise<{
       settlement: { transaction: Hash };
       authorizationHash: Hash;
@@ -136,9 +144,37 @@ export async function authorizeCommercePlacementV1(
       resourceBodyBase64: Buffer.from(result.resourceBody).toString("base64"),
     };
   } catch (error) {
+    const failure = settlementDiagnostic(error);
+    if (failure === "merchant-http-402") {
+      try {
+        const authorizationUsed = await dependencies.readAuthorizationState({
+          chainId: template.chainId,
+          asset: template.accepted.asset,
+          owner: template.authorization.from,
+          nonce: template.authorization.nonce,
+        });
+        if (!authorizationUsed) {
+          await dependencies.placements.append({
+            placementId, owner: stored.owner, expectedState: "authorizing", state: "rejected",
+            rejectionCode: "MERCHANT_PAYMENT_REJECTED", observedAtSec: eventTime + 1,
+          });
+          throw new CommerceAuthorizationErrorV1(
+            "PAYMENT_NOT_SETTLED",
+            "The merchant rejected this signed payment before settlement. Cobia confirmed the authorization nonce is unused on X Layer, so no payment transaction was created.",
+            {
+              merchantStatus: 402,
+              merchantUrl: template.endpoint,
+              authorizationState: "unused",
+            },
+          );
+        }
+      } catch (rejectionError) {
+        if (rejectionError instanceof CommerceAuthorizationErrorV1) throw rejectionError;
+      }
+    }
     console.warn("[commerce-authorization] uncertain settlement", {
       placementId,
-      failure: settlementDiagnostic(error),
+      failure,
     });
     throw new CommerceAuthorizationErrorV1(
       "SETTLEMENT_UNCERTAIN",
