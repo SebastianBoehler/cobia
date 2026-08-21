@@ -59,6 +59,17 @@ function sameDeployment(
         expected.implementation.runtimeCodeHash === observed.implementation.runtimeCodeHash);
 }
 
+function sameDeployments(
+  left: readonly CapabilityDeploymentV1[],
+  right: readonly CapabilityDeploymentV1[],
+): boolean {
+  const leftAddresses = new Set(left.map(({ address }) => address.toLowerCase()));
+  const rightAddresses = new Set(right.map(({ address }) => address.toLowerCase()));
+  return left.length === right.length && leftAddresses.size === left.length &&
+    rightAddresses.size === right.length && left.every((expected) =>
+      right.some((observed) => sameDeployment(expected, observed)));
+}
+
 function requiredDeployments(actions: readonly CompiledCapabilityActionV1[]) {
   const deployments = new Map<string, CapabilityDeploymentV1>();
   for (const action of actions) for (const deployment of action.deployments) {
@@ -109,7 +120,7 @@ function sameReplay(
     replay.stateDiffHash === evidence.stateDiffHash &&
     replay.eventsHash === evidence.eventsHash &&
     commitment(replay.balanceDeltas) === commitment(evidence.balanceDeltas) &&
-    commitment(replay.deployments) === commitment(evidence.deployments);
+    sameDeployments(replay.deployments, evidence.deployments);
 }
 
 export async function verifyCapabilityProgramV1(input: VerifyCapabilityProgramInputV1): Promise<{

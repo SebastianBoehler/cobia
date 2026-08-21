@@ -1,4 +1,5 @@
 import { commitment } from "@cobia/domain";
+import { getAddress } from "viem";
 import { describe, expect, it } from "vitest";
 import { verifyCapabilityProgramV2 } from "../src";
 import {
@@ -31,6 +32,29 @@ describe("general capability verifier", () => {
     const result = await verify({ replay: reproduce });
     expect(result).toMatchObject({ accepted: true, errorCodes: [], replay: { reproduced: true } });
     expect(reproduce).toHaveBeenCalledOnce();
+  });
+
+  it("accepts checksummed replay deployment addresses as the same code identity", async () => {
+    const reproduce = replay();
+    reproduce.mockImplementation(async () => {
+      const result = await replay()();
+      return {
+        ...result,
+        deployments: result.deployments.map((deployment) => ({
+          ...deployment,
+          address: getAddress(deployment.address),
+          ...(deployment.implementation ? { implementation: {
+            ...deployment.implementation,
+            address: getAddress(deployment.implementation.address),
+          } } : {}),
+        })),
+      };
+    });
+
+    await expect(verify({ replay: reproduce })).resolves.toMatchObject({
+      accepted: true,
+      errorCodes: [],
+    });
   });
 
   it.each([

@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import { createForkRead } from "./fork-read";
 
 const leasedPorts = new Set<number>();
+const ANVIL_READY_ATTEMPTS = 240;
+const ANVIL_READY_POLL_MS = 250;
 
 export async function reserveLocalAnvilPort() {
   for (let attempt = 0; attempt < 10; attempt += 1) {
@@ -59,7 +61,7 @@ export async function startLocalAnvilFork(input: {
     return result(await response.json());
   };
   let ready = false;
-  for (let attempt = 0; attempt < 80; attempt += 1) {
+  for (let attempt = 0; attempt < ANVIL_READY_ATTEMPTS; attempt += 1) {
     if (child.exitCode !== null) {
       reservation?.release();
       throw new Error(`Local Anvil exited: ${stderr}`);
@@ -67,7 +69,7 @@ export async function startLocalAnvilFork(input: {
     try {
       if (Number(BigInt(String(await rpc("eth_chainId")))) === chainId) { ready = true; break; }
     } catch { /* Anvil is still starting. */ }
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await new Promise((resolve) => setTimeout(resolve, ANVIL_READY_POLL_MS));
   }
   if (!ready) {
     child.kill("SIGTERM");

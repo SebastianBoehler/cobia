@@ -71,6 +71,17 @@ function sameDeployment(left: CapabilityDeploymentV1, right: CapabilityDeploymen
         left.implementation.runtimeCodeHash === right.implementation.runtimeCodeHash);
 }
 
+function sameDeployments(
+  left: readonly CapabilityDeploymentV1[],
+  right: readonly CapabilityDeploymentV1[],
+): boolean {
+  const leftAddresses = new Set(left.map(({ address }) => address.toLowerCase()));
+  const rightAddresses = new Set(right.map(({ address }) => address.toLowerCase()));
+  return left.length === right.length && leftAddresses.size === left.length &&
+    rightAddresses.size === right.length && left.every((expected) =>
+      right.some((observed) => sameDeployment(expected, observed)));
+}
+
 function mergeDeployment(
   left: CapabilityDeploymentV1,
   right: CapabilityDeploymentV1,
@@ -118,7 +129,7 @@ function sameReplay(evidence: CapabilityProgramEvidenceV2, replay: CapabilityPro
   return replay.reproduced && replay.traceHash === evidence.traceHash &&
     replay.stateDiffHash === evidence.stateDiffHash && replay.eventsHash === evidence.eventsHash &&
     commitment(replay.balanceDeltas) === commitment(evidence.balanceDeltas) &&
-    commitment(replay.deployments) === commitment(evidence.deployments) &&
+    sameDeployments(replay.deployments, evidence.deployments) &&
     commitment(replay.observations) === commitment(evidence.observations) &&
     commitment(replay.objective ?? null) === commitment(evidence.objective ?? null);
 }
