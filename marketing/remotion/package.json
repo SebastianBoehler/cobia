@@ -1,0 +1,39 @@
+{
+  "name": "@cobia/promo-remotion",
+  "version": "0.1.0",
+  "description": "Short proof-first promotional clips for Cobia",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "build": "remotion bundle",
+    "dev": "remotion studio --no-open",
+    "lint": "eslint src && tsc --noEmit",
+    "render:clean-prompt": "remotion render Cobia-Clean-Prompt output/cobia-clean-prompt.mp4",
+    "render:clean-prompt:x": "remotion render Cobia-Clean-Prompt-X output/cobia-clean-prompt-x-16x9.mp4",
+    "render:prompt": "remotion render Cobia-Prompt-Tags-16x9 output/cobia-prompt-tags-16x9.mp4",
+    "render:prompt:vertical": "remotion render Cobia-Prompt-Tags-9x16 output/cobia-prompt-tags-9x16.mp4",
+    "render:reveal": "remotion render Cobia-Intent-UI-Reveal output/cobia-intent-ui-reveal.mp4",
+    "render:verify": "remotion render Cobia-Verify-Flow-Square output/cobia-verify-flow-square.mp4",
+    "render:all": "pnpm render:prompt && pnpm render:prompt:vertical && pnpm render:reveal && pnpm render:verify"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.514",
+    "@remotion/rough-notation": "4.0.514",
+    "@remotion/transitions": "4.0.514",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.514",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@remotion/eslint-config-flat": "4.0.514",
+    "@types/react": "19.2.7",
+    "@types/web": "0.0.166",
+    "eslint": "9.39.5",
+    "prettier": "3.8.1",
+    "typescript": "5.7.3"
+  },
+  "sideEffects": [
+    "*.css"
+  ]
+}

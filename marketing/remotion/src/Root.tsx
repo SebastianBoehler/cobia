@@ -1,0 +1,19 @@
+import { Composition, Folder } from "remotion";
+import "./index.css";
+import { CleanPromptClip } from "./prompt/CleanPromptClip";
+import { PromptTrailer } from "./prompt/PromptTrailer";
+import { UiRevealTrailer } from "./reveal/UiRevealTrailer";
+import { VerifyFlowTrailer } from "./verify/VerifyFlowTrailer";
+
+export const RemotionRoot = () => (
+  <>
+    <Folder name="Cobia-Promos">
+      <Composition id="Cobia-Clean-Prompt" component={CleanPromptClip} durationInFrames={220} fps={30} width={1600} height={560} />
+      <Composition id="Cobia-Clean-Prompt-X" component={CleanPromptClip} durationInFrames={220} fps={30} width={1920} height={1080} />
+      <Composition id="Cobia-Prompt-Tags-16x9" component={PromptTrailer} durationInFrames={266} fps={30} width={1920} height={1080} />
+      <Composition id="Cobia-Prompt-Tags-9x16" component={PromptTrailer} durationInFrames={266} fps={30} width={1080} height={1920} />
+      <Composition id="Cobia-Intent-UI-Reveal" component={UiRevealTrailer} durationInFrames={203} fps={30} width={1920} height={1080} />
+      <Composition id="Cobia-Verify-Flow-Square" component={VerifyFlowTrailer} durationInFrames={210} fps={30} width={1080} height={1080} />
+    </Folder>
+  </>
+);
