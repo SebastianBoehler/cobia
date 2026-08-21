@@ -22,8 +22,9 @@ describe("home conversion path", () => {
     expect(html).toContain('name="goal"');
     expect(html).toContain("@USDG");
     expect(html).toContain("@Aave");
-    expect(html).toContain("What should happen onchain?");
-    expect(html).toContain("Solvers may submit, revise, or abstain");
+    expect(html).toContain("State the outcome. Keep the keys.");
+    expect(html).toContain("Cobia turns your limits into a signed policy");
+    expect(html).toContain("AI proposes. Cobia verifies. Your wallet decides.");
     expect(html).not.toContain("home-eyebrow");
     expect(html).not.toMatch(/Earn|Swap|Profit/);
     expect(html).not.toContain("Policy receipt");

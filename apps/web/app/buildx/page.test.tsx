@@ -24,6 +24,9 @@ describe("Build X project page", () => {
 
     expect(html).toContain("Deployed");
     expect(html).toContain("Live product");
+    expect(html).toContain("Confirmed outcome");
+    expect(html).toContain("First mainnet intent outcome");
+    expect(html).toContain("1 USDt0 for 0.999471 USDG");
     expect(html).toContain("Pending canary");
     expect(html).toContain("Awaiting the final production release");
     expect(html).not.toContain("Ethy settlement verified");
@@ -36,6 +39,7 @@ describe("Build X project page", () => {
     expect(html).toContain('href="https://github.com/SebastianBoehler/cobia"');
     expect(html).toContain('href="https://x.com/Cobia_Web3/status/2090604315052302774"');
     expect(html).toContain("0x2278a9241529becaf1baac9a3de7777fd5ab6051e0e65b3b4fc45e1e3f3fc767");
+    expect(html).toContain("0x83500273bbdaf6f2ad5e27f3d6807b7555383599ea537eca0206f9c18ab0d210");
     expect(html).toContain("https://www.oklink.com/x-layer-testnet/tx/");
     expect(html).toContain("0x68cff1d6bbba6b436d0be39cd91e772a811027519487a7fefe91d5bef81521a6");
   });

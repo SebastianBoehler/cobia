@@ -15,6 +15,7 @@ import styles from "./JudgeEvidence.module.css";
 const MAINNET_DEPLOYMENT_TX = "0x2278a9241529becaf1baac9a3de7777fd5ab6051e0e65b3b4fc45e1e3f3fc767";
 const TESTNET_DEPLOYMENT_TX = "0x68cff1d6bbba6b436d0be39cd91e772a811027519487a7fefe91d5bef81521a6";
 const BUILDER_REGISTRATION_TX = "0xf9ee439cbc68a652f92c8d7522d8c76a54e6c3888ffde7468eb7ed32c6318ffa";
+const FIRST_VERIFIED_INTENT_TX = "0x83500273bbdaf6f2ad5e27f3d6807b7555383599ea537eca0206f9c18ab0d210";
 
 const boundary = [
   ["01", "Signed outcome", "The wallet commits the goal, assets, hard limits and deadline."],
@@ -28,6 +29,11 @@ const evidence = [
     title: "Cobia on X Layer", status: "Live product",
     detail: "Intent creation, discovery, portfolios, solver evidence and wallet review on chain 196.",
     href: "https://getcobia.com", link: "Open product",
+  },
+  {
+    title: "First mainnet intent outcome", status: "Confirmed outcome",
+    detail: "An owner-approved Cobia program swapped 1 USDt0 for 0.999471 USDG on X Layer and carried the registered Builder Code.",
+    href: `https://web3.okx.com/explorer/x-layer/evm/tx/${FIRST_VERIFIED_INTENT_TX}`, link: "Inspect execution",
   },
   {
     title: "Executor V3 deployment", status: "Deployed",

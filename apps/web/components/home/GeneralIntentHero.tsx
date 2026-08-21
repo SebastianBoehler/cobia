@@ -7,10 +7,10 @@ export function GeneralIntentHero() {
   return (
     <section className="general-hero" aria-labelledby="home-title">
       <div className="general-hero__copy">
-        <h1 id="home-title">What should happen onchain?</h1>
+        <h1 id="home-title">State the outcome. Keep the keys.</h1>
         <p>
-          Describe an outcome. Cobia turns your chosen limits into a signed policy,
-          lets solvers compete, and independently verifies every proposed program.
+          Describe what should happen onchain. Cobia turns your limits into a signed
+          policy and independently verifies exact calls before your wallet approves them.
         </p>
         <div className="general-hero__actions">
           <Link className="button button--primary" href="/intents/new">
@@ -19,7 +19,7 @@ export function GeneralIntentHero() {
           <Link className="text-link" href="/discover">Explore challenges</Link>
         </div>
         <p className="general-hero__note">
-          Solvers may submit, revise, or abstain. Only your wallet can approve a verified program.
+          AI proposes. Cobia verifies. Your wallet decides.
         </p>
       </div>
 
