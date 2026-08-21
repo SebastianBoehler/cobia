@@ -14,9 +14,10 @@
 .statusCard.failed { box-shadow: 0 0 0 1px color-mix(in oklch, var(--rejected) 24%, transparent), var(--shadow-soft); }
 .failed .statusIcon, .failed .statusLabel { color: var(--rejected); }
 .history .statusIcon, .history .statusLabel { color: var(--estimated); }
-.primaryGrid { display: grid; gap: 18px; grid-template-columns: minmax(0, 1.45fr) minmax(300px, .55fr); }
+.primaryGrid { display: grid; gap: 18px; grid-template-columns: minmax(0, 1.1fr) minmax(360px, .9fr); }
 .card, .ledger, .provenance, .footerAction { background: var(--surface); border-radius: 22px; box-shadow: var(--shadow-soft); }
 .card { min-width: 0; padding: clamp(22px, 3vw, 30px); }
+.outcomeCard { background: color-mix(in oklch, var(--cobalt-wash) 36%, var(--surface)); }
 .cardHeader, .cardHeader > div { align-items: center; display: flex; justify-content: space-between; }
 .cardHeader > div { gap: 13px; }
 .sectionIcon { align-items: center; background: var(--cobalt-wash); border-radius: 11px; color: var(--cobalt); display: flex; height: 40px; justify-content: center; width: 40px; }
@@ -24,19 +25,33 @@
 .kicker { color: var(--muted); font-size: 10px; font-weight: 680; letter-spacing: .08em; margin: 0 0 5px; text-transform: uppercase; }
 .card h2, .ledger h2, .provenance h2 { font-size: 20px; letter-spacing: -.035em; margin: 0; }
 .count { background: var(--wash); border-radius: 999px; color: var(--muted); font-size: 11px; font-weight: 650; padding: 6px 9px; }
+.balanceList { display: grid; gap: 12px; list-style: none; margin: 28px 0 0; padding: 0; }
+.balanceList li { background: var(--surface); border: 1px solid color-mix(in oklch, var(--cobalt) 15%, var(--line)); border-radius: 14px; padding: 17px 18px; }
+.balanceList li > div { align-items: baseline; display: flex; justify-content: space-between; gap: 16px; }
+.balanceList li span { color: var(--muted); font-size: 12px; font-weight: 650; }
+.balanceList li strong { color: var(--verified); font-size: clamp(18px, 2vw, 24px); letter-spacing: -.045em; white-space: nowrap; }
+.balanceList p { color: var(--muted); font: 11px/1.5 var(--font-geist-mono), monospace; margin: 10px 0 0; }
+.balanceList small { color: var(--cobalt); display: block; font-size: 11px; font-weight: 650; margin-top: 10px; }
 .routeList { display: grid; list-style: none; margin: 28px 0 0; padding: 0; }
 .routeList li { align-items: center; border-top: 1px solid var(--line); display: grid; gap: 14px; grid-template-columns: 28px minmax(0, 1fr); padding: 16px 0; }
 .routeList li:last-child { padding-bottom: 0; }
 .routeList li > span { align-items: center; background: var(--wash); border-radius: 8px; color: var(--muted); display: flex; font-size: 11px; font-weight: 680; height: 28px; justify-content: center; }
 .routeList code { font: 12px/1.5 var(--font-geist-mono), monospace; overflow-wrap: anywhere; }
+.routeList strong { display: block; font-size: 13px; letter-spacing: -.015em; line-height: 1.45; }
+.routeList p { color: var(--muted); font: 11px/1.5 var(--font-geist-mono), monospace; margin: 5px 0 0; }
 .empty { color: var(--muted); font-size: 13px; margin: 28px 0 0; }
+.replaySummary { align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; display: grid; gap: 14px 18px; grid-template-columns: 40px minmax(0, 1fr) auto; padding: 18px 20px; }
+.replaySummary > .sectionIcon { height: 40px; width: 40px; }
+.replaySummary h2 { font-size: 15px; letter-spacing: -.025em; margin: 0; }
+.replaySummary p:last-child { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 5px 0 0; }
+.replaySummary .failureCodes { margin: 0; min-width: 180px; }
 .replayResult { border-top: 1px solid var(--line); margin-top: 28px; padding-top: 22px; }
 .replayResult strong { font-size: 26px; letter-spacing: -.05em; }
 .replayResult p { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 9px 0 0; }
 .failureCodes { background: color-mix(in oklch, var(--rejected) 7%, var(--surface)); border-radius: 12px; display: grid; gap: 7px; margin-top: 20px; padding: 13px; }
 .failureCodes span { color: var(--muted); font-size: 10px; text-transform: uppercase; }
 .failureCodes code { color: var(--rejected); font: 11px var(--font-geist-mono), monospace; }
-.ledger { overflow: hidden; }
+.ledger { border: 1px solid var(--line); box-shadow: none; overflow: hidden; }
 .ledger > header { align-items: end; display: flex; justify-content: space-between; padding: 25px 28px 20px; }
 .ledger > header > p { color: var(--muted); font-size: 12px; margin: 0; }
 .ledger dl { display: grid; grid-template-columns: repeat(4, 1fr); margin: 0; }
@@ -47,7 +62,7 @@
 .ledger dt { align-items: center; color: var(--muted); display: flex; font-size: 10px; gap: 6px; margin-bottom: 9px; }
 .ledger dt svg { height: 13px; stroke-width: 1.5; width: 13px; }
 .ledger dd { font: 12px/1.5 var(--font-geist-mono), monospace; margin: 0; overflow-wrap: anywhere; }
-.provenance { align-items: center; display: grid; gap: 36px; grid-template-columns: minmax(0, 1fr) auto; padding: 26px 28px; }
+.provenance { align-items: center; border: 1px solid var(--line); box-shadow: none; display: grid; gap: 36px; grid-template-columns: minmax(0, 1fr) auto; padding: 26px 28px; }
 .provenance > div > p:last-child { color: var(--muted); font-size: 12px; line-height: 1.55; margin: 9px 0 0; max-width: 58ch; }
 .provenance dl { display: grid; grid-template-columns: repeat(3, minmax(110px, 1fr)); margin: 0; }
 .provenance dl > div { display: grid; gap: 4px; grid-template-columns: 22px auto; padding: 4px 22px; }
@@ -70,6 +85,8 @@
   .ledger dl > div:nth-child(odd) { border-left: 0; }
   .ledger .hash { grid-column: span 1; }
   .provenance { align-items: start; grid-template-columns: 1fr; }
+  .replaySummary { grid-template-columns: 40px minmax(0, 1fr); }
+  .replaySummary .failureCodes { grid-column: 1 / -1; }
 }
 
 @media (max-width: 560px) {
@@ -85,4 +102,7 @@
   .provenance dl > div { padding: 12px 0; }
   .provenance dl > div + div { border-left: 0; border-top: 1px solid var(--line); }
   .footerAction a, .footerAction button { width: 100%; }
+  .balanceList li > div { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .balanceList li strong { white-space: normal; }
+  .replaySummary { padding: 18px; }
 }

@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { commitment } from "@cobia/domain";
 
 const mocks = vi.hoisted(() => ({
   verifyProof: vi.fn(),
   getExecutionContext: vi.fn(),
+  profileIdentity: vi.fn(),
 }));
 
 vi.mock("../../../../../lib/coding-agent-sandbox/execution-access", () => ({
@@ -10,6 +12,7 @@ vi.mock("../../../../../lib/coding-agent-sandbox/execution-access", () => ({
 }));
 vi.mock("../../../../../lib/runtime/market", () => ({
   getSolverSubmissionRepository: () => ({ getExecutionContext: mocks.getExecutionContext }),
+  getSolverProfileRepository: () => ({ identity: mocks.profileIdentity }),
 }));
 
 import { POST } from "./route";
@@ -60,6 +63,26 @@ describe("canonical program execution access", () => {
     expect(await response.json()).toEqual({
       code: "EXECUTION_UNAVAILABLE",
       message: "Program execution is unavailable.",
+    });
+  });
+
+  it("identifies a closed verified execution window without exposing internal details", async () => {
+    const execution = { version: 3, program: { deadline: "1" } };
+    mocks.verifyProof.mockResolvedValue({ programId: submissionId, owner, realm: "getcobia.com" });
+    mocks.getExecutionContext.mockResolvedValue({
+      owner, solverId: "cobia-reference", state: "attested",
+      artifacts: [{ kind: "execution", payload: execution, artifactHash: commitment(execution) }],
+    });
+    mocks.profileIdentity.mockResolvedValue({
+      attestationAddress: "0x2222222222222222222222222222222222222222",
+    });
+
+    const response = await POST(request(), context);
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      code: "EXECUTION_EXPIRED",
+      message: "The verified execution window has closed. Create a fresh intent.",
     });
   });
 });

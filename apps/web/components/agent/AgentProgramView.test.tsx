@@ -17,7 +17,25 @@ describe("AgentProgramView", () => {
         blockHash: `0x${"22".repeat(32)}`, displayGoal: "Supply USDG", failureCodes: [],
       },
       artifacts: {
-        program: { payload: { actions: [{ capabilityId: "aave-v3.supply", capabilityVersion: 1 }], balanceConstraints: [] } },
+        snapshot: { payload: { tokenEvidence: [{
+          token: "0x2222222222222222222222222222222222222222", symbol: "USDt0", decimals: 6,
+        }, { token: "0x3333333333333333333333333333333333333333", symbol: "USDG", decimals: 6 }] } },
+        program: { payload: {
+          input: { token: "0x3333333333333333333333333333333333333333", atomic: "1000000" },
+          actions: [{ capabilityId: "uniswap-v3.exact-input", capabilityVersion: 1, parameters: {
+            tokenIn: "0x3333333333333333333333333333333333333333",
+            tokenOut: "0x2222222222222222222222222222222222222222",
+            amountInAtomic: "1000000", minimumOutputAtomic: "995000",
+          } }],
+          balanceConstraints: [{ kind: "minimumIncrease", token: "0x2222222222222222222222222222222222222222", atomic: "950000" }],
+        } },
+        evidence: { payload: { balanceDeltas: [{
+          token: "0x2222222222222222222222222222222222222222",
+          beforeAtomic: "0", afterAtomic: "1000341",
+        }] } },
+        execution: { payload: { program: { actions: [{ approvals: [{
+          token: "0x3333333333333333333333333333333333333333", amount: "1000000",
+        }] }] } } },
         verdict: { payload: { accepted: true, errorCodes: [] } },
         provenance: { summary: { commandCount: 3, fileCount: 2, networkRequestCount: 1 } },
         replay: { payload: { reproduced: true } },
@@ -30,7 +48,13 @@ describe("AgentProgramView", () => {
     expect(await screen.findByText("Verified history")).toBeVisible();
     expect(screen.getByRole("heading", { name: "Supply USDG" })).toBeVisible();
     expect(screen.queryByText(/program audit/i)).not.toBeInTheDocument();
-    expect(screen.getByText("aave-v3.supply @ 1")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Simulated balance change" })).toBeVisible();
+    expect(screen.getByText("+1.000341 USDt0")).toBeVisible();
+    expect(screen.getByText("0.000000 → 1.000341 USDt0")).toBeVisible();
+    expect(screen.getByText("Minimum signed outcome: +0.950000 USDt0")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Transaction steps" })).toBeVisible();
+    expect(screen.getByText("Approve up to 1.000000 USDG")).toBeVisible();
+    expect(screen.getByText("Swap 1.000000 USDG for at least 0.995000 USDt0")).toBeVisible();
     expect(screen.getByText("cobia-reference")).toBeVisible();
     expect(screen.queryByRole("button", { name: /prepare execution/i })).not.toBeInTheDocument();
   });

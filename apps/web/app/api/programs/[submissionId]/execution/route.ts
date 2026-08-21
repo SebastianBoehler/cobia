@@ -60,7 +60,12 @@ export async function POST(
       deadline?: number; program?: { deadline?: string } };
     const deadline = executionValue.version === 3
       ? Number(executionValue.program?.deadline) : Number(executionValue.deadline);
-    if (!Number.isSafeInteger(deadline) || deadline <= nowSec) throw new Error("Verified execution has expired");
+    if (!Number.isSafeInteger(deadline)) throw new Error("Verified execution deadline is invalid");
+    if (deadline <= nowSec) {
+      return NextResponse.json({
+        code: "EXECUTION_EXPIRED", message: "The verified execution window has closed. Create a fresh intent.",
+      }, { status: 409 });
+    }
     const payment = readPaymentConfig();
     const feeIssuedAt = proof.expiresAt - 300;
     const feeTerms = buildSolverSuccessFeeTerms({ submissionId, solverId: stored.solverId,

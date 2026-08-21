@@ -1,5 +1,32 @@
 import type { Address, Hash } from "viem";
 
+interface TokenEvidence {
+  token: Address;
+  symbol: string;
+  decimals: number;
+}
+
+interface TokenAmount {
+  token: Address;
+  atomic: string;
+}
+
+interface Approval {
+  token: Address;
+  amount: string;
+}
+
+interface ProgramAction {
+  capabilityId: string;
+  capabilityVersion: number;
+  parameters?: {
+    tokenIn?: Address;
+    tokenOut?: Address;
+    amountInAtomic?: string;
+    minimumOutputAtomic?: string;
+  };
+}
+
 export interface PublicArtifact<T> {
   artifactHash?: Hash;
   payload?: T;
@@ -23,8 +50,17 @@ export interface ProgramView {
   };
   artifacts: {
     program?: PublicArtifact<{
-      actions?: { capabilityId: string; capabilityVersion: number }[];
+      input?: TokenAmount;
+      actions?: ProgramAction[];
       stages?: { id: string; provider?: string; kind: string }[];
+      balanceConstraints?: { kind: string; token: Address; atomic: string }[];
+    }>;
+    snapshot?: PublicArtifact<{ tokenEvidence?: TokenEvidence[] }>;
+    evidence?: PublicArtifact<{
+      balanceDeltas?: { token: Address; beforeAtomic: string; afterAtomic: string }[];
+    }>;
+    execution?: PublicArtifact<{
+      program?: { actions?: { approvals?: Approval[] }[] };
     }>;
     verdict?: PublicArtifact<{ accepted: boolean; errorCodes: string[] }>;
     provenance?: PublicArtifact<{

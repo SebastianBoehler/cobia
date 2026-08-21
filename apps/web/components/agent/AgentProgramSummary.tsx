@@ -1,14 +1,23 @@
 import {
-  ArrowRight, Blocks, Bot, CircleAlert, CircleCheck, Clock3, FileCode2,
+  ArrowRight, ArrowDownUp, Blocks, Bot, CircleAlert, CircleCheck, Clock3, FileCode2,
   Globe2, History, Route, ShieldCheck, TerminalSquare,
 } from "lucide-react";
 import Link from "next/link";
+import { formatUnits } from "viem";
 import { shortAddress } from "../../lib/wallet/eip1193";
 import type { ProgramView } from "./agent-program-types";
 import styles from "./AgentProgramView.module.css";
 
 const shortHash = (value: string) => `${value.slice(0, 10)}…${value.slice(-8)}`;
 const readableCode = (value: string) => value.toLowerCase().replaceAll("_", " ");
+
+function formatAmount(atomic: string, decimals: number): string {
+  if (!/^-?\d+$/.test(atomic)) return atomic;
+  const amount = formatUnits(BigInt(atomic), decimals);
+  if (decimals === 0) return amount;
+  const [whole, fraction = ""] = amount.split(".");
+  return `${whole}.${fraction.padEnd(decimals, "0")}`;
+}
 
 function status(program: ProgramView) {
   const { submission, artifacts } = program;
@@ -39,12 +48,23 @@ export function AgentProgramSummary({ program, action }: {
   const StatusIcon = state.icon;
   const provenance = artifacts.provenance?.summary;
   const actions = artifacts.program?.payload?.actions ?? [];
-  const stages = artifacts.program?.payload?.stages ?? [];
-  const routeSteps = [
-    ...actions.map((item) => `${item.capabilityId} @ ${item.capabilityVersion}`),
-    ...stages.map((item) => `${item.provider ?? item.kind} · ${item.id}`),
-  ];
+  const tokenEvidence = artifacts.snapshot?.payload?.tokenEvidence ?? [];
+  const balanceDeltas = artifacts.evidence?.payload?.balanceDeltas ?? [];
+  const balanceConstraints = artifacts.program?.payload?.balanceConstraints ?? [];
+  const approvals = artifacts.execution?.payload?.program?.actions
+    ?.flatMap((action) => action.approvals ?? []) ?? [];
   const validUntil = new Date(submission.validUntil);
+  const token = (address: string) => tokenEvidence.find((item) =>
+    item.token.toLowerCase() === address.toLowerCase());
+  const tokenLabel = (address: string) => token(address)?.symbol ?? shortAddress(address as `0x${string}`);
+  const tokenDecimals = (address: string) => token(address)?.decimals ?? 6;
+  const routeSteps = actions.map((action) => {
+    const parameters = action.parameters;
+    if (parameters?.tokenIn && parameters.tokenOut && parameters.amountInAtomic && parameters.minimumOutputAtomic) {
+      return `Swap ${formatAmount(parameters.amountInAtomic, tokenDecimals(parameters.tokenIn))} ${tokenLabel(parameters.tokenIn)} for at least ${formatAmount(parameters.minimumOutputAtomic, tokenDecimals(parameters.tokenOut))} ${tokenLabel(parameters.tokenOut)}`;
+    }
+    return `${action.capabilityId} @ ${action.capabilityVersion}`;
+  });
 
   return <div className={styles.shell}>
     <header className={styles.hero}>
@@ -58,37 +78,64 @@ export function AgentProgramSummary({ program, action }: {
       </div>
     </header>
 
-    <section className={styles.primaryGrid} aria-label="Program overview">
-      <article className={styles.card}>
+    <section className={styles.primaryGrid} aria-label="Execution review">
+      <article className={`${styles.card} ${styles.outcomeCard}`}>
         <header className={styles.cardHeader}>
-          <div><span className={styles.sectionIcon}><Route aria-hidden="true" /></span>
-            <div><p className={styles.kicker}>Proposed route</p><h2>Execution plan</h2></div>
+          <div><span className={styles.sectionIcon}><ArrowDownUp aria-hidden="true" /></span>
+            <div><p className={styles.kicker}>Fork replay</p><h2>Simulated balance change</h2></div>
           </div>
-          <span className={styles.count}>{routeSteps.length} {routeSteps.length === 1 ? "step" : "steps"}</span>
         </header>
-        {routeSteps.length > 0 ? <ol className={styles.routeList}>{routeSteps.map((step, index) =>
-          <li key={`${step}-${index}`}><span>{index + 1}</span><code>{step}</code></li>)}</ol>
-          : <p className={styles.empty}>No public route steps were recorded.</p>}
+        {balanceDeltas.length > 0 ? <ul className={styles.balanceList}>{balanceDeltas.map((delta) => {
+          const before = BigInt(delta.beforeAtomic);
+          const after = BigInt(delta.afterAtomic);
+          const change = after - before;
+          const constraint = balanceConstraints.find((item) => item.token.toLowerCase() === delta.token.toLowerCase());
+          const decimals = tokenDecimals(delta.token);
+          const label = tokenLabel(delta.token);
+          return <li key={delta.token}>
+            <div><span>{label}</span><strong>{change >= 0n ? "+" : ""}{formatAmount(change.toString(), decimals)} {label}</strong></div>
+            <p>{formatAmount(delta.beforeAtomic, decimals)} → {formatAmount(delta.afterAtomic, decimals)} {label}</p>
+            {constraint ? <small>Minimum signed outcome: +{formatAmount(constraint.atomic, decimals)} {label}</small> : null}
+          </li>;
+        })}</ul> : <p className={styles.empty}>No simulated wallet balance changes were recorded.</p>}
       </article>
 
-      <article className={styles.card}>
+      <article className={`${styles.card} ${styles.stepsCard}`}>
         <header className={styles.cardHeader}>
-          <div><span className={styles.sectionIcon}><ShieldCheck aria-hidden="true" /></span>
-            <div><p className={styles.kicker}>Independent check</p><h2>Replay result</h2></div>
+          <div><span className={styles.sectionIcon}><Route aria-hidden="true" /></span>
+            <div><p className={styles.kicker}>Wallet sequence</p><h2>Transaction steps</h2></div>
           </div>
+          <span className={styles.count}>{approvals.length + routeSteps.length} {approvals.length + routeSteps.length === 1 ? "step" : "steps"}</span>
         </header>
-        <div className={styles.replayResult}>
-          <strong>{artifacts.replay?.payload?.reproduced ? "Reproduced" : "Not accepted"}</strong>
-          <p>{artifacts.replay?.payload?.reproduced
-            ? "The fork replay matched the solver evidence."
-            : "No replay artifact was accepted, so this program cannot be executed."}</p>
-        </div>
-        {submission.failureCodes.length > 0 ? <div className={styles.failureCodes}>
-          <span>Failure code</span>
-          {submission.failureCodes.map((code) => <code key={code}>{readableCode(code)}</code>)}
-        </div> : null}
+        {approvals.length + routeSteps.length > 0 ? <ol className={styles.routeList}>
+          {approvals.map((approval, index) => <li key={`${approval.token}-${index}`}><span>{index + 1}</span>
+            <div><strong>Approve up to {formatAmount(approval.amount, tokenDecimals(approval.token))} {tokenLabel(approval.token)}</strong>
+              <p>Only requested if the executor needs additional allowance.</p></div>
+          </li>)}
+          {routeSteps.map((step, index) => <li key={`${step}-${index}`}><span>{approvals.length + index + 1}</span>
+            <div><strong>{step}</strong><p>{actions[index]?.capabilityId} @ {actions[index]?.capabilityVersion}</p></div>
+          </li>)}
+        </ol> : <p className={styles.empty}>No public transaction steps were recorded.</p>}
       </article>
     </section>
+
+    <section className={styles.replaySummary} aria-labelledby="replay-heading">
+      <span className={styles.sectionIcon}><ShieldCheck aria-hidden="true" /></span>
+      <div><p className={styles.kicker}>Independent check</p><h2 id="replay-heading">{artifacts.replay?.payload?.reproduced ? "Replay reproduced this outcome" : "Replay was not accepted"}</h2>
+        <p>{artifacts.replay?.payload?.reproduced
+          ? "The fork replay matched the solver evidence and the balance changes shown above."
+          : "No replay artifact was accepted, so this program cannot be executed."}</p></div>
+      {submission.failureCodes.length > 0 ? <div className={styles.failureCodes}>
+        <span>Failure code</span>
+        {submission.failureCodes.map((code) => <code key={code}>{readableCode(code)}</code>)}
+      </div> : null}
+    </section>
+
+    <footer className={styles.footerAction}>
+      <div><strong>{submission.executable ? "Ready for owner review" : "Need a current route?"}</strong>
+        <p>{submission.executable ? "Execution still requires the signed intent owner wallet." : "Create a fresh intent to capture current state and run verification again."}</p></div>
+      {action ?? <Link className="button button--primary" href="/intents/new">Create fresh intent <ArrowRight aria-hidden="true" size={16} /></Link>}
+    </footer>
 
     <section className={styles.ledger} aria-labelledby="evidence-heading">
       <header><div><p className={styles.kicker}>Evidence ledger</p><h2 id="evidence-heading">Pinned facts</h2></div>
@@ -114,10 +161,5 @@ export function AgentProgramSummary({ program, action }: {
     </section>
 
     {artifacts.receipt?.payload?.transactionHash ? <p className={styles.receipt}>Confirmed transaction <code>{artifacts.receipt.payload.transactionHash}</code></p> : null}
-    <footer className={styles.footerAction}>
-      <div><strong>{submission.executable ? "Ready for owner review" : "Need a current route?"}</strong>
-        <p>{submission.executable ? "Execution still requires the signed intent owner wallet." : "Create a fresh intent to capture current state and run verification again."}</p></div>
-      {action ?? <Link className="button button--primary" href="/intents/new">Create fresh intent <ArrowRight aria-hidden="true" size={16} /></Link>}
-    </footer>
   </div>;
 }
