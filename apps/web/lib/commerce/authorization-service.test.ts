@@ -57,6 +57,7 @@ function dependencies(placement: unknown = root) {
       read: vi.fn(async () => placement),
       append: vi.fn(async (event) => ({ ...root, ...event })),
     },
+    readBalance: vi.fn(async () => 10_000n),
     execute: vi.fn(async () => ({
       settlement: {
         success: true, transaction: hash("7"), network: "eip155:196",
@@ -109,6 +110,17 @@ describe("commerce authorization service", () => {
     await expect(authorizeCommercePlacementV1(await input(), deps)).rejects.toMatchObject({ code: "SETTLEMENT_UNCERTAIN" });
     expect(deps.placements.append).toHaveBeenCalledTimes(1);
     expect(deps.placements.append).toHaveBeenCalledWith(expect.objectContaining({ state: "authorizing" }));
+  });
+
+  it("rejects a stale unfunded authorization before changing state or contacting the merchant", async () => {
+    const deps = dependencies();
+    deps.readBalance.mockResolvedValueOnce(9_999n);
+
+    await expect(authorizeCommercePlacementV1(await input(), deps)).rejects.toMatchObject({
+      code: "INSUFFICIENT_PAYMENT_BALANCE",
+    });
+    expect(deps.placements.append).not.toHaveBeenCalled();
+    expect(deps.execute).not.toHaveBeenCalled();
   });
 
   it("rejects an expired wallet authorization before changing state", async () => {

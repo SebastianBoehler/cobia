@@ -9,33 +9,35 @@ import { describe, expect, it } from "vitest";
 const owner = "0x1111111111111111111111111111111111111111" as const;
 const executor = "0x2222222222222222222222222222222222222222" as const;
 const blockHash = `0x${"33".repeat(32)}` as const;
-const description = "Aggregated crypto news with sentiment";
+const endpoint = "https://api.ethyai.app/paid/v1/xlayer/score/xlayer/0x779ded0c9e1022225f8e0630b35a9b54be713736";
+const description = "Ethy Score (0-100) — composite token rating with component breakdown.";
 const required = {
   x402Version: 2 as const,
-  resource: { url: "https://api.agentstools.dev/crypto/news", description },
-  accepts: [{ scheme: "exact", network: "eip155:8453", amount: "5000",
-    asset: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
-    payTo: "0xf22e558a00d91ee12a1f50c52186fecb8ddff493", maxTimeoutSeconds: 300,
-    extra: { name: "USD Coin", version: "2" } }],
+  error: "Payment required",
+  resource: { url: endpoint, description, mimeType: "" },
+  accepts: [{ scheme: "exact", network: "eip155:196", amount: "100000",
+    asset: "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+    payTo: "0xe8067e3c72f18054de14e4950480c093156130f8", maxTimeoutSeconds: 300,
+    extra: { name: "USD₮0", version: "1" } }],
   extensions: {},
 };
 
 describe("reference commerce proposal", () => {
-  it("produces a verifier-accepted Base x402 purchase program", async () => {
+  it("produces a verifier-accepted X Layer x402 purchase program", async () => {
     const manifest = productionCommerceMerchantManifestV1();
     const offer = normalizeX402ResourceV1({ paymentRequired: required,
       rawResponse: Buffer.from(JSON.stringify(required)), fetchedAt: 2_000_000_000,
-      expiresAt: 2_000_000_300, sourceUrl: "https://api.agentstools.dev/crypto/news",
-      merchantId: "api.agentstools.dev", merchantDisplayName: "Agent Tools",
-      manifestHash: commerceMerchantManifestCommitmentV1(manifest), productId: "crypto-news",
+      expiresAt: 2_000_000_300, sourceUrl: endpoint,
+      merchantId: "api.ethyai.app", merchantDisplayName: "Ethy AI",
+      manifestHash: commerceMerchantManifestCommitmentV1(manifest), productId: "ethy-score",
       productCommitment: manifest.entries[0]!.productCommitment,
       receiptRecipient: "0x0000000000000000000000000000000000000000",
       merchantRegistered: true });
     const proposal = buildReferenceCommerceProposalV1({ offer, manifest, owner, executor,
       nowSec: 2_000_000_010, block: { number: 25_000_000n, hash: blockHash } });
 
-    expect(proposal.policy).toMatchObject({ kind: "commerce-order", executionChainId: 8453,
-      payment: { maxAtomic: "5000" } });
+    expect(proposal.policy).toMatchObject({ kind: "commerce-order", executionChainId: 196,
+      payment: { maxAtomic: "100000" } });
     await expect(verifyCommerceProgramV1({ ...proposal, offer, manifest, wallet: owner, executor,
       nowSec: 2_000_000_011, confirmAnchor: async () => true,
       readCodeHash: async () => manifest.entries[0]!.placement.kind === "x402-exact"

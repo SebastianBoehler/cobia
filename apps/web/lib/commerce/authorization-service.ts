@@ -23,7 +23,8 @@ const PlacementSchema = z.object({
 
 export type CommerceAuthorizationErrorCodeV1 =
   | "PLACEMENT_NOT_FOUND" | "PLACEMENT_MISMATCH"
-  | "AUTHORIZATION_EXPIRED" | "SETTLEMENT_ALREADY_ATTEMPTED" | "SETTLEMENT_UNCERTAIN";
+  | "AUTHORIZATION_EXPIRED" | "INSUFFICIENT_PAYMENT_BALANCE"
+  | "SETTLEMENT_ALREADY_ATTEMPTED" | "SETTLEMENT_UNCERTAIN";
 
 export class CommerceAuthorizationErrorV1 extends Error {
   constructor(readonly code: CommerceAuthorizationErrorCodeV1, message: string) {
@@ -39,6 +40,7 @@ export async function authorizeCommercePlacementV1(
       read(id: string): Promise<unknown>;
       append(event: Record<string, unknown>): Promise<unknown>;
     };
+    readBalance(input: { chainId: 196 | 8453; asset: Address; owner: Address }): Promise<bigint>;
     execute(input: { expected: unknown; submitted: unknown; signature: unknown }): Promise<{
       settlement: { transaction: Hash };
       authorizationHash: Hash;
@@ -81,6 +83,18 @@ export async function authorizeCommercePlacementV1(
     signature = finalized.paymentPayload.payload.signature;
   } catch {
     throw new CommerceAuthorizationErrorV1("PLACEMENT_MISMATCH", "Owner authorization is invalid");
+  }
+  const balance = await dependencies.readBalance({
+    chainId: template.chainId,
+    asset: template.accepted.asset,
+    owner: template.authorization.from,
+  });
+  const required = BigInt(template.authorization.value);
+  if (balance < required) {
+    throw new CommerceAuthorizationErrorV1(
+      "INSUFFICIENT_PAYMENT_BALANCE",
+      `Insufficient payment-token balance: ${balance} atomic available, ${required} required.`,
+    );
   }
   const authorizationHash = commitment({ templateHash, signature }) as Hash;
   const eventTime = Math.max(

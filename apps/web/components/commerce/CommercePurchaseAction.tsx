@@ -75,7 +75,7 @@ export function CommercePurchaseAction({ offerCommitment }: { offerCommitment: s
     <ShieldCheck aria-hidden="true" size={22} />
     <div>
       <h2 id="commerce-purchase-title">Verified purchase intent</h2>
-      <p>Sign the bounded order first, then one exact Base USDC authorization. Cobia verifies the token transfer; delivery remains merchant-provided.</p>
+      <p>Sign the bounded order first, then one exact authorization for the offer&apos;s pinned chain and asset. Cobia verifies the token transfer; delivery remains merchant-provided.</p>
       {submitted ? <pre className={styles.resource}>{resource}</pre> : null}
       {confirmed ? <p className="status status--live">Payment settlement confirmed</p> : null}
       {error ? <p className="form-alert" role="alert">{error}</p> : null}

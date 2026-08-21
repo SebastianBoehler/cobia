@@ -5,19 +5,14 @@ import { productionCommerceMerchantManifestV1 } from "./production-manifest";
 const manifestHash = commerceMerchantManifestCommitmentV1(productionCommerceMerchantManifestV1());
 
 export const commerceDiscoverySourcesV1: readonly CommerceDiscoverySourceV1[] = [{
-  id: "agent-tools-crypto-news",
+  id: "ethy-xlayer-score",
   protocol: "x402-resource",
-  url: "https://api.agentstools.dev/crypto/news",
+  url: "https://api.ethyai.app/paid/v1/xlayer/score/xlayer/0x779ded0c9e1022225f8e0630b35a9b54be713736",
   trustedResources: {
-    "https://api.agentstools.dev/crypto/news": {
+    "https://api.ethyai.app/paid/v1/xlayer/score/xlayer/0x779ded0c9e1022225f8e0630b35a9b54be713736": {
       manifestHash,
-      merchantDisplayName: "Agent Tools",
+      merchantDisplayName: "Ethy AI",
       productCommitment: productionCommerceMerchantManifestV1().entries[0]!.productCommitment,
     },
   },
-}, {
-  id: "cdp-x402-bazaar",
-  protocol: "x402-bazaar",
-  url: "https://api.cdp.coinbase.com/platform/v2/x402/discovery/resources?limit=20",
-  trustedResources: {},
 }];

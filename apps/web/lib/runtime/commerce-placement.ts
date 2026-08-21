@@ -1,4 +1,4 @@
-import { createPublicClient, http, keccak256 } from "viem";
+import { createPublicClient, erc20Abi, http, keccak256 } from "viem";
 import { base } from "viem/chains";
 import { xLayer } from "../chain/xlayer";
 import { authorizeCommercePlacementV1 } from "../commerce/authorization-service";
@@ -53,9 +53,21 @@ export async function prepareProductionCommercePlacementV1(input: {
 export function authorizeProductionCommercePlacementV1(input: {
   placementId: unknown; template: unknown; signature: unknown;
 }) {
+  const config = readCommerceRuntimeConfig();
   return authorizeCommercePlacementV1(input, {
     nowSec: Math.floor(Date.now() / 1_000),
     placements: getCommercePlacementRepository(),
+    async readBalance({ chainId, asset, owner }) {
+      const client = createPublicClient({
+        chain: chainId === 8453 ? base : xLayer,
+        transport: http(chainId === 8453 ? config.BASE_RPC_URL : config.XLAYER_RPC_URL,
+          { timeout: 15_000 }),
+        cacheTime: 0,
+      });
+      return client.readContract({
+        address: asset, abi: erc20Abi, functionName: "balanceOf", args: [owner],
+      });
+    },
     execute: (value) => executeX402ResourceV1({
       ...value,
       dnsResolver: nodeDnsResolverV1,

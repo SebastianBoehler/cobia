@@ -3,22 +3,22 @@ import { CommerceMerchantManifestV1Schema } from "./merchant-manifest";
 export function productionCommerceMerchantManifestV1() {
   return CommerceMerchantManifestV1Schema.parse({
     version: 1,
-    chainId: 8453,
+    chainId: 196,
     entries: [{
-      merchantId: "api.agentstools.dev",
-      productCommitment: "0xb748b1be9d28aebede0025fcaa4b5993e938ec57490383a05ab5014f5c11e0b7",
-      payee: "0xf22e558a00d91ee12a1f50c52186fecb8ddff493",
-      paymentAsset: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
-      exactAtomicAmount: "5000",
+      merchantId: "api.ethyai.app",
+      productCommitment: "0x434118bff8e40716f2f557bd1f829da997b6abf0cf8de5bfd0006b1ab7aaa0d0",
+      payee: "0xe8067e3c72f18054de14e4950480c093156130f8",
+      paymentAsset: "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+      exactAtomicAmount: "100000",
       placement: {
         kind: "x402-exact",
-        endpoint: "https://api.agentstools.dev/crypto/news",
-        facilitator: "https://api.cdp.coinbase.com/platform/v2/x402",
+        endpoint: "https://api.ethyai.app/paid/v1/xlayer/score/xlayer/0x779ded0c9e1022225f8e0630b35a9b54be713736",
+        facilitator: "https://web3.okx.com/api/v6/pay/x402",
         assetTransferMethod: "eip3009",
         token: {
-          runtimeCodeHash: "0xa6705a10bb756b5dea144591118be77d7af0c3eee3bf2dfe2583dcb0364fefab",
-          eip712Name: "USD Coin",
-          eip712Version: "2",
+          runtimeCodeHash: "0x4d9be648c5bf39973670d9f8b481d5d0b971e6a2db2deccc6b98cde21c5dd83e",
+          eip712Name: "USD₮0",
+          eip712Version: "1",
         },
       },
       receipt: {
@@ -29,8 +29,9 @@ export function productionCommerceMerchantManifestV1() {
       },
     }],
     officialSources: [
-      "https://api.agentstools.dev/crypto/news",
-      "https://docs.cdp.coinbase.com/x402/welcome",
+      "https://api.ethyai.app/paid/v1/xlayer/score/xlayer/0x779ded0c9e1022225f8e0630b35a9b54be713736",
+      "https://web3.okx.com/onchainos/dev-docs/payments/supported-networks",
+      "https://www.okx.ai/agents/1851",
     ],
   });
 }
