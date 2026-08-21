@@ -54,15 +54,14 @@ export function DiscoverView({
             <Link href={`/intents/${item.id}`}>View competition <ArrowRight aria-hidden="true" size={15} /></Link>
           </article>)}</div> : <div className="empty-state empty-state--action"><span>No custom intents are collecting proposals.</span><Link href="/intents/new">Create an intent <ArrowRight aria-hidden="true" size={15} /></Link></div>}
         </section>
-
-        <section aria-labelledby="history-title">
-          <header><div><h2 id="history-title">Past discoveries</h2><p>Completed and expired programs remain evidence, never current quotes.</p></div><History aria-hidden="true" size={22} /></header>
-          {history.length ? <div className="history-table">{history.map((item) => <Link href={`/programs/${item.id}`} key={item.id}>
-            <span>{item.goal}</span><small>{item.solver}</small><strong>{label(item.state)}</strong><ArrowRight aria-hidden="true" size={15} />
-          </Link>)}</div> : <p className="empty-state">Verified solver history will appear here after a program resolves.</p>}
-        </section>
-
       </aside>
+
+      <section aria-labelledby="history-title" className="discover-view__history">
+        <header><div><h2 id="history-title">Past discoveries</h2><p>Completed and expired programs remain evidence, never current quotes.</p></div><History aria-hidden="true" size={22} /></header>
+        {history.length ? <div className="history-table">{history.map((item) => <Link href={`/programs/${item.id}`} key={item.id}>
+          <span>{item.goal}</span><small>{item.solver}</small><strong>{label(item.state)}</strong><ArrowRight aria-hidden="true" size={15} />
+        </Link>)}</div> : <p className="empty-state">Verified solver history will appear here after a program resolves.</p>}
+      </section>
 
       <section aria-labelledby="commerce-title" className="discover-view__commerce">
         <header><div><h2 id="commerce-title">Paid resources</h2><p>Review supported services across the full marketplace. Verified purchases lead; external x402 listings remain details-only.</p></div><ShoppingBag aria-hidden="true" size={22} /></header>
