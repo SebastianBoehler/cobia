@@ -8,7 +8,7 @@
 
 The 30,000 USDT first prize is real. It is the first-place **Hackathon Grant**, not the whole advertised “up to 300,000 USDT” pool. The headline also includes a separate 50,000 USDT AI-RWA Liquidity Grant and as much as 200,000 USDT that must be unlocked through extraordinary OKX DEX-interface volume ([official rules](https://web3.okx.com/xlayer/build-x-series)).
 
-Cobia is a **credible top-tier technical contender, but not the current favorite**. Its independent-verifier architecture, fail-closed controls, solver competition, fork replay, and unusually substantial public code align strongly with code quality, innovation, and X Layer integration. Its biggest first-place weaknesses are product completeness and judgeability: the public testnet is intentionally non-operational, the latest governed mainnet executor remains paused/proposed, there is no strong public usage or multi-solver traction, and the value proposition takes longer to understand than the best one-minute demos.
+Cobia is a **credible top-tier technical contender, but not the current favorite**. Its independent-verifier architecture, fail-closed controls, solver competition, fork replay, and unusually substantial public code align strongly with code quality, innovation, and X Layer integration. Its live discovery API now exposes one executable chain-196 Ethy AI x402 offer. Its biggest first-place weaknesses are still product completeness and judgeability: the public testnet is intentionally non-operational, the latest governed mainnet executor remains paused/proposed, no completed paid canary receipt is publicly linked, there is no strong public usage or multi-solver traction, and the value proposition takes longer to understand than the best one-minute demos.
 
 My calibrated estimate, conditional on an eligible on-time submission:
 
@@ -63,7 +63,7 @@ Public Cobia evidence: [product](https://getcobia.com), [testnet host](https://t
 | AI application | **Strong** | AI proposes/chooses bounded programs while deterministic verification retains calldata authority. This is more substantive than a chat wrapper. |
 | Innovation | **Very strong** | Competitive solvers plus an independent proof/replay boundary is rare in the visible field. “AI never gets spending authority” is memorable. |
 | Code quality/onchain evidence | **Very strong** | Large public implementation, tests, deployment records, policy schemas, verifier logic, fork replay, and governed contracts are materially deeper than most public entries. |
-| Product completeness | **Mixed** | Mainnet and testnet deployments exist, but the public testnet deliberately blocks core product paths and has no enabled capabilities. The V3 mainnet controls remain paused/proposed. |
+| Product completeness | **Mixed** | A live Ethy x402 offer is discoverable and marked executable, and mainnet/testnet deployments exist. However, the public testnet blocks core paths, V3 mainnet controls remain paused/proposed, and no public paid receipt closes the loop. |
 | User value | **Promising, not yet proven** | Safe outcome-based DeFi is valuable, but the target user and immediate before/after benefit are less obvious than “verify an RWA” or “design a home.” |
 | X Layer integration | **Strong** | Chain-196/1952 deployments, X Layer protocols, wallet execution, and Builder Code-aware attribution are real integration, not branding. |
 | Growth potential | **Mixed** | Solver-market infrastructure could compound, but there is no visible community-solver supply, user cohort, transaction series, or revenue proof yet. |
@@ -98,6 +98,68 @@ Material corrections:
 | [ARCAEGIS](https://arcaegis.vercel.app) / [repo](https://github.com/Noire-X1/ARCAEGIS) | Clear safety thesis close to Cobia: Gemini advises, deterministic policy controls the vault, then state is verified | Mock gold/oracle, testnet-only, one adversarial case, no production data/oracle or mainnet. | **Medium-low** |
 
 Smaller visible projects such as [AuditBadge](https://github.com/korexdgreat/auditbadge), [DeFi Sentinel X](https://github.com/0xConsole/defi-sentinel-x), SentinelX, SocialLink, and LuXMarket have understandable demos but public evidence shows testnet-only, simulated data/onchain writes, thin automation relabelled as AI, unfinished contracts, or unrelated legacy surfaces. They are not currently stronger overall first-place cases than Cobia.
+
+## Best live ecosystem proof: buy an AI service, not a gimmick
+
+**Recommendation:** showcase Cobia's already-deployed [Ethy AI offer](https://getcobia.com/api/commerce/discover?limit=12), then—only with explicit wallet-holder approval—capture one 0.10 USD₮0 mainnet canary and its independently checked receipt. This is higher-leverage and lower-risk than adding another protocol.
+
+At 12:36 UTC on deadline day, Cobia's discovery endpoint returned one executable offer for the merchant-owned [Ethy Score resource](https://api.ethyai.app/paid/v1/xlayer/score/xlayer/0x779ded0c9e1022225f8e0630b35a9b54be713736). A fresh unpaid GET returned HTTP 402 with x402 v2 `exact`, `eip155:196`, `100000` atomic USD₮0 (0.10), asset `0x779ded…3736`, payee `0xe806…30f8`, and a 300-second timeout. Cobia's [production manifest](../../apps/web/lib/commerce/production-manifest.ts) pins the URL, payee, amount, asset, OKX facilitator, EIP-3009 identity, and token runtime-code hash. Independent RPC reads confirmed chain 196, a six-decimal USD₮0 contract, and the pinned runtime hash. No payment was made in this review.
+
+This is also ecosystem-legible. [OKX.AI's first-party Ethy listing](https://www.okx.ai/agents/1851) showed 16 sales, a 5.0 score, 100% positive feedback, the 0.1-USDT Ethy Score SKU, and an end-to-end buyer review when checked. The settlement rail is exactly the one OKX documents: chain 196, x402 `exact`, EIP-3009, and supported USD₮0 ([payments API](https://web3.okx.com/onchainos/dev-docs/payments/api-http-onetime), [network/assets](https://web3.okx.com/onchainos/dev-docs/payments/supported-networks)). The honest claim is:
+
+> Cobia converts an AI-discovered paid service into an exact, wallet-controlled authorization, then independently proves what settled on X Layer. Payment proves settlement—not the truth of the merchant's analysis.
+
+| Candidate | Live proof and attraction | Verifier fit | Time/risk now | Verdict |
+|---|---|---|---|---|
+| **Ethy AI score** | Live GET → valid chain-196 402; 0.10 USD₮0; 16 marketplace sales | Excellent: URL, price, payee, asset, expiry, token code and settlement are pinnable | 0–1 hour QA/capture; low code risk; financial action still needs user approval | **Do now** |
+| **OKLink contract source** | [Official OKX-team service](https://www.okx.ai/agents/2023), 1.35K sales; live POST challenge for 0.02 USD₮0 | Excellent once HTTP method and canonical body are committed | 3–6 hours plus tests/deploy/canary; current broker is GET-only | **Best post-submission integration; deadline-risky** |
+| DoDo404 NFT | [Live collection](https://web3.okx.com/nft/collection/xlayer/dodo404), contract `0x7bb1…7022`; 8K items but only two listings and zero 24-hour trades | Possible, but needs order-signature, marketplace-code, fee, expiry and ERC-721 outcome checks | 1–2+ days and roughly 0.47 OKB floor | **Reject** |
+| Meme token | [Official Meme Pump](https://web3.okx.com/meme-pump) exists, but no specific safe asset/route was proven | Requires token identity, liquidity, tax/honeypot, min-output and exitability proofs | High risk; adds little beyond verified swaps | **Reject** |
+| AEON/physical good | AEON is in the [official X Layer directory](https://web3.okx.com/xlayer), and its first-party client supports chain 196; its bundled QR returned `Static QR code is not supported` during the live probe | Delivery, refunds and item quality stay offchain and non-atomic | No reproducible SKU/fulfilment path; days or weeks | **Reject** |
+
+OKLink's precise next target is `POST https://www.oklink.com/api/v5/explorer/mcp/x402/get_contract_source` with `{"chainIndex":"196","address":"0x779ded0c9e1022225f8e0630b35a9b54be713736"}`. Its live challenge advertised `exact` and `aggr_deferred`; Cobia should admit only `exact`. Safely adding it means committing the HTTP method and canonical request body, replaying the identical request after settlement, validating the resource response, and testing tampered-body rejection. It is not a manifest-only tweak.
+
+## Deadline package, ranked by expected judging impact
+
+At the check time, about 11 hours remained. Do not make form eligibility hostage to a final feature. If the form is not already submitted, submit the best current eligible package immediately and treat everything below as evidence/presentation upgrades.
+
+| Rank | Action | Why it changes a judge's decision | Time / stop rule |
+|---:|---|---|---|
+| **1** | Confirm the form, dedicated X account/post mentioning `@XLayerOfficial`, project URL, testnet and mainnet evidence are all in the submitted package | Prevents a zero; removes ambiguity around the mandatory gates | 20–45 min. Stop all feature work until confirmed. |
+| **2** | With explicit approval, complete one 0.10 USD₮0 Ethy purchase and publish the tx, challenge snapshot, merchant response, manifest hash and independent receipt verdict | Converts “implemented” into a real X Layer economic outcome and answers the completeness/onchain-data criteria | 60–120 min. If wallet, balance or settlement path is not clean after one diagnosis cycle, preserve the unpaid live proof and stop. |
+| **3** | Record a captioned 60–75 second judge cut around that outcome | Makes Cobia understandable in one review pass; likely the largest presentation gain | 60–90 min. One clean take beats cinematic editing. |
+| **4** | Put a one-screen “Judge Evidence” page at the project URL and link it first in README/X | Gives exact proof for every rubric dimension without asking judges to explore the architecture | 45–90 min. Static content only; no redesign. |
+| **5** | Show one adversarial rejection beside the successful purchase: altered payee, price, asset, code hash or expired challenge | Makes the independent-verifier moat visceral and differentiates Cobia from agent wrappers | 30–60 min using an existing deterministic test/replay. Do not invent a live exploit. |
+| **6** | Reply to the required X post with the short clip and receipt/evidence link; tag only relevant official accounts | Improves discoverability and gives organizers a shareable story | 15–30 min after evidence exists. No engagement farming. |
+| **7** | Add OKLink POST/body support | Strong organizer adjacency and proven merchant demand | Only after ranks 1–6 are green and at least six hours remain; otherwise defer. |
+
+Avoid late changes to governed financial controls, a new NFT/order adapter, meme trading, physical fulfilment, multi-wallet automation, or the broad mainnet executor. They expand the attack surface faster than they improve the seven published dimensions.
+
+### 70-second judge-cut storyboard
+
+| Time | Screen | Voice/caption |
+|---|---|---|
+| 0–6s | User intent and one-line architecture | “AI can propose a purchase. It never receives spending authority.” |
+| 6–16s | Live Ethy offer discovered | Show X Layer 196, 0.10 USD₮0, resource, merchant and expiry—not a generic product card. |
+| 16–28s | Bound policy/manifest | Highlight exact cap, payee, token runtime hash and EIP-3009; state that changed terms fail closed. |
+| 28–38s | Unsafe variant rejected | Change one field and show a named deterministic rejection. |
+| 38–50s | Connected wallet review/sign | One bounded signature; no private-key or autonomous-wallet theatre. |
+| 50–62s | X Layer tx plus resource response | Show explorer/receipt, expected Transfer log, response hash and independent verdict. |
+| 62–70s | Ecosystem/business close | “Cobia is the verification layer that lets agents safely create recurring X Layer demand.” |
+
+Minimum asset pack: the 16:9 captioned MP4; a 10–15 second social cut/GIF; one architecture graphic (`intent → competing solvers → independent verifier → wallet → X Layer evidence`); one evidence page with live URLs, addresses, tx hash and reproduction steps; and four stills for discovery, rejection, signature and receipt. The form does not request a video or deck, so surface these from the submitted project URL and required X post rather than assuming judges will find them.
+
+## Business, investor and ecosystem narrative
+
+The sponsor narrative should not be “an AI wallet that can trade.” It should be: **Cobia is a transaction firewall and proof layer for the agent economy on X Layer.** Merchants and protocols keep their own APIs/contracts; solvers compete to satisfy user outcomes; Cobia turns a chosen proposal into a bounded authorization and independently proves settlement.
+
+- **User value:** one intent and one transparent wallet approval, without granting an LLM arbitrary spending power.
+- **X Layer value:** safely expands demand for x402 merchants, stablecoin settlement, DeFi and future Exchange OS markets; each successful intent produces attributable chain-196 activity rather than a vanity token.
+- **Business model (proposal, not current traction):** a small verification/settlement fee for consumer flows plus policy, audit and integration services for teams running higher-value agents. Avoid revenue claims until paid volume exists.
+- **Investor case:** the moat is not the model. It is the growing set of audited merchant/protocol manifests, deterministic verification adapters, solver performance evidence and settlement history. Those assets can compound across every new X Layer service.
+- **Growth loop:** more verified merchants → more useful intents → more transactions/evidence → better solver reputation and merchant confidence → more integrations. The Ethy canary proves the smallest loop; OKLink's 1.35K sales shows a credible next source of demand.
+
+Keep the pitch narrow: start with paid AI/data services and bounded DeFi, where settlement is observable. Physical fulfilment, subjective product quality, credit, and arbitrary executor authority remain deliberately outside the proof claim. That restraint is a feature, not missing ambition.
 
 ## What a sponsor-side decision would probably turn on
 
