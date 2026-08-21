@@ -1,6 +1,7 @@
 "use client";
 
 import { Activity, BadgeCheck, CircleAlert, LoaderCircle, Radio, ReceiptText, Route } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useWallet } from "../wallet/WalletProvider";
 import { WalletButton } from "../wallet/WalletButton";
@@ -12,12 +13,17 @@ interface WalletEvent {
   status: string;
   routeId: string | null;
   transactionHash: string | null;
+  detail?: { intentId?: string; submissionId?: string };
   occurredAt: string;
 }
 
 function eventTitle(kind: string): string {
   const titles: Record<string, string> = {
     route_revealed: "Route proof revealed",
+    intent_created: "Intent created",
+    intent_closed: "Intent closed",
+    program_expired: "Program expired",
+    program_executed: "Program executed",
     execution_started: "Execution started",
     execution_step_prepared: "Transaction prepared",
     execution_step_armed: "Transaction ready to broadcast",
@@ -41,6 +47,16 @@ function statusLabel(status: string): string {
   return status.replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase());
 }
 
+function EventAction({ event }: { event: WalletEvent }) {
+  if (event.detail?.submissionId) {
+    return <Link className={styles.timelineAction} href={`/programs/${event.detail.submissionId}`}>View program</Link>;
+  }
+  if (event.detail?.intentId) {
+    return <Link className={styles.timelineAction} href={`/intents/${event.detail.intentId}`}>View intent</Link>;
+  }
+  return <span className={styles.timelineActionMuted}>{event.routeId ? "Archived route proof" : "No program link"}</span>;
+}
+
 export function ActivityView() {
   const wallet = useWallet();
   const [result, setResult] = useState<{ account: string; events?: WalletEvent[]; error?: string }>();
@@ -60,7 +76,7 @@ export function ActivityView() {
   if (result.error) return <section className={styles.empty}><CircleAlert /><h2>Activity unavailable</h2><p className={styles.error}>{result.error}</p></section>;
   const events = result.events;
   if (!events) return null;
-  if (!events.length) return <section className={styles.empty}><Activity size={28} /><h2>No Cobia activity yet</h2><p>Your wallet has not purchased a quote.</p></section>;
+  if (!events.length) return <section className={styles.empty}><Activity size={28} /><h2>No Cobia activity yet</h2><p>No intents or executions were recorded for this wallet.</p></section>;
   return <section className={`${styles.panel} ${styles.widePanel}`}>
     <div className={styles.panelHeader}><div><h2>Wallet timeline</h2><p>Newest verifiable wallet events appear first.</p></div><span className={styles.badge}>{events.length} event{events.length === 1 ? "" : "s"}</span></div>
     <ol className={styles.timeline}>
@@ -72,7 +88,7 @@ export function ActivityView() {
           {event.transactionHash ? <small title={event.transactionHash}>Transaction {event.transactionHash.slice(0, 10)}…{event.transactionHash.slice(-6)}</small> : null}
         </div>
         <span className={`${styles.statusBadge} ${event.status === "failed" ? styles.statusFailed : ""}`}>{statusLabel(event.status)}</span>
-        <span className={styles.timelineActionMuted}>{event.routeId ? "Archived route proof" : "No program link"}</span>
+        <EventAction event={event} />
       </li>)}
     </ol>
   </section>;

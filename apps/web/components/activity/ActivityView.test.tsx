@@ -51,4 +51,43 @@ describe("ActivityView", () => {
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
     expect(fetch).toHaveBeenCalledWith(`/api/wallets/${account}/activity`);
   });
+
+  it("links current intent lifecycle and execution events to their proof pages", async () => {
+    wallet.account = account;
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ events: [{
+      id: "intent-1:closed",
+      kind: "intent_closed",
+      status: "closed",
+      routeId: null,
+      transactionHash: null,
+      detail: { intentId: "intent-1" },
+      occurredAt: "2026-08-12T16:30:00.000Z",
+    }, {
+      id: "program-1:expired",
+      kind: "program_expired",
+      status: "expired",
+      routeId: null,
+      transactionHash: null,
+      detail: { intentId: "intent-1", submissionId: "program-1" },
+      occurredAt: "2026-08-12T16:30:30.000Z",
+    }, {
+      id: "program-1:executed",
+      kind: "program_executed",
+      status: "confirmed",
+      routeId: null,
+      transactionHash: `0x${"22".repeat(32)}`,
+      detail: { intentId: "intent-1", submissionId: "program-2" },
+      occurredAt: "2026-08-12T16:31:00.000Z",
+    }] })));
+
+    render(<ActivityView />);
+
+    expect(await screen.findByRole("heading", { name: "Intent closed" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Program expired" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Program executed" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "View intent" }))
+      .toHaveAttribute("href", "/intents/intent-1");
+    expect(screen.getAllByRole("link", { name: "View program" }).map((link) => link.getAttribute("href")))
+      .toEqual(["/programs/program-1", "/programs/program-2"]);
+  });
 });
