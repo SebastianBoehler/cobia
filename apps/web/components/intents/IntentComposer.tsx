@@ -22,6 +22,7 @@ import { IntentGoalInput } from "./IntentGoalInput";
 import { PolicyReceiptEditor, type ReceiptValues } from "./PolicyReceiptEditor";
 import type { IntentMention } from "./IntentGoalInput";
 import type { PortfolioSnapshot } from "../../lib/portfolio/read-portfolio";
+import { authenticateIntentCompiler } from "../../lib/wallet-auth/client";
 
 function errorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : "The intent could not be published.";
@@ -112,7 +113,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
   }
 
   async function compileGoal() {
-    if (goal.trim().length < 3) return;
+    if (goal.trim().length < 3 || !wallet.account) return;
     if (action === "service-purchase") {
       if (selectedService) router.push(`/commerce/offers/${selectedService}`);
       else setError("Tag one Cobia-supported service from the @ menu.");
@@ -121,9 +122,14 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
     setCompiling(true);
     setError(undefined);
     try {
-      const response = await fetch("/api/intents/compile", { method: "POST",
+      const request = () => fetch("/api/intents/compile", { method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ goal: goal.trim(), actionPreference: action }) });
+        body: JSON.stringify({ owner: wallet.account, goal: goal.trim(), actionPreference: action }) });
+      let response = await request();
+      if (response.status === 401) {
+        await authenticateIntentCompiler({ owner: wallet.account, request: wallet.request });
+        response = await request();
+      }
       const payload = await response.json() as {
         status?: "review" | "clarification"; values?: ReceiptValues; question?: string; message?: string;
       };
@@ -209,12 +215,14 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
     <form className={`intent-composer intent-composer--${step}`} noValidate onSubmit={submit}>
       {step === "goal" ? <>
         <IntentGoalInput action={action} compiling={compiling}
+          submitEnabled={Boolean(wallet.account)}
           excludedProtocols={excludedProtocols} mentions={mentions} selectedMentions={selectedMentions}
           value={goal} onActionChange={setAction} onChange={setGoal} onMention={mention}
           onMentionMenuOpen={loadMentions}
           onExcludedProtocolsChange={setExcludedProtocols}
           onSubmit={compileGoal} />
         {error ? <p className="form-alert" role="alert">{error}</p> : null}
+        {!wallet.account ? <p className="intent-connect-note">Connect a signing wallet to verify control before Cobia interprets the goal.</p> : null}
       </> : <>
         <div className="intent-goal-summary"><p>{goal}</p><button className="button button--secondary"
           onClick={() => { setStep("goal"); setError(undefined); }} type="button">

@@ -100,12 +100,44 @@ describe("IntentComposer", () => {
     fireEvent.click(screen.getByRole("button", { name: "Review policy" }));
 
     expect(JSON.parse((fetch as ReturnType<typeof vi.fn>).mock.calls[0]![1].body)).toMatchObject({
-      actionPreference: "any",
+      owner, actionPreference: "any",
     });
 
     expect(await screen.findByRole("heading", { name: "Review the policy" })).toBeVisible();
     expect(screen.getByLabelText("Verified capability")).toHaveValue("aave-supply");
     expect(screen.getByRole("button", { name: "Edit goal" })).toBeVisible();
+  });
+
+  it("requires a connected signing wallet before interpretation", () => {
+    state.account = null;
+    render(<IntentComposer />);
+    fireEvent.change(screen.getByLabelText("What should happen?"), {
+      target: { value: "Supply 10 USDG to Aave" },
+    });
+
+    expect(screen.getByRole("button", { name: "Review policy" })).toBeDisabled();
+    expect(screen.getByText(/Connect a signing wallet/)).toBeVisible();
+  });
+
+  it("authenticates the wallet once when the compiler session is missing", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(Response.json({ code: "WALLET_AUTH_REQUIRED" }, { status: 401 }))
+      .mockResolvedValueOnce(Response.json({ nonce: "aa".repeat(32), message: "Verify Cobia wallet" }))
+      .mockResolvedValueOnce(Response.json({ owner, expiresAt: 2_000_000_900 }))
+      .mockResolvedValueOnce(Response.json({ status: "review", values: DEFAULT_INTENT_RECEIPT_VALUES }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<IntentComposer />);
+    fireEvent.change(screen.getByLabelText("What should happen?"), {
+      target: { value: "Supply 10 USDG to Aave" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Review policy" }));
+
+    expect(await screen.findByRole("heading", { name: "Review the policy" })).toBeVisible();
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "/api/intents/compile", "/api/wallet-auth/challenge",
+      "/api/wallet-auth/session", "/api/intents/compile",
+    ]);
+    expect(state.request).toHaveBeenCalledWith(expect.objectContaining({ method: "personal_sign" }));
   });
 
   it("starts from a challenge draft but creates fresh wallet-bound authority", async () => {

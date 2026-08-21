@@ -31,11 +31,12 @@ export interface IntentMention {
   detail: string;
 }
 
-export function IntentGoalInput({ value, compiling, action, excludedProtocols, mentions,
+export function IntentGoalInput({ value, compiling, submitEnabled, action, excludedProtocols, mentions,
   selectedMentions, onChange, onActionChange, onMention, onMentionMenuOpen,
   onExcludedProtocolsChange, onSubmit }: {
   value: string;
   compiling: boolean;
+  submitEnabled: boolean;
   action: ActionPreference;
   excludedProtocols: readonly ProtocolExclusionId[];
   mentions: readonly IntentMention[];
@@ -136,7 +137,7 @@ export function IntentGoalInput({ value, compiling, action, excludedProtocols, m
           </details>
         </div>
         <button aria-label="Review policy" className="intent-goal__send"
-          disabled={value.trim().length < 3 || compiling} onClick={onSubmit} type="button">
+          disabled={value.trim().length < 3 || compiling || !submitEnabled} onClick={onSubmit} type="button">
           {compiling ? <LoaderCircle aria-hidden="true" className="spin" size={19} />
             : <ArrowUp aria-hidden="true" size={20} />}
         </button>
