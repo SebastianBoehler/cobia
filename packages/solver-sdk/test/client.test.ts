@@ -150,6 +150,39 @@ describe("solver exchange client", () => {
     expect(JSON.stringify(body)).not.toMatch(/privateKey|seed|mnemonic/i);
   });
 
+  it("allows decision verification to outlive the short read timeout", async () => {
+    const decision = { version: 1 as const, decision: "abstain" as const, reasonCode: "NO_ROUTE" };
+    const claim = {
+      version: 1 as const,
+      solverId: "alpha-solver",
+      intentId: policy.requestId,
+      revision: 1,
+      decisionHash: commitment(decision),
+      snapshotHash: hash("6"),
+      nonce: hash("7"),
+      issuedAt: 2_000_000_000,
+      expiresAt: 2_000_000_300,
+    };
+    const signature = await account.signMessage({
+      message: { raw: solverDecisionClaimCommitmentV1(claim) },
+    });
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    const client = createSolverExchangeClient({
+      baseUrl: "https://getcobia.com",
+      fetch: vi.fn(async () => Response.json({
+        intentId: claim.intentId,
+        solverId: claim.solverId,
+        revision: claim.revision,
+        state: "abstained",
+      }, { status: 202 })),
+    });
+
+    await client.submitDecision({ claim, signature, decision });
+
+    expect(timeout).toHaveBeenCalledWith(185_000);
+    timeout.mockRestore();
+  });
+
   it("rejects a decision that does not match its signed commitment", async () => {
     const decision = { version: 1 as const, decision: "abstain" as const, reasonCode: "NO_ROUTE" };
     const claim = {

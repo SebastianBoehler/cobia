@@ -13,6 +13,8 @@ import { SolverDecisionV1Schema } from "./harness";
 
 const HashSchema = z.string().regex(/^0x[0-9a-f]{64}$/);
 const SignatureSchema = z.string().regex(/^0x[0-9a-fA-F]{130}$/);
+const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
+const DECISION_REQUEST_TIMEOUT_MS = 185_000;
 const IntentSchema = z.object({
   id: z.string().uuid(),
   policy: OpenIntentPolicyV3Schema,
@@ -108,9 +110,10 @@ export function createSolverExchangeClient(input: {
 }) {
   const origin = exchangeOrigin(input.baseUrl);
   const fetchImpl = input.fetch ?? globalThis.fetch;
-  const request = (url: string, init: RequestInit = {}) => fetchImpl(url, {
+  const request = (url: string, init: RequestInit = {},
+    timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS) => fetchImpl(url, {
     ...init,
-    signal: init.signal ?? AbortSignal.timeout(15_000),
+    signal: init.signal ?? AbortSignal.timeout(timeoutMs),
   });
   return {
     async listIntents(): Promise<SolverIntentListV1> {
@@ -158,7 +161,7 @@ export function createSolverExchangeClient(input: {
         method: "POST",
         headers: { accept: "application/json", "content-type": "application/json" },
         body: JSON.stringify({ claim, signature, decision }),
-      });
+      }, DECISION_REQUEST_TIMEOUT_MS);
       const receipt = DecisionReceiptSchema.parse(
         await boundedJson(response, "Solver decision exchange"),
       );

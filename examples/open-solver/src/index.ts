@@ -1,5 +1,5 @@
 import {
-  commitment, solverDecisionClaimCommitmentV1, solverProfileClaimCommitmentV1,
+  solverDecisionClaimCommitmentV1, solverProfileClaimCommitmentV1,
 } from "@cobia/domain";
 import {
   createSolverExchangeClient, watchSolverIntents, type SolverIntentV1,
@@ -13,6 +13,7 @@ import { z } from "zod";
 import { prepareCodexJob } from "./codex-job";
 import { readExistingCodexDecision } from "./codex-output";
 import { runCodexSolver } from "./codex-runner";
+import { canonicalDecisionCommitment } from "./decision-commitment";
 import { decideCuratedFirst } from "./decision-source";
 import { canRetryBeforeCompetitionClose, competitionWorkTimeoutMs } from "./intent-deadline";
 import { IntentAttempts, SolverJobStateSchema, WorkLimiter, type SolverJobState } from "./job-control";
@@ -113,12 +114,14 @@ async function processIntent(input: {
       output({ event: "curated-error", intentId: input.intent.id });
     },
   });
-  const decision = selected.decision;
+  const canonical = canonicalDecisionCommitment(selected.decision);
+  const decision = canonical.decision;
   output({ event: "decision-selected", source: selected.source, intentId: input.intent.id,
     revision: input.revision, decision: decision.decision });
   const issuedAt = Math.floor(Date.now() / 1_000);
   const claim = { version: 1 as const, solverId: input.solverId, intentId: input.intent.id,
-    revision: input.revision, decisionHash: commitment(decision), snapshotHash: input.intent.snapshotHash as Hash,
+    revision: input.revision, decisionHash: canonical.decisionHash,
+    snapshotHash: input.intent.snapshotHash as Hash,
     nonce: nonce(), issuedAt, expiresAt: Math.min(issuedAt + 240, input.intent.competitionClosesAt) };
   if (claim.expiresAt <= claim.issuedAt) return;
   const signature = await input.account.signMessage({
