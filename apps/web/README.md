@@ -35,6 +35,22 @@ The V2 solver market requires the OpenAI key/model and a separate agentic
 signer. The app returns an explicit error when PostgreSQL, protocol, solver, or
 payment configuration is unavailable; it does not substitute sample data.
 
+## Production boundary
+
+The complete Next.js application, including all Route Handlers, is deployed on
+Vercel. Production does not run a second Next.js process on the VPS.
+
+The Hetzner stack contains only PostgreSQL, the independent reference solver,
+the authenticated replay service, disposable Anvil forks, and Caddy. The web
+runtime connects to PostgreSQL with TLS and delegates accepted replay inputs to
+`REPLAY_SERVICE_ORIGIN`; `api.getcobia.com` does not expose Next.js routes. The
+in-process V2 coding-agent path still uses Vercel Sandbox, while the open solver
+path runs as an independent container and submits proposals through the public
+Vercel API.
+
+See the [production runbook](../../docs/deployments/hetzner-production-runbook.md)
+for the exact service and secret boundary.
+
 ## Network boundary
 
 - V2 capture verifies chain `196`, block number/hash/timestamp, registered

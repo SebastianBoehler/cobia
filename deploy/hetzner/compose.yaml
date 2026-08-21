@@ -1,31 +1,89 @@
 name: cobia-production
 
 services:
+  cert-init:
+    image: postgres:16-alpine
+    entrypoint: ["sh", "/scripts/sync-postgres-cert.sh", "init"]
+    environment:
+      COBIA_API_DOMAIN: ${COBIA_API_DOMAIN}
+    volumes:
+      - ./sync-postgres-cert.sh:/scripts/sync-postgres-cert.sh:ro
+      - caddy-data:/caddy:ro
+      - postgres-tls:/tls
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cobia
+      POSTGRES_USER: cobia
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    command:
+      - postgres
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/tls/server.crt
+      - -c
+      - ssl_key_file=/tls/server.key
+      - -c
+      - password_encryption=scram-sha-256
+    depends_on:
+      cert-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cobia -d cobia"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - postgres-tls:/tls:ro
+    ports:
+      - "15432:5432"
+
+  cert-sync:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    entrypoint: ["sh", "/scripts/sync-postgres-cert.sh", "watch"]
+    environment:
+      COBIA_API_DOMAIN: ${COBIA_API_DOMAIN}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./sync-postgres-cert.sh:/scripts/sync-postgres-cert.sh:ro
+      - caddy-data:/caddy:ro
+      - postgres-tls:/tls
+
   migrate:
     build:
       context: ../..
-      dockerfile: deploy/hetzner/Dockerfile.web
-    command: ["pnpm", "--filter", "@cobia/web", "db:migrate"]
-    env_file: ${COBIA_ENV_FILE:-.env}
+      dockerfile: deploy/hetzner/Dockerfile.migrate
+    environment:
+      DATABASE_URL: postgresql://cobia:${POSTGRES_PASSWORD}@db:5432/cobia
     restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
 
-  web:
+  replay:
     build:
       context: ../..
-      dockerfile: deploy/hetzner/Dockerfile.web
+      dockerfile: deploy/hetzner/Dockerfile.replay
     init: true
     restart: unless-stopped
-    env_file: ${COBIA_ENV_FILE:-.env}
     environment:
-      ANVIL_BIN: /app/apps/web/node_modules/.bin/anvil
-      FORK_REPLAY_RUNTIME: local
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
+      REPLAY_SERVICE_SECRET: ${REPLAY_SERVICE_SECRET}
+      REPLAY_MAX_CONCURRENCY: 1
+      XLAYER_RPC_URL: ${XLAYER_RPC_URL}
+      ETHEREUM_RPC_URL: ${ETHEREUM_RPC_URL}
+      BASE_RPC_URL: ${BASE_RPC_URL}
     expose:
-      - "3000"
+      - "3001"
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/network/status').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 8
@@ -37,24 +95,25 @@ services:
       dockerfile: examples/open-solver/Dockerfile
     init: true
     restart: unless-stopped
-    env_file: ${COBIA_ENV_FILE:-.env}
     environment:
       CODEX_HOME: /auth/codex
-    depends_on:
-      web:
-        condition: service_healthy
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      REFERENCE_SOLVER_PRIVATE_KEY: ${REFERENCE_SOLVER_PRIVATE_KEY}
+      COBIA_EXECUTOR_V3_ADDRESS: ${COBIA_EXECUTOR_V3_ADDRESS}
+      XLAYER_RPC_URL: ${XLAYER_RPC_URL}
+      ETHEREUM_RPC_URL: ${ETHEREUM_RPC_URL}
     volumes:
       - codex-auth:/auth/codex
-      - ../../examples/open-solver/codex/config.toml:/auth/codex/config.toml:ro
+      - ./config.production.toml:/auth/codex/config.toml:ro
       - solver-state:/var/lib/cobia-solver
 
   caddy:
     image: caddy:2.10-alpine
     restart: unless-stopped
     environment:
-      COBIA_DOMAIN: ${COBIA_DOMAIN}
+      COBIA_API_DOMAIN: ${COBIA_API_DOMAIN}
     depends_on:
-      web:
+      replay:
         condition: service_healthy
     ports:
       - "80:80"
@@ -66,6 +125,8 @@ services:
       - caddy-config:/config
 
 volumes:
+  postgres-data:
+  postgres-tls:
   caddy-data:
   caddy-config:
   codex-auth:

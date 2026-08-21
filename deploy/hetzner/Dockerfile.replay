@@ -7,21 +7,21 @@ RUN corepack enable
 
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
-COPY apps/web/package.json apps/web/package.json
+COPY apps/replay-service/package.json apps/replay-service/package.json
 COPY packages/domain/package.json packages/domain/package.json
 COPY packages/solver-sdk/package.json packages/solver-sdk/package.json
 COPY packages/solvers/package.json packages/solvers/package.json
 RUN --mount=type=cache,id=cobia-pnpm-store,target=/root/.local/share/pnpm/store \
-  pnpm install --filter @cobia/web... --frozen-lockfile
+  pnpm install --filter @cobia/replay-service... --frozen-lockfile
 
+COPY apps/replay-service apps/replay-service
 COPY apps/web apps/web
 COPY packages packages
-RUN pnpm --filter @cobia/web build
+RUN ln -s ../replay-service/node_modules apps/web/node_modules
 
 ENV NODE_ENV=production \
-  PORT=3000 \
-  ANVIL_BIN=/app/apps/web/node_modules/.bin/anvil \
-  FORK_REPLAY_RUNTIME=local
+  PORT=3001 \
+  ANVIL_BIN=/app/apps/replay-service/node_modules/.bin/anvil
 USER node
-EXPOSE 3000
-CMD ["pnpm", "--filter", "@cobia/web", "start"]
+EXPOSE 3001
+CMD ["apps/replay-service/node_modules/.bin/tsx", "apps/replay-service/src/index.ts"]

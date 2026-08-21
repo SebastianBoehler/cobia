@@ -15,7 +15,9 @@ read adapter is not, by itself, an executable Cobia route.
 | Program evidence | Implemented product path | Snapshot, program, evidence, sanitized provenance, verdict, independent replay, V3 projection, authorization, and receipt are committed independently per revision |
 | Legacy V1/V2 route market | Removed from public product | Historical database rows remain inaccessible audit records; there is no request, market, route, payment, or MCP compatibility fallback |
 | Capped atomic Executor V3 beta | Active and product-wired | Limits selected wallets and cumulative principal and enforces verifier-signed targets, static predicates, deadlines, and final balances; every production execution still requires the owner wallet |
-| Coding-agent sandbox solver | Implemented general-intent path | Writes and runs route-search code in an isolated Vercel Sandbox, but can emit only typed capability programs; block-pinned RPC preflight runs before an independent fresh replay, and neither path can broadcast to mainnet |
+| In-process coding-agent sandbox | Implemented V2 general-intent path | Writes and runs route-search code in an isolated Vercel Sandbox, but can emit only typed capability programs; it is separate from the open solver service |
+| Open solver service | Implemented V3 product path | Runs independently on the VPS, polls the Vercel exchange API, and may submit typed capability or exact wallet-call programs without gaining verifier or wallet authority |
+| Independent replay service | Implemented verifier boundary | Vercel performs deterministic verification, then sends accepted replay material over authenticated HTTPS to a concurrency-capped VPS service that destroys each loopback-only Anvil fork after use |
 | Bounded agentic selector | Not a public product path | Old deterministic and selector code is retained only where imported by verifier/fork controls; it is not a callable fallback |
 
 Production code has no sample protocol, fallback APY, or fabricated route. Unit
@@ -42,12 +44,13 @@ all strategy fields as equally enforceable:
    and future token prices are estimates. They may be block-bounded and sourced,
    but simulation cannot guarantee their future lower bound.
 
-The solver authors a typed capability program inside an isolated sandbox. A
-deterministic verifier resolves every action through a registered semantic module,
+An open solver authors a proposed program outside the verifier trust boundary;
+the in-process V2 solver additionally isolates its route-search code in Vercel
+Sandbox. A deterministic verifier resolves every typed action through a registered semantic module,
 recompiles its calldata, checks the final enforceable outcome, and uses the pinned
 read-only RPC to reject anchor, runtime-code, declared implementation-code, and
 precondition drift before allocating replay compute. It then reproduces the exact
-program on a new non-persistent fork and commits its trace, events, state deltas,
+program through the authenticated replay service on a new non-persistent fork and commits its trace, events, state deltas,
 and final balances. Replay failure rejects the program; RPC success is never an
 acceptance fallback. The fork is destroyed after evidence capture and has no
 production send path. The verifier never accepts model-authored calldata as

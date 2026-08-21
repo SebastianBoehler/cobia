@@ -1,4 +1,4 @@
-{$COBIA_API_DOMAIN} {
+http://{$COBIA_DOMAIN} {
   encode zstd gzip
   reverse_proxy replay:3001
 }

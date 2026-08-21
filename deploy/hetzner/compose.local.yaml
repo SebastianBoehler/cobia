@@ -1,0 +1,72 @@
+services:
+  cert-init:
+    entrypoint: ["true"]
+    volumes: !reset []
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cobia
+      POSTGRES_USER: cobia
+      POSTGRES_PASSWORD: cobia-local
+    command: !reset []
+    depends_on: !reset {}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cobia -d cobia"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - local-postgres:/var/lib/postgresql/data
+    ports: !override
+      - "127.0.0.1:5432:5432"
+
+  cert-sync:
+    profiles: ["production-only"]
+
+  migrate:
+    env_file: !reset []
+    environment:
+      DATABASE_URL: postgres://cobia:cobia-local@db:5432/cobia
+    depends_on:
+      db:
+        condition: service_healthy
+
+  replay:
+    environment:
+      REPLAY_SERVICE_SECRET: local-replay-secret-change-me-123456
+      XLAYER_RPC_URL: ${XLAYER_RPC_URL}
+      ETHEREUM_RPC_URL: ${ETHEREUM_RPC_URL:-https://ethereum-rpc.publicnode.com}
+      BASE_RPC_URL: ${BASE_RPC_URL:-https://mainnet.base.org}
+
+  solver:
+    env_file: !reset []
+    environment:
+      CODEX_HOME: /auth/codex
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      REFERENCE_SOLVER_PRIVATE_KEY: ${REFERENCE_SOLVER_PRIVATE_KEY}
+      XLAYER_RPC_URL: ${XLAYER_RPC_URL}
+      COBIA_EXECUTOR_V3_ADDRESS: ${COBIA_EXECUTOR_V3_ADDRESS}
+    volumes:
+      - codex-auth:/auth/codex
+      - ./config.local.toml:/auth/codex/config.toml:ro
+      - solver-state:/var/lib/cobia-solver
+  caddy:
+    environment:
+      COBIA_DOMAIN: localhost
+    ports: !override
+      - "127.0.0.1:8080:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - ./Caddyfile.local:/etc/caddy/Caddyfile:ro
+
+volumes:
+  local-postgres:
+  codex-auth:
+    external: true
+    name: cobia-reference-codex-runtime

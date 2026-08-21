@@ -7,10 +7,9 @@
 
 Cobia is a verified intent system centered on X Layer protocols. A wallet signs
 an exact policy, Cobia captures public wallet and protocol state at pinned chain
-blocks, and a coding agent researches and simulates an unsigned typed program
-inside an isolated sandbox. A separate trusted verifier checks policy and
-deployment identities and reproduces the result on a fresh fork before any
-wallet execution is offered.
+blocks, and independent solvers propose unsigned programs. A separate trusted
+verifier checks policy and deployment identities and reproduces each proposal
+on a fresh fork before any wallet execution is offered.
 
 Generation is open-world, while production authorization remains independently
 verified. The first semantic modules are USDG/USDt0 Aave V3 supply and
@@ -26,14 +25,15 @@ the owner can execute them. V1 allocation rounds remain readable as a control.
 | Wallet connection and X Layer switching | Live |
 | Direct Aave V3 reserve/oracle, Curve swap, and Uniswap V3 quote/LP reads | Live V2 capture with pinned current and historical X Layer blocks |
 | Versioned policy, snapshot, route, and quote commitments | Implemented |
-| Coding-agent V2 generation | Implemented with an ephemeral Node 24 Vercel Sandbox, bounded shell loop, explicit egress, and provenance capture |
+| In-process coding-agent V2 generation | Implemented with an ephemeral Node 24 Vercel Sandbox, bounded shell loop, explicit egress, and provenance capture |
 | Independent capability verification | Implemented for typed registered Aave supply and Curve/Uniswap exact-input modules; unsupported actions fail closed |
 | Quote selection and owner signatures | Implemented |
 | MPP/EIP-3009 paid reveal | Implemented on X Layer mainnet with fixed USDt0 and one off-chain authorization per recipient |
 | PostgreSQL request/payment/purchase history | Implemented |
 | X Layer mainnet USDt0 and Aave aToken balances | Live reads |
 | Aave + Curve + Uniswap route planning | Implemented for one exact conserved leg: Aave supply, Curve/Uniswap swap-to-Aave, or one-sided full-range Uniswap LP entry |
-| Solver competition | Open signed intent intake, solver registration, immutable decision revisions, abstention, capability programs, exact wallet-call programs, and replay protection are implemented |
+| Solver competition | Open signed intent intake, solver registration, immutable decision revisions, abstention, capability programs, exact wallet-call programs, and replay protection are implemented; the reference solver runs independently on the VPS |
+| Independent fork replay | Vercel verifies proposals and delegates only disposable Anvil execution to an authenticated, concurrency-capped VPS replay service |
 | Registered RWA acquisition | Live signed-intent lane for issuer-sourced Ethereum token identities, explicit jurisdiction attestation, exact-call construction, and verified token-balance increase |
 | x402 resource purchase | Live for exactly pinned merchant resources on their declared payment network; the order policy binds product, price, payee, payer, deadline, and settlement evidence before wallet authorization |
 | Transaction construction/execution engine | Unit/fork-tested and wired as buyer-authenticated, one-step-at-a-time X Layer mainnet wallet execution |
@@ -60,14 +60,15 @@ but Cobia does not yet build collect, rebalance, decrease-liquidity, or exit ste
 
 ```mermaid
 flowchart LR
-    W["Owner wallet"] --> I["Signed stablecoin intent"]
-    I --> S["Pinned X Layer and declared-chain snapshot"]
-    S --> A["Ephemeral coding-agent sandbox"]
-    A --> P["Unsigned typed capability program"]
-    P --> V["Independent compiler + verifier"]
-    V --> F["Fresh pinned-fork replay"]
+    W["Owner wallet"] --> V["Vercel: Next.js UI + Route Handlers"]
+    V --> I["Signed intent + pinned snapshot"]
+    I --> S["Independent VPS solver"]
+    S --> P["Unsigned program"]
+    P --> V
+    V --> F["VPS replay service + disposable Anvil"]
     F --> T["Verifier attestation"]
     T --> E["Exact owner-wallet execution"]
+    V --> D["VPS PostgreSQL over TLS"]
 ```
 
 The agent may discover arbitrary protocols and write arbitrary research code,
@@ -80,6 +81,21 @@ Registered RWA programs may execute on their issuer chain, and a supported x402
 resource uses the payment chain declared by its exact merchant manifest. Every
 chain remains explicit in the signed policy and evidence. The app stores
 credential hashes and receipt evidence, not raw spend-capable payment credentials.
+
+## Production topology
+
+- **Vercel:** the complete Next.js application, UI, and Route Handlers. There is
+  no duplicate Next.js server on the VPS.
+- **Hetzner VPS:** PostgreSQL, the independent reference solver, the authenticated
+  replay service, disposable loopback-only Anvil forks, and Caddy.
+- **`api.getcobia.com`:** the replay-service HTTPS boundary only. The product and
+  public API remain at `getcobia.com`.
+- **Database:** Vercel connects to VPS PostgreSQL on port `15432` with TLS,
+  SCRAM, and `sslmode=verify-full`. The deleted Vercel-managed database is not a
+  migration source.
+
+The exact bootstrap, update, and rollback procedure is documented in the
+[Hetzner production runbook](docs/deployments/hetzner-production-runbook.md).
 
 ## Run locally
 
@@ -130,8 +146,11 @@ are documented in
 ## Workspace
 
 - `apps/web` — Next.js product, API routes, MCP endpoint, persistence, and chain reads
+- `apps/replay-service` — authenticated standalone replay API and disposable Anvil lifecycle
+- `examples/open-solver` — independently deployable reference solver
 - `packages/domain` — canonical schemas, commitments, allocation math, scoring, and verification
 - `packages/solvers` — deterministic builder and bounded agentic candidate selector
+- `deploy/hetzner` — production and local Docker Compose topology
 - `docs/architecture` — current/target architecture and intent-compatibility boundaries
 
 See [apps/web/README.md](apps/web/README.md) for the exact network and payment

@@ -1,0 +1,23 @@
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
+web_search = "live"
+include_apps_instructions = false
+
+[features]
+apps = false
+skill_mcp_dependency_install = false
+
+[cobia]
+exchange_url = "https://getcobia.com"
+solver_id = "cobia-reference"
+display_name = "Cobia Reference Solver"
+poll_interval_ms = 1000
+job_root = "/var/lib/cobia-solver/jobs"
+state_file = "/var/lib/cobia-solver/state.json"
+max_parallel_jobs = 1
+max_attempts_per_intent = 2
+retry_base_ms = 30000
+turn_timeout_ms = 240000
+risk_level = "opportunistic"
+max_codex_turns_per_intent = 3
+max_total_tokens_per_intent = 500000

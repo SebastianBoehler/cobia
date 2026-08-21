@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
 import { fileURLToPath } from "node:url";
-import { createForkRead } from "./vercel-anvil-fork";
+import { createForkRead } from "./fork-read";
 
 const leasedPorts = new Set<number>();
 

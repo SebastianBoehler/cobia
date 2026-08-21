@@ -1,0 +1,16 @@
+FROM node:24-bookworm-slim
+
+RUN corepack enable
+WORKDIR /app
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
+COPY apps/web/package.json apps/web/package.json
+COPY packages/domain/package.json packages/domain/package.json
+COPY packages/solver-sdk/package.json packages/solver-sdk/package.json
+COPY packages/solvers/package.json packages/solvers/package.json
+RUN --mount=type=cache,id=cobia-pnpm-store,target=/root/.local/share/pnpm/store \
+  pnpm install --filter @cobia/web... --frozen-lockfile
+
+COPY apps/web/drizzle apps/web/drizzle
+COPY apps/web/drizzle.config.ts apps/web/drizzle.config.ts
+COPY apps/web/lib/db/schema.ts apps/web/lib/db/schema.ts
+CMD ["pnpm", "--filter", "@cobia/web", "db:migrate"]

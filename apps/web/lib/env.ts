@@ -75,7 +75,6 @@ const CodingAgentV3RuntimeEnvSchema = CodingAgentV3ExecutionEnvSchema.extend({
   OPENAI_API_KEY: z.string().min(1),
   OPENAI_CODING_AGENT_MODEL: z.string().min(1),
   CODING_AGENT_PUBLIC_ORIGIN: z.url().refine((value) => new URL(value).protocol === "https:"),
-  FORK_REPLAY_RUNTIME: z.enum(["vercel", "local"]).default("vercel"),
 });
 
 const CommerceRuntimeEnvSchema = z.object({

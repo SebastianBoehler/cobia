@@ -1,0 +1,25 @@
+{
+  "name": "@cobia/replay-service",
+  "version": "0.1.0",
+  "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cobia/domain": "workspace:*",
+    "@cobia/solvers": "workspace:*",
+    "@foundry-rs/anvil": "1.7.1",
+    "viem": "2.55.11",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "26.2.0",
+    "tsx": "4.23.11",
+    "typescript": "6.0.3",
+    "vitest": "4.1.10"
+  }
+}
