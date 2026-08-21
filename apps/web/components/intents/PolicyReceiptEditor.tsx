@@ -22,7 +22,11 @@ export function PolicyReceiptEditor({ values, owner, onChange }: {
     ? RWA_INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? RWA_INTENT_ASSETS[0]
     : INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? INTENT_ASSETS[1];
   const instrument = rwa && "instrument" in output ? output.instrument : undefined;
-  const set = <K extends keyof ReceiptValues>(key: K, value: ReceiptValues[K]) => onChange({ ...values, [key]: value });
+  const set = <K extends keyof ReceiptValues>(key: K, value: ReceiptValues[K]) => onChange({
+    ...values, [key]: value,
+    ...(key === "amount" || key === "inputToken" || key === "outputToken" || key === "minimum"
+      ? { minimumSource: undefined } : {}),
+  });
   const minimumLabel = values.templateId === "aave-supply" ? "Minimum receipt is verifier-derived at 99.5%" : atomicLabel(values.minimum, values.templateId === "round-trip" ? input.symbol : output.symbol);
 
   return (
@@ -35,9 +39,9 @@ export function PolicyReceiptEditor({ values, owner, onChange }: {
             ? { ...values, templateId, inputToken: rwaInputAsset(RWA_INTENT_ASSETS[0]!.instrument).address,
               outputToken: RWA_INTENT_ASSETS[0]!.address,
               jurisdiction: RWA_INTENT_ASSETS[0]!.instrument.eligibleJurisdictions[0]!,
-              eligibilityAccepted: false }
+              eligibilityAccepted: false, minimumSource: undefined }
             : { ...values, templateId, inputToken: INTENT_ASSETS[0]!.address,
-              outputToken: INTENT_ASSETS[1]!.address, eligibilityAccepted: false });
+              outputToken: INTENT_ASSETS[1]!.address, eligibilityAccepted: false, minimumSource: undefined });
         }}>{CAPABILITY_TEMPLATES.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}</select></label>
         <label>Maximum input<input inputMode="decimal" value={values.amount} onChange={(event) => set("amount", event.target.value)} /></label>
         <label>Input asset{rwa
@@ -49,11 +53,13 @@ export function PolicyReceiptEditor({ values, owner, onChange }: {
           const selected = RWA_INTENT_ASSETS.find(({ address }) => address === outputToken)!;
           onChange({ ...values, inputToken: rwaInputAsset(selected.instrument).address,
             outputToken, jurisdiction: selected.instrument.eligibleJurisdictions[0]!,
-            eligibilityAccepted: false });
+            eligibilityAccepted: false, minimumSource: undefined });
         }}>{RWA_INTENT_ASSETS.map(({ address, symbol, instrument: item }) => <option key={address} value={address}>{symbol} · {item.platform}</option>)}</select></label> : null}
         {rwa && instrument ? <label>Jurisdiction<select value={values.jurisdiction} onChange={(event) => onChange({ ...values,
           jurisdiction: event.target.value, eligibilityAccepted: false })}>{instrument.eligibleJurisdictions.map((code) => <option key={code} value={code}>{code}</option>)}</select></label> : null}
-        {values.templateId !== "aave-supply" ? <label>{values.templateId === "round-trip" ? "Minimum profit" : "Minimum output"}<input inputMode="decimal" value={values.minimum} onChange={(event) => set("minimum", event.target.value)} /></label> : null}
+        {values.templateId !== "aave-supply" ? <label>{values.templateId === "round-trip" ? "Minimum profit" : "Minimum output"}<input inputMode="decimal" value={values.minimum} onChange={(event) => set("minimum", event.target.value)} />
+          {values.minimumSource === "stablecoin-default" ? <small>Auto-set to a 1% USDG/USDt0 protection floor. Review or edit it before signing.</small> : null}
+        </label> : null}
         <label className="policy-fee">Maximum solver success fee
           <span className="policy-fee__value">{Number(values.maxSolverFeeUsd).toFixed(2)} USDt0</span>
           <input aria-label="Maximum solver success fee" max="0.50" min="0" step="0.05"

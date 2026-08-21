@@ -11,9 +11,32 @@ export interface IntentReceiptValues {
   amount: string;
   outputToken: Address;
   minimum: string;
+  minimumSource?: "stablecoin-default";
   maxSolverFeeUsd: string;
   jurisdiction: string;
   eligibilityAccepted: boolean;
+}
+
+export const STABLECOIN_DEFAULT_FLOOR_BPS = 9_900n;
+
+function formatAtomic(value: bigint, decimals: number): string {
+  const scale = 10n ** BigInt(decimals);
+  const whole = value / scale;
+  const fraction = (value % scale).toString().padStart(decimals, "0").replace(/0+$/, "");
+  return fraction ? `${whole}.${fraction}` : whole.toString();
+}
+
+export function stablecoinDefaultMinimum(
+  input: { symbol: string; decimals: number },
+  output: { symbol: string; decimals: number },
+  amount: string,
+): string | null {
+  const supportedPair = (input.symbol === "USDG" && output.symbol === "USDt0") ||
+    (input.symbol === "USDt0" && output.symbol === "USDG");
+  const inputAtomic = decimalToAtomic(amount, input.decimals);
+  if (!supportedPair || !inputAtomic || input.decimals !== output.decimals) return null;
+  const minimumAtomic = BigInt(inputAtomic) * STABLECOIN_DEFAULT_FLOOR_BPS / 10_000n;
+  return minimumAtomic > 0n ? formatAtomic(minimumAtomic, output.decimals) : null;
 }
 
 export const CAPABILITY_TEMPLATES = [

@@ -43,6 +43,25 @@ describe("intent compiler", () => {
     expect(request.input).not.toContain("owner");
   });
 
+  it("adds a disclosed stablecoin floor when an exact input has no stated output minimum", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify({
+      status: "review", question: null, templateId: "exact-input-swap",
+      inputSymbol: "USDG", outputSymbol: "USDt0", amount: "0.02", minimum: "",
+      jurisdiction: null,
+    })));
+    const compiler = createOpenAiIntentCompiler({ apiKey: "test", model: "test-model", fetcher });
+
+    await expect(compiler.compile("Swap 0.02 USDG into USDt0 on X Layer", "any")).resolves.toMatchObject({
+      status: "review",
+      values: {
+        templateId: "exact-input-swap",
+        amount: "0.02",
+        minimum: "0.0198",
+        minimumSource: "stablecoin-default",
+      },
+    });
+  });
+
   it("returns a clarification instead of inventing unsupported bounds", async () => {
     const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify({
       status: "clarification", question: "What is the maximum amount to spend?",
