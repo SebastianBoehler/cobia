@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, CirclePlus, Clock3, Compass, House, WalletCards } from "lucide-react";
+import { ArrowUpRight, Bot, CirclePlus, Clock3, Compass, House, WalletCards } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CobiaLogo } from "../brand/CobiaLogo";
@@ -13,7 +13,8 @@ const navigation = [
   { href: "/intents/new", icon: CirclePlus, label: "Intent", prefixes: ["/intents", "/programs"] },
   { href: "/portfolio", icon: WalletCards, label: "Portfolio", prefixes: ["/portfolio"] },
   { href: "/activity", icon: Clock3, label: "Activity", prefixes: ["/activity"] },
-  { href: "/discover", icon: Compass, label: "Discover", prefixes: ["/discover", "/solvers"] },
+  { href: "/discover", icon: Compass, label: "Discover", prefixes: ["/discover"] },
+  { href: "/solvers", icon: Bot, label: "Solvers", prefixes: ["/solvers"] },
 ] as const;
 
 const testnetNavigation = [
@@ -36,7 +37,7 @@ export function AppHeader() {
             {wallet.targetChainId === 1952 ? "Testnet" : "X Layer"}
           </span>
         </div>
-        <nav className="app-header__nav" aria-label="Primary navigation">
+        <nav className="app-header__nav" aria-label="Primary navigation" data-count={visibleNavigation.length}>
           {visibleNavigation.map(({ href, icon: Icon, label, prefixes }) => {
             const active = href === "/" ? pathname === "/" : prefixes.some((prefix) => pathname.startsWith(prefix));
             return (

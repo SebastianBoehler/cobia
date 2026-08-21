@@ -46,6 +46,7 @@ describe("SolverProfileView", () => {
     }} />);
 
     expect(html).toContain("30-day verifier evidence");
+    expect(html).toContain('aria-label="Verifier-owned record totals"');
     expect(html).toContain("X Layer · swap");
     expect(html).toContain("Win rate");
     expect(html).toContain("50.00%");

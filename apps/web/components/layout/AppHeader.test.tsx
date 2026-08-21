@@ -7,8 +7,12 @@ import { AppHeader } from "./AppHeader";
 import { WalletProvider } from "../wallet/WalletProvider";
 
 vi.mock("../wallet/WalletButton", () => ({ WalletButton: () => <button>Connect wallet</button> }));
-vi.mock("next/navigation", () => ({ usePathname: () => "/intents/new" }));
-afterEach(cleanup);
+const mocks = vi.hoisted(() => ({ pathname: "/intents/new" }));
+vi.mock("next/navigation", () => ({ usePathname: () => mocks.pathname }));
+afterEach(() => {
+  cleanup();
+  mocks.pathname = "/intents/new";
+});
 
 describe("AppHeader", () => {
   it("offers a keyboard shortcut past repeated navigation", () => {
@@ -20,14 +24,14 @@ describe("AppHeader", () => {
     );
   });
 
-  it("links to intent, portfolio, activity, and discovery", () => {
+  it("links to the primary product destinations", () => {
     render(<AppHeader />);
     expect(screen.getByRole("link", { name: "Intent" })).toHaveAttribute("href", "/intents/new");
     expect(screen.getByRole("link", { name: "Intent" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Portfolio" })).toHaveAttribute("href", "/portfolio");
     expect(screen.getByRole("link", { name: "Activity" })).toHaveAttribute("href", "/activity");
     expect(screen.getByRole("link", { name: "Discover" })).toHaveAttribute("href", "/discover");
-    expect(screen.queryByRole("link", { name: "Solver market" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Solvers" })).toHaveAttribute("href", "/solvers");
     expect(screen.getByRole("link", { name: "Docs" })).toHaveAttribute("href", "/docs");
     expect(screen.getByRole("link", { name: "Build a solver" })).toHaveAttribute("href", "/docs/quickstart");
   });
@@ -45,7 +49,15 @@ describe("AppHeader", () => {
     render(<AppHeader />);
     const navigation = screen.getByRole("navigation", { name: "Primary navigation" });
 
-    expect(navigation.querySelectorAll(".app-header__nav-icon")).toHaveLength(4);
+    expect(navigation.querySelectorAll(".app-header__nav-icon")).toHaveLength(5);
+  });
+
+  it("marks solver profiles as part of the solver directory", () => {
+    mocks.pathname = "/solvers/cobia-reference";
+    render(<AppHeader />);
+
+    expect(screen.getByRole("link", { name: "Solvers" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Discover" })).not.toHaveAttribute("aria-current");
   });
 
   it("labels testnet and removes mainnet-only product destinations", () => {
@@ -56,5 +68,6 @@ describe("AppHeader", () => {
     expect(screen.queryByRole("link", { name: "Intent" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Activity" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Discover" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Solvers" })).not.toBeInTheDocument();
   });
 });

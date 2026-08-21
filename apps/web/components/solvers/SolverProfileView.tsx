@@ -63,15 +63,17 @@ export function SolverProfileView({ profile }: { profile: {
 } }) {
   const Icon = profile.operatorKind === "community" ? Users : Bot;
   return <div className="solver-profile">
-    <section className="solver-profile__hero">
-      <Icon aria-hidden="true" />
-      <div><span>{profile.operatorKind === "community" ? "Community solver" : "Cobia solver"}</span><h1>{profile.displayName}</h1><p>Capability claims describe what this solver attempts. Acceptance, rejection, and wins below come only from immutable verifier-owned records.</p></div>
-    </section>
-    <section className="solver-profile__facts">
-      <div><small>Accepted</small><strong>{profile.stats.accepted}</strong></div>
-      <div><small>Rejected</small><strong>{profile.stats.rejected}</strong></div>
-      <div><small>Selected wins</small><strong>{profile.stats.wins}</strong></div>
-      <div><small>Current</small><strong>{profile.stats.current}</strong></div>
+    <section className="solver-profile__overview" aria-labelledby="solver-profile-title">
+      <header className="solver-profile__hero">
+        <Icon aria-hidden="true" />
+        <div><span>{profile.operatorKind === "community" ? "Community solver" : "Cobia solver"}</span><h1 id="solver-profile-title">{profile.displayName}</h1><p>Capability claims describe what this solver attempts. Acceptance, rejection, and wins below come only from immutable verifier-owned records.</p></div>
+      </header>
+      <dl className="solver-profile__facts" aria-label="Verifier-owned record totals">
+        <div><dt>Accepted</dt><dd>{profile.stats.accepted}</dd></div>
+        <div><dt>Rejected</dt><dd>{profile.stats.rejected}</dd></div>
+        <div><dt>Selected wins</dt><dd>{profile.stats.wins}</dd></div>
+        <div><dt>Current</dt><dd>{profile.stats.current}</dd></div>
+      </dl>
     </section>
     <section className="solver-profile__capabilities">
       <header><ShieldCheck aria-hidden="true" size={19} /><div><h2>Declared capabilities</h2><p>Declarations are discovery metadata, not execution authority.</p></div></header>
