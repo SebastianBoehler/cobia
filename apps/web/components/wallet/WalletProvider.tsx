@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getAddress, isAddress, type Address } from "viem";
 import type { Eip1193Request, Eip6963ProviderDetail, EvmWalletChainId, XLayerWalletChainId } from "../../lib/wallet/eip1193";
 import { parseChainId } from "../../lib/wallet/eip1193";
@@ -35,6 +35,8 @@ const CHAINS = {
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
   },
 } as const;
+
+const SELECTED_WALLET_KEY = "cobia-selected-wallet-rdns";
 
 interface WalletSession {
   providers: Eip6963ProviderDetail[];
@@ -90,6 +92,7 @@ export function WalletProvider({ children, targetChainId = 196 }: {
   const [account, setAccount] = useState<Address | null>(null);
   const [chainId, setChainId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const restoringWallet = useRef<string | null>(null);
 
   useEffect(() => {
     const announce = (event: Event) => {
@@ -103,6 +106,32 @@ export function WalletProvider({ children, targetChainId = 196 }: {
     window.dispatchEvent(new Event("eip6963:requestProvider"));
     return () => window.removeEventListener("eip6963:announceProvider", announce);
   }, []);
+
+  useEffect(() => {
+    if (selected) return;
+    const rdns = window.localStorage.getItem(SELECTED_WALLET_KEY);
+    if (!rdns || restoringWallet.current === rdns) return;
+    const detail = providers.find((item) => item.info.rdns === rdns);
+    if (!detail) return;
+    restoringWallet.current = rdns;
+    let cancelled = false;
+    void Promise.all([
+      detail.provider.request({ method: "eth_accounts" }),
+      detail.provider.request({ method: "eth_chainId" }),
+    ]).then(([accounts, currentChain]) => {
+      if (cancelled) return;
+      if (!Array.isArray(accounts) || !isAddress(accounts[0])) {
+        window.localStorage.removeItem(SELECTED_WALLET_KEY);
+        return;
+      }
+      setSelected(detail);
+      setAccount(getAddress(accounts[0]));
+      setChainId(parseChainId(currentChain));
+    }).catch(() => {
+      if (!cancelled) window.localStorage.removeItem(SELECTED_WALLET_KEY);
+    });
+    return () => { cancelled = true; };
+  }, [providers, selected]);
 
   useEffect(() => {
     if (!selected?.provider.on) return;
@@ -131,6 +160,7 @@ export function WalletProvider({ children, targetChainId = 196 }: {
       const currentChain = await detail.provider.request({ method: "eth_chainId" });
       const parsedChain = parseChainId(currentChain);
       if (parsedChain !== targetChainId) await requestChainSwitch(detail.provider, targetChainId);
+      window.localStorage.setItem(SELECTED_WALLET_KEY, detail.info.rdns);
       setSelected(detail);
       setAccount(getAddress(accounts[0]));
       setChainId(targetChainId);
@@ -142,6 +172,8 @@ export function WalletProvider({ children, targetChainId = 196 }: {
   }, [providers, targetChainId]);
 
   const disconnect = useCallback(() => {
+    window.localStorage.removeItem(SELECTED_WALLET_KEY);
+    restoringWallet.current = null;
     setSelected(null);
     setAccount(null);
     setChainId(null);
