@@ -136,7 +136,17 @@ describe("market environment", () => {
       OPENAI_CODING_AGENT_MODEL: "gpt-test",
       COBIA_EXECUTOR_V3_ADDRESS: "0x3333333333333333333333333333333333333333",
       CODING_AGENT_PUBLIC_ORIGIN: "https://cobia.example",
+      FORK_REPLAY_RUNTIME: "vercel",
     });
+    expect(readCodingAgentV3RuntimeConfig({
+      OPENAI_API_KEY: "test-key",
+      OPENAI_CODING_AGENT_MODEL: "gpt-test",
+      COBIA_EXECUTOR_V3_ADDRESS: "0x3333333333333333333333333333333333333333",
+      COBIA_EXECUTOR_V3_CODE_HASH: `0x${"44".repeat(32)}`,
+      COBIA_VERIFIER_PRIVATE_KEY: verifier,
+      CODING_AGENT_PUBLIC_ORIGIN: "https://cobia.example",
+      FORK_REPLAY_RUNTIME: "local",
+    }).FORK_REPLAY_RUNTIME).toBe("local");
     expect(() => readCodingAgentV3RuntimeConfig({
       COBIA_EXECUTOR_V3_ADDRESS: "0x3333333333333333333333333333333333333333",
       COBIA_EXECUTOR_V3_CODE_HASH: `0x${"44".repeat(32)}`,

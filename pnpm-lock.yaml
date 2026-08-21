@@ -35,6 +35,9 @@ importers:
       '@cobia/solvers':
         specifier: workspace:*
         version: link:../../packages/solvers
+      '@foundry-rs/anvil':
+        specifier: 1.7.1
+        version: 1.7.1
       '@okxweb3/mpp':
         specifier: 0.1.0
         version: 0.1.0(typescript@6.0.3)(zod@4.4.3)

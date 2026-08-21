@@ -1,0 +1,72 @@
+name: cobia-production
+
+services:
+  migrate:
+    build:
+      context: ../..
+      dockerfile: deploy/hetzner/Dockerfile.web
+    command: ["pnpm", "--filter", "@cobia/web", "db:migrate"]
+    env_file: ${COBIA_ENV_FILE:-.env}
+    restart: "no"
+
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/hetzner/Dockerfile.web
+    init: true
+    restart: unless-stopped
+    env_file: ${COBIA_ENV_FILE:-.env}
+    environment:
+      ANVIL_BIN: /app/apps/web/node_modules/.bin/anvil
+      FORK_REPLAY_RUNTIME: local
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/network/status').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
+
+  solver:
+    build:
+      context: ../..
+      dockerfile: examples/open-solver/Dockerfile
+    init: true
+    restart: unless-stopped
+    env_file: ${COBIA_ENV_FILE:-.env}
+    environment:
+      CODEX_HOME: /auth/codex
+    depends_on:
+      web:
+        condition: service_healthy
+    volumes:
+      - codex-auth:/auth/codex
+      - ../../examples/open-solver/codex/config.toml:/auth/codex/config.toml:ro
+      - solver-state:/var/lib/cobia-solver
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    environment:
+      COBIA_DOMAIN: ${COBIA_DOMAIN}
+    depends_on:
+      web:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  caddy-data:
+  caddy-config:
+  codex-auth:
+  solver-state:

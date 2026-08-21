@@ -39,6 +39,7 @@ import {
   assertAgentExecutorReadyV1, createAgentExecutorReadV1,
 } from "../coding-agent-sandbox/executor-preflight";
 import { startVercelAnvilForkV2 } from "../coding-agent-sandbox/vercel-anvil-fork";
+import { startLocalAnvilFork } from "../coding-agent-sandbox/local-anvil-fork";
 import { replayCapabilityProgramOnForkV2 } from "../coding-agent-sandbox/capability-fork-replay-v2";
 import { createOkxClient } from "../okx/client";
 
@@ -230,12 +231,16 @@ export function submitOpenSolverDecision(value: {
             const chainId = walletChains[0]!;
             const anchor = snapshot.anchors?.find((item) => item.chainId === chainId);
             if (!anchor) throw new Error(`Chain ${chainId} replay anchor is unavailable`);
+            const upstreamRpc = chainId === 196
+              ? config.XLAYER_RPC_URL : chainId === 1 ? config.ETHEREUM_RPC_URL : config.BASE_RPC_URL;
             const broker = chainId === 196
               ? new URL(`/api/internal/coding-agent/rpc/${input.runId}`,
                 config.CODING_AGENT_PUBLIC_ORIGIN).toString()
               : chainId === 1 ? config.ETHEREUM_RPC_URL : config.BASE_RPC_URL;
-            const fork = await startVercelAnvilForkV2({ jobId: input.runId,
-              brokerUrl: broker, blockNumber: anchor.blockNumber, chainId });
+            const fork = config.FORK_REPLAY_RUNTIME === "local"
+              ? await startLocalAnvilFork({ upstreamRpc, blockNumber: anchor.blockNumber, chainId })
+              : await startVercelAnvilForkV2({ jobId: input.runId,
+                brokerUrl: broker, blockNumber: anchor.blockNumber, chainId });
             try { return await replayOpenTransactionProgramV1({ ...replayInput, rpc: fork.rpc }); }
             finally { await fork.stop(); }
           },
@@ -258,8 +263,11 @@ export function submitOpenSolverDecision(value: {
             `/api/internal/coding-agent/rpc/${replayInput.runId}`,
             config.CODING_AGENT_PUBLIC_ORIGIN,
           ).toString();
-          const fork = await startVercelAnvilForkV2({ jobId: replayInput.runId,
-            brokerUrl: broker, blockNumber: replayInput.blockNumber });
+          const fork = config.FORK_REPLAY_RUNTIME === "local"
+            ? await startLocalAnvilFork({ upstreamRpc: config.XLAYER_RPC_URL,
+              blockNumber: replayInput.blockNumber })
+            : await startVercelAnvilForkV2({ jobId: replayInput.runId,
+              brokerUrl: broker, blockNumber: replayInput.blockNumber });
           try {
             return await replayCapabilityProgramOnForkV2({ program: replayInput.program,
               compiled: replayInput.compiled, forkRpc: fork.rpc, read: fork.read });

@@ -4,5 +4,5 @@
 **/coverage
 **/.turbo
 **/*.log
-.env*
-!.env.example
+**/.env*
+!**/.env.example
