@@ -1,7 +1,14 @@
-model = "gpt-5.6-terra"
-model_reasoning_effort = "medium"
+model = "deepseek/deepseek-v4-flash-0731"
+model_provider = "openrouter"
+model_reasoning_effort = "high"
 web_search = "live"
 include_apps_instructions = false
+
+[model_providers.openrouter]
+name = "OpenRouter"
+base_url = "https://openrouter.ai/api/v1"
+env_key = "OPENROUTER_API_KEY"
+wire_api = "responses"
 
 [features]
 apps = false
