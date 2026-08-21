@@ -53,11 +53,19 @@ const program: AtomicExecutionProgramV3 = {
   predicates: [],
 };
 
-function stored() {
-  const authorization = buildAtomicAuthorizationV3(program, executor);
-  const call = encodeAtomicExecutionCallV3({ program, authorization, expectedExecutor: executor, signature });
+function stored(input: { policyDeadline?: number; programDeadline?: bigint } = {}) {
+  const storedPolicy = { ...policy, deadline: input.policyDeadline ?? policy.deadline };
+  const storedProgram = {
+    ...program,
+    policyHash: commitment(storedPolicy),
+    deadline: input.programDeadline ?? program.deadline,
+  };
+  const authorization = buildAtomicAuthorizationV3(storedProgram, executor);
+  const call = encodeAtomicExecutionCallV3({
+    program: storedProgram, authorization, expectedExecutor: executor, signature,
+  });
   call.data = attributed(call.data);
-  const execution = { version: 3, program };
+  const execution = { version: 3, program: storedProgram };
   const attestation = { version: 3, authorization, signature, call };
   const json = (value: unknown) => JSON.parse(JSON.stringify(
     value,
@@ -68,12 +76,12 @@ function stored() {
   return {
     state: "attested",
     owner,
-    policyHash: commitment(policy),
+    policyHash: commitment(storedPolicy),
     snapshotHash: commitment(snapshot),
-    manifestHash: program.manifestHash,
+    manifestHash: storedProgram.manifestHash,
     blockNumber: snapshot.blockNumber,
     blockHash: snapshot.blockHash,
-    policy: structuredClone(policy),
+    policy: structuredClone(storedPolicy),
     snapshot: structuredClone(snapshot),
     artifacts: [
       { kind: "execution", artifactHash: commitment(executionPayload), payload: executionPayload },
@@ -131,6 +139,14 @@ describe("general agent mainnet execution preparation", () => {
       }).data),
       value: "0x0",
     });
+  });
+
+  it("accepts a still-live execution deadline bounded below the signed intent deadline", () => {
+    const context = stored({ policyDeadline: 2_500, programDeadline: 1_200n });
+
+    expect(() => prepareAgentExecutionV3({ context, owner, executor, nowSec: 1_100 })).not.toThrow();
+    expect(() => prepareAgentExecutionV3({ context, owner, executor, nowSec: 1_200 }))
+      .toThrow("General execution has expired");
   });
 
   it("attributes every bounded approval, including an allowance reset", () => {

@@ -165,10 +165,11 @@ export function prepareAgentExecutionV3(input: {
   const program = execution.program as AtomicExecutionProgramV3;
   const authorization = attestation.authorization as AtomicAuthorizationV3;
   assertAtomicExecutionProgramV3(program);
+  if (BigInt(input.nowSec) >= program.deadline) throw new Error("General execution has expired");
   if (!isAddressEqual(program.owner, input.owner) ||
     !isAddressEqual(program.inputToken, input.context.policy.input.token as Address) ||
     program.inputAmount > BigInt(input.context.policy.input.maxAtomic) ||
-    program.deadline !== BigInt(input.context.policy.deadline) ||
+    program.deadline > BigInt(input.context.policy.deadline) ||
     program.policyHash !== input.context.policyHash ||
     program.manifestHash !== input.context.manifestHash ||
     program.manifestHash !== input.context.policy.manifestHash ||
