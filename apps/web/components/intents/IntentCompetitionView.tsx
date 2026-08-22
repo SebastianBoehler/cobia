@@ -82,7 +82,16 @@ function SubmissionRow({ item, current }: { item: CompetitionSubmission; current
           maximumFractionDigits: 6,
         })} net terminal · {item.objective.horizonDays}d</span> : null}
     </div>
-    <Link href={`/programs/${item.id}`}>View details <ArrowRight aria-hidden="true" size={15} /></Link>
+    <Link
+      aria-label={`${current ? "Review and execute" : "View evidence"} for ${item.solverId} revision ${item.revision}`}
+      className={current
+        ? "button button--primary competition-row__action"
+        : "competition-row__action competition-row__action--history"}
+      href={`/programs/${item.id}`}
+    >
+      {current ? "Review and execute" : "View evidence"}
+      <ArrowRight aria-hidden="true" size={15} />
+    </Link>
   </article>;
 }
 

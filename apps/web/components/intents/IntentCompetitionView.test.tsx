@@ -82,8 +82,10 @@ describe("IntentCompetitionView", () => {
 
     expect(pending).toContain('data-competition-state="verifying"');
     expect(pending).toContain("Verifier is checking proposals");
+    expect(pending).toContain("View evidence");
     expect(ready).toContain('data-competition-state="ready"');
     expect(ready).toContain("Verified proposals are ready");
+    expect(ready).toContain("Review and execute");
   });
 
   it("does not describe an elapsed competition as pending", () => {
@@ -163,7 +165,7 @@ describe("IntentCompetitionView", () => {
     expect(html).toContain("Minimum: +0.950000 USDt0");
     expect(html).toContain("Up to 2 wallet steps");
     expect(html).not.toContain("Verified objective");
-    expect(html).toContain("View details");
+    expect(html).toContain("Review and execute");
   });
 
   it("shows composed authority, ordered actions, receipt outcome, and net-yield rank", () => {

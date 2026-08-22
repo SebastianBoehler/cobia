@@ -153,7 +153,9 @@
 .competition-row__route-marks { align-items: center; display: flex; gap: 5px; }
 .competition-row__route-marks > span { align-items: center; display: inline-flex; gap: 5px; }
 .competition-row__route-arrow { color: var(--muted); flex: 0 0 auto; }
-.competition-row > a { align-items: center; color: var(--cobalt-dark); display: inline-flex; font-size: 12px; font-weight: 650; gap: 7px; }
+.competition-row__action { align-items: center; display: inline-flex; font-size: 12px; font-weight: 650; gap: 7px; justify-self: start; white-space: nowrap; }
+.competition-row__action.button { font-size: 12px; min-height: 40px; padding-inline: 15px; }
+.competition-row__action--history { color: var(--cobalt-dark); }
 .competition-list--history .competition-row { opacity: .74; }
 .competition-waiting { align-items: start; background: var(--wash); border: 1px solid var(--line); border-radius: 18px; color: var(--muted); display: grid; gap: 14px; grid-template-columns: 22px minmax(0, 1fr); padding: 22px 24px; }
 .competition-waiting--live { background: var(--cobalt-wash); border-color: color-mix(in srgb, var(--cobalt) 24%, transparent); color: var(--cobalt-dark); }
