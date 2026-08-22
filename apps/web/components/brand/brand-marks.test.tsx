@@ -12,7 +12,7 @@ describe("brand marks", () => {
     expect(screen.getByRole("img", { name: `${asset} token` })).toBeInTheDocument();
   });
 
-  it.each(["Aave V3", "Curve", "Uniswap V3"] as const)(
+  it.each(["Aave V3", "Curve", "Uniswap V3", "Pendle"] as const)(
     "renders the %s protocol identity",
     (protocol) => {
       render(<ProtocolMark protocol={protocol} />);

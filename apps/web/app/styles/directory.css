@@ -64,8 +64,8 @@
 .history-more { margin-top: 14px; }
 .history-more summary { border-radius: 12px; color: var(--ink); cursor: pointer; font-size: 13px; font-weight: 650; padding: 12px 4px; }
 .history-more[open] summary { margin-bottom: 8px; }
-.solver-directory { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 560px), 720px)); }
-.solver-directory > article { background: var(--surface); border-radius: 22px; box-shadow: var(--shadow-soft); padding: 28px; }
+.solver-directory { align-items: start; display: grid; gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.solver-directory > article { background: var(--surface); border-radius: 22px; box-shadow: var(--shadow-soft); container-type: inline-size; min-width: 0; padding: 28px; }
 .solver-directory article > header { align-items: center; display: flex; gap: 16px; }
 .solver-directory article > header > svg { background: var(--cobalt-wash); border-radius: 14px; color: var(--cobalt); height: 52px; padding: 13px; width: 52px; }
 .solver-directory h2 { font-size: 22px; letter-spacing: -.025em; margin: 0; }
@@ -79,6 +79,9 @@
 .solver-directory dl div + div { border-inline-start: 1px solid var(--line); }
 .solver-directory dt { color: var(--muted); }
 .solver-directory dd { font: 24px/1 var(--font-geist-mono), monospace; font-variant-numeric: tabular-nums; margin: 0; }
+@container (max-width: 540px) {
+  .solver-directory__columns { grid-template-columns: 1fr; }
+}
 .intent-competition { display: grid; gap: 64px; }
 .intent-competition__summary { align-items: start; display: grid; gap: 24px; grid-template-columns: 48px minmax(0, 1fr) 190px; }
 .intent-competition__summary > svg { background: var(--cobalt-wash); border-radius: 14px; color: var(--cobalt); height: 48px; padding: 12px; width: 48px; }
@@ -226,6 +229,10 @@
   .discover-view__rail { grid-template-columns: 1fr; }
   .discover-view__commerce .commerce-offers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .discover-view__commerce .commerce-offers--supported { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
+}
+
+@media (max-width: 900px) {
+  .solver-directory { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 720px) {

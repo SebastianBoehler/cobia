@@ -13,10 +13,13 @@ describe("DiscoverView", () => {
     />);
 
     expect(html).toContain("Standing challenges");
-    expect(html).toContain("Supported X Layer protocols");
+    expect(html).toContain("X Layer protocol coverage");
     expect(html).toContain("Aave V3");
     expect(html).toContain("Curve");
     expect(html).toContain("Uniswap V3");
+    expect(html).toContain("Pendle");
+    expect(html).toContain("Read-only USDG PT market discovery");
+    expect(html).toContain("brand-mark--pendle");
     expect(html).toContain("exact-call replay lane");
     expect(html.indexOf("Standing challenges")).toBeLessThan(html.indexOf("Paid resources"));
     expect(html).not.toContain("Between rounds");
