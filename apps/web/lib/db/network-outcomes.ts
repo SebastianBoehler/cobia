@@ -34,6 +34,28 @@ function symbol(token: string): string {
     ?? `Token ${token.slice(0, 6)}…${token.slice(-4)}`;
 }
 
+function decimals(token: string): number | null {
+  return SUPPORTED_ASSETS.find(({ address }) => address.toLowerCase() === token)?.decimals ?? null;
+}
+
+const protocolPrefixes = [
+  ["aave-v3.", "Aave V3"],
+  ["curve-stableswap-ng.", "Curve"],
+  ["uniswap-v3.", "Uniswap V3"],
+] as const;
+
+function protocols(ids: readonly string[]): string[] {
+  const matched = ids.flatMap((id) => {
+    const protocol = protocolPrefixes.find(([prefix]) => id.startsWith(prefix))?.[1];
+    return protocol ? [protocol] : [];
+  });
+  return matched.filter((protocol, index) => matched.indexOf(protocol) === index);
+}
+
+function routeOutput(token: string, atomic: string) {
+  return { token, symbol: symbol(token), atomic, decimals: decimals(token) };
+}
+
 function capabilityPrincipal(payload: unknown) {
   const parsed = CapabilityProgramV2Schema.safeParse(payload);
   if (!parsed.success) return null;
@@ -49,6 +71,10 @@ function capabilityPrincipal(payload: unknown) {
     resultLabel: hasSwap && hasSupply ? "Verified swap and supply"
       : hasSwap ? "Verified token swap" : hasSupply ? "Verified protocol supply"
         : "Verified X Layer outcome",
+    route: {
+      protocols: protocols(ids),
+      minimumOutputs: parsed.data.balanceConstraints.map(({ token, atomic }) => routeOutput(token, atomic)),
+    },
   };
 }
 
@@ -59,12 +85,25 @@ function transactionPrincipal(payload: unknown) {
     dependsOn.length === 0 && ["wallet-transaction", "cobia-v3", "x402-authorization"].includes(kind));
   if (roots.length !== 1) return null;
   const stage = roots[0]!;
-  if (stage.kind === "wallet-transaction" || stage.kind === "cobia-v3") return {
+  if (stage.kind === "wallet-transaction") return {
     chainId: stage.chainId,
     token: stage.input.token,
     atomic: stage.input.atomic,
-    intentClass: stage.kind === "cobia-v3" ? "cobia-v3" : "wallet-transaction",
-    resultLabel: stage.kind === "cobia-v3" ? "Verified atomic outcome" : "Verified wallet transaction",
+    intentClass: "wallet-transaction",
+    resultLabel: "Verified wallet transaction",
+    route: {
+      protocols: protocols(stage.tools),
+      minimumOutputs: [routeOutput(stage.output.token, stage.output.minimumAtomic)],
+    },
+  };
+  if (stage.kind === "cobia-v3") return {
+    chainId: stage.chainId,
+    token: stage.input.token,
+    atomic: stage.input.atomic,
+    intentClass: "cobia-v3",
+    resultLabel: "Verified atomic outcome",
+    route: { protocols: [], minimumOutputs: stage.minimumOutcomes.map(({ token, minimumAtomic }) =>
+      routeOutput(token, minimumAtomic)), },
   };
   if (stage.kind === "x402-authorization") return {
     chainId: stage.chainId,
@@ -72,6 +111,7 @@ function transactionPrincipal(payload: unknown) {
     atomic: stage.exactAtomic,
     intentClass: "x402-payment",
     resultLabel: "Verified x402 settlement",
+    route: { protocols: [], minimumOutputs: [] },
   };
   return null;
 }
@@ -132,6 +172,7 @@ function project(row: {
     transactionHash: receipt?.success ? receipt.data.transactionHash : null,
     intentClass: principal.intentClass,
     principal: { token: principal.token, symbol: symbol(principal.token), atomic: principal.atomic },
+    route: principal.route,
     valuation: valuation(snapshotArtifact.payload, principal.token),
     resultLabel: principal.resultLabel,
   };

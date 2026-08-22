@@ -22,6 +22,7 @@ export default async function NetworkPage() {
   const solvers = profiles.status === "fulfilled" ? profiles.value.flatMap((profile) => profile ? [{
     id: profile.id,
     displayName: profile.displayName,
+    declaredCapabilities: profile.declaredCapabilities,
     stats: profile.stats,
   }] : []) : [];
   return <><AppHeader /><NetworkOverview

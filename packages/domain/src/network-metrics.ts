@@ -3,6 +3,16 @@ import { z } from "zod";
 const AddressSchema = z.string().regex(/^0x[0-9a-f]{40}$/);
 const HashSchema = z.string().regex(/^0x[0-9a-f]{64}$/);
 const AtomicSchema = z.string().regex(/^(0|[1-9][0-9]*)$/).max(78);
+const PublicAssetSchema = z.object({
+  token: AddressSchema,
+  symbol: z.string().trim().min(1).max(32),
+  atomic: AtomicSchema.refine((value) => value !== "0"),
+  decimals: z.number().int().min(0).max(36).nullable(),
+}).strict();
+const PublicRouteSchema = z.object({
+  protocols: z.array(z.string().trim().min(1).max(32)).max(8),
+  minimumOutputs: z.array(PublicAssetSchema).max(8),
+}).strict();
 
 const NetworkOutcomeCandidateV1Schema = z.object({
   intentId: z.string().uuid(),
@@ -20,6 +30,7 @@ const NetworkOutcomeCandidateV1Schema = z.object({
     symbol: z.string().trim().min(1).max(32),
     atomic: AtomicSchema.refine((value) => value !== "0"),
   }).strict(),
+  route: PublicRouteSchema,
   valuation: z.object({
     decimals: z.number().int().min(0).max(36),
     priceUsdE8: AtomicSchema.refine((value) => value !== "0"),
@@ -54,6 +65,7 @@ const PublicOutcomeV1Schema = z.object({
     decimals: z.number().int().min(0).max(36).nullable(),
     valuationBlockNumber: AtomicSchema.nullable(),
   }).strict(),
+  route: PublicRouteSchema,
   volumeUsdE8: AtomicSchema.nullable(),
   resultLabel: z.string(),
 }).strict();
@@ -112,6 +124,7 @@ export function projectPublicOutcomeV1(input: NetworkOutcomeCandidateV1):
       decimals: value.valuation?.decimals ?? null,
       valuationBlockNumber: value.valuation?.blockNumber ?? null,
     },
+    route: value.route,
     volumeUsdE8,
     resultLabel: value.resultLabel,
   }) };

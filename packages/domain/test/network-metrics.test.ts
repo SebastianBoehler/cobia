@@ -22,6 +22,15 @@ const candidate: NetworkOutcomeCandidateV1 = {
     symbol: "USDt0",
     atomic: "1000000",
   },
+  route: {
+    protocols: ["Curve", "Aave V3"],
+    minimumOutputs: [{
+      token: "0x3333333333333333333333333333333333333333",
+      symbol: "aUSDG",
+      atomic: "999000",
+      decimals: 6,
+    }],
+  },
   valuation: { decimals: 6, priceUsdE8: "100000000", blockNumber: "76543210" },
   resultLabel: "Received 0.999471 USDG",
 };
@@ -45,6 +54,7 @@ describe("public network outcomes", () => {
         ownerLabel: "0x1111…1111",
         volumeUsdE8: "100000000",
         transactionHash: candidate.transactionHash,
+        route: candidate.route,
       }),
     });
     expect(JSON.stringify(projected)).not.toContain(owner);

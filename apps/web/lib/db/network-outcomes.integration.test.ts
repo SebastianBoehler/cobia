@@ -170,6 +170,10 @@ describe("network outcome repository", () => {
         transactionHash,
         intentClass: "yield-composition",
         resultLabel: "Verified swap and supply",
+        route: {
+          protocols: ["Curve", "Aave V3"],
+          minimumOutputs: [expect.objectContaining({ symbol: "Token 0x3333…3333", atomic: "999000" })],
+        },
         volumeUsdE8: "99912234",
       }),
     ]);
