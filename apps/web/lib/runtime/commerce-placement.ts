@@ -18,6 +18,19 @@ const EIP3009_AUTHORIZATION_STATE_ABI = parseAbi([
   "function authorizationState(address authorizer, bytes32 nonce) view returns (bool)",
 ]);
 
+export async function readProductionCommercePlacementStatusV1(placementId: string) {
+  const placement = await getCommercePlacementRepository().read(placementId);
+  if (!placement) return null;
+  return {
+    id: placement.id,
+    state: placement.state,
+    updatedAt: placement.updatedAt,
+    transactionHash: placement.transactionHash,
+    evidenceHash: placement.evidenceHash,
+    rejectionCode: placement.rejectionCode,
+  };
+}
+
 export async function prepareProductionCommercePlacementV1(input: {
   policy: unknown; ownerSignature: unknown; program: unknown; evidence: unknown;
 }) {

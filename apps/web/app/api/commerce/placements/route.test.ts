@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ prepare: vi.fn() }));
+const mocks = vi.hoisted(() => ({ prepare: vi.fn(), read: vi.fn() }));
 vi.mock("../../../../lib/runtime/commerce-placement", () => ({
   prepareProductionCommercePlacementV1: mocks.prepare,
+  readProductionCommercePlacementStatusV1: mocks.read,
 }));
 
 import { CommercePlacementErrorV1 } from "../../../../lib/commerce/placement-service";
-import { POST } from "./route";
+import { GET, POST } from "./route";
 
 const signature = `0x${"11".repeat(65)}`;
 function request(body: unknown) {
@@ -51,5 +52,50 @@ describe("commerce placement API", () => {
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({ code: "INVALID_REQUEST" });
     expect(mocks.prepare).not.toHaveBeenCalled();
+  });
+
+  it("publishes a durable, non-sensitive pending status without claiming settlement", async () => {
+    mocks.read.mockResolvedValue({
+      id: "550e8400-e29b-41d4-a716-446655440077", state: "authorizing",
+      updatedAt: new Date("2026-08-22T08:53:00.000Z"), owner: "0x1111111111111111111111111111111111111111",
+      transactionHash: null, evidenceHash: null, rejectionCode: null,
+    });
+
+    const response = await GET(new Request("https://getcobia.com/api/commerce/placements?id=550e8400-e29b-41d4-a716-446655440077"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({
+      placement: {
+        id: "550e8400-e29b-41d4-a716-446655440077", state: "authorizing",
+        updatedAt: "2026-08-22T08:53:00.000Z", transactionHash: null,
+        evidenceHash: null, rejectionCode: null,
+      },
+      tracking: {
+        status: "authorization-accepted", onchainTransaction: null,
+        message: "Cobia accepted the signed authorization. Merchant acceptance and token transfer are not independently confirmed.",
+      },
+    });
+    expect(mocks.read).toHaveBeenCalledWith("550e8400-e29b-41d4-a716-446655440077");
+  });
+
+  it("publishes an X Layer explorer link only after the merchant supplies a transaction", async () => {
+    mocks.read.mockResolvedValue({
+      id: "550e8400-e29b-41d4-a716-446655440077", state: "submitted",
+      updatedAt: new Date("2026-08-22T08:54:00.000Z"), transactionHash: `0x${"22".repeat(32)}`,
+      evidenceHash: null, rejectionCode: null,
+    });
+
+    const response = await GET(new Request("https://getcobia.com/api/commerce/placements?id=550e8400-e29b-41d4-a716-446655440077"));
+
+    await expect(response.json()).resolves.toMatchObject({
+      tracking: {
+        status: "settlement-submitted",
+        onchainTransaction: {
+          hash: `0x${"22".repeat(32)}`,
+          href: `https://web3.okx.com/explorer/xlayer/tx/0x${"22".repeat(32)}`,
+        },
+      },
+    });
   });
 });
