@@ -34,11 +34,13 @@ interface Dependencies {
 
 function decimalToE8(value: string): string {
   const match = value.match(/^(0|[1-9][0-9]*)(?:\.([0-9]+))?$/);
-  if (!match || (match[2]?.length ?? 0) > 8) throw new Error("OKB price precision is invalid");
+  if (!match) throw new Error("OKB price precision is invalid");
+  const fraction = match[2] ?? "";
   const atomic = BigInt(match[1]!) * 100_000_000n +
-    BigInt((match[2] ?? "").padEnd(8, "0"));
-  if (atomic <= 0n) throw new Error("OKB price must be positive");
-  return atomic.toString();
+    BigInt(fraction.slice(0, 8).padEnd(8, "0") || "0");
+  const conservative = /[1-9]/.test(fraction.slice(8)) ? atomic + 1n : atomic;
+  if (conservative <= 0n) throw new Error("OKB price must be positive");
+  return conservative.toString();
 }
 
 function routePolicy(policy: CapabilityCompositionPolicyV1) {

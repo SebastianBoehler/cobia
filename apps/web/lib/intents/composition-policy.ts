@@ -19,6 +19,7 @@ interface BuildCompositionPolicyInput {
   deadlineDurationSec: number;
   maxConversionLossBps: number;
   minimumReceiptValueBps: number;
+  terminalAsset?: Address;
   horizonDays: number;
   forbiddenTargets: Address[];
 }
@@ -70,7 +71,10 @@ export function buildCapabilityCompositionPolicyV1(
       kind: "minimum-registered-receipt-value",
       minimumValueBps: input.minimumReceiptValueBps,
       receiptCapabilities: [...RECEIPT_CAPABILITIES],
-    }],
+    }, ...(input.terminalAsset ? [{
+      kind: "required-terminal-asset" as const,
+      asset: input.terminalAsset.toLowerCase() as Address,
+    }] : [])],
     objective: {
       kind: "maximize-net-yield",
       horizonDays: input.horizonDays,

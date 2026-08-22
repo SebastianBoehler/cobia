@@ -80,6 +80,21 @@ describe("registered capability composition", () => {
     expect(parseCapabilityCompositionPolicyV1(policy, policy.createdAt + 1)).toEqual(parsed);
   });
 
+  it("binds an explicit terminal receipt asset to the signed route", () => {
+    const targeted = { ...policy, constraints: [...policy.constraints, {
+      kind: "required-terminal-asset", asset: usdt0,
+    }] };
+
+    expect(CapabilityCompositionPolicyV1Schema.parse(targeted).constraints)
+      .toContainEqual({ kind: "required-terminal-asset", asset: usdt0 });
+    expect(CapabilityCompositionPolicyV1Schema.safeParse({
+      ...targeted, constraints: [...policy.constraints, {
+        kind: "required-terminal-asset",
+        asset: "0x9999999999999999999999999999999999999999",
+      }],
+    }).success).toBe(false);
+  });
+
   it("binds timing and every economic authority into the commitment", () => {
     const baseline = commitment(CapabilityCompositionPolicyV1Schema.parse(policy));
     const variants = [

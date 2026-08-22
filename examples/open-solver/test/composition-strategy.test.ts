@@ -3,11 +3,19 @@ import {
   CapabilityCompositionSnapshotV1Schema,
   commitment,
 } from "@cobia/domain";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { PROTOCOL_REGISTRY, registryHash } from "../../../apps/web/lib/adapters/registry";
 import { productionCapabilityManifestV1 } from "../../../apps/web/lib/capabilities/manifest";
 import { buildCapabilityCompositionPolicyV1 } from "../../../apps/web/lib/intents/composition-policy";
-import { selectCompositionCandidate } from "../src/composition-strategy";
+const mocks = vi.hoisted(() => ({ replay: vi.fn(), stop: vi.fn() }));
+vi.mock("../src/local-fork", () => ({ startLocalFork: vi.fn(async () => ({
+  rpc: "http://127.0.0.1:8545", read: {}, stop: mocks.stop,
+})) }));
+vi.mock("../../../apps/web/lib/coding-agent-sandbox/capability-fork-replay-v2", () => ({
+  replayCapabilityProgramOnForkV2: mocks.replay,
+}));
+
+import { selectCompositionCandidate, solveComposition } from "../src/composition-strategy";
 
 const usdg = PROTOCOL_REGISTRY.aaveV3.assets.USDG;
 const usdt0 = PROTOCOL_REGISTRY.aaveV3.assets.USDt0;
@@ -62,6 +70,7 @@ function snapshot(items: readonly unknown[] = opportunities) {
 }
 
 describe("composition strategy", () => {
+  afterEach(() => vi.unstubAllEnvs());
   it("selects the best committed swap then terminal Aave route", () => {
     const selected = selectCompositionCandidate(policy, snapshot());
 
@@ -83,6 +92,35 @@ describe("composition strategy", () => {
       allowedCapabilities: policy.allowedCapabilities.filter(({ id }) => !id.startsWith("curve")) });
     expect(selectCompositionCandidate(noCurve, snapshot())?.actions[0])
       .toMatchObject({ capabilityId: "uniswap-v3.exact-input" });
+  });
+
+  it("does not substitute a direct supply for an explicitly targeted terminal asset", () => {
+    const targeted = CapabilityCompositionPolicyV1Schema.parse({ ...policy,
+      constraints: [...policy.constraints, {
+        kind: "required-terminal-asset", asset: usdt0.underlying.address,
+      }],
+    });
+
+    expect(selectCompositionCandidate(targeted, snapshot([opportunities[0]])))
+      .toBeUndefined();
+  });
+
+  it("submits the selected multi-step route after fork replay", async () => {
+    vi.stubEnv("COBIA_EXECUTOR_V3_ADDRESS", "0x3333333333333333333333333333333333333333");
+    vi.stubEnv("XLAYER_RPC_URL", "https://rpc.xlayer.tech");
+    mocks.replay.mockResolvedValue({ traceHash: `0x${"33".repeat(32)}`,
+      stateDiffHash: `0x${"44".repeat(32)}`, eventsHash: `0x${"55".repeat(32)}`,
+      balanceDeltas: [], deployments: [], observations: [] });
+    const intent = { id: requestId, competitionClosesAt: policy.competition.closesAt,
+      policy, snapshot: snapshot() };
+
+    const result = await solveComposition(intent as never);
+
+    expect(result).toMatchObject({ decision: "submit", program: { actions: [
+      { capabilityId: "curve-stableswap-ng.exact-input" },
+      { capabilityId: "aave-v3.supply" },
+    ] } });
+    expect(mocks.stop).toHaveBeenCalledOnce();
   });
 
   it("abstains from unregistered or non-positive routes", () => {

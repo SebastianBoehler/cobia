@@ -52,14 +52,21 @@ describe("composition snapshot capture", () => {
     expect(commitment(snapshot)).toMatch(/^0x[0-9a-f]{64}$/);
   });
 
+  it("rounds high-precision OKX prices up for conservative gas valuation", async () => {
+    const snapshot = await captureCapabilityCompositionSnapshotV1(
+      policy,
+      dependencies("111.5973291580889735996115431537483"),
+    );
+
+    expect(snapshot.gas.nativePriceUsdE8).toBe("11159732916");
+  });
+
   it("fails closed on invalid gas or ambiguous native market evidence", async () => {
     const zeroGas = dependencies();
     zeroGas.getGasPrice.mockResolvedValueOnce(0n);
     await expect(captureCapabilityCompositionSnapshotV1(policy, zeroGas))
       .rejects.toThrow(/gas/i);
 
-    await expect(captureCapabilityCompositionSnapshotV1(policy, dependencies("107.410000001")))
-      .rejects.toThrow(/price/i);
     const wrongNative = dependencies();
     wrongNative.getNativeToken.mockResolvedValueOnce({
       chainId: 196, token: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",

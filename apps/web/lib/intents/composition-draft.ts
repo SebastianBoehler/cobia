@@ -20,6 +20,7 @@ export type CompositionModelDraft = z.infer<typeof CompositionModelDraftSchema>;
 export interface ComposedIntentDraft {
   kind: "composed";
   inputToken: Address;
+  terminalAsset?: Address;
   amount: string;
   capabilityIds: (typeof COMPOSITION_CAPABILITY_IDS)[number][];
   maxConversionLossBps: number;

@@ -43,12 +43,12 @@ describe("composition program execution", () => {
 
   it("projects an attested composition program through Executor V3", async () => {
     const inputToken = PROTOCOL_REGISTRY.aaveV3.assets.USDG.underlying.address;
-    const receiptToken = PROTOCOL_REGISTRY.aaveV3.assets.USDG.aToken.address;
     const policy = buildCapabilityCompositionPolicyV1({
       requestId: submissionId, owner, inputToken, inputAtomic: "1000000",
       nonce: `0x${"33".repeat(32)}`, nowSec: 2_000_000_000,
       displayGoal: "Best yield", competitionDurationSec: 300, deadlineDurationSec: 600,
       maxConversionLossBps: 100, minimumReceiptValueBps: 9_900,
+      terminalAsset: PROTOCOL_REGISTRY.aaveV3.assets.USDt0.underlying.address,
       horizonDays: 30, forbiddenTargets: [],
     });
     const program = { version: 2 as const, kind: "general-onchain" as const,
@@ -58,9 +58,17 @@ describe("composition program execution", () => {
       pinnedBlock: { number: "70000000", hash: `0x${"55".repeat(32)}` },
       deadline: policy.deadline, nonce: policy.nonce,
       input: { token: inputToken, atomic: "1000000" },
-      actions: [{ capabilityId: "aave-v3.supply", capabilityVersion: 1,
-        valueAtomic: "0", parameters: { asset: inputToken, amountAtomic: "1000000" } }],
-      balanceConstraints: [{ kind: "minimumIncrease", token: receiptToken, atomic: "999999" }],
+      actions: [{ capabilityId: "curve-stableswap-ng.exact-input", capabilityVersion: 1,
+        valueAtomic: "0", parameters: { tokenIn: inputToken,
+          tokenOut: PROTOCOL_REGISTRY.aaveV3.assets.USDt0.underlying.address,
+          amountInAtomic: "1000000", minimumOutputAtomic: "999000" } },
+      { capabilityId: "aave-v3.supply", capabilityVersion: 1,
+        valueAtomic: "0", parameters: {
+          asset: PROTOCOL_REGISTRY.aaveV3.assets.USDt0.underlying.address,
+          amountAtomic: "999000",
+        } }],
+      balanceConstraints: [{ kind: "minimumIncrease",
+        token: PROTOCOL_REGISTRY.aaveV3.assets.USDt0.aToken.address, atomic: "998999" }],
       predicates: [], objective: { kind: "satisfy" },
     };
     const execution = { version: 3, program: { deadline: String(policy.deadline) } };

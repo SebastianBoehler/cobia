@@ -43,6 +43,12 @@ function explicitDeadlineMinutes(goal: string): number | undefined {
   return minutes && minutes <= 30 ? minutes : undefined;
 }
 
+function explicitTerminalAsset(goal: string) {
+  return INTENT_ASSETS.find(({ symbol }) => new RegExp(
+    `\\b(?:ending\\s+in|target(?:ing)?|into)\\s+${symbol}\\b`, "i",
+  ).test(goal));
+}
+
 export function resolveRegisteredCompositionGoal(goal: string): ComposedIntentDraft | undefined {
   const input = explicitInput(goal);
   const maxConversionLossBps = explicitLossBps(goal);
@@ -59,10 +65,12 @@ export function resolveRegisteredCompositionGoal(goal: string): ComposedIntentDr
     input && maxConversionLossBps !== undefined && deadlineMinutes;
   if (!complete) return undefined;
 
-  return resolveCompositionDraft({
+  const draft = resolveCompositionDraft({
     ...input,
     capabilityIds,
     maxConversionLossBps,
     deadlineMinutes,
   });
+  const terminal = explicitTerminalAsset(goal);
+  return terminal ? { ...draft, terminalAsset: terminal.address } : draft;
 }

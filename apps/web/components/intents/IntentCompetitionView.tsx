@@ -70,6 +70,7 @@ export interface CompositionAuthoritySummary {
   maximumLossBps: number;
   minimumReceiptValueBps: number;
   horizonDays: number;
+  terminalAsset?: string;
 }
 
 function CompositionAuthority({ value }: { value: CompositionAuthoritySummary }) {
@@ -82,6 +83,8 @@ function CompositionAuthority({ value }: { value: CompositionAuthoritySummary })
     <dl className="composition-authority__bounds">
       <div><dt>Conversion loss</dt><dd>≤ {value.maximumLossBps / 100}%</dd></div>
       <div><dt>Receipt value</dt><dd>≥ {value.minimumReceiptValueBps / 100}%</dd></div>
+      {value.terminalAsset
+        ? <div><dt>Terminal receipt</dt><dd>{value.terminalAsset}</dd></div> : null}
       <div><dt>Objective horizon</dt><dd>{value.horizonDays} days</dd></div>
       <div><dt>Ranking</dt><dd>Net terminal USD value</dd></div>
     </dl>

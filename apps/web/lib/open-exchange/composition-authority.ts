@@ -80,6 +80,12 @@ export function deriveCompositionAuthorityV1(
   if (!policy.allowedAssets.some((asset) => isAddressEqual(asset, suppliedAsset.underlying.address))) {
     throw new Error("Supplied asset is not allowed");
   }
+  const requiredTerminal = policy.constraints.find((constraint) =>
+    constraint.kind === "required-terminal-asset");
+  if (requiredTerminal &&
+      !isAddressEqual(suppliedAsset.underlying.address, requiredTerminal.asset)) {
+    throw new Error("Supplied asset does not match the required terminal asset");
+  }
   const supplyOpportunity = snapshot.route.opportunities.find((opportunity) =>
     opportunity.kind === "aave-v3-supply" &&
     isAddressEqual(opportunity.asset, suppliedAsset.underlying.address) &&

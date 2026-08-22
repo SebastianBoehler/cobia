@@ -79,10 +79,13 @@ export function selectCompositionCandidate(
   const loss = policy.constraints.find((item) => item.kind === "maximum-conversion-loss")!;
   const floor = policy.constraints.find((item) =>
     item.kind === "minimum-registered-receipt-value")!;
+  const requiredTerminal = policy.constraints.find((item) =>
+    item.kind === "required-terminal-asset");
   const candidates: Candidate[] = [];
 
   for (const supply of snapshot.route.opportunities.filter((item) =>
     item.kind === "aave-v3-supply")) {
+    if (requiredTerminal && !isAddressEqual(supply.asset, requiredTerminal.asset)) continue;
     const aToken = receiptToken(supply.asset);
     const outputValue = valueUsdE8(snapshot, supply.asset, supply.validatedSupplyAtomic);
     if (!aToken || !outputValue) continue;
@@ -148,7 +151,9 @@ export async function solveComposition(intent: SolverIntentV1): Promise<SolverDe
   if (!executor || !upstreamRpc) {
     return { version: 1, decision: "abstain", reasonCode: "REFERENCE_RUNTIME_UNAVAILABLE" };
   }
-  const authority = deriveCompositionAuthorityV1(intent.policy, intent.snapshot, selected);
+  const selection = { inputAtomic: selected.inputAtomic, actions: selected.actions,
+    balanceConstraints: selected.balanceConstraints };
+  const authority = deriveCompositionAuthorityV1(intent.policy, intent.snapshot, selection);
   const capturedAtSec = Math.floor(Date.parse(intent.snapshot.capturedAt) / 1_000);
   const deadline = Math.min(intent.policy.deadline,
     capturedAtSec + intent.policy.maxEvidenceAgeSec);
@@ -161,8 +166,8 @@ export async function solveComposition(intent: SolverIntentV1): Promise<SolverDe
     owner: intent.policy.owner, executor,
     pinnedBlock: { number: authority.snapshot.blockNumber, hash: authority.snapshot.blockHash },
     deadline, nonce: intent.policy.nonce,
-    input: { token: intent.policy.input.token, atomic: selected.inputAtomic },
-    actions: selected.actions, balanceConstraints: selected.balanceConstraints,
+    input: { token: intent.policy.input.token, atomic: selection.inputAtomic },
+    actions: selection.actions, balanceConstraints: selection.balanceConstraints,
     predicates: authority.policy.predicates, objective: authority.policy.objective,
   });
   const compiled = program.actions.map((action, actionIndex) => {

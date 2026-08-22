@@ -41,6 +41,13 @@ export function CompositionPolicyEditor({ values, owner, onChange }: {
           {INTENT_ASSETS.map(({ address, symbol }) =>
             <option key={address} value={address}>{symbol}</option>)}
         </select></label>
+        <label>Terminal receipt asset<select value={values.terminalAsset ?? ""}
+          onChange={(event) => set("terminalAsset",
+            event.target.value ? event.target.value as Address : undefined)}>
+          <option value="">Any registered asset</option>
+          {INTENT_ASSETS.map(({ address, symbol }) =>
+            <option key={address} value={address}>{symbol}</option>)}
+        </select></label>
         <label>Maximum conversion loss (%)<input inputMode="decimal" max="5" min="0" step="0.1"
           type="number" value={values.maxConversionLossBps / 100}
           onChange={(event) => {

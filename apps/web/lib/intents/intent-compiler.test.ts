@@ -130,7 +130,7 @@ describe("intent compiler", () => {
       fetcher, compositionAvailable: true });
 
     await expect(compiler.compile(
-      "Use 1 USDG to enter the best verified stablecoin-yield route on X Layer. " +
+      "Use 1 USDG to enter the best verified stablecoin-yield route ending in USDt0 on X Layer. " +
       "Only use Aave V3, Curve or Uniswap. Allow no more than 1% conversion loss, " +
       "require a minimum receipt-token balance, and expire in ten minutes.",
       "any",
@@ -139,6 +139,7 @@ describe("intent compiler", () => {
       values: {
         kind: "composed",
         inputToken: "0x4ae46a509F6b1D9056937BA4500cb143933D2dc8",
+        terminalAsset: "0x779Ded0c9e1022225f8E0630b35a9b54bE713736",
         amount: "1",
         capabilityIds: ["aave-v3.supply", "curve-stableswap-ng.exact-input",
           "uniswap-v3.exact-input"],

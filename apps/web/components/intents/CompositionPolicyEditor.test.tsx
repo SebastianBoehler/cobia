@@ -12,6 +12,7 @@ afterEach(cleanup);
 const values: ComposedIntentDraft = {
   kind: "composed" as const,
   inputToken: INTENT_ASSETS[0]!.address,
+  terminalAsset: INTENT_ASSETS[1]!.address,
   amount: "1",
   capabilityIds: [
     "aave-v3.supply",
@@ -36,6 +37,7 @@ describe("CompositionPolicyEditor", () => {
     expect(screen.getByText("Curve StableSwap NG exact input")).toBeVisible();
     expect(screen.getByText("Uniswap V3 exact input")).toBeVisible();
     expect(screen.getByLabelText("Maximum conversion loss (%)")).toHaveValue(1);
+    expect(screen.getByLabelText("Terminal receipt asset")).toHaveValue(INTENT_ASSETS[1]!.address);
     expect(screen.getByLabelText(/^Minimum registered receipt value/)).toHaveValue(99);
     expect(screen.getByLabelText(/^Objective horizon/)).toHaveValue(30);
     expect(screen.getByLabelText("Competition (minutes)")).toHaveValue(5);

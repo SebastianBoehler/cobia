@@ -33,9 +33,15 @@ const MinimumReceiptValueSchema = z.object({
   receiptCapabilities: z.array(CapabilityKeySchema).min(1).max(8),
 }).strict();
 
+const RequiredTerminalAssetSchema = z.object({
+  kind: z.literal("required-terminal-asset"),
+  asset: RouteAddressV2Schema,
+}).strict();
+
 export const CapabilityCompositionConstraintV1Schema = z.discriminatedUnion("kind", [
   MaximumConversionLossSchema,
   MinimumReceiptValueSchema,
+  RequiredTerminalAssetSchema,
 ]);
 export type CapabilityCompositionConstraintV1 = z.infer<
   typeof CapabilityCompositionConstraintV1Schema
@@ -126,6 +132,12 @@ export const CapabilityCompositionPolicyV1Schema = z.object({
       !constraintKinds.includes("minimum-registered-receipt-value")) {
     context.addIssue({ code: "custom", path: ["constraints"],
       message: "Yield composition requires unique conversion and receipt constraints" });
+  }
+  const terminal = policy.constraints.find((constraint) =>
+    constraint.kind === "required-terminal-asset");
+  if (terminal && !policy.allowedAssets.includes(terminal.asset)) {
+    context.addIssue({ code: "custom", path: ["constraints"],
+      message: "Required terminal asset must be allowed" });
   }
   const allowed = new Set(capabilities);
   const receiptKeys = [

@@ -11,6 +11,7 @@ import {
   getIntentRepository, getOpenIntentSnapshotRepository, getSolverSubmissionRepository,
 } from "@/lib/runtime/market";
 import { currentUnixSeconds } from "@/lib/time";
+import { SUPPORTED_ASSETS } from "@/lib/chain/supported-assets";
 import { createPageMetadata } from "../../site-metadata";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +41,12 @@ export default async function IntentCompetitionPage({ params }: PageProps<"/inte
     item.kind === "maximum-conversion-loss");
   const receiptFloor = compositionPolicy?.constraints.find((item) =>
     item.kind === "minimum-registered-receipt-value");
+  const terminal = compositionPolicy?.constraints.find((item) =>
+    item.kind === "required-terminal-asset");
+  const terminalAsset = terminal
+    ? SUPPORTED_ASSETS.find(({ address }) =>
+      address.toLowerCase() === terminal.asset.toLowerCase())?.displaySymbol
+    : undefined;
   const map = (item: (typeof rows.current)[number]) => ({
     id: item.id, solverId: item.solverId, revision: item.revision,
     state: item.presentationState, validUntil: item.validUntil.toISOString(),
@@ -65,6 +72,7 @@ export default async function IntentCompetitionPage({ params }: PageProps<"/inte
           maximumLossBps: maximumLoss.maximumLossBps,
           minimumReceiptValueBps: receiptFloor.minimumValueBps,
           horizonDays: compositionPolicy.objective.horizonDays,
+          terminalAsset,
         } : undefined}
       />
     </main>

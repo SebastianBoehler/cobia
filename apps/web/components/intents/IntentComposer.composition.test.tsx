@@ -18,6 +18,7 @@ vi.mock("../wallet/WalletProvider", () => ({
 
 const composed = {
   kind: "composed", inputToken: INTENT_ASSETS[0]!.address, amount: "1",
+  terminalAsset: INTENT_ASSETS[1]!.address,
   capabilityIds: ["aave-v3.supply", "curve-stableswap-ng.exact-input",
     "uniswap-v3.exact-input"],
   maxConversionLossBps: 100, minimumReceiptValueBps: 9_900,
@@ -40,7 +41,7 @@ describe("IntentComposer registered composition", () => {
     render(<IntentComposer />);
 
     fireEvent.change(screen.getByLabelText("What should happen?"), { target: { value:
-      "Use at most 1 USDG to enter the best verified stablecoin-yield route on X Layer. " +
+      "Use at most 1 USDG to enter the best verified stablecoin-yield route ending in USDt0 on X Layer. " +
       "Only use Aave V3, Curve or Uniswap. Allow no more than 1% conversion loss, " +
       "require a minimum receipt-token balance, and expire in ten minutes.",
     } });
@@ -76,6 +77,7 @@ describe("IntentComposer registered composition", () => {
       constraints: [
         { kind: "maximum-conversion-loss", maximumLossBps: 100 },
         { kind: "minimum-registered-receipt-value", minimumValueBps: 9_900 },
+        { kind: "required-terminal-asset", asset: INTENT_ASSETS[1]!.address.toLowerCase() },
       ],
       objective: { kind: "maximize-net-yield", horizonDays: 30 },
     });

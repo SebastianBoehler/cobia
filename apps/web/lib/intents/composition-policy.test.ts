@@ -22,6 +22,7 @@ describe("buildCapabilityCompositionPolicyV1", () => {
       deadlineDurationSec: 600,
       maxConversionLossBps: 100,
       minimumReceiptValueBps: 9_900,
+      terminalAsset: PROTOCOL_REGISTRY.aaveV3.assets.USDt0.underlying.address,
       horizonDays: 30,
       forbiddenTargets: [],
     });
@@ -35,6 +36,8 @@ describe("buildCapabilityCompositionPolicyV1", () => {
       constraints: [
         { kind: "maximum-conversion-loss", maximumLossBps: 100 },
         { kind: "minimum-registered-receipt-value", minimumValueBps: 9_900 },
+        { kind: "required-terminal-asset",
+          asset: PROTOCOL_REGISTRY.aaveV3.assets.USDt0.underlying.address.toLowerCase() },
       ],
     });
     expect(policy.allowedCapabilities.map(({ id }) => id)).toEqual([

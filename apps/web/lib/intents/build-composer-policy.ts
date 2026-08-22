@@ -48,6 +48,7 @@ export function buildIntentComposerPolicy(input: Input) {
       deadlineDurationSec: input.values.deadlineDurationSec,
       maxConversionLossBps: input.values.maxConversionLossBps,
       minimumReceiptValueBps: input.values.minimumReceiptValueBps,
+      terminalAsset: input.values.terminalAsset,
       horizonDays: input.values.horizonDays,
     });
   }
