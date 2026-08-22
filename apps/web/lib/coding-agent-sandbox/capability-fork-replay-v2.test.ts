@@ -54,7 +54,7 @@ function harness(overrides: Record<string, unknown> = {}) {
   ]);
   const read = {
     getChainId: async () => 196,
-    getBlock: async () => ({ hash: blockHash }),
+    getBlock: async () => ({ hash: blockHash, timestamp: 1_000n }),
     getBalanceOf: async (token: string, account: string) => balances.get(`${token}:${account}`)?.shift() ?? 0n,
     waitForReceipt: async (hash: `0x${string}`) => ({
       status: "success" as const, transactionHash: hash,
@@ -68,7 +68,7 @@ function harness(overrides: Record<string, unknown> = {}) {
     },
     ...overrides,
   };
-  const forkRpc = vi.fn(async (method: string) => {
+  const forkRpc = vi.fn(async (method: string, _params?: readonly unknown[]) => {
     order.push(method);
     return method === "eth_sendTransaction"
       ? `0x${(++transaction).toString(16).padStart(64, "0")}`
@@ -93,6 +93,8 @@ describe("general capability fork replay", () => {
     expect(reads[0]).toBeLessThan(sends[0]!);
     expect(reads[1]).toBeGreaterThan(sends.at(-1)!);
     expect(reads[2]).toBeGreaterThan(sends.at(-1)!);
+    expect(forkRpc.mock.calls.filter(([method]) => method === "evm_setNextBlockTimestamp")
+      .map(([, params]) => params)).toEqual(sends.map((_, index) => [1_001 + index]));
     expect(forkRpc.mock.calls.some(([method]) => method.startsWith("wallet_"))).toBe(false);
   });
 

@@ -98,6 +98,17 @@ export async function replayCapabilityProgramOnForkV2(input: {
   if (!block.hash || block.hash.toLowerCase() !== program.pinnedBlock.hash.toLowerCase()) {
     throw new Error("Fork block does not match the pinned anchor");
   }
+  if (block.timestamp === undefined || block.timestamp > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error("Fork block timestamp is unavailable");
+  }
+  let transactionTimestamp = block.timestamp;
+  const replayRpc = async (method: string, params?: readonly unknown[]) => {
+    if (method === "eth_sendTransaction") {
+      transactionTimestamp += 1n;
+      await input.forkRpc("evm_setNextBlockTimestamp", [Number(transactionTimestamp)]);
+    }
+    return input.forkRpc(method, params);
+  };
 
   const expectedDeployments = requiredDeployments(program, input.compiled);
   const observedDeployments = await Promise.all(expectedDeployments.map(async (expected) => {
@@ -117,7 +128,7 @@ export async function replayCapabilityProgramOnForkV2(input: {
     owner: program.owner,
     token: program.input.token,
     amountAtomic: BigInt(program.input.atomic),
-    forkRpc: input.forkRpc,
+    forkRpc: replayRpc,
     read: input.read,
   });
 
@@ -147,16 +158,16 @@ export async function replayCapabilityProgramOnForkV2(input: {
     input.read.getBalanceOf(token, program.executor)));
   const receipts: Awaited<ReturnType<CapabilityForkReplayReadV1["waitForReceipt"]>>[] = [];
   const send = async (from: Address, to: Address, data: Hex) => {
-    const hash = transactionHash(await input.forkRpc("eth_sendTransaction", [{ from, to, data, value: "0x0" }]));
+    const hash = transactionHash(await replayRpc("eth_sendTransaction", [{ from, to, data, value: "0x0" }]));
     const receipt = await input.read.waitForReceipt(hash);
     if (receipt.status !== "success") throw new Error("Fork capability transaction reverted");
     receipts.push(receipt);
   };
 
-  await input.forkRpc("anvil_setBalance", [program.owner, FORK_GAS_BALANCE]);
-  await input.forkRpc("anvil_setBalance", [program.executor, FORK_GAS_BALANCE]);
-  await input.forkRpc("anvil_impersonateAccount", [program.owner]);
-  await input.forkRpc("anvil_impersonateAccount", [program.executor]);
+  await replayRpc("anvil_setBalance", [program.owner, FORK_GAS_BALANCE]);
+  await replayRpc("anvil_setBalance", [program.executor, FORK_GAS_BALANCE]);
+  await replayRpc("anvil_impersonateAccount", [program.owner]);
+  await replayRpc("anvil_impersonateAccount", [program.executor]);
   try {
     await send(program.owner, program.input.token, encodeFunctionData({
       abi: erc20Abi, functionName: "approve", args: [program.executor, BigInt(program.input.atomic)],
@@ -188,8 +199,8 @@ export async function replayCapabilityProgramOnForkV2(input: {
       }));
     }
   } finally {
-    await input.forkRpc("anvil_stopImpersonatingAccount", [program.executor]);
-    await input.forkRpc("anvil_stopImpersonatingAccount", [program.owner]);
+    await replayRpc("anvil_stopImpersonatingAccount", [program.executor]);
+    await replayRpc("anvil_stopImpersonatingAccount", [program.owner]);
   }
 
   observations.push(...await Promise.all(program.predicates

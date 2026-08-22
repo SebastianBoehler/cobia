@@ -18,7 +18,7 @@ const FORK_GAS_BALANCE = "0x56bc75e2d63100000";
 
 export interface CapabilityForkReplayReadV1 {
   getChainId(): Promise<number>;
-  getBlock(number: bigint): Promise<{ hash?: Hash }>;
+  getBlock(number: bigint): Promise<{ hash?: Hash; timestamp?: bigint }>;
   getBalanceOf(token: Address, account: Address): Promise<bigint>;
   waitForReceipt(hash: Hash): Promise<{
     status: "success" | "reverted";

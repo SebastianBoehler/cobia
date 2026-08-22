@@ -32,8 +32,13 @@ export function createForkRead(
   return {
     getChainId: async () => Number(BigInt(String(await rpc("eth_chainId")))),
     getBlock: async (number) => {
-      const value = await rpc("eth_getBlockByNumber", [`0x${number.toString(16)}`, false]) as { hash?: Hash };
-      return { ...(value.hash && isHash(value.hash) ? { hash: value.hash } : {}) };
+      const value = await rpc("eth_getBlockByNumber", [`0x${number.toString(16)}`, false]) as {
+        hash?: Hash; timestamp?: Hex;
+      };
+      return {
+        ...(value.hash && isHash(value.hash) ? { hash: value.hash } : {}),
+        ...(value.timestamp && isHex(value.timestamp) ? { timestamp: BigInt(value.timestamp) } : {}),
+      };
     },
     getBalanceOf: balanceOf,
     async staticCall({ target, data, gasLimit }) {
