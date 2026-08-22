@@ -7,13 +7,13 @@ vi.mock("../../lib/runtime/market", () => ({
   getNetworkOutcomeRepository: () => ({ read: mocks.read }),
   getSolverProfileRepository: () => ({ list: mocks.list }),
 }));
+vi.mock("../../lib/time", () => ({ currentUnixSeconds: () => 2_000_000_000 }));
 
 import NetworkPage, { metadata } from "./page";
 
 describe("network page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(Date, "now").mockReturnValue(2_000_000_000_000);
     mocks.read.mockResolvedValue({
       version: 1, observedAt: 2_000_000_000, window: "30d",
       metrics: { version: 1, totals: { confirmedOutcomes: 0, valuedOutcomes: 0,

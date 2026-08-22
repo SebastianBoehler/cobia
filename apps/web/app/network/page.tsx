@@ -1,6 +1,7 @@
 import { AppHeader } from "../../components/layout/AppHeader";
 import { NetworkOverview } from "../../components/network/NetworkOverview";
 import { getNetworkOutcomeRepository, getSolverProfileRepository } from "../../lib/runtime/market";
+import { currentUnixSeconds } from "../../lib/time";
 import { createPageMetadata } from "../site-metadata";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +12,7 @@ export const metadata = createPageMetadata({
 });
 
 export default async function NetworkPage() {
-  const observedAtSec = Math.floor(Date.now() / 1_000);
+  const observedAtSec = currentUnixSeconds();
   const [report, profiles] = await Promise.allSettled([
     getNetworkOutcomeRepository().read({
       window: "30d", limit: 20, cursor: null, observedAtSec,
