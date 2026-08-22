@@ -34,7 +34,7 @@ describe("IntentCompetitionView", () => {
     expect(html).not.toContain("Waiting for solver submissions");
   });
 
-  it("shows the exact OKX token evidence frozen for competing solvers", () => {
+  it("renders compact, icon-led token evidence with the exact frozen details available", () => {
     const token = "0x2222222222222222222222222222222222222222" as const;
     const html = renderToStaticMarkup(<IntentCompetitionView
       goal="Swap the input token"
@@ -43,18 +43,37 @@ describe("IntentCompetitionView", () => {
       current={[]}
       history={[]}
       tokenEvidence={[{ provider: "okx-market-v6", chainId: 196, token,
-        name: "Input Token", symbol: "IN", decimals: 6, priceUsd: "1.01",
+        name: "Tether USD", symbol: "USDT", decimals: 6, priceUsd: "1.01",
         liquidityUsd: "2500000", holderCount: "4200", top10HolderPercent: "19.75",
         marketDataAt: "2033-05-18T03:33:29.000Z", communityRecognized: true }]}
     />);
 
     expect(html).toContain("Frozen token evidence");
+    expect(html).toContain("<details");
+    expect(html).toContain("Recognized");
+    expect(html).toContain("web3icons");
     expect(html).toContain(token);
     expect(html).toContain("$1.01");
     expect(html).toContain("$2,500,000");
     expect(html).toContain("4,200");
     expect(html).toContain("19.75%");
     expect(html).toContain("OKX Market API v6");
+  });
+
+  it("uses Cobia's existing USDG mark in frozen evidence", () => {
+    const html = renderToStaticMarkup(<IntentCompetitionView
+      goal="Supply bounded USDG"
+      closesAt={closesAt}
+      observedAtSec={2_000_000_000}
+      current={[]}
+      history={[]}
+      tokenEvidence={[{ provider: "okx-market-v6", chainId: 196,
+        token: "0x3333333333333333333333333333333333333333", name: "Global Dollar", symbol: "USDG",
+        decimals: 6, priceUsd: "1", liquidityUsd: "1", holderCount: "1", top10HolderPercent: "1",
+        marketDataAt: "2033-05-18T03:33:29.000Z", communityRecognized: true }]}
+    />);
+
+    expect(html).toContain("brand-mark--usdg");
   });
 
   it("compares the simulated outcome and wallet steps beside each current program", () => {

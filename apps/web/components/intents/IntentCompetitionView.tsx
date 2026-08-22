@@ -1,6 +1,9 @@
 import type { TokenMarketEvidenceV1 } from "@cobia/domain";
-import { ArrowRight, CircleDot, Clock3, History, ShieldCheck } from "lucide-react";
+import { TokenUSDT } from "@web3icons/react";
+import { ArrowRight, ChevronDown, CircleCheck, CircleDot, Clock3, History, ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import type { CSSProperties } from "react";
+import { AssetMark } from "../brand/AssetMark";
 import { formatTokenAmount } from "../../lib/token-amount";
 import type { CompetitionProgramPreview } from "../../lib/competitions/submission-preview";
 
@@ -58,25 +61,46 @@ function usd(value: string): string {
   return `$${Number(value).toLocaleString("en-US", { maximumFractionDigits: 8 })}`;
 }
 
+function TokenEvidenceMark({ symbol, size = 34 }: { symbol: string; size?: number }) {
+  const normalized = symbol.toUpperCase();
+  if (normalized === "USDG") return <AssetMark asset="USDG" size={size} />;
+  return <span
+    aria-label={`${symbol} token`}
+    className="token-evidence-mark"
+    role="img"
+    style={{ "--token-evidence-mark-size": `${size}px` } as CSSProperties}
+  >
+    {normalized === "USDT" || normalized === "USDT0"
+      ? <TokenUSDT aria-hidden="true" size="100%" variant="background" />
+      : <span aria-hidden="true">{normalized.slice(0, 1)}</span>}
+  </span>;
+}
+
 function TokenEvidence({ items }: { items: TokenMarketEvidenceV1[] }) {
   return <section aria-labelledby="token-evidence">
     <header className="section-heading"><div><h2 id="token-evidence">Frozen token evidence</h2>
       <p>Exact X Layer contracts and OKX market observations committed to the solver snapshot.</p>
     </div><span>{items.length}</span></header>
-    <div className="token-evidence-grid">{items.map((item) => <article key={item.token}>
-      <header><div><strong>{item.symbol}</strong><span>{item.name}</span></div>
-        {item.communityRecognized ? <small>Community recognized</small> : null}</header>
-      <dl>
-        <div><dt>Price</dt><dd>{usd(item.priceUsd)}</dd></div>
-        <div><dt>Liquidity</dt><dd>{usd(item.liquidityUsd)}</dd></div>
-        <div><dt>Holders</dt><dd>{Number(item.holderCount).toLocaleString("en-US")}</dd></div>
-        <div><dt>Top 10</dt><dd>{item.top10HolderPercent}%</dd></div>
-      </dl>
-      <code>{item.token}</code>
-      <footer>OKX Market API v6 · observed {new Date(item.marketDataAt).toLocaleString("en-US", {
-        dateStyle: "medium", timeStyle: "short", timeZone: "UTC",
-      })} UTC</footer>
-    </article>)}</div>
+    <div className="token-evidence-grid">{items.map((item) => <details className="token-evidence-card" key={item.token}>
+      <summary>
+        <TokenEvidenceMark symbol={item.symbol} />
+        <span className="token-evidence-card__identity"><strong>{item.symbol}</strong><small>{item.name}</small></span>
+        <span className="token-evidence-card__price"><small>Price</small><strong>{usd(item.priceUsd)}</strong></span>
+        {item.communityRecognized ? <span className="token-evidence-card__recognized"><CircleCheck aria-hidden="true" size={14} />Recognized</span> : null}
+        <ChevronDown aria-hidden="true" className="token-evidence-card__chevron" size={16} />
+      </summary>
+      <div className="token-evidence-card__details">
+        <dl>
+          <div><dt>Liquidity</dt><dd>{usd(item.liquidityUsd)}</dd></div>
+          <div><dt>Holders</dt><dd>{Number(item.holderCount).toLocaleString("en-US")}</dd></div>
+          <div><dt>Top 10</dt><dd>{item.top10HolderPercent}%</dd></div>
+        </dl>
+        <code>{item.token}</code>
+        <footer>OKX Market API v6 · observed {new Date(item.marketDataAt).toLocaleString("en-US", {
+          dateStyle: "medium", timeStyle: "short", timeZone: "UTC",
+        })} UTC</footer>
+      </div>
+    </details>)}</div>
   </section>;
 }
 
