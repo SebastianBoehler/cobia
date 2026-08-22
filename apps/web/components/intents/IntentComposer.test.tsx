@@ -126,6 +126,66 @@ describe("IntentComposer", () => {
     expect(goal).toHaveFocus();
   });
 
+  it("moves through mention suggestions with arrow keys and exposes the active option", () => {
+    render(<IntentComposer />);
+    const goal = screen.getByLabelText("What should happen?");
+    fireEvent.change(goal, { target: { value: "@" } });
+    const suggestions = screen.getByRole("listbox", { name: "Mention suggestions" });
+    const options = within(suggestions).getAllByRole("option");
+
+    expect(goal).toHaveAttribute("role", "combobox");
+    expect(goal).toHaveAttribute("aria-controls", suggestions.id);
+    expect(goal).toHaveAttribute("aria-expanded", "true");
+    expect(options[0]).toHaveAttribute("aria-selected", "true");
+    expect(goal).toHaveAttribute("aria-activedescendant", options[0].id);
+
+    fireEvent.keyDown(goal, { key: "ArrowDown" });
+    expect(options[0]).toHaveAttribute("aria-selected", "false");
+    expect(options[1]).toHaveAttribute("aria-selected", "true");
+    expect(goal).toHaveAttribute("aria-activedescendant", options[1].id);
+
+    fireEvent.keyDown(goal, { key: "ArrowUp" });
+    fireEvent.keyDown(goal, { key: "ArrowUp" });
+    expect(options.at(-1)).toHaveAttribute("aria-selected", "true");
+    expect(goal).toHaveAttribute("aria-activedescendant", options.at(-1)?.id);
+  });
+
+  it.each(["Enter", "Tab"])("accepts the active mention suggestion with %s", (key) => {
+    render(<IntentComposer />);
+    const goal = screen.getByLabelText("What should happen?");
+    goal.focus();
+    fireEvent.change(goal, { target: { value: "@" } });
+    const options = within(screen.getByRole("listbox", { name: "Mention suggestions" }))
+      .getAllByRole("option");
+    const selectedMention = options[1].querySelector("strong")?.textContent;
+
+    fireEvent.keyDown(goal, { key: "ArrowDown" });
+    const shouldContinue = fireEvent.keyDown(goal, { key });
+
+    expect(shouldContinue).toBe(false);
+    expect(goal).toHaveValue(`${selectedMention} `);
+    expect(goal).toHaveFocus();
+    expect(screen.queryByRole("listbox", { name: "Mention suggestions" })).not.toBeInTheDocument();
+  });
+
+  it("dismisses mention suggestions with Escape without changing the goal", () => {
+    render(<IntentComposer />);
+    const goal = screen.getByLabelText("What should happen?");
+    fireEvent.change(goal, { target: { value: "@USD" } });
+    expect(screen.getByRole("listbox", { name: "Mention suggestions" })).toBeVisible();
+
+    const shouldContinue = fireEvent.keyDown(goal, { key: "Escape" });
+
+    expect(shouldContinue).toBe(false);
+    expect(goal).toHaveValue("@USD");
+    expect(goal).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("listbox", { name: "Mention suggestions" })).not.toBeInTheDocument();
+
+    fireEvent.change(goal, { target: { value: "No mention" } });
+    fireEvent.change(goal, { target: { value: "@USD" } });
+    expect(screen.getByRole("listbox", { name: "Mention suggestions" })).toBeVisible();
+  });
+
   it("returns focus to the goal after clicking a mention suggestion", () => {
     render(<IntentComposer />);
     const goal = screen.getByLabelText("What should happen?");

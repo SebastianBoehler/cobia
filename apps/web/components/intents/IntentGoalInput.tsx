@@ -1,5 +1,5 @@
 import { ArrowUp, AtSign, LoaderCircle, Route } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ACTION_PREFERENCES, PROTOCOL_EXCLUSIONS, type ActionPreference, type ProtocolExclusionId,
 } from "../../lib/intents/intent-controls";
@@ -9,6 +9,10 @@ const EXAMPLE_INTENTS = [
   "Supply 10 @USDG to @Aave on @XLayer",
   "Acquire at least 0.01 @TSLAx with at most 10 @USDG on @XLayer for an eligible DE holder",
 ] as const;
+
+function extractMentionQuery(value: string): string | undefined {
+  return value.match(/(?:^|\s)@([A-Za-z0-9.$_-]*)$/)?.[1];
+}
 
 function renderTaggedPrompt(prompt: string) {
   return prompt.split(/(@[A-Za-z0-9]+)/g).map((part, index) => part.startsWith("@")
@@ -68,11 +72,22 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const caretRef = useRef<HTMLSpanElement>(null);
   const typeaheadOpenedRef = useRef(false);
+  const typeaheadId = useId();
   const [typeaheadPosition, setTypeaheadPosition] = useState({ left: 8, top: 8, width: 360 });
-  const mentionQuery = value.match(/(?:^|\s)@([A-Za-z0-9.$_-]*)$/)?.[1];
+  const [typeaheadState, setTypeaheadState] = useState<{
+    query: string | undefined;
+    activeIndex: number;
+    dismissed: boolean;
+  }>({ query: undefined, activeIndex: 0, dismissed: false });
+  const mentionQuery = extractMentionQuery(value);
   const mentionSuggestions = useMemo(() => mentionQuery === undefined ? [] : mentions
     .filter(({ mention }) => mention.toLowerCase().startsWith(mentionQuery.toLowerCase()))
     .slice(0, 6), [mentionQuery, mentions]);
+  const currentTypeaheadState = typeaheadState.query === mentionQuery
+    ? typeaheadState : { query: mentionQuery, activeIndex: 0, dismissed: false };
+  const activeMentionIndex = mentionSuggestions.length
+    ? Math.min(currentTypeaheadState.activeIndex, mentionSuggestions.length - 1) : 0;
+  const typeaheadVisible = mentionSuggestions.length > 0 && !currentTypeaheadState.dismissed;
 
   const positionTypeahead = useCallback(() => {
     const input = inputRef.current;
@@ -129,6 +144,15 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
     });
   }
 
+  function moveActiveMention(direction: 1 | -1) {
+    setTypeaheadState({
+      query: mentionQuery,
+      activeIndex: (activeMentionIndex + direction + mentionSuggestions.length)
+        % mentionSuggestions.length,
+      dismissed: false,
+    });
+  }
+
   return (
     <section className="intent-goal">
       <label className="sr-only" htmlFor="intent-goal">What should happen?</label>
@@ -141,13 +165,26 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
           {value}<span className="intent-caret-anchor" ref={caretRef}>&#8203;</span>
         </div>
         <textarea
+          aria-activedescendant={typeaheadVisible
+            ? `${typeaheadId}-option-${activeMentionIndex}` : undefined}
+          aria-autocomplete="list"
+          aria-controls={typeaheadVisible ? typeaheadId : undefined}
+          aria-expanded={typeaheadVisible}
+          aria-haspopup="listbox"
           id="intent-goal"
           maxLength={500}
           placeholder="Ask Cobia to do something onchain…"
+          role="combobox"
           rows={3}
           value={value}
           ref={textareaRef}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => {
+            const nextValue = event.target.value;
+            setTypeaheadState({
+              query: extractMentionQuery(nextValue), activeIndex: 0, dismissed: false,
+            });
+            onChange(nextValue);
+          }}
           onScroll={(event) => {
             if (highlightRef.current) {
               highlightRef.current.scrollLeft = event.currentTarget.scrollLeft;
@@ -156,9 +193,26 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
             positionTypeahead();
           }}
           onKeyDown={(event) => {
-            if (event.key === "Tab" && !event.shiftKey && mentionSuggestions[0]) {
+            if (typeaheadVisible && event.key === "ArrowDown") {
               event.preventDefault();
-              acceptMentionSuggestion(mentionSuggestions[0]);
+              moveActiveMention(1);
+              return;
+            }
+            if (typeaheadVisible && event.key === "ArrowUp") {
+              event.preventDefault();
+              moveActiveMention(-1);
+              return;
+            }
+            if (typeaheadVisible && event.key === "Escape") {
+              event.preventDefault();
+              setTypeaheadState({ query: mentionQuery, activeIndex: activeMentionIndex, dismissed: true });
+              return;
+            }
+            const acceptsWithEnter = event.key === "Enter"
+              && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey;
+            if (typeaheadVisible && ((event.key === "Tab" && !event.shiftKey) || acceptsWithEnter)) {
+              event.preventDefault();
+              acceptMentionSuggestion(mentionSuggestions[activeMentionIndex]);
               return;
             }
             if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && value.trim().length >= 3) {
@@ -167,10 +221,16 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
             }
           }}
         />
-        {mentionSuggestions.length ? <div aria-label="Mention suggestions"
-          className="intent-typeahead" role="listbox" style={typeaheadPosition}>
-          {mentionSuggestions.map((mention) => <button aria-selected="false" key={mention.id}
-            onClick={() => acceptMentionSuggestion(mention)} role="option" type="button">
+        {typeaheadVisible ? <div aria-label="Mention suggestions" className="intent-typeahead"
+          id={typeaheadId} role="listbox" style={typeaheadPosition}>
+          {mentionSuggestions.map((mention, index) => <button
+            aria-selected={index === activeMentionIndex}
+            id={`${typeaheadId}-option-${index}`} key={mention.id}
+            onClick={() => acceptMentionSuggestion(mention)}
+            onMouseEnter={() => setTypeaheadState({
+              query: mentionQuery, activeIndex: index, dismissed: false,
+            })}
+            role="option" tabIndex={-1} type="button">
             <strong>@{mention.mention}</strong>
             {mention.address ? <code title={mention.address}>{shortAddress(mention.address)}</code>
               : <small>{mention.detail}</small>}
