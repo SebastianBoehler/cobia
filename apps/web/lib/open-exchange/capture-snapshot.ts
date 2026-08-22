@@ -1,6 +1,7 @@
 import {
   OpenIntentPolicyV3Schema,
   OpenIntentSnapshotV1Schema,
+  isNativeAssetAddress,
   type OpenIntentPolicyV3,
   type OpenIntentSnapshotV1,
   type TokenMarketEvidenceV1,
@@ -43,9 +44,11 @@ export async function captureOpenIntentSnapshotV1(
   const capturedAt = blocks.reduce((minimum, { block }) =>
     block.timestamp < minimum ? block.timestamp : minimum, blocks[0]!.block.timestamp);
   const tokenAddresses = market ? [...new Set([
-    ...policy.inputs.filter(({ chainId }) => chainId === 196).map(({ token }) => token),
+    ...policy.inputs.filter(({ chainId, token }) => chainId === 196 && !isNativeAssetAddress(token))
+      .map(({ token }) => token),
     ...policy.outcomes.filter((outcome) => outcome.chainId === 196 && "token" in outcome)
-      .map((outcome) => (outcome as { token: Address }).token),
+      .map((outcome) => (outcome as { token: Address }).token)
+      .filter((token) => !isNativeAssetAddress(token)),
   ])].sort() : [];
   const tokenEvidence = market ? await Promise.all(tokenAddresses.map(async (token) => ({
     provider: "okx-market-v6" as const,

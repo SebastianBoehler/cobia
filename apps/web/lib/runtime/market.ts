@@ -42,7 +42,7 @@ import {
 import { replayCapabilityRemotely, replayTransactionRemotely } from "../replay/remote-client";
 import { createOkxClient } from "../okx/client";
 import { publishCapabilityComposition } from "./composition-market";
-import { OwnerBalanceRequiredError } from "./market-errors";
+import { IntentSnapshotUnavailableError, OwnerBalanceRequiredError } from "./market-errors";
 
 let activityRepository: ReturnType<typeof createActivityRepository> | undefined;
 let database: ReturnType<typeof createDatabase> | undefined;
@@ -59,7 +59,7 @@ let solverDecisionClaimRepository: ReturnType<typeof createSolverDecisionClaimRe
 let solverSuccessFeeRepository: ReturnType<typeof createSolverSuccessFeeRepository> | undefined;
 let walletAuthRepository: ReturnType<typeof createWalletAuthRepository> | undefined;
 
-export { OwnerBalanceRequiredError };
+export { IntentSnapshotUnavailableError, OwnerBalanceRequiredError };
 
 function getDatabase() {
   database ??= createDatabase(readDatabaseUrl());
@@ -204,7 +204,9 @@ export async function publishOpenIntent(input: {
   if (missingChains.length > 0) throw new OwnerBalanceRequiredError();
   const snapshot = await captureOpenIntentSnapshotV1(input.policy, {
     ...clients,
-  }, createOkxClient({ credentials: readOkxCredentials() }));
+  }, createOkxClient({ credentials: readOkxCredentials() })).catch(() => {
+    throw new IntentSnapshotUnavailableError();
+  });
   const intent = await getIntentRepository().create(input);
   await getOpenIntentSnapshotRepository().create(snapshot);
   return { intent, snapshot };

@@ -12,6 +12,7 @@ import { verifyPolicyOwnerSignature } from "../../../lib/intents/signature";
 import { PUBLIC_CACHE_10_SECONDS } from "../../../lib/http/cache-policy";
 import {
   getIntentRepository,
+  IntentSnapshotUnavailableError,
   OwnerBalanceRequiredError,
   publishCapabilityCompositionIntent,
   publishOpenIntent,
@@ -95,15 +96,19 @@ export async function POST(request: Request): Promise<Response> {
     const invalid = error instanceof z.ZodError;
     const invalidSignature = error instanceof InvalidOwnerSignatureError;
     const balanceRequired = error instanceof OwnerBalanceRequiredError;
+    const snapshotUnavailable = error instanceof IntentSnapshotUnavailableError;
     return NextResponse.json({
       code: invalid ? "INVALID_INTENT"
         : invalidSignature ? "INVALID_SIGNATURE"
-          : balanceRequired ? "OWNER_BALANCE_REQUIRED" : "INTENT_UNAVAILABLE",
+          : balanceRequired ? "OWNER_BALANCE_REQUIRED"
+            : snapshotUnavailable ? "INTENT_SNAPSHOT_UNAVAILABLE" : "INTENT_UNAVAILABLE",
       message: invalid ? "The signed intent is invalid."
         : invalidSignature ? "The owner signature is invalid."
           : balanceRequired
             ? "The owner needs a positive native balance on every execution chain."
-            : "The intent could not be published.",
+            : snapshotUnavailable
+              ? "Cobia could not capture a fresh X Layer market snapshot. Nothing was published; try again shortly."
+              : "The intent could not be published.",
       intentId,
     }, { status: invalid || invalidSignature ? 400 : balanceRequired ? 409 : 503 });
   }

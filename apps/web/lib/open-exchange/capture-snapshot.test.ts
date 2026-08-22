@@ -1,4 +1,4 @@
-import { OpenIntentPolicyV3Schema } from "@cobia/domain";
+import { NATIVE_ASSET_ADDRESS, OpenIntentPolicyV3Schema } from "@cobia/domain";
 import { describe, expect, it, vi } from "vitest";
 import { captureOpenIntentSnapshotV1 } from "./capture-snapshot";
 
@@ -58,6 +58,29 @@ describe("open intent snapshot capture", () => {
       expect.objectContaining({ token: outputToken, symbol: "OUT", priceUsd: "1.01",
         provider: "okx-market-v6" }),
     ]);
+  });
+
+  it("does not request ERC-20 market evidence for native OKB inputs", async () => {
+    const staged = {
+      ...policy,
+      inputs: [...policy.inputs, {
+        chainId: 196 as const, token: NATIVE_ASSET_ADDRESS, maximumAtomic: "2",
+      }],
+    };
+    const getXLayerTokenEvidence = vi.fn(async (token: string) => ({
+      chainId: 196 as const, token: token.toLowerCase() as `0x${string}`,
+      name: "Token", symbol: "TOKEN", decimals: 6, priceUsd: "1", liquidityUsd: "1",
+      holderCount: "1", top10HolderPercent: "1", marketDataAt: "2033-05-18T03:33:29.000Z",
+      communityRecognized: true,
+    }));
+
+    const snapshot = await captureOpenIntentSnapshotV1(staged, {
+      getChainId: async () => 196,
+      getBlock: async () => ({ number: 68_461_706n, hash: hash("2"), timestamp: 2_000_000_010n }),
+    }, { getXLayerTokenEvidence });
+
+    expect(getXLayerTokenEvidence).not.toHaveBeenCalledWith(NATIVE_ASSET_ADDRESS);
+    expect(snapshot.tokenEvidence).toHaveLength(2);
   });
 
   it("rejects stale OKX token evidence before publishing the snapshot", async () => {

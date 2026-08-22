@@ -14,6 +14,7 @@ vi.mock("../../../lib/runtime/market", () => ({
   publishOpenIntent: mocks.publish,
   publishCapabilityCompositionIntent: mocks.publishComposition,
   OwnerBalanceRequiredError: class OwnerBalanceRequiredError extends Error {},
+  IntentSnapshotUnavailableError: class IntentSnapshotUnavailableError extends Error {},
   ActiveManifestMismatchError: class ActiveManifestMismatchError extends Error {},
 }));
 
@@ -169,6 +170,19 @@ describe("general intent competition API", () => {
     await expect(response.json()).resolves.toMatchObject({
       code: "OWNER_BALANCE_REQUIRED",
       message: "The owner needs a positive native balance on every execution chain.",
+    });
+  });
+
+  it("reports a failed market snapshot without implying that an intent was published", async () => {
+    const { IntentSnapshotUnavailableError } = await import("../../../lib/runtime/market");
+    mocks.publish.mockRejectedValueOnce(new IntentSnapshotUnavailableError());
+
+    const response = await POST(await signedRequest());
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "INTENT_SNAPSHOT_UNAVAILABLE",
+      message: "Cobia could not capture a fresh X Layer market snapshot. Nothing was published; try again shortly.",
     });
   });
 });
