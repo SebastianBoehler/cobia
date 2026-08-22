@@ -80,6 +80,7 @@
   .shell { gap: 12px; }
   .hero { gap: 18px; padding-top: 4px; }
   .hero h1 { font-size: 2.6rem; }
+  .hero h1[data-title-density="long"] { font-size: 1.75rem; line-height: 1.08; }
   .balanceList strong { font-size: 2.1rem; }
   .actionPanel button, .actionPanel a, .receiptMeta a { justify-self: stretch; width: 100%; }
   .detailsBody { grid-template-columns: 1fr; }

@@ -219,6 +219,7 @@
   .intent-competition__summary { grid-template-columns: 42px minmax(0, 1fr); }
   .intent-competition__summary > svg { height: 42px; padding: 10px; width: 42px; }
   .intent-competition__summary h1 { font-size: 38px; }
+  .intent-competition__summary h1[data-title-density="long"] { font-size: 28px; line-height: 1.08; }
   .intent-competition__deadline { grid-column: 1 / -1; }
   .token-evidence-card { flex-basis: 100%; max-width: none; }
   .competition-row { align-items: start; grid-template-columns: 1fr; }
