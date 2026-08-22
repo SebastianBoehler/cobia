@@ -15,7 +15,7 @@ export function PortfolioAssetMark({ symbol, size = 46 }: { symbol: string; size
       role="img"
       style={{ "--brand-mark-size": `${size}px` } as CSSProperties}
     >
-      <TokenOKB aria-hidden="true" size="100%" variant="background" />
+      <TokenOKB aria-hidden="true" size="100%" variant="mono" />
     </span>
   );
 }

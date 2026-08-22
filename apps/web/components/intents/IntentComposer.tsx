@@ -25,6 +25,7 @@ import type { ComposedIntentDraft } from "../../lib/intents/composition-draft";
 import { buildIntentComposerPolicy } from "../../lib/intents/build-composer-policy";
 import type { StagedConversionDraft } from "../../lib/intents/staged-conversion-draft";
 import { StagedConversionPolicyEditor } from "./StagedConversionPolicyEditor";
+import type { AvailableIntentAsset } from "./IntentAvailableAssets";
 
 type ComposerValues = ReceiptValues | ComposedIntentDraft | StagedConversionDraft;
 
@@ -53,13 +54,21 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
   const [step, setStep] = useState<"goal" | "review">(initialDraft ? "review" : "goal");
   const [action, setAction] = useState<ActionPreference>(initialDraft?.values.templateId ?? "any");
   const [excludedProtocols, setExcludedProtocols] = useState<ProtocolExclusionId[]>([]);
-  const [portfolio, setPortfolio] = useState<PortfolioSnapshot>();
+  const [portfolio, setPortfolio] = useState<{ key: string; snapshot: PortfolioSnapshot }>();
+  const [portfolioState, setPortfolioState] = useState<{
+    key: string; status: "loading" | "ready" | "error";
+  }>();
   const [offers, setOffers] = useState<CommerceOfferV1[]>([]);
   const [assetPrices, setAssetPrices] = useState<Record<string, string | undefined>>({});
-  const [mentionsLoaded, setMentionsLoaded] = useState(false);
+  const [mentionsLoaded, setMentionsLoaded] = useState<string>();
   const [compiling, setCompiling] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
+  const composerContextKey = `${wallet.account ?? "disconnected"}:${wallet.targetChainId}`;
+  const walletPortfolioKey = wallet.account && wallet.targetChainId === 196 ? composerContextKey : undefined;
+  const activePortfolio = portfolio && portfolio.key === walletPortfolioKey ? portfolio.snapshot : undefined;
+  const activePortfolioState = portfolioState && portfolioState.key === walletPortfolioKey
+    ? portfolioState.status : "idle";
   const composed = isComposed(values);
   const staged = isStaged(values);
   const rwa = !composed && !staged && values.templateId === "rwa-acquisition";
@@ -87,13 +96,28 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
         : values.templateId === "aave-supply" || minimumAtomic
     )
   ));
+
   async function loadMentions() {
-    if (mentionsLoaded) return;
-    setMentionsLoaded(true);
+    if (mentionsLoaded === composerContextKey) return;
+    setMentionsLoaded(composerContextKey);
     if (wallet.account && wallet.targetChainId === 196) {
+      setPortfolioState({ key: composerContextKey, status: "loading" });
       fetch(`/api/wallets/${wallet.account}/portfolio?chainId=196`)
-        .then(async (response) => response.ok ? response.json() as Promise<PortfolioSnapshot> : undefined)
-        .then(setPortfolio).catch(() => undefined);
+        .then(async (response) => {
+          if (!response.ok) throw new Error("Portfolio read failed");
+          return response.json() as Promise<PortfolioSnapshot>;
+        })
+        .then((snapshot) => {
+          setPortfolio({ key: composerContextKey, snapshot });
+          setPortfolioState({ key: composerContextKey, status: "ready" });
+        }).catch(() => setPortfolioState({ key: composerContextKey, status: "error" }));
+      fetch("/api/assets/resolve", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ symbols: ["OKB", ...INTENT_ASSETS.map(({ symbol }) => symbol)] }) })
+        .then(async (response): Promise<{ assets: Array<{ symbol: string; priceUsd?: string }> }> =>
+          response.ok ? response.json() : { assets: [] })
+        .then(({ assets }) => setAssetPrices(Object.fromEntries(assets.map((asset) =>
+          [asset.symbol.toLowerCase(), asset.priceUsd]))))
+        .catch(() => undefined);
     }
     fetch("/api/commerce/discover?limit=12")
       .then(async (response): Promise<{ offers: unknown[] }> => response.ok
@@ -102,19 +126,11 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
         const parsed = CommerceOfferV1Schema.safeParse(offer);
         return parsed.success && parsed.data.eligibility.status === "executable" ? [parsed.data] : [];
       }))).catch(() => undefined);
-    fetch("/api/assets/resolve", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symbols: [...INTENT_ASSETS, ...RWA_INTENT_ASSETS]
-        .slice(0, 8).map(({ symbol }) => symbol) }) })
-      .then(async (response): Promise<{ assets: Array<{ symbol: string; address: string; priceUsd?: string }> }> =>
-        response.ok ? response.json() : { assets: [] })
-      .then(({ assets }) => setAssetPrices(Object.fromEntries(assets.map((asset) =>
-        [asset.symbol.toLowerCase(), asset.priceUsd]))))
-      .catch(() => undefined);
   }
 
   const mentions = useMemo<IntentMention[]>(() => [
     ...INTENT_ASSETS.map(({ symbol, address }) => {
-      const balance = portfolio?.balances?.find((item) => item.symbol === symbol);
+      const balance = activePortfolio?.balances?.find((item) => item.symbol === symbol);
       const walletBalance = balance
         ? `${Number(balance.formatted).toLocaleString("en-US", { maximumFractionDigits: 6 })} ${symbol}`
         : undefined;
@@ -134,8 +150,25 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
       group: "Services" as const,
       mention: `${offer.merchant.displayName}/${(offer.product.name ?? offer.product.id).replaceAll(" ", "-")}`,
       detail: `${offer.payment.atomicAmount} atomic · chain ${offer.payment.chainId}` })),
-  ], [assetPrices, offers, portfolio]);
+  ], [activePortfolio, assetPrices, offers]);
   const { assets: resolvedAssetMentions, unresolved: unresolvedAssetMentions } = useResolvedAssetMentions(goal, mentions);
+  const availableAssets = useMemo<AvailableIntentAsset[]>(() => {
+    if (!activePortfolio) return [];
+    const balances = [
+      ...(activePortfolio.native ? [{ symbol: activePortfolio.native.symbol, amountAtomic: activePortfolio.native.amountAtomic,
+        amount: activePortfolio.native.formatted }] : []),
+      ...(activePortfolio.balances ?? []).map((balance) => ({ symbol: balance.symbol, amountAtomic: balance.amountAtomic,
+        amount: balance.formatted })),
+    ];
+    return balances.flatMap((balance) => {
+      let positive = false;
+      try { positive = BigInt(balance.amountAtomic) > 0n; } catch { return []; }
+      if ((balance.symbol !== "OKB" && balance.symbol !== "USDG" && balance.symbol !== "USDt0") ||
+        !positive) return [];
+      return [{ symbol: balance.symbol, amount: balance.amount,
+        priceUsd: assetPrices[balance.symbol.toLowerCase()] }];
+    });
+  }, [activePortfolio, assetPrices]);
   const allMentions = useMemo(() => [...mentions, ...resolvedAssetMentions], [mentions, resolvedAssetMentions]);
   const selectedMentions = useMemo(() => {
     const selected = allMentions.filter(({ mention }) => {
@@ -242,6 +275,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
           submitEnabled={Boolean(wallet.account)}
           excludedProtocols={excludedProtocols} mentions={allMentions}
           unresolvedMentions={unresolvedAssetMentions}
+          availableAssets={availableAssets} portfolioState={activePortfolioState}
           value={goal} onActionChange={setAction} onChange={setGoal} onMention={mention}
           onMentionSuggestion={mentionSuggestion}
           onMentionMenuOpen={loadMentions}

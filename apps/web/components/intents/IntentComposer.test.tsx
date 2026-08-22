@@ -220,6 +220,35 @@ describe("IntentComposer", () => {
     })).toBeVisible();
   });
 
+  it("shows spendable wallet balances and inserts an available asset", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string) => {
+      if (url.includes("/portfolio")) return Promise.resolve(Response.json({
+        native: { symbol: "OKB", amountAtomic: "50000000000000000", formatted: "0.05" },
+        balances: [
+          { symbol: "USDG", amountAtomic: "1000000", formatted: "1" },
+          { symbol: "USDt0", amountAtomic: "0", formatted: "0" },
+        ], positions: [],
+      }));
+      if (url === "/api/assets/resolve") return Promise.resolve(Response.json({ assets: [
+        { symbol: "OKB", priceUsd: "100" }, { symbol: "USDG", priceUsd: "1" },
+      ] }));
+      return Promise.resolve(Response.json({ offers: [] }));
+    }));
+    render(<IntentComposer />);
+    fireEvent.focus(screen.getByLabelText("What should happen?"));
+
+    const rail = await screen.findByRole("region", { name: "Available wallet assets" });
+    expect(within(rail).getByRole("button", { name: /add @okb to goal.*0\.05 okb.*\$5\.00/i })).toBeVisible();
+    expect(within(rail).getByRole("button", { name: /add @usdg to goal.*1 usdg.*\$1\.00/i })).toBeVisible();
+    expect(within(rail).queryByRole("button", { name: /@usdt0/i })).not.toBeInTheDocument();
+    expect(within(rail).getByText("OKB")).toHaveTextContent("OKB");
+    expect(within(rail).getByText("$5.00")).toBeVisible();
+
+    fireEvent.click(within(rail).getByRole("button", { name: /add @usdg to goal/i }));
+    expect(screen.getByLabelText("What should happen?")).toHaveValue("@USDG ");
+    expect(screen.getByLabelText("What should happen?")).toHaveFocus();
+  });
+
   it("highlights any token mention and resolves xStocks without granting execution trust", async () => {
     vi.stubGlobal("fetch", vi.fn().mockImplementation(() => Promise.resolve(Response.json({ assets: [{
       symbol: "AAPLx", name: "Apple xStock", chainId: 196,

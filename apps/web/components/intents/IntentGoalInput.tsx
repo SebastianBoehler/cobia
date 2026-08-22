@@ -3,6 +3,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useSta
 import {
   ACTION_PREFERENCES, PROTOCOL_EXCLUSIONS, type ActionPreference, type ProtocolExclusionId,
 } from "../../lib/intents/intent-controls";
+import { IntentAvailableAssets, type AvailableIntentAsset } from "./IntentAvailableAssets";
 
 const EXAMPLE_INTENTS = [
   "Swap 10 @USDG into at least 9.95 @USDt0 on @XLayer",
@@ -49,7 +50,7 @@ export interface IntentMention {
 }
 
 export function IntentGoalInput({ value, compiling, submitEnabled, action, excludedProtocols, mentions,
-  unresolvedMentions, onChange, onActionChange, onMention, onMentionMenuOpen,
+  unresolvedMentions, availableAssets, portfolioState, onChange, onActionChange, onMention, onMentionMenuOpen,
   onMentionSuggestion, onExcludedProtocolsChange, onSubmit }: {
   value: string;
   compiling: boolean;
@@ -58,6 +59,8 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
   excludedProtocols: readonly ProtocolExclusionId[];
   mentions: readonly IntentMention[];
   unresolvedMentions: readonly string[];
+  availableAssets: readonly AvailableIntentAsset[];
+  portfolioState: "idle" | "loading" | "ready" | "error";
   onChange(value: string): void;
   onActionChange(value: ActionPreference): void;
   onMention(value: IntentMention): void;
@@ -153,6 +156,12 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
     });
   }
 
+  function addAvailableAsset(asset: AvailableIntentAsset) {
+    onMention({ id: `available-asset:${asset.symbol}`, group: "Assets", mention: asset.symbol,
+      detail: `${asset.amount} ${asset.symbol} available` });
+    textareaRef.current?.focus();
+  }
+
   return (
     <section className="intent-goal">
       <label className="sr-only" htmlFor="intent-goal">What should happen?</label>
@@ -178,6 +187,7 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
           rows={3}
           value={value}
           ref={textareaRef}
+          onFocus={onMentionMenuOpen}
           onChange={(event) => {
             const nextValue = event.target.value;
             setTypeaheadState({
@@ -287,11 +297,14 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
             </div>
           </details>
         </div>
-        <button aria-label="Review policy" className="intent-goal__send"
-          disabled={value.trim().length < 3 || compiling || !submitEnabled} onClick={onSubmit} type="button">
-          {compiling ? <LoaderCircle aria-hidden="true" className="spin" size={19} />
-            : <ArrowUp aria-hidden="true" size={20} />}
-        </button>
+        <div className="intent-goal__tools-end">
+          <IntentAvailableAssets assets={availableAssets} onSelect={addAvailableAsset} state={portfolioState} />
+          <button aria-label="Review policy" className="intent-goal__send"
+            disabled={value.trim().length < 3 || compiling || !submitEnabled} onClick={onSubmit} type="button">
+            {compiling ? <LoaderCircle aria-hidden="true" className="spin" size={19} />
+              : <ArrowUp aria-hidden="true" size={20} />}
+          </button>
+        </div>
       </div>
     </section>
   );
