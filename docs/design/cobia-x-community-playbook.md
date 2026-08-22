@@ -2,7 +2,7 @@
 
 Status: canonical living guide
 
-Updated: 2026-08-21
+Updated: 2026-08-22
 
 This playbook turns the Cobia brand into repeatable publishing behavior. It
 borrows the useful part of Jumper's strategy: polished, recognizable product
@@ -11,13 +11,15 @@ copy Jumper's creative, color, phrasing, or meme style.
 
 ## Channel job
 
-The main timeline builds trust and product understanding. Replies build
+The main timeline builds trust, product understanding, and a recognisable
+presence in the conversations the community already cares about. Replies build
 familiarity and community. Reposts add context only when Cobia has something
 specific to contribute.
 
 | Surface | Job | Default voice |
 | --- | --- | --- |
 | Main posts | Explain one product truth and show proof | Polished and concise |
+| Community pulse posts | Join a real moment with an original visual or observation | Native, light, and observant |
 | Threads | Teach one mechanism or unpack evidence | Clear and technical |
 | Replies | Participate, help, joke, and learn | Human and context-aware |
 | Quote posts | Add a Cobia-specific angle | Sharp and relevant |
@@ -108,7 +110,74 @@ merchant manifest, reproduce a transaction, or challenge a policy assumption.
 >
 > Here is the capability contract: [link]
 
+### 6. Community pulse
+
+Make room for small, timely posts that signal Cobia is present in crypto and X
+Layer culture—not only when there is a feature to announce. The useful model is
+a simple shared-market or builder mood paired with a short original clip, still,
+or one-line observation. These posts earn attention and make the account feel
+human; they are not analysis, investment advice, or a disguised product claim.
+
+Use this lane when there is a clear public moment Cobia can genuinely react to:
+a broadly discussed market move, a visible ecosystem shipping moment, a hackathon
+milestone, or the emotional rhythm of building. The connection should be
+immediately legible. If it needs a paragraph to explain why Cobia posted it,
+skip it.
+
+Examples:
+
+> crypto timelines after a green candle: 👀
+
+> $OKB timelines after a green candle: 👀
+
+> when the integration finally works outside localhost
+
+> the market can be loud. the signed limits should stay quiet.
+
+Keep the last example for a moment where the product connection is real; do not
+add Cobia branding or a CTA to every pulse post.
+
+#### Pulse-post guardrails
+
+- Publish original or licensed visual media only. Do not reuse another account's
+  clip, meme treatment, logo, or creative as if it were Cobia's.
+- React to an observable moment; do not invent urgency, news, adoption, prices,
+  volume, partnerships, or sentiment.
+- Never imply a token will rise, that a move is investable, or that Cobia
+  endorses an asset. A mood is not a market call.
+- Keep it short: normally one line, at most two. Let the visual carry the joke.
+- Make the joke about the shared situation, not a user's loss, liquidation,
+  security incident, or safety concern.
+- Use no CTA by default. A relevant reply or the next product post can do the
+  explanatory work.
+- Prefer a simple native loop, screenshot treatment, or static from the Cobia
+  visual system over generic AI imagery, copied crypto memes, or a chart that
+  looks like financial analysis.
+
 ## Publishing grammar
+
+### Cashtags and account mentions
+
+Use X cashtags (`$TOKEN`) when a post genuinely discusses a specific asset or
+token community and discovery in that conversation is useful. Write the
+conventional uppercase ticker directly in the post, for example `$OKB`, `$ETH`,
+or `$BTC`. A cashtag identifies the topic; it is not an endorsement, price
+target, or invitation to trade.
+
+Use account mentions when discussing a chain, protocol, product, or builder.
+For example, refer to @solana or @base when the post is specifically about that
+chain's ecosystem or shipping moment. Mentioning the relevant account helps the
+right community find a real contribution; it is not a substitute for one.
+
+- Verify the ticker, account, and relationship before publishing. Similar
+  symbols, unofficial accounts, bridged assets, and look-alike tokens make an
+  incorrect tag misleading.
+- Use one cashtag and one relevant account mention by default. Add a second only
+  when the relationship between the two assets or accounts is the actual point.
+- Prefer an `@` mention for people, chains, protocols, and products; reserve a
+  `$` cashtag for the asset itself.
+- Do not tag an unrelated major account, use ticker blocks, or add tags to
+  replies merely to reach another community.
 
 ### Product post
 
@@ -158,6 +227,18 @@ Use no more than five posts:
 5. Evidence and builder invitation.
 
 Do not start with an architecture diagram or repository statistics.
+
+### Community pulse post
+
+Use: `recognisable moment -> one visual reaction -> stop`.
+
+> market tabs this morning: 👀
+
+The post intentionally has no claim, link, tag, or CTA. If readers need factual
+context, attach only a source Cobia has checked or write the factual update as a
+separate proof post. When a specific token or chain is the shared moment, use
+the verified `$TOKEN` or `@account` naturally rather than adding a broad tag
+list.
 
 ## Reply voice
 
@@ -228,10 +309,71 @@ Use a sustainable weekly rhythm after the hackathon:
 - 1 confirmed outcome or evidence post.
 - 1 product moment or short demo.
 - 1 mechanism, builder, or ecosystem post.
+- 1-2 community pulse posts when there is a genuine moment worth joining.
 - Meaningful replies on 3-5 relevant conversations on active days.
 
+Community pulse posts complement the evidence cadence; they do not replace it.
 Do not fill a quota with repetitive posts. A real proof is worth more than a
-week of generic claims.
+week of generic claims, and one well-timed reaction is worth more than a week
+of manufactured vibes.
+
+### Post-submission sprint
+
+For the active judging window, increase visibility without turning the timeline
+into an hourly feed. Prepare up to three main-timeline candidates per day:
+
+1. One material proof, product, builder, or ecosystem update when there is new
+   evidence.
+2. Up to two timely community-pulse or ecosystem posts when there is a genuine
+   conversation to join.
+
+Space actual posts roughly 3-5 hours apart within the daytime window. Use
+staggered, non-round times rather than a visibly mechanical top-of-the-hour
+schedule, and vary the content lane rather than repeating a format. If there is
+no evidence or real moment, post less. This sprint is temporary; return to the
+sustainable weekly rhythm when the judging window has passed.
+
+#### Interaction loop
+
+Treat the launch as a conversation, not a broadcast queue. On active campaign
+windows, prepare a compact engagement slate alongside the main-post candidate:
+
+- One useful, specific reply to a relevant X Layer, chain, protocol, AI-agent,
+  RWA, or builder conversation. Answer the post before mentioning Cobia; link a
+  receipt only when it genuinely advances the discussion.
+- Up to two likes on posts Cobia can sincerely stand behind. A like is an
+  endorsement signal, so never use it mechanically or around unverified token,
+  security, or partnership claims.
+- An initial shortlist of up to three relevant ecosystem accounts to follow.
+  Verify each account and give a concrete reason it belongs in Cobia's feed.
+  Following is relationship building, not a recurring daily quota.
+
+Do not interact merely to appear active. No generic `LFG` replies, auto-likes,
+mass follows, engagement circles, or attempts to hijack a serious loss or
+security conversation. Every reply, like, repost, and follow remains an
+approval-required action; present the exact account and action first.
+
+#### Campaign proof loop
+
+The durable campaign message is: **AI proposes. Cobia verifies. You keep the
+keys.** Repeat the product boundary, not the same copy.
+
+- A new confirmed execution deserves a receipt post with the explorer or
+  program link.
+- Reuse a strongest existing receipt as supporting evidence when relevant, but
+  label it as prior proof rather than suggesting it is a new execution.
+- Pair proof with a short principle: outcome rather than keys, creative search
+  with conservative execution, or a rejection as a working verifier boundary.
+- Use short threads only when they teach one mechanism: a tight opener, four to
+  six evidence-led points, then one precise action or inspection link.
+- Invite builders to inspect, reproduce, challenge, or build when the relevant
+  surface is truly live. Never use a link or a number as a substitute for
+  verification.
+
+Write with concise, high-agency energy—short sentences, real numbers, and
+inspectable links—but do not imitate another project's vocabulary, visuals, or
+personality. Avoid claims that other agents require keys unless a specific,
+verifiable product comparison supports it.
 
 ## Thirty-day sequence
 
@@ -240,6 +382,8 @@ week of generic claims.
 - Pin the strongest end-to-end proof.
 - Update the bio to the verifier boundary.
 - Publish `prompt is not permission` with a product capture.
+- Join one authentic ecosystem or market moment with a small original pulse post;
+  do not attach a pitch.
 - Reply to X Layer builders with specific, non-promotional observations.
 
 ### Week 2: make the mechanism legible
@@ -269,6 +413,8 @@ Track signals that correspond to the product:
 3. Confirmed outcomes and inspectable receipts.
 4. External solver, merchant, or protocol conversations.
 5. Replies that become product questions, reproductions, or contributions.
+6. Pulse-post quality: meaningful replies, follows, profile visits, and whether
+   the account is invited into relevant conversations—not raw impressions.
 
 Likes and follower count are context, not the objective. Never trade truthful
 claims for reach.
@@ -283,5 +429,11 @@ Before publishing:
 - Can the proof link be opened by someone outside the team?
 - Does the asset remain clear without audio?
 - Is the CTA specific and proportionate?
+- If this is a pulse post, is the shared moment obvious without a product pitch
+  or a market claim?
+- If using a cashtag or account mention, is the exact ticker/account verified,
+  relevant, and limited to the assets or ecosystems actually discussed?
+- Is its visual original or licensed, and distinct from the account that
+  inspired the format?
 - Would the reply still make sense if the Cobia name were removed?
 - Does a joke avoid minimizing financial or security risk?
