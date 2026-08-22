@@ -52,6 +52,20 @@ function allowed(policy: CapabilityCompositionPolicyV1, id: string) {
   return policy.allowedCapabilities.some((item) => item.id === id && item.version === 1);
 }
 
+function netScore(
+  snapshot: CapabilityCompositionSnapshotV1,
+  terminalUsdE8: bigint,
+  expectedGas: number,
+  solverFeeAtomic: string,
+) {
+  const nativePrice = BigInt(snapshot.gas.nativePriceUsdE8);
+  const gasUsdE8 = BigInt(expectedGas) * BigInt(snapshot.gas.priceAtomic) *
+    nativePrice / 10n ** 18n;
+  const feeUsdE8 = BigInt(solverFeeAtomic) * nativePrice / 10n ** 18n;
+  const value = terminalUsdE8 - gasUsdE8 - feeUsdE8;
+  return value > 0n ? value : 0n;
+}
+
 export function selectCompositionCandidate(
   policyInput: unknown,
   snapshotInput: unknown,
@@ -85,13 +99,15 @@ export function selectCompositionCandidate(
     };
     const yieldValue = outputValue * BigInt(supply.supplyRateBps) *
       BigInt(policy.objective.horizonDays) / (365n * 10_000n);
-    const scoreUsdE8 = outputValue + yieldValue;
+    const terminalUsdE8 = outputValue + yieldValue;
     const balanceConstraints = [{ kind: "minimumIncrease" as const,
       token: aToken.toLowerCase() as Address, atomic: receiptAtomic }];
 
     if (isAddressEqual(supply.asset, policy.input.token) &&
-        supply.validatedSupplyAtomic === policy.input.maxAtomic && scoreUsdE8 > inputValue) {
-      candidates.push({ key: `direct:${supply.id}`, scoreUsdE8,
+        supply.validatedSupplyAtomic === policy.input.maxAtomic && supply.supplyRateBps > 0) {
+      const scoreUsdE8 = netScore(snapshot, terminalUsdE8, 500_000,
+        policy.limits.maxSolverFeeAtomic);
+      if (scoreUsdE8 > 0n) candidates.push({ key: `direct:${supply.id}`, scoreUsdE8,
         inputAtomic: policy.input.maxAtomic, actions: [terminal], balanceConstraints });
     }
     for (const swap of snapshot.route.opportunities.filter((item) =>
@@ -103,7 +119,10 @@ export function selectCompositionCandidate(
           swap.quotedInputAtomic !== policy.input.maxAtomic ||
           swap.quotedOutputAtomic !== supply.validatedSupplyAtomic ||
           outputValue * 10_000n < inputValue * BigInt(10_000 - loss.maximumLossBps) ||
-          scoreUsdE8 <= inputValue) continue;
+          supply.supplyRateBps <= 0) continue;
+      const scoreUsdE8 = netScore(snapshot, terminalUsdE8, 1_200_000,
+        policy.limits.maxSolverFeeAtomic);
+      if (scoreUsdE8 === 0n) continue;
       candidates.push({ key: `${capabilityId}:${swap.id}:${supply.id}`, scoreUsdE8,
         inputAtomic: policy.input.maxAtomic,
         actions: [{ capabilityId, capabilityVersion: 1, valueAtomic: "0",

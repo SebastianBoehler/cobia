@@ -57,7 +57,7 @@ function snapshot(items: readonly unknown[] = opportunities) {
     version: 1, kind: "capability-composition", requestId, capturedAt,
     manifestHash: commitment(productionCapabilityManifestV1()),
     route: { ...commonRoute, opportunities: items },
-    gas: { priceAtomic: "1000000000", nativePriceUsdE8: "10741000000" },
+  gas: { priceAtomic: "1", nativePriceUsdE8: "10741000000" },
   });
 }
 
