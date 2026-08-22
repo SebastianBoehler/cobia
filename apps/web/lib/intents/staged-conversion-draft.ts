@@ -5,6 +5,7 @@ import {
   decimalToAtomic, INTENT_ASSETS, stablecoinDefaultMinimum, type IntentReceiptValues,
 } from "./capability-templates";
 import type { WalletBalances } from "./wallet-balance-request";
+import { deriveMarketMinimum, formatAtomicAmount } from "./market-minimum";
 
 export interface StagedConversionInputDraft {
   kind: "native" | "erc20";
@@ -48,19 +49,9 @@ export type ConversionModelDraft = z.infer<typeof ConversionModelDraftSchema>;
 type ConversionResolution = IntentReceiptValues | StagedConversionDraft |
   { kind: "clarification"; question: string };
 
-const MARKET_FLOOR_BPS = 9_900n;
-const PRICE_DECIMALS = 18;
-
 function atomic(value: string, decimals: number): bigint | undefined {
   const parsed = decimalToAtomic(value, decimals);
   return parsed ? BigInt(parsed) : undefined;
-}
-
-function formatAtomic(value: bigint, decimals: number): string {
-  const scale = 10n ** BigInt(decimals);
-  const whole = value / scale;
-  const fraction = (value % scale).toString().padStart(decimals, "0").replace(/0+$/, "");
-  return fraction ? `${whole}.${fraction}` : whole.toString();
 }
 
 function canonicalBalance(symbol: string, balances: WalletBalances): string | undefined {
@@ -87,7 +78,7 @@ function resolveAmount(
   if (input.walletShareBps !== null) {
     if (!availableAtomic) return { question: `Your ${symbol} wallet balance is zero. Fund it or enter an exact amount.` };
     const amountAtomic = availableAtomic * BigInt(input.walletShareBps) / 10_000n;
-    return amountAtomic > 0n ? formatAtomic(amountAtomic, decimals)
+    return amountAtomic > 0n ? formatAtomicAmount(amountAtomic, decimals)
       : { question: `The requested ${symbol} wallet share rounds to zero.` };
   }
   const requestedAtomic = atomic(input.amount, decimals);
@@ -161,24 +152,22 @@ export function resolveConversionDraft(
     minimum: draft.minimumOutput, maxSolverFeeUsd: "0",
   };
 
-  const outputPrice = atomic(prices[output.symbol] ?? "", PRICE_DECIMALS);
-  const inputValues = inputs.map((item) => {
-    const price = atomic(prices[item.symbol] ?? "", PRICE_DECIMALS);
-    const amount = atomic(item.amount, item.decimals);
-    return price && amount ? amount * price / 10n ** BigInt(item.decimals) : undefined;
-  });
-  if (!outputPrice || inputValues.some((value) => value === undefined)) return {
+  const minimums = inputs.map((item) => deriveMarketMinimum({
+    amount: item.amount, inputDecimals: item.decimals,
+    inputPriceUsd: prices[item.symbol] ?? "", outputDecimals: output.decimals,
+    outputPriceUsd: prices[output.symbol] ?? "",
+  }));
+  if (minimums.some((value) => value === undefined)) return {
     kind: "clarification", question: "A fresh price is unavailable for one of the requested assets.",
   };
-  const totalUsd = (inputValues as bigint[]).reduce((sum, value) => sum + value, 0n);
-  const minimumAtomic = totalUsd * MARKET_FLOOR_BPS * 10n ** BigInt(output.decimals) /
-    (10_000n * outputPrice);
+  const minimumAtomic = (minimums as string[]).reduce((sum, value) =>
+    sum + BigInt(decimalToAtomic(value, output.decimals)!), 0n);
   if (minimumAtomic <= 0n) return { kind: "clarification",
     question: "The requested conversion amount is too small." };
   return {
     kind: "staged-conversion", templateId: "staged-conversion", inputs,
     outputToken: output.address, outputSymbol: output.symbol, outputDecimals: output.decimals,
-    minimum: formatAtomic(minimumAtomic, output.decimals), minimumSource: "market-default",
+    minimum: formatAtomicAmount(minimumAtomic, output.decimals), minimumSource: "market-default",
     maxSolverFeeUsd: "0",
   };
 }

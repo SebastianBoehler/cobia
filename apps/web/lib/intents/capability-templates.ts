@@ -1,3 +1,4 @@
+import { NATIVE_ASSET_ADDRESS } from "@cobia/domain";
 import { SUPPORTED_ASSETS } from "../chain/supported-assets";
 import type { Address } from "viem";
 import { productionInstrumentRegistryV1 } from "../instruments/production-registry";
@@ -11,7 +12,7 @@ export interface IntentReceiptValues {
   amount: string;
   outputToken: Address;
   minimum: string;
-  minimumSource?: "stablecoin-default";
+  minimumSource?: "stablecoin-default" | "market-default" | "round-trip-default";
   maxSolverFeeUsd: string;
   jurisdiction: string;
   eligibilityAccepted: boolean;
@@ -49,6 +50,10 @@ export const CAPABILITY_TEMPLATES = [
 export const INTENT_ASSETS = SUPPORTED_ASSETS.map(({ address, displaySymbol, decimals }) => ({
   address, symbol: displaySymbol, decimals,
 }));
+
+export const NATIVE_INTENT_ASSET = {
+  address: NATIVE_ASSET_ADDRESS, symbol: "OKB", decimals: 18,
+} as const;
 
 export const ETHEREUM_USDC = {
   address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48" as Address,

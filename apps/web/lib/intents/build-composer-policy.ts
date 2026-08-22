@@ -36,6 +36,14 @@ function isStaged(values: Input["values"]): values is StagedConversionDraft {
   return "kind" in values && values.kind === "staged-conversion";
 }
 
+export function intentComposerExecutionChainIds(values: Input["values"]): Array<1 | 196> {
+  if (!isComposed(values) && !isStaged(values) && values.templateId === "rwa-acquisition") {
+    const instrument = RWA_INTENT_ASSETS.find(({ address }) => address === values.outputToken)?.instrument;
+    if (instrument?.chainId === 1) return [1, 196];
+  }
+  return [196];
+}
+
 export function buildIntentComposerPolicy(input: Input) {
   if (isStaged(input.values)) {
     const minimumOutputAtomic = decimalToAtomic(

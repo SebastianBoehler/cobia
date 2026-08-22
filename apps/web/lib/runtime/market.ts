@@ -147,6 +147,42 @@ export function openGeneralIntentMarket(input: {
 
 export { ActiveManifestMismatchError };
 
+type ExecutionChainId = 1 | 196 | 8453;
+
+function openIntentClients() {
+  const config = readMarketConfig();
+  const xLayerClient = createPublicClient({
+    chain: xLayer,
+    transport: http(config.XLAYER_RPC_URL, { timeout: 15_000 }),
+    cacheTime: 0,
+  });
+  return {
+    1: createPublicClient({ chain: mainnet,
+      transport: http(config.ETHEREUM_RPC_URL, { timeout: 15_000 }), cacheTime: 0 }),
+    196: xLayerClient,
+    8453: createPublicClient({ chain: base,
+      transport: http(config.BASE_RPC_URL, { timeout: 15_000 }), cacheTime: 0 }),
+  };
+}
+
+async function missingOwnerNativeBalanceChainsWithClients(input: {
+  owner: Address;
+  executionChainIds: readonly ExecutionChainId[];
+}, clients: ReturnType<typeof openIntentClients>): Promise<ExecutionChainId[]> {
+  const balances = await Promise.all(input.executionChainIds.map(async (chainId) => ({
+    chainId,
+    balance: await clients[chainId].getBalance({ address: input.owner }),
+  })));
+  return balances.flatMap(({ chainId, balance }) => balance === 0n ? [chainId] : []);
+}
+
+export function missingOwnerNativeBalanceChains(input: {
+  owner: Address;
+  executionChainIds: readonly ExecutionChainId[];
+}): Promise<ExecutionChainId[]> {
+  return missingOwnerNativeBalanceChainsWithClients(input, openIntentClients());
+}
+
 export async function publishGeneralIntent(input: {
   policy: GeneralIntentPolicyV2;
   ownerSignature: `0x${string}`;
@@ -160,22 +196,12 @@ export async function publishOpenIntent(input: {
   policy: OpenIntentPolicyV3;
   ownerSignature: `0x${string}`;
 }) {
-  const config = readMarketConfig();
-  const xLayerClient = createPublicClient({
-    chain: xLayer,
-    transport: http(config.XLAYER_RPC_URL, { timeout: 15_000 }),
-    cacheTime: 0,
-  });
-  const clients = {
-    1: createPublicClient({ chain: mainnet,
-      transport: http(config.ETHEREUM_RPC_URL, { timeout: 15_000 }), cacheTime: 0 }),
-    196: xLayerClient,
-    8453: createPublicClient({ chain: base,
-      transport: http(config.BASE_RPC_URL, { timeout: 15_000 }), cacheTime: 0 }),
-  } as const;
-  const balances = await Promise.all(input.policy.executionChainIds.map((chainId) =>
-    clients[chainId].getBalance({ address: input.policy.owner as Address })));
-  if (balances.some((balance) => balance === 0n)) throw new OwnerBalanceRequiredError();
+  const clients = openIntentClients();
+  const missingChains = await missingOwnerNativeBalanceChainsWithClients({
+    owner: input.policy.owner as Address,
+    executionChainIds: input.policy.executionChainIds,
+  }, clients);
+  if (missingChains.length > 0) throw new OwnerBalanceRequiredError();
   const snapshot = await captureOpenIntentSnapshotV1(input.policy, {
     ...clients,
   }, createOkxClient({ credentials: readOkxCredentials() }));

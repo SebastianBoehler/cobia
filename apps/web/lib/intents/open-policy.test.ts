@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { INTENT_ASSETS } from "./capability-templates";
+import { INTENT_ASSETS, NATIVE_INTENT_ASSET } from "./capability-templates";
 import { buildOpenIntentPolicyV3 } from "./open-policy";
 
 const common = {
@@ -60,6 +60,22 @@ describe("open intent policy builder", () => {
     });
     expect(JSON.stringify(policy)).not.toContain("jurisdiction");
     expect(JSON.stringify(policy)).not.toContain("eligibilityAttested");
+  });
+
+  it("bounds native OKB value for an RWA acquisition", () => {
+    const policy = buildOpenIntentPolicyV3({
+      ...common, templateId: "rwa-acquisition", inputToken: NATIVE_INTENT_ASSET.address,
+      inputAtomic: "5000000000000000",
+      outputToken: "0x96f6ef951840721adbf46ac996b59e0235cb985c",
+      minimumOutputAtomic: "396000000000000000", outputChainId: 1,
+    });
+
+    expect(policy.inputs).toEqual([{ chainId: 196, token: NATIVE_INTENT_ASSET.address,
+      maximumAtomic: "5000000000000000" }]);
+    expect(policy.limits.maxNativeValueAtomicByChain).toEqual([
+      { chainId: 1, atomic: "0" },
+      { chainId: 196, atomic: "5000000000000000" },
+    ]);
   });
 
   it("binds an X Layer instrument to its exact token balance outcome", () => {

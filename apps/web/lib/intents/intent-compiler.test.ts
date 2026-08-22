@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createOpenAiIntentCompiler } from "./intent-compiler";
+import { INTENT_ASSETS } from "./capability-templates";
 
 function response(text: string) {
   return Response.json({ status: "completed", output: [{ type: "message", status: "completed",
@@ -22,6 +23,20 @@ function conversion(
 }
 
 describe("intent compiler", () => {
+  it("accepts a single JSON fence from an OpenRouter structured response", async () => {
+    const payload = JSON.stringify(simple({
+      status: "review", question: null, templateId: "exact-input-swap",
+      inputSymbol: "USDG", outputSymbol: "USDt0", amount: "1", minimum: "0.99",
+      jurisdiction: null,
+    }));
+    const compiler = createOpenAiIntentCompiler({ apiKey: "test", model: "test-model",
+      fetcher: vi.fn().mockResolvedValue(response(`\`\`\`json\n${payload}\n\`\`\``)) });
+
+    await expect(compiler.compile("Swap 1 USDG into USDt0", "any")).resolves.toMatchObject({
+      status: "review", values: { amount: "1", minimum: "0.99" },
+    });
+  });
+
   it("keeps constrained extraction from spending its output budget on reasoning", async () => {
     const fetcher = vi.fn().mockImplementation((_url, init: RequestInit) => {
       const request = JSON.parse(init.body as string);
@@ -120,21 +135,23 @@ describe("intent compiler", () => {
     });
   });
 
-  it("never substitutes an X Layer stablecoin for an explicitly requested RWA output", async () => {
+  it("restores an explicitly requested RWA output when the model substitutes a stablecoin", async () => {
     const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(conversion([
       { symbol: "USDG", amount: "", walletShareBps: 10_000 },
     ], "USDt0"))));
     const compiler = createOpenAiIntentCompiler({
       apiKey: "test", model: "test-model", fetcher, walletBalances: { USDG: "1.205944" },
+      assetPricesUsd: { USDG: "1", USDY: "1" },
     });
 
-    await expect(compiler.compile("all my @USDG into @USDY", "any")).resolves.toEqual({
-      status: "clarification",
-      question: "Cobia could not bind the requested USDY outcome without changing the asset. Refine the RWA bounds and try again.",
+    await expect(compiler.compile("all my @USDG into @USDY", "any")).resolves.toMatchObject({
+      status: "review",
+      values: { templateId: "rwa-acquisition", amount: "1.205944",
+        minimum: "1.19388456" },
     });
   });
 
-  it("asks for a missing RWA outcome bound instead of failing compilation", async () => {
+  it("reports when an RWA market minimum cannot be derived", async () => {
     const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(simple({
       status: "review", question: null, templateId: "rwa-acquisition",
       inputSymbol: "USDG", outputSymbol: "USDY", amount: "", minimum: "",
@@ -146,8 +163,55 @@ describe("intent compiler", () => {
 
     await expect(compiler.compile("all my @USDG into @USDY", "any")).resolves.toEqual({
       status: "clarification",
-      question: "Add a minimum USDY outcome for this cross-chain RWA intent.",
+      question: "A fresh price is unavailable for one of the requested assets.",
     });
+  });
+
+  it("derives an editable RWA minimum from an exact native input", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(simple({
+      status: "review", question: null, templateId: "rwa-acquisition",
+      inputSymbol: "OKB", outputSymbol: "USDY", amount: "0.005", minimum: "",
+      walletShareBps: null, jurisdiction: null,
+    }))));
+    const compiler = createOpenAiIntentCompiler({
+      apiKey: "test", model: "test-model", fetcher,
+      assetPricesUsd: { OKB: "100", USDY: "1.25" },
+    });
+
+    await expect(compiler.compile("0.005 @OKB into any @USDY", "any")).resolves.toMatchObject({
+      status: "review",
+      values: {
+        templateId: "rwa-acquisition",
+        amount: "0.005",
+        minimum: "0.396",
+        minimumSource: "market-default",
+      },
+    });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("resolves an RWA wallet percentage before deriving its minimum", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(simple({
+      status: "clarification", question: null, templateId: "rwa-acquisition",
+      inputSymbol: "USDG", outputSymbol: "TSLAx", amount: "", minimum: "",
+      walletShareBps: 10_000, jurisdiction: null,
+    }))));
+    const compiler = createOpenAiIntentCompiler({
+      apiKey: "test", model: "test-model", fetcher,
+      walletBalances: { USDG: "1.205704" },
+      assetPricesUsd: { USDG: "1", TSLAx: "300" },
+    });
+
+    await expect(compiler.compile("10% of my @USDG into @TSLAx", "any")).resolves.toMatchObject({
+      status: "review",
+      values: {
+        templateId: "rwa-acquisition",
+        amount: "0.12057",
+        minimum: "0.000397881",
+        minimumSource: "market-default",
+      },
+    });
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
   it("resolves an all-balance RWA input once the minimum outcome is explicit", async () => {
@@ -193,6 +257,31 @@ describe("intent compiler", () => {
       status: "review",
       values: { amount: "2.125", minimum: "2.10375", minimumSource: "stablecoin-default" },
     });
+  });
+
+  it("treats the middle asset in a round trip as a route, not another wallet input", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(conversion([
+      { symbol: "USDG", amount: "", walletShareBps: 10_000 },
+      { symbol: "USDt0", amount: "", walletShareBps: null },
+    ], "USDG"))));
+    const compiler = createOpenAiIntentCompiler({
+      apiKey: "test", model: "test-model", fetcher,
+      walletBalances: { USDG: "1.205704", USDt0: "0" },
+    });
+
+    await expect(compiler.compile(
+      "pls roundtrip all my @USDG into @USDt0 and back into @USDG", "any",
+    )).resolves.toMatchObject({
+      status: "review",
+      values: {
+        templateId: "round-trip",
+        inputToken: INTENT_ASSETS.find(({ symbol }) => symbol === "USDG")!.address,
+        amount: "1.205704",
+        minimum: "0.000001",
+        minimumSource: "round-trip-default",
+      },
+    });
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
   it("asks for funding when an all-my-token input balance is zero", async () => {
@@ -445,7 +534,8 @@ describe("intent compiler", () => {
       inputSymbol: "USDt0", outputSymbol: "USDY", amount: "1", minimum: "0.8",
       jurisdiction: "DE",
     }))));
-    const compiler = createOpenAiIntentCompiler({ apiKey: "test", model: "test-model", fetcher });
+    const compiler = createOpenAiIntentCompiler({ apiKey: "test", model: "test-model", fetcher,
+      assetPricesUsd: { USDt0: "1", USDY: "1.25" } });
 
     await expect(compiler.compile("turn 1 USDt0 into USDY", "any")).resolves.toMatchObject({
       status: "review",
@@ -453,6 +543,7 @@ describe("intent compiler", () => {
         templateId: "rwa-acquisition",
         inputToken: "0x779ded0c9e1022225f8e0630b35a9b54be713736",
         outputToken: "0x96f6ef951840721adbf46ac996b59e0235cb985c",
+        minimum: "0.792",
         jurisdiction: "",
       },
     });

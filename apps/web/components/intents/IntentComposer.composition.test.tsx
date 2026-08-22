@@ -29,6 +29,9 @@ const composed = {
 
 function composerFetch(url: string, publish = false) {
   if (url === "/api/intents/compile") return Response.json({ status: "review", values: composed });
+  if (url === "/api/intents/readiness") {
+    return Response.json({ missingNativeBalanceChainIds: [] });
+  }
   if (url.startsWith(`/api/wallets/${owner}/portfolio`)) return Response.json({ balances: [] });
   if (url === "/api/assets/resolve") return Response.json({ assets: [] });
   if (url === "/api/commerce/discover?limit=12") return Response.json({ offers: [] });
@@ -70,6 +73,9 @@ describe("IntentComposer registered composition", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Review policy" }));
     await screen.findByRole("heading", { name: "Registered composition" });
+    await waitFor(() => expect(screen.getByRole("button", {
+      name: "Sign and publish intent",
+    })).toBeEnabled());
 
     fireEvent.click(screen.getByRole("button", { name: "Sign and publish intent" }));
 

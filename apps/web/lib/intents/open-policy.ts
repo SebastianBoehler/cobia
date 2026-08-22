@@ -127,6 +127,7 @@ export function buildOpenIntentPolicyV3(input: BuildInput): OpenIntentPolicyV3 {
       });
     }
     const chainIds = [...new Set([196, input.outputChainId])].sort((left, right) => left - right);
+    const nativeInput = isNativeAssetAddress(input.inputToken);
     return OpenIntentPolicyV3Schema.parse({
       version: 3, kind: "open-onchain", requestId: input.requestId,
       displayGoal: input.displayGoal.trim(), owner: input.owner.toLowerCase(),
@@ -140,7 +141,8 @@ export function buildOpenIntentPolicyV3(input: BuildInput): OpenIntentPolicyV3 {
         token: input.outputToken.toLowerCase(), atomic: input.minimumOutputAtomic }],
       limits: { maxStages: 4, maxTransactions: 2, maxApprovals: 2, maxCalldataBytes: 32_768,
         maxGasPerTransaction: "5000000", maxSolverFeeAtomic: input.maxSolverFeeAtomic,
-        maxNativeValueAtomicByChain: chainIds.map((chainId) => ({ chainId, atomic: "0" })) },
+        maxNativeValueAtomicByChain: chainIds.map((chainId) => ({ chainId,
+          atomic: nativeInput && chainId === 196 ? input.inputAtomic : "0" })) },
       forbiddenTargets: input.forbiddenTargets, forbiddenAssets: [],
     });
   }

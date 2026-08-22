@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { keccak256, stringToHex } from "viem";
 import {
   DEFAULT_INTENT_RECEIPT_VALUES, decimalToAtomic, INTENT_ASSETS,
-  RWA_INTENT_ASSETS,
+  NATIVE_INTENT_ASSET, RWA_INTENT_ASSETS,
 } from "../../lib/intents/capability-templates";
 import type { IntentComposerDraft } from "../../lib/intents/challenge-draft";
 import { type ActionPreference, type ProtocolExclusionId } from "../../lib/intents/intent-controls";
@@ -22,12 +22,18 @@ import type { PortfolioSnapshot } from "../../lib/portfolio/read-portfolio";
 import { authenticateIntentCompiler } from "../../lib/wallet-auth/client";
 import { extractGoalMentions, useResolvedAssetMentions } from "./useResolvedAssetMentions";
 import type { ComposedIntentDraft } from "../../lib/intents/composition-draft";
-import { buildIntentComposerPolicy } from "../../lib/intents/build-composer-policy";
+import {
+  buildIntentComposerPolicy,
+  intentComposerExecutionChainIds,
+} from "../../lib/intents/build-composer-policy";
 import type { StagedConversionDraft } from "../../lib/intents/staged-conversion-draft";
 import { StagedConversionPolicyEditor } from "./StagedConversionPolicyEditor";
 import type { AvailableIntentAsset } from "./IntentAvailableAssets";
 
 type ComposerValues = ReceiptValues | ComposedIntentDraft | StagedConversionDraft;
+type NativeBalanceReadiness =
+  | { key: string; status: "ready"; missingChainIds: number[] }
+  | { key: string; status: "unavailable" };
 
 function isComposed(values: ComposerValues): values is ComposedIntentDraft {
   return "kind" in values && values.kind === "composed";
@@ -65,6 +71,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
   const [compiling, setCompiling] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
+  const [nativeBalanceReadiness, setNativeBalanceReadiness] = useState<NativeBalanceReadiness>();
   const composerContextKey = `${wallet.account ?? "disconnected"}:${wallet.targetChainId}`;
   const walletPortfolioKey = wallet.account && wallet.targetChainId === 196 ? composerContextKey : undefined;
   const activePortfolio = portfolio && portfolio.key === walletPortfolioKey ? portfolio.snapshot : undefined;
@@ -73,7 +80,8 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
   const composed = isComposed(values);
   const staged = isStaged(values);
   const rwa = !composed && !staged && values.templateId === "rwa-acquisition";
-  const inputAsset = !staged ? INTENT_ASSETS.find(({ address }) => address === values.inputToken) ?? INTENT_ASSETS[0]
+  const inputAsset = !staged ? [NATIVE_INTENT_ASSET, ...INTENT_ASSETS]
+    .find(({ address }) => address === values.inputToken) ?? INTENT_ASSETS[0]
       : INTENT_ASSETS[0];
   const outputAsset = rwa && !composed
     ? RWA_INTENT_ASSETS.find(({ address }) => address === (values as ReceiptValues).outputToken) ?? RWA_INTENT_ASSETS[0]
@@ -97,6 +105,10 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
         : values.templateId === "aave-supply" || minimumAtomic
     )
   ));
+  const executionChainIds = useMemo(() => intentComposerExecutionChainIds(values), [values]);
+  const nativeBalanceReadinessKey = `${wallet.account ?? "disconnected"}:${executionChainIds.join(",")}`;
+  const activeNativeBalanceReadiness = nativeBalanceReadiness?.key === nativeBalanceReadinessKey
+    ? nativeBalanceReadiness : undefined;
 
   const loadWalletAssets = useCallback(() => {
     if (!wallet.account || wallet.targetChainId !== 196 || walletAssetsLoaded.current === composerContextKey) return;
@@ -136,6 +148,32 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
   useEffect(() => {
     if (step === "goal") loadWalletAssets();
   }, [loadWalletAssets, step]);
+
+  useEffect(() => {
+    if (step !== "review" || !wallet.account || !valid) {
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/intents/readiness", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ owner: wallet.account, executionChainIds }),
+    }).then(async (response) => {
+      if (!response.ok) throw new Error("Native balance readiness failed");
+      return response.json() as Promise<{ missingNativeBalanceChainIds: number[] }>;
+    }).then(({ missingNativeBalanceChainIds }) => {
+      if (!Array.isArray(missingNativeBalanceChainIds)) {
+        throw new Error("Native balance readiness payload is invalid");
+      }
+      if (!cancelled) setNativeBalanceReadiness({
+        key: nativeBalanceReadinessKey,
+        status: "ready", missingChainIds: missingNativeBalanceChainIds,
+      });
+    }).catch(() => {
+      if (!cancelled) setNativeBalanceReadiness({ key: nativeBalanceReadinessKey, status: "unavailable" });
+    });
+    return () => { cancelled = true; };
+  }, [executionChainIds, nativeBalanceReadinessKey, step, valid, wallet.account]);
 
   const mentions = useMemo<IntentMention[]>(() => [
     ...INTENT_ASSETS.map(({ symbol, address }) => {
@@ -249,7 +287,8 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!valid || !wallet.account) return;
+    if (!valid || !wallet.account || activeNativeBalanceReadiness?.status !== "ready" ||
+        activeNativeBalanceReadiness.missingChainIds.length > 0) return;
     setPending(true);
     setError(undefined);
     try {
@@ -307,9 +346,23 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
           ? <CompositionPolicyEditor owner={wallet.account} values={values} onChange={setValues} />
           : staged
             ? <StagedConversionPolicyEditor values={values} onChange={setValues} />
-          : <PolicyReceiptEditor owner={wallet.account} values={values} onChange={setValues} />}
+            : <PolicyReceiptEditor owner={wallet.account} values={values} onChange={setValues} />}
         {error ? <p className="form-alert" role="alert">{error}</p> : null}
-        <button className="button button--primary intent-submit" disabled={!valid || pending} type="submit">
+        {!activeNativeBalanceReadiness ? <p className="intent-connect-note" role="status">
+          Checking native gas on every execution chain…
+        </p> : null}
+        {activeNativeBalanceReadiness?.status === "unavailable" ? <p className="form-alert" role="alert">
+          Native balance readiness could not be checked. Try again before signing.
+        </p> : null}
+        {activeNativeBalanceReadiness?.status === "ready" && activeNativeBalanceReadiness.missingChainIds.length > 0
+          ? <p className="form-alert" role="alert">{activeNativeBalanceReadiness.missingChainIds.map((chainId) => {
+            const network = chainId === 1 ? "Ethereum" : chainId === 8453 ? "Base" : "X Layer";
+            const asset = chainId === 1 || chainId === 8453 ? "ETH" : "OKB";
+            return `Add a positive ${asset} balance on ${network} before signing.`;
+          }).join(" ")}</p> : null}
+        <button className="button button--primary intent-submit" disabled={!valid || pending ||
+          activeNativeBalanceReadiness?.status !== "ready" ||
+          activeNativeBalanceReadiness.missingChainIds.length > 0} type="submit">
           {pending ? <LoaderCircle aria-hidden="true" className="spin" size={17} /> : null}
           {pending ? "Publishing intent…" : "Sign and publish intent"}
           {!pending ? <ArrowRight aria-hidden="true" size={17} /> : null}

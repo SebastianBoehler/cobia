@@ -1,7 +1,7 @@
 import type { Address } from "viem";
 import {
   CAPABILITY_TEMPLATES, INTENT_ASSETS, RWA_INTENT_ASSETS, atomicLabel,
-  type CapabilityTemplateId, type IntentReceiptValues,
+  NATIVE_INTENT_ASSET, type CapabilityTemplateId, type IntentReceiptValues,
 } from "../../lib/intents/capability-templates";
 
 export type ReceiptValues = IntentReceiptValues;
@@ -12,7 +12,8 @@ export function PolicyReceiptEditor({ values, owner, onChange }: {
   onChange(values: ReceiptValues): void;
 }) {
   const rwa = values.templateId === "rwa-acquisition";
-  const input = INTENT_ASSETS.find(({ address }) => address === values.inputToken) ?? INTENT_ASSETS[0];
+  const inputOptions = rwa ? [NATIVE_INTENT_ASSET, ...INTENT_ASSETS] : INTENT_ASSETS;
+  const input = inputOptions.find(({ address }) => address === values.inputToken) ?? inputOptions[0]!;
   const output = rwa
     ? RWA_INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? RWA_INTENT_ASSETS[0]
     : INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? INTENT_ASSETS[1];
@@ -38,7 +39,7 @@ export function PolicyReceiptEditor({ values, owner, onChange }: {
               outputToken: INTENT_ASSETS[1]!.address, eligibilityAccepted: false, minimumSource: undefined });
         }}>{CAPABILITY_TEMPLATES.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}</select></label>
         <label>Maximum input<input inputMode="decimal" value={values.amount} onChange={(event) => set("amount", event.target.value)} /></label>
-        <label>Input asset<select value={values.inputToken} onChange={(event) => set("inputToken", event.target.value as Address)}>{INTENT_ASSETS.map(({ address, symbol }) => <option key={address} value={address}>{symbol}</option>)}</select></label>
+        <label>Input asset<select value={values.inputToken} onChange={(event) => set("inputToken", event.target.value as Address)}>{inputOptions.map(({ address, symbol }) => <option key={address} value={address}>{symbol}</option>)}</select></label>
         {values.templateId === "exact-input-swap" ? <label>Output asset<select value={values.outputToken} onChange={(event) => set("outputToken", event.target.value as Address)}>{INTENT_ASSETS.filter(({ address }) => address !== values.inputToken).map(({ address, symbol }) => <option key={address} value={address}>{symbol}</option>)}</select></label> : null}
         {rwa ? <label>Output asset<select value={values.outputToken} onChange={(event) => {
           const outputToken = event.target.value as Address;
@@ -47,6 +48,8 @@ export function PolicyReceiptEditor({ values, owner, onChange }: {
         }}>{RWA_INTENT_ASSETS.map(({ address, symbol, instrument: item }) => <option key={address} value={address}>{symbol} · {item.platform}</option>)}</select></label> : null}
         {values.templateId !== "aave-supply" ? <label>{values.templateId === "round-trip" ? "Minimum profit" : "Minimum output"}<input inputMode="decimal" value={values.minimum} onChange={(event) => set("minimum", event.target.value)} />
           {values.minimumSource === "stablecoin-default" ? <small>Auto-set to a 1% USDG/USDt0 protection floor. Review or edit it before signing.</small> : null}
+          {values.minimumSource === "market-default" ? <small>Auto-set from fresh market prices with a 1% protection margin. Review or edit it before signing.</small> : null}
+          {values.minimumSource === "round-trip-default" ? <small>Auto-set to the smallest positive round-trip profit. Review or edit it before signing.</small> : null}
         </label> : null}
         <div className="policy-fee" role="status"><strong>No solver fee during launch</strong>
           <span>Cobia currently waives the solver success fee. Signing and verified execution remain separate wallet confirmations.</span>

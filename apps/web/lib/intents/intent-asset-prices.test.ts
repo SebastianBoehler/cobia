@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  searchXLayerToken: vi.fn(async (symbol: string) => {
+  searchToken: vi.fn(async (chainId: 1 | 196, symbol: string) => {
     const tokens = {
       OKB: {
         chainId: 196 as const,
@@ -31,25 +31,26 @@ const mocks = vi.hoisted(() => ({
         liquidityUsd: "1",
       },
     };
-    return tokens[symbol as keyof typeof tokens];
+    return chainId === 196 ? tokens[symbol as keyof typeof tokens] : undefined;
   }),
 }));
 
 vi.mock("../env", () => ({ readOkxCredentials: () => ({}) }));
 vi.mock("../okx/client", () => ({
-  createOkxClient: () => ({ searchXLayerToken: mocks.searchXLayerToken }),
+  createOkxClient: () => ({ searchToken: mocks.searchToken }),
 }));
 
 import { readIntentAssetPrices } from "./intent-asset-prices";
 
 describe("intent asset prices", () => {
-  it("queries the canonical USDT symbol and exposes its price as USDt0", async () => {
+  it("queries the canonical USDT symbol and keeps other verified prices after a partial failure", async () => {
+    mocks.searchToken.mockImplementationOnce(async () => undefined);
+
     await expect(readIntentAssetPrices()).resolves.toEqual({
-      OKB: "111.93",
       USDG: "1.0001",
       USDt0: "0.9999",
     });
-    expect(mocks.searchXLayerToken).toHaveBeenCalledWith("USDT");
-    expect(mocks.searchXLayerToken).not.toHaveBeenCalledWith("USDt0");
+    expect(mocks.searchToken).toHaveBeenCalledWith(196, "USDT");
+    expect(mocks.searchToken).not.toHaveBeenCalledWith(196, "USDt0");
   });
 });
