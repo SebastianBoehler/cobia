@@ -72,8 +72,12 @@
 .solver-directory header p { color: var(--muted); font-size: 13px; margin: 5px 0 0; }
 .solver-directory__columns { display: grid; gap: 28px; grid-template-columns: 1fr 1.15fr; margin: 30px 0; }
 .solver-directory h3 { color: var(--muted); font-size: 13px; font-weight: 620; margin: 0 0 12px; }
-.solver-directory ul { display: flex; flex-wrap: wrap; font-family: var(--font-geist-mono), monospace; font-size: 12px; gap: 8px; list-style: none; margin: 0; padding: 0; }
-.solver-directory li { background: var(--wash); border-radius: 9px; line-height: 1.45; overflow-wrap: anywhere; padding: 8px 10px; }
+.solver-directory ul { display: flex; flex-wrap: wrap; font-size: 12px; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.solver-directory .solver-capability { align-items: center; background: var(--wash); border-radius: 9px; display: inline-flex; gap: 6px; line-height: 1.45; min-width: 0; padding: 6px 9px; }
+.solver-capability > svg { color: var(--cobalt); flex: 0 0 auto; }
+.solver-capability > .brand-mark { flex: 0 0 auto; }
+.solver-capability > span:not(.brand-mark) { min-width: 0; overflow-wrap: anywhere; }
+.solver-capability code { color: var(--muted); font: 11px/1 var(--font-geist-mono), monospace; }
 .solver-directory dl { background: var(--wash); border-radius: 14px; display: grid; grid-template-columns: repeat(3, 1fr); margin: 0; overflow: hidden; }
 .solver-directory dl div { display: grid; font-size: 12px; gap: 8px; padding: 15px; }
 .solver-directory dl div + div { border-inline-start: 1px solid var(--line); }
