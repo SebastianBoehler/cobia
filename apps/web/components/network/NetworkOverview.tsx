@@ -102,9 +102,8 @@ function OutcomeLedger({ outcomes, continuation = false }: { outcomes: PublicOut
     <tbody>{outcomes.map((outcome) => <tr key={outcome.submissionId}>
       <th data-label="Outcome" scope="row"><time dateTime={new Date(outcome.confirmedAtSec * 1_000).toISOString()}>
         {dateLabel(outcome.confirmedAtSec)}</time><small> · {outcome.ownerLabel}</small>
-        <strong>{outcome.resultLabel}</strong><span>{outcome.intentClass.replaceAll("-", " ")}</span></th>
-      <td data-label="Token route"><TokenRoute outcome={outcome} />
-        <span>{outcome.volumeUsdE8 === null ? "Unvalued" : usd(outcome.volumeUsdE8)} principal</span></td>
+        <strong>{outcome.resultLabel}</strong></th>
+      <td data-label="Token route"><TokenRoute outcome={outcome} /></td>
       <td data-label="Protocols"><ProtocolTrail protocols={outcome.route.protocols} /></td>
       <td data-label="Solver"><Link href={`/solvers/${outcome.solverId}`}>
         {outcome.solverId}<ArrowRight aria-hidden="true" size={14} /></Link></td>
@@ -112,7 +111,7 @@ function OutcomeLedger({ outcomes, continuation = false }: { outcomes: PublicOut
         <Link href={`/programs/${outcome.submissionId}`}>Program</Link>
         <a aria-label={`Transaction for ${outcome.resultLabel} (opens in new tab)`}
           href={`https://web3.okx.com/explorer/x-layer/evm/tx/${outcome.transactionHash}`}
-          rel="noreferrer" target="_blank">Transaction <ArrowUpRight aria-hidden="true" size={13} /></a>
+          rel="noreferrer" target="_blank">Tx hash <ArrowUpRight aria-hidden="true" size={13} /></a>
       </div></td>
     </tr>)}</tbody>
   </table></div>;

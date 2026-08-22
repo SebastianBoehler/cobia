@@ -115,7 +115,7 @@
 .ledger thead th:nth-child(4) { width: 17%; }
 .ledger tbody th, .ledger tbody td {
   border-bottom: 1px solid var(--line);
-  padding: 19px 16px 19px 0;
+  padding: 14px 16px 14px 0;
   vertical-align: middle;
 }
 .ledger tbody th { font-weight: 400; }
@@ -154,7 +154,7 @@
 .protocolTrail { align-items: center; display: flex; flex-wrap: wrap; gap: 5px; list-style: none; margin: 0; padding: 0; }
 .protocolTrail li { align-items: center; display: inline-flex; gap: 5px; }
 .protocolTrail li span { color: var(--muted); font-size: 10px; }
-.proofLinks { align-items: flex-start; display: flex; flex-direction: column; gap: 2px; }
+.proofLinks { align-items: center; display: flex; gap: 10px; }
 .proofLinks a {
   align-items: center;
   color: var(--cobalt-dark);
@@ -162,8 +162,9 @@
   font-size: 12px;
   font-weight: 630;
   gap: 5px;
-  min-height: 38px;
+  min-height: 32px;
 }
+.proofLinks a + a { border-left: 1px solid var(--line); padding-left: 10px; }
 
 .moreOutcomes { border-top: 1px solid var(--line); margin-top: 2px; }
 .moreOutcomes summary { align-items: center; color: var(--cobalt-dark); cursor: pointer; display: flex; font-size: 12px; font-weight: 650; gap: 10px; justify-content: space-between; list-style: none; min-height: 58px; }
@@ -237,7 +238,7 @@
   .ledger tbody th, .ledger tbody td { border: 0; padding: 10px 0; }
   .ledger tbody td { border-top: 1px solid var(--line); }
   .ledger [data-label]::before { color: var(--muted); content: attr(data-label); display: block; font-size: 10px; margin-bottom: 6px; }
-  .proofLinks { align-items: center; flex-direction: row; gap: 18px; }
+  .proofLinks { gap: 14px; }
   .tokenRoute { align-items: flex-start; flex-wrap: wrap; }
   .tokenRoute > svg { margin-top: 13px; }
   .moreOutcomes summary { align-items: flex-start; flex-wrap: wrap; padding: 12px 0; }

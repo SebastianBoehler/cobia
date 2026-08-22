@@ -66,6 +66,9 @@ describe("NetworkOverview", () => {
     expect(html).toContain('href="/solvers/alpha-solver"');
     expect(html).toContain(`href="https://web3.okx.com/explorer/x-layer/evm/tx/${transactionHash}"`);
     expect(html).toContain("Transaction for Verified token swap (opens in new tab)");
+    expect(html).toContain("Tx hash");
+    expect(html).not.toContain("stablecoin swap");
+    expect(html).not.toContain("$0.99912234 principal");
     expect(html).not.toContain(owner);
     expect(html).not.toContain("Private raw goal");
   });
