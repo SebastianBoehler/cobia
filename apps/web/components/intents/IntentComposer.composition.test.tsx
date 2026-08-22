@@ -27,6 +27,14 @@ const composed = {
   deadlineDurationSec: 600,
 };
 
+function composerFetch(url: string, publish = false) {
+  if (url === "/api/intents/compile") return Response.json({ status: "review", values: composed });
+  if (url.startsWith(`/api/wallets/${owner}/portfolio`)) return Response.json({ balances: [] });
+  if (url === "/api/assets/resolve") return Response.json({ assets: [] });
+  if (url === "/api/commerce/discover?limit=12") return Response.json({ offers: [] });
+  return Response.json(publish ? { links: { intent: "/intents/composed" } } : {}, { status: publish ? 202 : 404 });
+}
+
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 beforeEach(() => {
   state.push.mockReset();
@@ -35,9 +43,8 @@ beforeEach(() => {
 
 describe("IntentComposer registered composition", () => {
   it("reviews the exact multi-step yield goal as one composition", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({
-      status: "review", values: composed,
-    })));
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string) =>
+      Promise.resolve(composerFetch(url))));
     render(<IntentComposer />);
 
     fireEvent.change(screen.getByLabelText("What should happen?"), { target: { value:
@@ -55,9 +62,7 @@ describe("IntentComposer registered composition", () => {
 
   it("signs and posts the exact reviewed policy commitment", async () => {
     const fetchMock = vi.fn().mockImplementation((url: string) =>
-      url === "/api/intents/compile"
-        ? Promise.resolve(Response.json({ status: "review", values: composed }))
-        : Promise.resolve(Response.json({ links: { intent: "/intents/composed" } }, { status: 202 })));
+      Promise.resolve(composerFetch(url, url === "/api/intents")));
     vi.stubGlobal("fetch", fetchMock);
     render(<IntentComposer />);
     fireEvent.change(screen.getByLabelText("What should happen?"), {
@@ -68,8 +73,9 @@ describe("IntentComposer registered composition", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Sign and publish intent" }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    const body = JSON.parse(String(fetchMock.mock.calls[1]![1].body));
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => url === "/api/intents")).toBe(true));
+    const publishRequest = fetchMock.mock.calls.find(([url]) => url === "/api/intents");
+    const body = JSON.parse(String(publishRequest?.[1]?.body));
     expect(body.policy).toMatchObject({
       version: 1, kind: "capability-composition",
       input: { token: INTENT_ASSETS[0]!.address.toLowerCase(), maxAtomic: "1000000" },
