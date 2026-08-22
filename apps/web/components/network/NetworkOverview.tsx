@@ -27,18 +27,6 @@ function usd(value: string): string {
   return `$${formatUnits(BigInt(value), 8)}`;
 }
 
-function principal(outcome: PublicOutcomeV1): string {
-  const amount = outcome.principal.decimals === null
-    ? `${outcome.principal.atomic} atomic`
-    : formatUnits(BigInt(outcome.principal.atomic), outcome.principal.decimals);
-  return `${amount} ${outcome.principal.symbol}`;
-}
-
-function assetAmount(value: { atomic: string; symbol: string; decimals: number | null }): string {
-  const amount = value.decimals === null ? `${value.atomic} atomic` : formatUnits(BigInt(value.atomic), value.decimals);
-  return `${amount} ${value.symbol}`;
-}
-
 function TokenMark({ symbol }: { symbol: string }) {
   if (symbol === "USDG" || symbol === "USDt0") return <AssetMark asset={symbol as AssetIdentity} size={22} />;
   return <span aria-label={`${symbol} token`} className={styles.assetMark} role="img">{symbol.slice(0, 1)}</span>;
@@ -71,21 +59,21 @@ function OverviewMetrics({ report }: { report: NetworkOverviewReport }) {
   </div>)}</dl>;
 }
 
-function ProtocolTrail({ protocols }: { protocols: string[] }) {
-  if (!protocols.length) return <span className={styles.unrecorded}>Not recorded</span>;
-  return <ul aria-label={`Protocols used: ${protocols.join(", ")}`} className={styles.protocolTrail}>
-    {protocols.map((protocol) => <li key={protocol}><ProtocolMark protocol={protocol} size={22} /><span>{protocol}</span></li>)}
-  </ul>;
-}
-
 function TokenRoute({ outcome }: { outcome: PublicOutcomeV1 }) {
   const outputs = outcome.route.minimumOutputs;
-  return <div className={styles.tokenRoute}>
-    <div><TokenMark symbol={outcome.principal.symbol} /><span><small>Input</small><strong>{principal(outcome)}</strong></span></div>
-    <ArrowRight aria-hidden="true" size={15} />
-    {outputs.length ? <div><TokenMark symbol={outputs[0]!.symbol} /><span><small>Minimum output</small>
-      <strong>≥ {assetAmount(outputs[0]!)}</strong>{outputs.length > 1 ? <em>+{outputs.length - 1} signed outcome{outputs.length === 2 ? "" : "s"}</em> : null}</span></div>
-      : <span className={styles.unrecorded}>No token outcome recorded</span>}
+  const input = outcome.principal.symbol;
+  const output = outputs[0]?.symbol;
+  const protocolDescription = outcome.route.protocols.length ? outcome.route.protocols.join(", then ") : "an unrecorded protocol";
+  const routeLabel = output ? `${input} through ${protocolDescription} to ${output}` : `${input} through ${protocolDescription}`;
+
+  return <div aria-label={routeLabel} className={styles.tokenRoute} role="img">
+    <span aria-hidden="true" className={styles.routeAsset}><TokenMark symbol={input} /><strong>{input}</strong></span>
+    {outcome.route.protocols.map((protocol) => <span aria-hidden="true" className={styles.routeStep} key={protocol}>
+      <ArrowRight size={14} /><ProtocolMark protocol={protocol} size={20} />
+    </span>)}
+    {output ? <span aria-hidden="true" className={styles.routeStep}>
+      <ArrowRight size={14} /><span className={styles.routeAsset}><TokenMark symbol={output} /><strong>{output}</strong></span>
+    </span> : <span className={styles.unrecorded}>No token outcome recorded</span>}
   </div>;
 }
 
@@ -96,15 +84,14 @@ function OutcomeLedger({ outcomes, continuation = false }: { outcomes: PublicOut
     <Link className="button button--primary" href="/intents/new">Create an intent</Link>
   </div>;
   return <div className={styles.ledgerWrap}><table className={styles.ledger}>
-    <caption className="sr-only">{continuation ? "Older confirmed Cobia outcomes" : "Confirmed Cobia outcomes with their token route, solver, and public proof"}</caption>
-    <thead><tr><th scope="col">Outcome</th><th scope="col">Token route</th><th scope="col">Protocols</th>
+    <caption className="sr-only">{continuation ? "Older confirmed Cobia outcomes" : "Confirmed Cobia outcomes with their route, solver, and public proof"}</caption>
+    <thead><tr><th scope="col">Outcome</th><th scope="col">Route</th>
       <th scope="col">Solver</th><th scope="col">Proof</th></tr></thead>
     <tbody>{outcomes.map((outcome) => <tr key={outcome.submissionId}>
       <th data-label="Outcome" scope="row"><time dateTime={new Date(outcome.confirmedAtSec * 1_000).toISOString()}>
         {dateLabel(outcome.confirmedAtSec)}</time><small> · {outcome.ownerLabel}</small>
         <strong>{outcome.resultLabel}</strong></th>
-      <td data-label="Token route"><TokenRoute outcome={outcome} /></td>
-      <td data-label="Protocols"><ProtocolTrail protocols={outcome.route.protocols} /></td>
+      <td data-label="Route"><TokenRoute outcome={outcome} /></td>
       <td data-label="Solver"><Link href={`/solvers/${outcome.solverId}`}>
         {outcome.solverId}<ArrowRight aria-hidden="true" size={14} /></Link></td>
       <td data-label="Proof"><div className={styles.proofLinks}>
@@ -195,7 +182,7 @@ export function NetworkOverview({ report, solvers }: {
       <OverviewMetrics report={report} />
       <section className={styles.section} aria-labelledby="confirmed-outcomes">
         <header><div><h2 id="confirmed-outcomes">Inspect confirmed outcomes.</h2></div>
-          <p>Principal is counted once. Token routes show signed minimum outcomes; proposals, rehearsals, approvals, fees, and internal program legs are excluded.</p></header>
+          <p>Principal is counted once. Routes show the signed input and outcome assets; proposals, rehearsals, approvals, fees, and internal program legs are excluded.</p></header>
         <OutcomeLedgerSection report={report} />
       </section>
       <SolverTable report={report} solvers={solvers} />

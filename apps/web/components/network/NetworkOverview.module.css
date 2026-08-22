@@ -109,9 +109,9 @@
   font-weight: 580;
   padding: 0 16px 12px 0;
 }
-.ledger thead th:first-child { width: 23%; }
-.ledger thead th:nth-child(2) { width: 29%; }
-.ledger thead th:nth-child(3) { width: 16%; }
+.ledger thead th:first-child { width: 29%; }
+.ledger thead th:nth-child(2) { width: 34%; }
+.ledger thead th:nth-child(3) { width: 20%; }
 .ledger thead th:nth-child(4) { width: 17%; }
 .ledger tbody th, .ledger tbody td {
   border-bottom: 1px solid var(--line);
@@ -131,11 +131,10 @@
   overflow-wrap: anywhere;
 }
 .mono { font-family: var(--font-geist-mono), monospace; font-variant-numeric: tabular-nums; }
-.tokenRoute { align-items: center; display: flex; gap: 9px; min-width: 0; }
-.tokenRoute > div { align-items: center; display: flex; gap: 8px; min-width: 0; }
-.tokenRoute > div > span { min-width: 0; }
-.tokenRoute strong { font-family: var(--font-geist-mono), monospace; font-size: 12px; overflow-wrap: anywhere; }
-.tokenRoute em { color: var(--muted); display: block; font-size: 10px; font-style: normal; margin-top: 3px; }
+.tokenRoute { align-items: center; display: flex; gap: 8px; min-width: 0; }
+.routeAsset, .routeStep { align-items: center; display: inline-flex; flex: 0 0 auto; gap: 7px; }
+.routeAsset strong { font-family: var(--font-geist-mono), monospace; font-size: 12px; margin: 0; }
+.routeStep > svg { color: var(--muted); flex: 0 0 auto; }
 .assetMark {
   align-items: center;
   background: var(--cobalt-wash);
@@ -151,9 +150,6 @@
   width: 22px;
 }
 .unrecorded { color: var(--muted); font-size: 11px; line-height: 1.45; }
-.protocolTrail { align-items: center; display: flex; flex-wrap: wrap; gap: 5px; list-style: none; margin: 0; padding: 0; }
-.protocolTrail li { align-items: center; display: inline-flex; gap: 5px; }
-.protocolTrail li span { color: var(--muted); font-size: 10px; }
 .proofLinks { align-items: center; display: flex; gap: 10px; }
 .proofLinks a {
   align-items: center;
@@ -239,8 +235,7 @@
   .ledger tbody td { border-top: 1px solid var(--line); }
   .ledger [data-label]::before { color: var(--muted); content: attr(data-label); display: block; font-size: 10px; margin-bottom: 6px; }
   .proofLinks { gap: 14px; }
-  .tokenRoute { align-items: flex-start; flex-wrap: wrap; }
-  .tokenRoute > svg { margin-top: 13px; }
+  .tokenRoute { flex-wrap: wrap; }
   .moreOutcomes summary { align-items: flex-start; flex-wrap: wrap; padding: 12px 0; }
   .moreOutcomes summary small { margin-left: 0; width: 100%; }
 }

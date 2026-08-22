@@ -61,7 +61,12 @@ describe("NetworkOverview", () => {
     expect(html).toContain("1 / 1 valued outcomes");
     expect(html).toContain("3 / 4 resolved revisions");
     expect(html).toContain("Declared protocol support");
-    expect(html).toContain("Minimum output");
+    expect(html).toContain('<th scope="col">Route</th>');
+    expect(html).toContain('aria-label="USDt0 through Curve to USDG"');
+    expect(html).not.toContain("Minimum output");
+    expect(html).not.toContain('<th scope="col">Protocols</th>');
+    expect(html).not.toContain("1000000");
+    expect(html).not.toContain("999000");
     expect(html).toContain('href="/programs/22222222-2222-4222-8222-222222222222"');
     expect(html).toContain('href="/solvers/alpha-solver"');
     expect(html).toContain(`href="https://web3.okx.com/explorer/x-layer/evm/tx/${transactionHash}"`);
