@@ -32,7 +32,6 @@ export function AgentProgramDetails({ program, tokenLabel, tokenDecimals }: {
     </summary>
     <div className={styles.detailsBody}>
       <section className={styles.detailSection} aria-labelledby="replay-heading">
-        <p className={styles.kicker}>Independent check</p>
         <h2 id="replay-heading">{artifacts.replay?.payload?.reproduced
           ? "Replay reproduced the signed outcome"
           : "Replay was not accepted"}</h2>
@@ -45,7 +44,6 @@ export function AgentProgramDetails({ program, tokenLabel, tokenDecimals }: {
       </section>
 
       <section className={styles.detailSection} aria-labelledby="calls-heading">
-        <p className={styles.kicker}>Wallet sequence</p>
         <h2 id="calls-heading">Verified calls</h2>
         {approvals.length + routeSteps.length > 0 ? <ol className={styles.routeList}>
           {approvals.map((approval, index) => <li key={`${approval.token}-${index}`}>
@@ -61,7 +59,6 @@ export function AgentProgramDetails({ program, tokenLabel, tokenDecimals }: {
       </section>
 
       <section className={`${styles.detailSection} ${styles.ledger}`} aria-labelledby="evidence-heading">
-        <p className={styles.kicker}>Evidence ledger</p>
         <h2 id="evidence-heading">Pinned facts</h2>
         <dl>
           <div><dt><Bot aria-hidden="true" /> Solver</dt><dd>{submission.solverId}</dd></div>

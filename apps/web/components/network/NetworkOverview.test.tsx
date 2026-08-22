@@ -40,8 +40,16 @@ describe("NetworkOverview", () => {
   it("makes every aggregate traceable without exposing a raw owner or goal", () => {
     const html = renderToStaticMarkup(<NetworkOverview report={report} solvers={solvers} />);
 
-    expect(html).toContain("Every outcome,");
-    expect(html).toContain("independently verified.");
+    expect(html).toContain("See exactly what happened ");
+    expect(html).toContain("<em>onchain.</em>");
+    expect(html).toContain("Inspect confirmed outcomes");
+    expect(html).toContain("Compare solvers by verified results");
+    expect(html).not.toContain("Performance without an opaque score");
+    expect(html).not.toContain("Public proof log");
+    expect(html).not.toContain("Solver evidence");
+    expect(html).toContain("<table");
+    expect(html).toContain('<th scope="col">Outcome</th>');
+    expect(html).toContain("View solver");
     expect(html).toContain("$0.99912234");
     expect(html).toContain("0x1111…1111");
     expect(html).toContain("1 / 1 valued outcomes");
@@ -49,6 +57,7 @@ describe("NetworkOverview", () => {
     expect(html).toContain('href="/programs/22222222-2222-4222-8222-222222222222"');
     expect(html).toContain('href="/solvers/alpha-solver"');
     expect(html).toContain(`href="https://web3.okx.com/explorer/x-layer/evm/tx/${transactionHash}"`);
+    expect(html).toContain("Transaction for Verified token swap (opens in new tab)");
     expect(html).not.toContain(owner);
     expect(html).not.toContain("Private raw goal");
   });

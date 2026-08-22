@@ -25,7 +25,7 @@ describe("network page", () => {
 
   it("loads one consistent observation window for network and solver evidence", async () => {
     const html = renderToStaticMarkup(await NetworkPage());
-    expect(html).toContain("Cobia Network");
+    expect(html).toContain("See exactly what happened");
     expect(mocks.read).toHaveBeenCalledWith({
       window: "30d", limit: 20, cursor: null, observedAtSec: 2_000_000_000,
     });

@@ -52,7 +52,6 @@ export function AgentProgramSummary({ program, action }: {
   return <div className={styles.shell}>
     <header className={styles.hero}>
       <div className={styles.heroCopy}>
-        <p className={styles.kicker}>{completed ? "Confirmed execution" : "Verified program"}</p>
         <h1 data-title-density={goalTitleDensity(submission.displayGoal ?? "Agent-authored route")}>
           {submission.displayGoal ?? "Agent-authored route"}
         </h1>
@@ -67,7 +66,7 @@ export function AgentProgramSummary({ program, action }: {
       completed ? "Confirmed swap result" : "Expected swap result"
     }>
       <div className={styles.resultMain}>
-        <p className={styles.kicker}>{completed ? "Received" : "Fork replay estimate"}</p>
+        <h2 className={styles.resultHeading}>{completed ? "Received" : "Fork replay estimate"}</h2>
         {balanceChanges.length > 0 ? <ul className={styles.balanceList}>{balanceChanges.map((delta) => {
           const change = BigInt(delta.afterAtomic) - BigInt(delta.beforeAtomic);
           const label = tokenLabel(delta.token);
