@@ -1,7 +1,7 @@
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { runCodexSolver, solverCodexConfig } from "../src/codex-runner";
 
 async function* events() {
@@ -20,6 +20,10 @@ async function* events() {
 }
 
 describe("Codex solver runner", () => {
+  beforeEach(() => {
+    vi.stubEnv("COBIA_MODEL", "deepseek/deepseek-v4-flash-0731");
+  });
+
   it("uses a required typed route MCP and disables nested shell execution", () => {
     const config = solverCodexConfig({ cwd: "/jobs/intent", intentPath: "/jobs/intent/intent.json",
       decisionPath: "/jobs/intent/decision.json", prompt: "solve" });
@@ -51,10 +55,9 @@ describe("Codex solver runner", () => {
     });
 
     expect(startThread).toHaveBeenCalledWith(expect.objectContaining({
-      workingDirectory: cwd,
+      model: "deepseek/deepseek-v4-flash-0731", workingDirectory: cwd,
       sandboxMode: "workspace-write", approvalPolicy: "never",
     }));
-    expect(startThread.mock.calls[0]![0]).not.toHaveProperty("model");
     expect(result).toMatchObject({ threadId: "thread-123", usage: {
       turns: 1, totalTokens: 14, stopReason: "turn-limit",
     }, decision: {

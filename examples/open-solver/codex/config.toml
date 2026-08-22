@@ -1,13 +1,10 @@
-# Solver-owned Codex choices. The host still enforces the signing boundary,
-# disables arbitrary shell execution, and binds the route MCP to one intent.
-model = "gpt-5.6-terra"
+# The host selects the model with COBIA_MODEL. This file fixes the shared
+# OpenRouter transport and the solver's non-secret operating limits.
+model_provider = "openrouter"
 model_reasoning_effort = "medium"
 web_search = "live"
 include_apps_instructions = false
 
-# Optional OpenRouter transport. To use it, set `model_provider = "openrouter"`
-# above, replace `model` with an OpenRouter model slug such as
-# `deepseek/deepseek-v3.2`, and provide OPENROUTER_API_KEY to the worker.
 [model_providers.openrouter]
 name = "OpenRouter"
 base_url = "https://openrouter.ai/api/v1"

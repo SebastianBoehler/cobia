@@ -166,7 +166,7 @@ export function createOpenAiIntentCompiler(options: Options) {
     const inputSymbols = [...new Set([
       "OKB", ...walletAssets.map(({ symbol }) => symbol), ...Object.keys(options.walletBalances ?? {}),
     ])];
-    const response = await fetcher("https://api.openai.com/v1/responses", {
+    const response = await fetcher("https://openrouter.ai/api/v1/responses", {
       method: "POST", headers: { Authorization: `Bearer ${options.apiKey}`,
         "Content-Type": "application/json" },
       body: JSON.stringify({ model: options.model, store: false, max_output_tokens: 300,

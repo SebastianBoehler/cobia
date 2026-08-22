@@ -52,6 +52,7 @@ describe("intent compiler", () => {
       status: "review", values: { templateId: "exact-input-swap", amount: "10", minimum: "9.95" },
     });
     const request = JSON.parse(fetcher.mock.calls[0]![1]!.body as string);
+    expect(fetcher.mock.calls[0]![0]).toBe("https://openrouter.ai/api/v1/responses");
     expect(request.model).toBe("test-model");
     expect(request.input).toContain("Swap 10 USDG");
     expect(JSON.parse(request.input).templates).toEqual(["exact-input-swap"]);

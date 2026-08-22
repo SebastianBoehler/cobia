@@ -31,10 +31,13 @@ DATABASE_URL=postgresql://cobia:cobia@127.0.0.1:5432/cobia
 # Deterministic solver: ${wallets.deterministic.address}
 DETERMINISTIC_SOLVER_PRIVATE_KEY=${wallets.deterministic.privateKey}
 
-# Agentic solver: ${wallets.agentic.address}
+# Legacy agentic-solver signing key: ${wallets.agentic.address}
 AI_SOLVER_PRIVATE_KEY=${wallets.agentic.privateKey}
-OPENAI_API_KEY=
-OPENAI_SOLVER_MODEL=
+
+# Shared intent/compiler and reference-solver model. Set an OpenRouter key
+# before compiling an intent locally.
+COBIA_MODEL=deepseek/deepseek-v4-flash-0731
+OPENROUTER_API_KEY=
 
 # Seller payment state and the recoverable 10% protocol treasury.
 MPPX_SECRET_KEY=${mppSecret}
@@ -65,6 +68,8 @@ async function migrateExistingEnv() {
   if (!/^WALLET_AUTH_SECRET=/m.test(content)) {
     additions.push(`WALLET_AUTH_SECRET=${randomBytes(32).toString("hex")}`);
   }
+  if (!/^COBIA_MODEL=/m.test(content)) additions.push("COBIA_MODEL=deepseek/deepseek-v4-flash-0731");
+  if (!/^OPENROUTER_API_KEY=/m.test(content)) additions.push("OPENROUTER_API_KEY=");
   if (additions.length === 0) {
     console.error(`Refusing to overwrite existing ${envPath}`);
     process.exitCode = 1;

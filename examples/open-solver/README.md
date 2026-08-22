@@ -23,36 +23,24 @@ it never controls user assets and is never sent to Cobia.
 
 ```bash
 cp examples/open-solver/.env.example examples/open-solver/.env
-# Set REFERENCE_SOLVER_PRIVATE_KEY and either OPENAI_API_KEY, OPENROUTER_API_KEY,
-# or authenticate the persistent Codex runtime once, then start the worker:
+# Set REFERENCE_SOLVER_PRIVATE_KEY, COBIA_MODEL, and OPENROUTER_API_KEY, then
+# start the worker:
 docker compose -f examples/open-solver/compose.yaml up -d --build
 ```
 
-To use a ChatGPT/Codex login instead of an API key, initialize the named auth
-volume before starting the long-running worker:
-
-```bash
-docker compose -f examples/open-solver/compose.yaml run --rm \
-  solver pnpm --filter @cobia/example-open-solver exec codex login --device-auth
-```
-
-The checked-in `codex/config.toml` is the operator surface. It selects the
-model, reasoning effort, web research, risk level, and non-secret worker limits:
+`COBIA_MODEL` is the single model selector shared with Cobia's intent compiler.
+The checked-in `codex/config.toml` fixes the OpenRouter transport, reasoning
+effort, web research, risk level, and non-secret worker limits:
 polling, parallel jobs, retry ceiling, backoff, Codex turns, total tokens, and
 per-turn timeout. A curated-route abstention remains internal while exploration
 budget remains; the same Codex thread can research multi-hop paths, external
 protocols, raw exact calls, and market inefficiencies before returning its final
 decision. Account-level apps
 are disabled so a dedicated worker loads only its local skills and bound route
-MCP. Every run logs its Codex thread id and records `config.toml` as the model
-source.
+MCP. Every run logs its Codex thread id and the active `COBIA_MODEL`.
 
-The default remains the built-in OpenAI provider. To run through OpenRouter,
-set `model_provider = "openrouter"`, choose an OpenRouter model slug such as
-`model = "deepseek/deepseek-v3.2"`, and set `OPENROUTER_API_KEY` in `.env`.
-The provider uses OpenRouter's Responses API; OpenRouter currently labels that
-endpoint beta, so verify the selected model's tool behavior before leaving it
-unattended.
+Use `COBIA_MODEL=deepseek/deepseek-v4-flash-0731` and provide
+`OPENROUTER_API_KEY` in `.env`.
 
 The host process alone holds `REFERENCE_SOLVER_PRIVATE_KEY`. Codex receives no
 wallet provider or transaction-send method, and the shell environment policy

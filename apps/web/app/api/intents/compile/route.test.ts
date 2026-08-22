@@ -42,7 +42,8 @@ function request(cookie?: string, origin = "https://getcobia.com", goal = "Suppl
 describe("authenticated intent compiler API", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.stubEnv("OPENAI_API_KEY", "test-key");
+    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+    vi.stubEnv("COBIA_MODEL", "deepseek/deepseek-v4-flash-0731");
     mocks.completeCompilation.mockResolvedValue(undefined);
     mocks.failCompilation.mockResolvedValue(undefined);
     mocks.readSession.mockResolvedValue({ owner: "0x1111111111111111111111111111111111111111" });
@@ -94,7 +95,9 @@ describe("authenticated intent compiler API", () => {
       "policy.capability-composition@1", expect.any(Number),
     );
     expect(mocks.compilerOptions).toHaveBeenCalledWith(expect.objectContaining({
+      apiKey: "test-key",
       compositionAvailable: true,
+      model: "deepseek/deepseek-v4-flash-0731",
     }));
     expect(mocks.completeCompilation).toHaveBeenCalledWith(
       "550e8400-e29b-41d4-a716-446655440000", { status: "review", values: {} },

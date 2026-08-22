@@ -87,7 +87,6 @@ export function solverCodexConfig(job: CodexJob) {
 
 export function createSolverCodex(job: CodexJob): SolverCodexLike {
   return new Codex({
-    ...(process.env.OPENAI_API_KEY ? { apiKey: process.env.OPENAI_API_KEY } : {}),
     env: runtimeEnvironment(),
     config: solverCodexConfig(job),
   });
@@ -144,8 +143,11 @@ export async function runCodexSolver(input: {
       input.exploration.maxTotalTokens <= 0) {
     throw new Error("Codex exploration budget must use positive integers");
   }
+  const model = process.env.COBIA_MODEL;
+  if (!model) throw new Error("COBIA_MODEL is required for the reference solver");
   const codex = input.codex ?? createSolverCodex(input.job);
   const thread = codex.startThread({
+    model,
     workingDirectory: input.job.cwd,
     skipGitRepoCheck: true,
     sandboxMode: "workspace-write",

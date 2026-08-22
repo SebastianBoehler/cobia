@@ -12,6 +12,7 @@ import { getSolverProfileRepository } from "../../../../lib/runtime/market";
 import { currentUnixSeconds } from "../../../../lib/time";
 import { readPortfolio } from "../../../../lib/portfolio/read-portfolio";
 import { readIntentAssetPrices } from "../../../../lib/intents/intent-asset-prices";
+import { RWA_INTENT_ASSETS } from "../../../../lib/intents/capability-templates";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,7 +71,10 @@ export async function POST(request: Request): Promise<Response> {
     }
     let assetPricesUsd: Readonly<Record<string, string>> | undefined;
     if (actionPreference === "any") {
-      assetPricesUsd = await readIntentAssetPrices().catch(() => undefined);
+      const requestedRwaSymbols = RWA_INTENT_ASSETS.filter(({ symbol }) =>
+        new RegExp(`(^|[^A-Za-z0-9])@?${symbol}(?=$|[^A-Za-z0-9])`, "i").test(goal))
+        .map(({ symbol }) => symbol);
+      assetPricesUsd = await readIntentAssetPrices(requestedRwaSymbols).catch(() => undefined);
       if (assetPricesUsd) {
         const priceFingerprint = Object.entries(assetPricesUsd).sort(([left], [right]) =>
           left.localeCompare(right)).map(([symbol, price]) => `${symbol}:${price}`).join(",");
@@ -98,10 +102,10 @@ export async function POST(request: Request): Promise<Response> {
       });
     }
     leaseId = admission.id;
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) throw new Error("Intent compiler API key is unavailable");
-    const model = process.env.OPENAI_INTENT_MODEL ?? process.env.OPENAI_CODING_AGENT_MODEL ??
-      process.env.OPENAI_SOLVER_MODEL ?? "gpt-5.6-terra";
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) throw new Error("Intent compiler OpenRouter API key is unavailable");
+    const model = process.env.COBIA_MODEL;
+    if (!model) throw new Error("Intent compiler model is unavailable");
     const compositionAvailable = await getSolverProfileRepository().supportsCapability(
       "policy.capability-composition@1", currentUnixSeconds(),
     );
