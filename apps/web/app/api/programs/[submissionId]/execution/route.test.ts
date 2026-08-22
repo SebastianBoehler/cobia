@@ -213,4 +213,45 @@ describe("canonical program execution access", () => {
       message: "The verified execution window has closed. Create a fresh intent.",
     });
   });
+
+  it("prepares an existing signed program without payment while launch fees are waived", async () => {
+    const execution = {
+      version: 1, kind: "wallet-call-batch", owner, deadline: 2_000_001_000,
+      assurance: "exact-call-fork-replay",
+      stages: [{ stageId: "swap", chainId: 196, calls: [{
+        to: "0x2222222222222222222222222222222222222222", data: "0x1234", value: "0x0",
+      }] }],
+    };
+    const policy = OpenIntentPolicyV3Schema.parse({
+      version: 3, kind: "open-onchain", requestId: submissionId, displayGoal: "Swap USDG",
+      owner, executionChainIds: [196], nonce: `0x${"33".repeat(32)}`,
+      createdAt: 2_000_000_000, deadline: 2_000_001_000,
+      competition: { closesAt: 2_000_000_300, maxRevisionsPerSolver: 1 }, maxEvidenceAgeSec: 300,
+      inputs: [{ chainId: 196, token: "0x3333333333333333333333333333333333333333", maximumAtomic: "1" }],
+      outcomes: [{ kind: "minimum-increase", chainId: 196,
+        token: "0x2222222222222222222222222222222222222222", atomic: "1" }],
+      limits: { maxStages: 1, maxTransactions: 1, maxApprovals: 0, maxCalldataBytes: 4,
+        maxGasPerTransaction: "1", maxSolverFeeAtomic: "100000",
+        maxNativeValueAtomicByChain: [{ chainId: 196, atomic: "0" }] },
+      forbiddenTargets: [], forbiddenAssets: [],
+    });
+    mocks.verifyProof.mockResolvedValue({
+      programId: submissionId, owner, realm: "getcobia.com", expiresAt: 2_000_000_300,
+    });
+    mocks.getExecutionContext.mockResolvedValue({
+      owner, solverId: "cobia-reference", state: "attested", policy, artifacts: [{
+        kind: "execution", payload: execution, artifactHash: commitment(execution),
+      }],
+    });
+
+    const response = await POST(request(), context);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      chainId: 196, transactions: execution.stages[0].calls,
+      successFee: { amountAtomic: "0", state: "waived" },
+    });
+    expect(mocks.profileIdentity).not.toHaveBeenCalled();
+    expect(mocks.readPaymentConfig).not.toHaveBeenCalled();
+  });
 });

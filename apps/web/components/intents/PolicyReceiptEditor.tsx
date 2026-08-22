@@ -60,13 +60,9 @@ export function PolicyReceiptEditor({ values, owner, onChange }: {
         {values.templateId !== "aave-supply" ? <label>{values.templateId === "round-trip" ? "Minimum profit" : "Minimum output"}<input inputMode="decimal" value={values.minimum} onChange={(event) => set("minimum", event.target.value)} />
           {values.minimumSource === "stablecoin-default" ? <small>Auto-set to a 1% USDG/USDt0 protection floor. Review or edit it before signing.</small> : null}
         </label> : null}
-        <label className="policy-fee">Maximum solver success fee
-          <span className="policy-fee__value">{Number(values.maxSolverFeeUsd).toFixed(2)} USDt0</span>
-          <input aria-label="Maximum solver success fee" max="0.50" min="0" step="0.05"
-            type="range" value={values.maxSolverFeeUsd}
-            onChange={(event) => set("maxSolverFeeUsd", Number(event.target.value).toFixed(2))} />
-          <small>Paid only after confirmed execution. The signed cap prevents a solver fee above this budget.</small>
-        </label>
+        <div className="policy-fee" role="status"><strong>No solver fee during launch</strong>
+          <span>Cobia currently waives the solver success fee. Signing and verified execution remain separate wallet confirmations.</span>
+        </div>
         {rwa && instrument ? <label className="policy-attestation"><input checked={values.eligibilityAccepted}
           onChange={(event) => set("eligibilityAccepted", event.target.checked)} type="checkbox" />
           <span>I have reviewed the issuer restriction: {instrument.eligibilityNote}</span></label> : null}
@@ -76,7 +72,7 @@ export function PolicyReceiptEditor({ values, owner, onChange }: {
         <div><dt>Input bound</dt><dd>{atomicLabel(values.amount, input.symbol)}</dd></div>
         <div><dt>Minimum result</dt><dd>{minimumLabel}</dd></div>
         <div><dt>Competition</dt><dd>5 minutes · up to 5 revisions per solver</dd></div>
-        <div><dt>Solver fee cap</dt><dd>{Number(values.maxSolverFeeUsd).toFixed(2)} USDt0 · success only</dd></div>
+        <div><dt>Solver fee</dt><dd>Waived during launch</dd></div>
         <div><dt>Execution deadline</dt><dd>30 minutes from signing</dd></div>
         <div><dt>Network</dt><dd>{rwa && instrument?.chainId === 1
           ? "Ethereum · chain 1 (anchored with X Layer)" : "X Layer · chain 196"}</dd></div>

@@ -238,6 +238,8 @@ describe("IntentComposer", () => {
 
     expect(await screen.findByRole("heading", { name: "Review the policy" })).toBeVisible();
     expect(screen.getByLabelText("Verified capability")).toHaveValue("aave-supply");
+    expect(screen.getByText("No solver fee during launch")).toBeVisible();
+    expect(screen.queryByLabelText("Maximum solver success fee")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Edit goal" })).toBeVisible();
   });
 
@@ -337,7 +339,7 @@ describe("IntentComposer", () => {
       version: 3,
       displayGoal: "Put 10 USDG into a bounded Aave position.",
       executionChainIds: [196],
-      limits: { maxSolverFeeAtomic: "100000" },
+      limits: { maxSolverFeeAtomic: "0" },
     });
     expect(body.policy).not.toHaveProperty("allowedCapabilities");
     expect(state.push).toHaveBeenCalledWith("/intents/550e8400-e29b-41d4-a716-446655440000");

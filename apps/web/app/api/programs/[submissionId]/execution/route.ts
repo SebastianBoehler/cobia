@@ -14,6 +14,9 @@ import { verifyAgentExecutionAccessProof } from "../../../../../lib/coding-agent
 import { readCodingAgentV3ExecutionConfig } from "../../../../../lib/env";
 import { readPaymentConfig } from "../../../../../lib/payments/config";
 import {
+  SOLVER_SUCCESS_FEES_ENABLED, WAIVED_SOLVER_SUCCESS_FEE,
+} from "../../../../../lib/payments/launch-solver-success-fee";
+import {
   buildSolverSuccessFeeTerms, parseSolverSuccessFeeCredential,
   solverSuccessFeeRequiredResponse,
 } from "../../../../../lib/payments/solver-success-fee";
@@ -159,6 +162,9 @@ export async function POST(
         forecast: "Future yield, LP fees, and impermanent loss are not guaranteed.",
       };
     }
+    if (!SOLVER_SUCCESS_FEES_ENABLED) return NextResponse.json({
+      ...execution, successFee: WAIVED_SOLVER_SUCCESS_FEE,
+    }, { headers: { "Cache-Control": "no-store" } });
     const profile = await getSolverProfileRepository().identity(stored.solverId);
     if (!profile?.attestationAddress) throw new Error("Solver payout identity is unavailable");
     const payment = readPaymentConfig();

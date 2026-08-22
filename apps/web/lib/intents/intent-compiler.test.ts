@@ -58,6 +58,7 @@ describe("intent compiler", () => {
         amount: "0.02",
         minimum: "0.0198",
         minimumSource: "stablecoin-default",
+        maxSolverFeeUsd: "0",
       },
     });
   });

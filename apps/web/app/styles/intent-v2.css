@@ -67,10 +67,9 @@
 .policy-fields label { color: var(--muted); display: grid; font-size: 12px; gap: 8px; }
 .policy-fields input, .policy-fields select { appearance: none; background: var(--wash); border: 1px solid var(--line); border-radius: 11px; color: var(--ink); font-size: 16px; min-height: 48px; padding: 0 14px; width: 100%; }
 .policy-fields input:focus, .policy-fields select:focus { border-color: var(--cobalt); outline: 0; }
-.policy-fee { grid-column: 1 / -1; }
-.policy-fee__value { color: var(--ink); font-family: var(--font-geist-mono), monospace; font-size: 14px; }
-.policy-fee input[type="range"] { accent-color: var(--cobalt); border: 0; min-height: 28px; padding: 0; }
-.policy-fee small { color: var(--muted); font-size: 11px; line-height: 1.5; }
+.policy-fee { background: color-mix(in oklch, var(--approved) 8%, var(--wash)); border: 1px solid color-mix(in oklch, var(--approved) 25%, var(--line)); border-radius: 12px; display: grid; gap: 5px; grid-column: 1 / -1; padding: 13px 15px; }
+.policy-fee strong { color: var(--approved); font-size: 13px; }
+.policy-fee span { color: var(--muted); font-size: 11px; line-height: 1.5; }
 .policy-summary { display: grid; grid-template-columns: 1fr 1fr; margin: 26px 0 0; }
 .policy-summary div { border-top: 1px solid var(--line); min-width: 0; padding: 14px 0; }
 .policy-summary div:nth-child(even) { border-inline-start: 1px solid var(--line); padding-inline-start: 16px; }

@@ -24,7 +24,7 @@ describe("challengeToIntentDraft", () => {
         outputToken: INTENT_ASSETS[1].address,
         amount: "10",
         minimum: "9.95",
-        maxSolverFeeUsd: "0.10",
+        maxSolverFeeUsd: "0",
         jurisdiction: "DE",
         eligibilityAccepted: false,
       },

@@ -179,6 +179,8 @@ describe("AgentProgramView", () => {
     });
 
     render(<AgentProgramView programId="550e8400-e29b-41d4-a716-446655440000" />);
+    expect(await screen.findByText("No solver fee during launch")).toBeVisible();
+    expect(screen.queryByText(/fee authorization/i)).not.toBeInTheDocument();
     fireEvent.click(await screen.findByRole("button", { name: "Prepare execution" }));
     fireEvent.click(await screen.findByRole("button", { name: "Swap now" }));
 

@@ -61,12 +61,9 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
     : INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? INTENT_ASSETS[1];
   const inputAtomic = useMemo(() => decimalToAtomic(values.amount, inputAsset.decimals), [inputAsset.decimals, values.amount]);
   const minimumAtomic = useMemo(() => decimalToAtomic(values.minimum, outputAsset.decimals), [outputAsset.decimals, values.minimum]);
-  const maxSolverFeeAtomic = useMemo(() => values.maxSolverFeeUsd === "0"
-    ? "0" : decimalToAtomic(values.maxSolverFeeUsd, 6), [values.maxSolverFeeUsd]);
   const valid = Boolean(wallet.account && goal.trim() && inputAtomic &&
-    maxSolverFeeAtomic !== null && (values.templateId === "aave-supply" || minimumAtomic) &&
+    (values.templateId === "aave-supply" || minimumAtomic) &&
     (!rwa || values.eligibilityAccepted));
-
   async function loadMentions() {
     if (mentionsLoaded) return;
     setMentionsLoaded(true);
@@ -199,7 +196,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
         nowSec,
         displayGoal: goal.trim(),
         competitionDurationSec: 300,
-        maxSolverFeeAtomic: maxSolverFeeAtomic ?? "0",
+        maxSolverFeeAtomic: "0",
         forbiddenTargets: protocolForbiddenTargets(excludedProtocols),
       } as const;
       const instrument = rwa

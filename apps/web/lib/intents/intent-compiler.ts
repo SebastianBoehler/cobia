@@ -78,7 +78,7 @@ function receipt(compiled: z.infer<typeof CompilationSchema>): IntentReceiptValu
   }
   return { templateId: compiled.templateId as CapabilityTemplateId,
     inputToken: input.address, outputToken: output.address, amount: compiled.amount,
-    minimum: minimum ?? "", minimumSource: defaultMinimum ? "stablecoin-default" : undefined, maxSolverFeeUsd: "0.10",
+    minimum: minimum ?? "", minimumSource: defaultMinimum ? "stablecoin-default" : undefined, maxSolverFeeUsd: "0",
     jurisdiction: compiled.jurisdiction ?? "DE", eligibilityAccepted: false };
 }
 

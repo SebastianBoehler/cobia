@@ -14,7 +14,7 @@ import {
 import { readCodingAgentV3ExecutionConfig } from "../../../../../../lib/env";
 import { deriveCapabilityAuthorityV2 } from "../../../../../../lib/open-exchange/capability-authority";
 import { verifyOpenWalletBatchReceiptsV1 } from "../../../../../../lib/open-exchange/wallet-batch-receipt";
-import { settleSolverSuccessFee } from "../../../../../../lib/payments/settle-solver-success-fee";
+import { finalizeSolverSuccessFee } from "../../../../../../lib/payments/launch-solver-success-fee";
 import {
   getSolverSubmissionRepository, getSolverSuccessFeeRepository,
 } from "../../../../../../lib/runtime/market";
@@ -150,7 +150,7 @@ export async function POST(
     }
     await repository.appendArtifact(submissionId, "receipt", attributed);
     await repository.resolve(submissionId, "executed", []);
-    const successFee = await settleSolverSuccessFee({ submissionId,
+    const successFee = await finalizeSolverSuccessFee({ submissionId,
       repository: getSolverSuccessFeeRepository(), nowSec: Math.floor(Date.now() / 1_000) });
     return NextResponse.json({ state: "confirmed", receipt: attributed, successFee });
   } catch (error) {

@@ -93,9 +93,9 @@ export function AgentProgramSummary({ program, action }: {
         </a>
         <code title={receipt.transactionHash}>{receipt.transactionHash}</code>
       </div> : <div className={styles.actionPanel}>
-        <div><strong>{submission.executable ? "Review the wallet prompts" : "Need a current route?"}</strong>
+        <div><strong>{submission.executable ? "No solver fee during launch" : "Need a current route?"}</strong>
           <p>{submission.executable
-            ? "Access and fee authorization are gasless. A bounded token approval appears only if needed; execution needs one final confirmation."
+            ? "Cobia currently waives the solver fee. A bounded token approval appears only if needed; execution still needs one final confirmation."
             : "Create a fresh intent to capture current state and verify it again."}</p></div>
         {action ?? <Link className="button button--primary" href="/intents/new">Create fresh intent <ArrowRight aria-hidden="true" size={16} /></Link>}
       </div>}
