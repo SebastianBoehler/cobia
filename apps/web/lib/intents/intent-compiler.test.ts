@@ -319,6 +319,11 @@ describe("intent compiler", () => {
       },
     });
     expect(fetcher).toHaveBeenCalledOnce();
+    const request = JSON.parse(fetcher.mock.calls[0]![1]!.body as string);
+    expect(request.text.format.schema.properties.outputSymbol.enum).toContain("OKB");
+    expect(request.text.format.schema.properties.conversion.anyOf[1]
+      .properties.outputSymbol.enum).toContain("OKB");
+    expect(JSON.parse(request.input).xLayerAssets).toContain("OKB");
   });
 
   it("compiles an exact native OKB conversion into one staged program draft", async () => {

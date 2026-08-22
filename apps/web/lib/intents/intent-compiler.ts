@@ -64,7 +64,7 @@ function schema() {
       templateId: { type: "string", enum: TemplateSchema.options },
       inputSymbol: { type: "string", enum: ["OKB", ...INTENT_ASSETS.map(({ symbol }) => symbol), "USDC"] },
       outputSymbol: { type: "string", enum: [
-        ...INTENT_ASSETS.map(({ symbol }) => symbol), ...RWA_INTENT_ASSETS.map(({ symbol }) => symbol),
+        ...CONVERSION_INTENT_ASSETS.map(({ symbol }) => symbol), ...RWA_INTENT_ASSETS.map(({ symbol }) => symbol),
       ] },
       amount: { type: "string" },
       walletShareBps: { type: ["integer", "null"], minimum: 1, maximum: 10_000 },
