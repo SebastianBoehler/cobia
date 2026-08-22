@@ -60,11 +60,17 @@
 .policy-editor > header { align-items: start; display: flex; justify-content: space-between; }
 .policy-editor h2 { font-size: 25px; letter-spacing: -.04em; margin: 0; }
 .policy-editor header p { color: var(--muted); font-size: 13px; line-height: 1.45; margin: 7px 0 0; }
+.composition-capabilities { display: grid; gap: 8px; margin-top: 24px; }
+.composition-capabilities > div { align-items: center; background: var(--wash); border: 1px solid var(--line); border-radius: 12px; display: grid; gap: 10px; grid-template-columns: 24px minmax(0, 1fr) auto; min-height: 48px; padding: 8px 12px; }
+.composition-capabilities span { align-items: center; background: color-mix(in oklch, var(--cobalt) 10%, var(--surface)); border-radius: 50%; color: var(--cobalt); display: inline-flex; font-size: 11px; height: 24px; justify-content: center; }
+.composition-capabilities strong { font-size: 13px; font-weight: 560; }
+.composition-capabilities small { color: var(--approved); font-size: 10px; }
 .intent-goal-summary { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; display: grid; gap: 20px; padding: 22px; }
 .intent-goal-summary p { font-size: 20px; line-height: 1.45; margin: 0; }
 .intent-goal-summary .button { justify-self: start; }
 .policy-fields { display: grid; gap: 12px; grid-template-columns: repeat(2, 1fr); margin-top: 28px; }
 .policy-fields label { color: var(--muted); display: grid; font-size: 12px; gap: 8px; }
+.policy-fields label small { color: var(--muted); font-size: 10px; line-height: 1.45; }
 .policy-fields input, .policy-fields select { appearance: none; background: var(--wash); border: 1px solid var(--line); border-radius: 11px; color: var(--ink); font-size: 16px; min-height: 48px; padding: 0 14px; width: 100%; }
 .policy-fields input:focus, .policy-fields select:focus { border-color: var(--cobalt); outline: 0; }
 .policy-fee { background: color-mix(in oklch, var(--approved) 8%, var(--wash)); border: 1px solid color-mix(in oklch, var(--approved) 25%, var(--line)); border-radius: 12px; display: grid; gap: 5px; grid-column: 1 / -1; padding: 13px 15px; }

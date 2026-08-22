@@ -7,23 +7,28 @@ import { ArrowLeft, ArrowRight, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import { keccak256, stringToHex } from "viem";
-import { buildOpenIntentPolicyV3 } from "../../lib/intents/open-policy";
 import {
   DEFAULT_INTENT_RECEIPT_VALUES, decimalToAtomic, INTENT_ASSETS,
   RWA_INTENT_ASSETS, rwaInputAsset,
 } from "../../lib/intents/capability-templates";
-import { instrumentCommitmentV1 } from "../../lib/instruments/production-registry";
 import type { IntentComposerDraft } from "../../lib/intents/challenge-draft";
-import {
-  protocolForbiddenTargets, type ActionPreference, type ProtocolExclusionId,
-} from "../../lib/intents/intent-controls";
+import { type ActionPreference, type ProtocolExclusionId } from "../../lib/intents/intent-controls";
 import { useWallet } from "../wallet/WalletProvider";
 import { IntentGoalInput } from "./IntentGoalInput";
 import { PolicyReceiptEditor, type ReceiptValues } from "./PolicyReceiptEditor";
+import { CompositionPolicyEditor } from "./CompositionPolicyEditor";
 import type { IntentMention } from "./IntentGoalInput";
 import type { PortfolioSnapshot } from "../../lib/portfolio/read-portfolio";
 import { authenticateIntentCompiler } from "../../lib/wallet-auth/client";
 import { extractGoalMentions, useResolvedAssetMentions } from "./useResolvedAssetMentions";
+import type { ComposedIntentDraft } from "../../lib/intents/composition-draft";
+import { buildIntentComposerPolicy } from "../../lib/intents/build-composer-policy";
+
+type ComposerValues = ReceiptValues | ComposedIntentDraft;
+
+function isComposed(values: ComposerValues): values is ComposedIntentDraft {
+  return "kind" in values && values.kind === "composed";
+}
 
 function errorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : "The intent could not be published.";
@@ -36,7 +41,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
   const wallet = useWallet();
   const router = useRouter();
   const [goal, setGoal] = useState(initialDraft?.goal ?? initialGoal);
-  const [values, setValues] = useState<ReceiptValues>(
+  const [values, setValues] = useState<ComposerValues>(
     initialDraft?.values ?? DEFAULT_INTENT_RECEIPT_VALUES,
   );
   const [step, setStep] = useState<"goal" | "review">(initialDraft ? "review" : "goal");
@@ -49,21 +54,29 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
   const [compiling, setCompiling] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
-  const rwa = values.templateId === "rwa-acquisition";
+  const composed = isComposed(values);
+  const rwa = !composed && values.templateId === "rwa-acquisition";
   const selectedInstrument = rwa
     ? RWA_INTENT_ASSETS.find(({ address }) => address === values.outputToken)?.instrument
       ?? RWA_INTENT_ASSETS[0]!.instrument
     : undefined;
   const inputAsset = selectedInstrument ? rwaInputAsset(selectedInstrument)
     : INTENT_ASSETS.find(({ address }) => address === values.inputToken) ?? INTENT_ASSETS[0];
-  const outputAsset = rwa
+  const outputAsset = rwa && !composed
     ? RWA_INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? RWA_INTENT_ASSETS[0]
-    : INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? INTENT_ASSETS[1];
+    : !composed ? INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? INTENT_ASSETS[1]
+      : INTENT_ASSETS[1];
   const inputAtomic = useMemo(() => decimalToAtomic(values.amount, inputAsset.decimals), [inputAsset.decimals, values.amount]);
-  const minimumAtomic = useMemo(() => decimalToAtomic(values.minimum, outputAsset.decimals), [outputAsset.decimals, values.minimum]);
-  const valid = Boolean(wallet.account && goal.trim() && inputAtomic &&
-    (values.templateId === "aave-supply" || minimumAtomic) &&
-    (!rwa || values.eligibilityAccepted));
+  const minimum = composed ? "" : values.minimum;
+  const minimumAtomic = useMemo(() => decimalToAtomic(minimum, outputAsset.decimals), [minimum, outputAsset.decimals]);
+  const valid = Boolean(wallet.account && goal.trim() && inputAtomic && (composed
+    ? values.maxConversionLossBps >= 0 && values.maxConversionLossBps <= 500 &&
+      values.minimumReceiptValueBps >= 9_500 && values.minimumReceiptValueBps <= 10_000 &&
+      values.horizonDays >= 1 && values.horizonDays <= 365 &&
+      values.competitionDurationSec >= 60 &&
+      values.deadlineDurationSec >= values.competitionDurationSec
+    : (values.templateId === "aave-supply" || minimumAtomic) &&
+      (!rwa || values.eligibilityAccepted)));
   async function loadMentions() {
     if (mentionsLoaded) return;
     setMentionsLoaded(true);
@@ -160,7 +173,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
         response = await request();
       }
       const payload = await response.json() as {
-        status?: "review" | "clarification"; values?: ReceiptValues; question?: string; message?: string;
+        status?: "review" | "clarification"; values?: ComposerValues; question?: string; message?: string;
       };
       if (!response.ok) throw new Error(payload.message ?? "The policy draft could not be compiled.");
       if (payload.status === "clarification") {
@@ -187,35 +200,8 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
       const requestId = crypto.randomUUID();
       const nowSec = Math.floor(Date.now() / 1_000);
       const nonce = keccak256(stringToHex(`${requestId}:${wallet.account}:${nowSec}:${crypto.randomUUID()}`));
-      const common = {
-        requestId,
-        owner: wallet.account,
-        inputToken: inputAsset.address,
-        inputAtomic,
-        nonce,
-        nowSec,
-        displayGoal: goal.trim(),
-        competitionDurationSec: 300,
-        maxSolverFeeAtomic: "0",
-        forbiddenTargets: protocolForbiddenTargets(excludedProtocols),
-      } as const;
-      const instrument = rwa
-        ? RWA_INTENT_ASSETS.find(({ address }) => address === values.outputToken)?.instrument : undefined;
-      if (rwa && (!instrument || !instrument.eligibleJurisdictions.includes(values.jurisdiction))) {
-        throw new Error("This registered instrument is not enabled for the selected jurisdiction.");
-      }
-      const policy = values.templateId === "aave-supply"
-        ? buildOpenIntentPolicyV3({ ...common, templateId: "aave-supply", exposureBps: 10_000 })
-        : values.templateId === "exact-input-swap" && minimumAtomic
-          ? buildOpenIntentPolicyV3({ ...common, templateId: "exact-input-swap", outputToken: values.outputToken, minimumOutputAtomic: minimumAtomic })
-          : values.templateId === "round-trip" && minimumAtomic
-            ? buildOpenIntentPolicyV3({ ...common, templateId: "round-trip", minimumProfitAtomic: minimumAtomic })
-            : values.templateId === "rwa-acquisition" && minimumAtomic && instrument
-              ? buildOpenIntentPolicyV3({ ...common, templateId: "rwa-acquisition",
-                outputToken: instrument.token as `0x${string}`, minimumOutputAtomic: minimumAtomic,
-                instrumentCommitment: instrumentCommitmentV1(instrument),
-                jurisdiction: values.jurisdiction, instrumentChainId: instrument.chainId })
-            : (() => { throw new Error("Complete the minimum result before signing."); })();
+      const policy = buildIntentComposerPolicy({ values, requestId, owner: wallet.account,
+        inputAtomic, minimumAtomic, nonce, nowSec, displayGoal: goal.trim(), excludedProtocols });
       const ownerSignature = await wallet.request({
         method: "personal_sign",
         params: [commitment(policy), policy.owner],
@@ -259,7 +245,9 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
           onClick={() => { setStep("goal"); setError(undefined); }} type="button">
           <ArrowLeft aria-hidden="true" size={16} /> Edit goal
         </button></div>
-        <PolicyReceiptEditor owner={wallet.account} values={values} onChange={setValues} />
+        {composed
+          ? <CompositionPolicyEditor owner={wallet.account} values={values} onChange={setValues} />
+          : <PolicyReceiptEditor owner={wallet.account} values={values} onChange={setValues} />}
         {error ? <p className="form-alert" role="alert">{error}</p> : null}
         <button className="button button--primary intent-submit" disabled={!valid || pending} type="submit">
           {pending ? <LoaderCircle aria-hidden="true" className="spin" size={17} /> : null}

@@ -24,9 +24,9 @@ export interface ComposedIntentDraft {
   capabilityIds: (typeof COMPOSITION_CAPABILITY_IDS)[number][];
   maxConversionLossBps: number;
   minimumReceiptValueBps: number;
-  minimumReceiptSource: "conversion-loss";
+  minimumReceiptSource: "conversion-loss" | "explicit";
   horizonDays: number;
-  horizonSource: "product-default";
+  horizonSource: "product-default" | "explicit";
   competitionDurationSec: number;
   deadlineDurationSec: number;
 }
