@@ -5,6 +5,7 @@ export * from "./capability-composition";
 export * from "./commerce-offer";
 export * from "./commerce-order-policy";
 export * from "./general-intent-policy";
+export * from "./network-metrics";
 export * from "./open-intent-policy";
 export * from "./onchain-read";
 export * from "./persisted";
