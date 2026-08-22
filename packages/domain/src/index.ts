@@ -1,6 +1,7 @@
 export * from "./allocation";
 export * from "./bundle";
 export * from "./canonical";
+export * from "./capability-composition";
 export * from "./commerce-offer";
 export * from "./commerce-order-policy";
 export * from "./general-intent-policy";
