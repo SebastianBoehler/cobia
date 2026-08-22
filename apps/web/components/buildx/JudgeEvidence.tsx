@@ -56,9 +56,9 @@ const evidence = [
     href: "https://github.com/SebastianBoehler/cobia", link: "Browse repository",
   },
   {
-    title: "Ethy AI via x402", status: "Pending canary",
-    detail: "Awaiting the final production release. The 0.10 USD₮0 purchase will be published only with a real receipt.",
-    href: "/discover", link: "Inspect supported offer", internal: true,
+    title: "Ethy AI via x402", status: "Canary attempted",
+    detail: "Cobia accepted a signed 0.10 USD₮0 authorization. No settlement transaction or independently verifiable receipt has been observed; the canary remains pending.",
+    href: "/api/commerce/placements?id=c66aba5f-6d71-4ec4-88cf-e01ea32bca21", link: "Track canary status", internal: true,
   },
 ] as const;
 
@@ -75,7 +75,7 @@ const foundations = [
 
 const roadmap = [
   ["Shipped", "Foundation", "Public product, open solver exchange, fresh-fork replay, X Layer deployments and one pinned x402 merchant."],
-  ["Next proof", "Close the loop", "Settle the 0.10 USD₮0 Ethy canary after release, publish its receipt, resource hash and one tampered-term rejection."],
+  ["Next proof", "Close the loop", "Resolve the 0.10 USD₮0 Ethy canary, then publish its receipt, resource hash and one tampered-term rejection."],
   ["30 days", "Expand supply", "Add OKLink paid data, QuickSwap route competition, one external solver and an X Layer ecosystem-directory submission."],
   ["90 days", "Earn distribution", "Ship a wallet integration kit, secure three design partners and prepare the verification surface for external audit."],
 ] as const;

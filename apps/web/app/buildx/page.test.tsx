@@ -19,7 +19,7 @@ describe("Build X project page", () => {
     expect(roadmapIndex).toBeGreaterThan(evidenceIndex);
   });
 
-  it("separates shipped evidence from the pending paid canary", () => {
+  it("links the attempted paid canary to its honest, durable status", () => {
     const html = renderToStaticMarkup(<BuildXEvidencePage />);
 
     expect(html).toContain("Deployed");
@@ -27,8 +27,9 @@ describe("Build X project page", () => {
     expect(html).toContain("Confirmed outcome");
     expect(html).toContain("First mainnet intent outcome");
     expect(html).toContain("1 USDt0 for 0.999471 USDG");
-    expect(html).toContain("Pending canary");
-    expect(html).toContain("Awaiting the final production release");
+    expect(html).toContain("Canary attempted");
+    expect(html).toContain("No settlement transaction or independently verifiable receipt has been observed");
+    expect(html).toContain('href="/api/commerce/placements?id=c66aba5f-6d71-4ec4-88cf-e01ea32bca21"');
     expect(html).not.toContain("Ethy settlement verified");
   });
 
