@@ -1,12 +1,17 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppHeader } from "./AppHeader";
 import { WalletProvider } from "../wallet/WalletProvider";
 
 vi.mock("../wallet/WalletButton", () => ({ WalletButton: () => <button>Connect wallet</button> }));
+vi.mock("next/link", () => ({
+  default: ({ children, onNavigate, ...props }: React.ComponentProps<"a"> & { onNavigate?: () => void }) => (
+    <a {...props} onClick={() => onNavigate?.()}>{children}</a>
+  ),
+}));
 const mocks = vi.hoisted(() => ({ pathname: "/intents/new" }));
 vi.mock("next/navigation", () => ({ usePathname: () => mocks.pathname }));
 afterEach(() => {
@@ -34,6 +39,15 @@ describe("AppHeader", () => {
     expect(screen.getByRole("link", { name: "Solvers" })).toHaveAttribute("href", "/solvers");
     expect(screen.getByRole("link", { name: "Docs" })).toHaveAttribute("href", "/docs");
     expect(screen.getByRole("link", { name: "Build a solver" })).toHaveAttribute("href", "/docs/quickstart");
+  });
+
+  it("starts primary navigation at the document top", () => {
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    render(<AppHeader />);
+
+    fireEvent.click(screen.getByRole("link", { name: "Portfolio" }));
+
+    expect(scrollTo).toHaveBeenCalledWith({ behavior: "instant", left: 0, top: 0 });
   });
 
   it("keeps the execution network with the brand instead of the navigation", () => {

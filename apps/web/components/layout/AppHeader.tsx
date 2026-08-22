@@ -22,6 +22,10 @@ const testnetNavigation = [
   { href: "/portfolio", icon: WalletCards, label: "Portfolio", prefixes: ["/portfolio"] },
 ] as const;
 
+function scrollToDocumentStart() {
+  window.scrollTo({ behavior: "instant", left: 0, top: 0 });
+}
+
 export function AppHeader() {
   const pathname = usePathname() ?? "";
   const wallet = useWallet();
@@ -41,7 +45,7 @@ export function AppHeader() {
           {visibleNavigation.map(({ href, icon: Icon, label, prefixes }) => {
             const active = href === "/" ? pathname === "/" : prefixes.some((prefix) => pathname.startsWith(prefix));
             return (
-              <Link aria-current={active ? "page" : undefined} href={href} key={href}>
+              <Link aria-current={active ? "page" : undefined} href={href} key={href} onNavigate={scrollToDocumentStart}>
                 <Icon aria-hidden="true" className="app-header__nav-icon" size={20} strokeWidth={1.8} />
                 <span>{label}</span>
               </Link>
