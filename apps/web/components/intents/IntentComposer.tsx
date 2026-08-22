@@ -135,9 +135,15 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
         ? `${Number(balance.formatted).toLocaleString("en-US", { maximumFractionDigits: 6 })} ${symbol}`
         : undefined;
       return { id: `asset:${symbol}`, group: "Assets" as const, mention: symbol, address,
-        priceUsd: assetPrices[symbol.toLowerCase()], walletBalance,
+        priceUsd: balance?.priceUsd ?? assetPrices[symbol.toLowerCase()], walletBalance,
         detail: walletBalance ? `${walletBalance} available` : "X Layer asset" };
     }),
+    ...(activePortfolio?.balances ?? []).filter(({ address }) => typeof address === "string" && !INTENT_ASSETS.some((asset) =>
+      asset.address.toLowerCase() === address.toLowerCase())).map(({ symbol, address, formatted, priceUsd }) => ({
+        id: `wallet-asset:${address}`, group: "Assets" as const, mention: symbol, address, priceUsd,
+        walletBalance: `${Number(formatted).toLocaleString("en-US", { maximumFractionDigits: 6 })} ${symbol}`,
+        detail: `${Number(formatted).toLocaleString("en-US", { maximumFractionDigits: 6 })} ${symbol} available`,
+      })),
     ...RWA_INTENT_ASSETS.map(({ symbol, address, instrument }) => ({ id: `asset:${symbol}`, group: "Assets" as const,
       mention: symbol, address, priceUsd: assetPrices[symbol.toLowerCase()],
       detail: `Cross-chain asset · ${instrument.chainId === 196 ? "X Layer" : "Ethereum"}` })),
@@ -163,10 +169,10 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
     return balances.flatMap((balance) => {
       let positive = false;
       try { positive = BigInt(balance.amountAtomic) > 0n; } catch { return []; }
-      if ((balance.symbol !== "OKB" && balance.symbol !== "USDG" && balance.symbol !== "USDt0") ||
-        !positive) return [];
-      return [{ symbol: balance.symbol, amount: balance.amount,
-        priceUsd: assetPrices[balance.symbol.toLowerCase()] }];
+      if (!positive) return [];
+      const priceUsd = "priceUsd" in balance && typeof balance.priceUsd === "string"
+        ? balance.priceUsd : assetPrices[balance.symbol.toLowerCase()];
+      return [{ symbol: balance.symbol, amount: balance.amount, priceUsd }];
     });
   }, [activePortfolio, assetPrices]);
   const allMentions = useMemo(() => [...mentions, ...resolvedAssetMentions], [mentions, resolvedAssetMentions]);

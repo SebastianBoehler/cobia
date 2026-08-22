@@ -50,23 +50,29 @@ export async function POST(request: Request): Promise<Response> {
       throw error;
     }
     let walletBalances: Record<string, string> | undefined;
+    let walletAssets: Array<{ address: Address; symbol: string; decimals: number }> | undefined;
+    let walletPortfolio: Awaited<ReturnType<typeof readPortfolio>> | undefined;
     let admissionGoal = goal;
-    if (requestsWalletBalance(goal)) {
-      const portfolio = await readPortfolio(session.owner, 196).catch(() => null);
-      if (!portfolio) {
+    if (actionPreference === "any" || requestsWalletBalance(goal)) {
+      walletPortfolio = await readPortfolio(session.owner, 196).catch(() => undefined);
+      if (!walletPortfolio) {
         return NextResponse.json({ code: "WALLET_BALANCE_UNAVAILABLE",
           message: "Cobia could not read your X Layer token balance. Try again." }, { status: 503 });
       }
       walletBalances = Object.fromEntries([
-        [portfolio.native.symbol, portfolio.native.formatted],
-        ...portfolio.balances.map(({ symbol, formatted }) => [symbol, formatted]),
+        [walletPortfolio.native.symbol, walletPortfolio.native.formatted],
+        ...walletPortfolio.balances.map(({ symbol, formatted }) => [symbol, formatted]),
       ]);
-      const balanceFingerprint = [portfolio.native, ...portfolio.balances]
-        .map(({ symbol, amountAtomic }) => `${symbol}:${amountAtomic}`).sort().join(",");
+      walletAssets = walletPortfolio.balances.map(({ address, symbol, decimals }) => ({ address, symbol, decimals }));
+      const balanceFingerprint = [walletPortfolio.native, ...walletPortfolio.balances]
+        .map(({ symbol, amountAtomic, ...asset }) => `${symbol}:${amountAtomic}:${"priceUsd" in asset ? asset.priceUsd ?? "" : ""}`)
+        .sort().join(",");
       admissionGoal = `${goal}\n[wallet-balances:${balanceFingerprint}]`;
     }
     let assetPricesUsd: Readonly<Record<string, string>> | undefined;
-    if (/(^|\s)@?OKB\b/i.test(goal)) {
+    const needsMarketPrices = actionPreference === "any" &&
+      /\b(?:turn|convert|swap)\b[\s\S]*\b(?:in)?to\s+@?(?:USDG|USDt0)\b/i.test(goal);
+    if (needsMarketPrices) {
       assetPricesUsd = await readIntentAssetPrices().catch(() => undefined);
       if (!assetPricesUsd) {
         return NextResponse.json({ code: "ASSET_PRICE_UNAVAILABLE",
@@ -75,6 +81,11 @@ export async function POST(request: Request): Promise<Response> {
       const priceFingerprint = Object.entries(assetPricesUsd).sort(([left], [right]) =>
         left.localeCompare(right)).map(([symbol, price]) => `${symbol}:${price}`).join(",");
       admissionGoal = `${admissionGoal}\n[asset-prices:${priceFingerprint}]`;
+    }
+    if (walletPortfolio) {
+      const walletPrices = Object.fromEntries(walletPortfolio.balances
+        .flatMap(({ symbol, priceUsd }) => priceUsd ? [[symbol, priceUsd] as const] : []));
+      assetPricesUsd = { ...walletPrices, ...assetPricesUsd };
     }
     const admission = await auth.beginCompilation({ owner: session.owner,
       clientKey: walletAuthClientKey(request), goal: admissionGoal, actionPreference });
@@ -100,7 +111,7 @@ export async function POST(request: Request): Promise<Response> {
       "policy.capability-composition@1", currentUnixSeconds(),
     );
     const result = await createOpenAiIntentCompiler({
-      apiKey, model, compositionAvailable, walletBalances, assetPricesUsd,
+      apiKey, model, compositionAvailable, walletBalances, walletAssets, assetPricesUsd,
     }).compile(goal, actionPreference);
     await auth.completeCompilation(leaseId, result);
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });

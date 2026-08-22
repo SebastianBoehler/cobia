@@ -9,6 +9,7 @@ const TOKEN_BASIC_PATH = "/api/v6/dex/market/token/basic-info";
 const TOKEN_PRICE_PATH = "/api/v6/dex/market/price-info";
 const TOKEN_HOLDER_PATH = "/api/v6/dex/market/token/holder";
 const TOKEN_SEARCH_PATH = "/api/v6/dex/market/token/search";
+const TOKEN_BALANCES_PATH = "/api/v6/dex/balance/all-token-balances-by-address";
 
 const NumericStringSchema = z.union([z.string(), z.number()]).transform(String);
 
@@ -92,6 +93,14 @@ const TokenSearchSchema = TokenBasicSchema.extend({
   holders: z.union([z.string().regex(/^\d+$/), z.literal("")])
     .transform((value) => value || undefined),
 }).passthrough();
+const WalletTokenBalanceSchema = z.object({
+  chainIndex: z.literal("196"), tokenContractAddress: EvmAddressSchema,
+  symbol: z.string().min(1).max(64), balance: DecimalStringSchema,
+  tokenPrice: DecimalStringSchema, isRiskToken: z.boolean(),
+}).passthrough();
+const WalletTokenBalanceResponseSchema = z.array(z.object({
+  tokenAssets: z.array(WalletTokenBalanceSchema),
+}).passthrough());
 
 function sumDecimalStrings(values: readonly string[]): string {
   const scale = 18;
@@ -146,6 +155,27 @@ export function createOkxClient(options: OkxClientOptions) {
   const now = options.now ?? (() => new Date());
 
   return {
+    async listXLayerTokenBalances(addressInput: string) {
+      const address = EvmAddressSchema.parse(addressInput);
+      const path = `${TOKEN_BALANCES_PATH}?address=${address}&chains=196`;
+      const timestamp = now().toISOString();
+      const response = await fetchImpl(`${OKX_ORIGIN}${path}`, { method: "GET",
+        headers: signOkxRequest({ ...options.credentials, timestamp, method: "GET", path }),
+        cache: "no-store" });
+      if (!response.ok) throw new OkxApiError(`HTTP_${response.status}`,
+        `OKX request failed with HTTP ${response.status}`);
+      const envelope = readEnvelope(await response.json());
+      if (envelope.code !== "0") throw new OkxApiError(envelope.code,
+        envelope.msg || "OKX request failed");
+      const data = WalletTokenBalanceResponseSchema.safeParse(envelope.data);
+      if (!data.success) throw new OkxApiError("INVALID_WALLET_BALANCES",
+        "Invalid OKX wallet balance response");
+      return data.data.flatMap(({ tokenAssets }) => tokenAssets).filter(({ isRiskToken }) => !isRiskToken)
+        .map(({ tokenContractAddress: token, symbol, balance, tokenPrice: priceUsd }) => ({
+          chainId: 196 as const, token, symbol, balance, priceUsd,
+        }));
+    },
+
     async searchXLayerToken(searchInput: string) {
       const search = z.string().trim().min(1).max(64).parse(searchInput);
       const path = `${TOKEN_SEARCH_PATH}?chains=196&search=${encodeURIComponent(search)}&limit=100`;

@@ -1,5 +1,7 @@
 import { createPublicClient, erc20Abi, formatUnits, http, type Address } from "viem";
 import { SUPPORTED_ASSETS } from "../chain/supported-assets";
+import { readOkxCredentials } from "../env";
+import { createOkxClient } from "../okx/client";
 import { xLayerTestnet } from "../chain/xlayer-testnet";
 import { USDT_A_TOKEN, USDG_A_TOKEN, xLayer } from "../chain/xlayer";
 
@@ -12,7 +14,8 @@ export interface PortfolioSnapshot {
   blockNumber: string;
   observedAt: string;
   native: { symbol: "OKB"; amountAtomic: string; formatted: string };
-  balances: Array<{ address: Address; symbol: string; amountAtomic: string; formatted: string }>;
+  balances: Array<{ address: Address; symbol: string; decimals: number; amountAtomic: string;
+    formatted: string; priceUsd?: string }>;
   positions: Array<{
     adapterId: "aave-v3@1";
     symbol: "aUSDG" | "aUSDt0";
@@ -43,17 +46,28 @@ export async function readPortfolio(
     balances: [],
     positions: [],
   };
+  const listed = await createOkxClient({ credentials: readOkxCredentials() }).listXLayerTokenBalances(address);
+  const known = new Map(SUPPORTED_ASSETS.map((asset) => [asset.address.toLowerCase(), asset]));
+  const tokens = [...new Map<string, { address: Address; symbol: string; decimals?: number }>([
+    ...SUPPORTED_ASSETS.map((asset) => [asset.address.toLowerCase(), { address: asset.address,
+      symbol: asset.displaySymbol, decimals: asset.decimals }] as const),
+    ...listed.map((asset) => [asset.token.toLowerCase(), { address: asset.token, symbol: asset.symbol }] as const),
+  ]).values()];
   const [balances, aUsdG, aUsdT0] = await Promise.all([
-    Promise.all(SUPPORTED_ASSETS.map(async (asset) => ({
-      asset,
-      amount: await client.readContract({
-        address: asset.address,
-        abi: erc20Abi,
-        functionName: "balanceOf",
-        args: [address],
-        blockNumber,
-      }),
-    }))),
+    Promise.all(tokens.map(async (token) => {
+      const registered = known.get(token.address.toLowerCase());
+      const [amount, decimals, symbol] = await Promise.all([
+        client.readContract({ address: token.address, abi: erc20Abi, functionName: "balanceOf",
+          args: [address], blockNumber }),
+        registered ? Promise.resolve(registered.decimals) : client.readContract({ address: token.address,
+          abi: erc20Abi, functionName: "decimals", blockNumber }) as Promise<number>,
+        registered ? Promise.resolve(registered.displaySymbol) : client.readContract({ address: token.address,
+          abi: erc20Abi, functionName: "symbol", blockNumber }) as Promise<string>,
+      ]);
+      const listing = listed.find((asset) => asset.token.toLowerCase() === token.address.toLowerCase());
+      return { address: token.address, symbol, decimals, amountAtomic: amount.toString(),
+        formatted: formatUnits(amount, decimals), ...(listing ? { priceUsd: listing.priceUsd } : {}) };
+    })),
     client.readContract({
       address: USDG_A_TOKEN,
       abi: erc20Abi,
@@ -76,12 +90,7 @@ export async function readPortfolio(
     blockNumber: blockNumber.toString(),
     observedAt: new Date().toISOString(),
     native: { symbol: "OKB", amountAtomic: native.toString(), formatted: formatUnits(native, 18) },
-    balances: balances.map(({ asset, amount }) => ({
-      address: asset.address,
-      symbol: asset.displaySymbol,
-      amountAtomic: amount.toString(),
-      formatted: formatUnits(amount, asset.decimals),
-    })),
+    balances,
     positions: [
       {
         adapterId: "aave-v3@1",

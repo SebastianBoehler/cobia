@@ -164,6 +164,26 @@ describe("OKX DeFi client", () => {
 });
 
 describe("OKX Market client", () => {
+  it("lists non-risk X Layer wallet token contracts", async () => {
+    const token = "0x1111111111111111111111111111111111111111";
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ code: "0", msg: "", data: [{
+      tokenAssets: [
+        { chainIndex: "196", tokenContractAddress: token, symbol: "EXAMPLE", balance: "2.5",
+          tokenPrice: "1.25", isRiskToken: false },
+        { chainIndex: "196", tokenContractAddress: "0x2222222222222222222222222222222222222222",
+          symbol: "RISK", balance: "1", tokenPrice: "1", isRiskToken: true },
+      ],
+    }] }));
+    const client = createOkxClient({ credentials, fetchImpl,
+      now: () => new Date("2026-08-22T18:00:00.000Z") });
+
+    await expect(client.listXLayerTokenBalances("0x3333333333333333333333333333333333333333"))
+      .resolves.toEqual([{ chainId: 196, token, symbol: "EXAMPLE", balance: "2.5", priceUsd: "1.25" }]);
+    expect(fetchImpl.mock.calls[0]![0]).toBe(
+      "https://web3.okx.com/api/v6/dex/balance/all-token-balances-by-address?address=0x3333333333333333333333333333333333333333&chains=196",
+    );
+  });
+
   it("resolves native OKB when OKX omits its holder count", async () => {
     const token = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
     const client = createOkxClient({ credentials, fetchImpl: vi.fn<typeof fetch>()

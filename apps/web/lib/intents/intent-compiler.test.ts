@@ -187,6 +187,22 @@ describe("intent compiler", () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
+  it("compiles a verified wallet ERC-20 input without the stablecoin input whitelist", async () => {
+    const fetcher = vi.fn();
+    const compiler = createOpenAiIntentCompiler({
+      apiKey: "test", model: "test-model", fetcher,
+      assetPricesUsd: { EXAMPLE: "2.5", USDt0: "1" },
+      walletAssets: [{ address: "0x1111111111111111111111111111111111111111",
+        symbol: "EXAMPLE", decimals: 18 }],
+    });
+
+    await expect(compiler.compile("turn 0.4 of @EXAMPLE into @USDt0", "any")).resolves.toMatchObject({
+      status: "review", values: { kind: "staged-conversion", inputs: [{ symbol: "EXAMPLE", amount: "0.4",
+        token: "0x1111111111111111111111111111111111111111" }], outputSymbol: "USDt0", minimum: "0.99" },
+    });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
   it("resolves independent wallet shares for staged native and token inputs", async () => {
     const fetcher = vi.fn();
     const compiler = createOpenAiIntentCompiler({

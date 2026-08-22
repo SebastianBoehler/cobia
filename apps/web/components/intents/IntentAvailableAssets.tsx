@@ -1,7 +1,7 @@
 import { PortfolioAssetMark } from "../portfolio/PortfolioAssetMark";
 
 export interface AvailableIntentAsset {
-  symbol: "OKB" | "USDG" | "USDt0";
+  symbol: string;
   amount: string;
   priceUsd?: string;
 }

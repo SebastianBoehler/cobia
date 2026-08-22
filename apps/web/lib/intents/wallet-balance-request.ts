@@ -27,8 +27,8 @@ export function walletBalanceShare(goal: string, symbol: string): WalletBalanceS
       ? { kind: "fraction", numerator, denominator } : { kind: "ambiguous" };
   }
   const patterns: Array<[RegExp, bigint, bigint]> = [
-    [new RegExp(`\\b(?:all(?:\\s+of)?\\s+my|my\\s+(?:entire|full|whole)(?:\\s+wallet)?)\\s+${asset}${suffix}\\b`, "i"), 1n, 1n],
-    [new RegExp(`\\bhalf\\s+(?:of\\s+)?my\\s+${asset}${suffix}\\b`, "i"), 1n, 2n],
+    [new RegExp(`\\b(?:all(?:\\s+of)?\\s+(?:my\\s+)?|my\\s+(?:entire|full|whole)(?:\\s+wallet)?)\\s+${asset}${suffix}\\b`, "i"), 1n, 1n],
+    [new RegExp(`\\bhalf\\s+(?:of\\s+)?(?:my\\s+)?${asset}${suffix}\\b`, "i"), 1n, 2n],
     [new RegExp(`\\b(?:(?:a|one)\\s+)?quarter\\s+(?:of\\s+)?my\\s+${asset}${suffix}\\b`, "i"), 1n, 4n],
     [new RegExp(`\\bthree[-\\s]+quarters\\s+(?:of\\s+)?my\\s+${asset}${suffix}\\b`, "i"), 3n, 4n],
   ];

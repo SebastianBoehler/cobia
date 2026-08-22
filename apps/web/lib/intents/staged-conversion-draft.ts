@@ -14,6 +14,12 @@ export interface StagedConversionInputDraft {
   amount: string;
 }
 
+export interface WalletIntentAsset {
+  address: Address;
+  symbol: string;
+  decimals: number;
+}
+
 export interface StagedConversionDraft {
   kind: "staged-conversion";
   templateId: "staged-conversion";
@@ -46,43 +52,43 @@ function formatAtomic(value: bigint, decimals: number): string {
   return fraction ? `${whole}.${fraction}` : whole.toString();
 }
 
-function input(symbol: string, amount: string): StagedConversionInputDraft | undefined {
+function input(symbol: string, amount: string, assets: readonly WalletIntentAsset[]): StagedConversionInputDraft | undefined {
   if (symbol === "OKB") return atomic(amount, 18) ? {
     kind: "native", chainId: 196, token: NATIVE_ASSET_ADDRESS,
     symbol, decimals: 18, amount,
   } : undefined;
-  const asset = INTENT_ASSETS.find((item) => item.symbol === symbol);
+  const asset = assets.find((item) => item.symbol.toLowerCase() === symbol.toLowerCase());
   return asset && atomic(amount, asset.decimals) ? {
     kind: "erc20", chainId: 196, token: asset.address,
     symbol: asset.symbol, decimals: asset.decimals, amount,
   } : undefined;
 }
 
-function decimals(symbol: string): number | undefined {
-  return symbol === "OKB" ? 18 : INTENT_ASSETS.find((item) => item.symbol === symbol)?.decimals;
+function decimals(symbol: string, assets: readonly WalletIntentAsset[]): number | undefined {
+  return symbol === "OKB" ? 18 : assets.find((item) => item.symbol.toLowerCase() === symbol.toLowerCase())?.decimals;
 }
 
 function normalizedSymbol(value: string): string {
   return value.toUpperCase() === "USDT0" ? "USDt0" : value.toUpperCase();
 }
 
-function resolveInputPart(part: string, balances: WalletBalances):
+function resolveInputPart(part: string, balances: WalletBalances, assets: readonly WalletIntentAsset[]):
   StagedConversionInputDraft | StagedConversionClarification | undefined {
-  const exact = part.trim().match(/^(\d+(?:\.\d+)?)\s+@?(OKB|USDG|USDt0)$/i);
-  if (exact) return input(normalizedSymbol(exact[2]!), exact[1]!);
-  const relative = part.trim().match(/\b@?(OKB|USDG|USDt0)(?:\s+(?:wallet\s+)?balance)?$/i);
+  const exact = part.trim().match(/^(\d+(?:\.\d+)?)\s+(?:of\s+)?@?([A-Za-z0-9.$_-]{1,64})$/i);
+  if (exact) return input(normalizedSymbol(exact[2]!), exact[1]!, assets);
+  const relative = part.trim().match(/\b@?([A-Za-z0-9.$_-]{1,64})(?:\s+(?:wallet\s+)?balance)?$/i);
   if (!relative) return undefined;
   const symbol = normalizedSymbol(relative[1]!);
   const share = walletBalanceShare(part, symbol);
   if (!share) return undefined;
   if (share.kind === "ambiguous") return { kind: "clarification",
     question: `What percentage of your ${symbol} balance should be used?` };
-  const assetDecimals = decimals(symbol);
+  const assetDecimals = decimals(symbol, assets);
   const balance = assetDecimals === undefined ? undefined
     : decimalToAtomic(balances[symbol] ?? "", assetDecimals);
   const amount = balance && assetDecimals !== undefined
     ? applyWalletBalanceShare(BigInt(balance), assetDecimals, share) : undefined;
-  return amount ? input(symbol, amount) : { kind: "clarification",
+  return amount ? input(symbol, amount, assets) : { kind: "clarification",
     question: `Your ${symbol} wallet balance is zero. Fund it or enter an exact amount.` };
 }
 
@@ -90,18 +96,21 @@ export function resolveStagedConversionGoal(
   goal: string,
   prices: Readonly<Record<string, string>> = {},
   balances: WalletBalances = {},
+  walletAssets: readonly WalletIntentAsset[] = INTENT_ASSETS,
 ): StagedConversionDraft | StagedConversionClarification | undefined {
   const match = goal.trim().match(/^(?:turn|convert|swap)\s+(.+?)\s+(?:in)?to\s+(USDG|USDt0)$/i);
   if (!match) return undefined;
   const output = INTENT_ASSETS.find(({ symbol }) =>
     symbol.toLowerCase() === match[2]!.toLowerCase());
   const parts = match[1]!.split(/\s+and\s+/i);
-  const parsedInputs = parts.map((part) => resolveInputPart(part, balances));
+  const parsedInputs = parts.map((part) => resolveInputPart(part, balances, walletAssets));
   const clarification = parsedInputs.find((value) => value?.kind === "clarification");
   if (clarification?.kind === "clarification") return clarification;
-  if (!output || !parsedInputs.length || parsedInputs.some((value) => !value) ||
-      !parsedInputs.some((value) => value?.kind === "native")) return undefined;
+  if (!output || !parsedInputs.length || parsedInputs.some((value) => !value)) return undefined;
   const inputs = parsedInputs as StagedConversionInputDraft[];
+  const needsStagedPolicy = inputs.some(({ kind, token }) => kind === "native" ||
+    !INTENT_ASSETS.some((asset) => asset.address.toLowerCase() === token.toLowerCase()));
+  if (!needsStagedPolicy) return undefined;
   if (new Set(inputs.map(({ token }) => token.toLowerCase())).size !== inputs.length ||
       inputs.some(({ token }) => token.toLowerCase() === output.address.toLowerCase())) return undefined;
   const outputPrice = atomic(prices[output.symbol] ?? "", PRICE_DECIMALS);

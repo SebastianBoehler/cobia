@@ -2,7 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getBalance = vi.fn(async () => 0n);
 const getBlockNumber = vi.fn(async () => 123n);
-const readContract = vi.fn<(request: { address: string }) => Promise<bigint>>();
+const readContract = vi.fn<(request: { address: string; functionName?: string }) => Promise<bigint | number | string>>();
+const listXLayerTokenBalances = vi.fn<(address: string) => Promise<Array<{
+  chainId: 196; token: `0x${string}`; symbol: string; balance: string; priceUsd: string;
+}>>>(async () => []);
+
+vi.mock("../okx/client", () => ({
+  createOkxClient: vi.fn(() => ({ listXLayerTokenBalances })),
+}));
+vi.mock("../env", () => ({ readOkxCredentials: vi.fn(() => ({})) }));
 
 vi.mock("viem", async (importOriginal) => ({
   ...await importOriginal<typeof import("viem")>(),
@@ -24,6 +32,7 @@ beforeEach(() => {
   getBalance.mockResolvedValue(0n);
   getBlockNumber.mockResolvedValue(123n);
   readContract.mockResolvedValue(0n);
+  listXLayerTokenBalances.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -31,6 +40,23 @@ afterEach(() => {
 });
 
 describe("mainnet portfolio", () => {
+  it("adds each verified wallet ERC-20 discovered by the X Layer balance index", async () => {
+    const token = "0x1111111111111111111111111111111111111111" as const;
+    listXLayerTokenBalances.mockResolvedValue([{ chainId: 196, token, symbol: "EXAMPLE",
+      balance: "2", priceUsd: "1.25" }]);
+    readContract.mockImplementation(async ({ address: queried, functionName }) => {
+      if (queried === token && functionName === "balanceOf") return 2_000_000_000_000_000_000n;
+      if (queried === token && functionName === "decimals") return 18;
+      if (queried === token && functionName === "symbol") return "EXAMPLE";
+      return 0n;
+    });
+
+    const snapshot = await readPortfolio(owner, 196, "https://rpc.invalid");
+
+    expect(snapshot.balances).toContainEqual({ address: token, symbol: "EXAMPLE", decimals: 18,
+      amountAtomic: "2000000000000000000", formatted: "2", priceUsd: "1.25" });
+  });
+
   it("maps the canonical USDt0 Aave balance to its portfolio position", async () => {
     readContract.mockImplementation(async ({ address }) => {
       if (address === usdt0) return 20_000_001n;

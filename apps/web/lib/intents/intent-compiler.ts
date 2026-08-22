@@ -16,6 +16,7 @@ import {
 } from "./wallet-balance-request";
 import {
   resolveStagedConversionGoal, type StagedConversionDraft,
+  type WalletIntentAsset,
 } from "./staged-conversion-draft";
 
 const TemplateSchema = z.enum(["aave-supply", "exact-input-swap", "round-trip", "rwa-acquisition"]);
@@ -45,6 +46,7 @@ interface Options {
   compositionAvailable?: boolean;
   walletBalances?: WalletBalances;
   assetPricesUsd?: Readonly<Record<string, string>>;
+  walletAssets?: readonly WalletIntentAsset[];
 }
 
 function schema() {
@@ -139,7 +141,8 @@ export function createOpenAiIntentCompiler(options: Options) {
     };
     const balanceRelative = requestsWalletBalance(normalizedGoal);
     const stagedConversion = actionPreference === "any"
-      ? resolveStagedConversionGoal(normalizedGoal, options.assetPricesUsd, options.walletBalances)
+      ? resolveStagedConversionGoal(normalizedGoal, options.assetPricesUsd, options.walletBalances,
+        options.walletAssets)
       : undefined;
     if (stagedConversion) return stagedConversion.kind === "clarification"
       ? { status: "clarification", question: stagedConversion.question }
