@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { keccak256, stringToHex } from "viem";
 import {
-  DEFAULT_INTENT_RECEIPT_VALUES, decimalToAtomic, INTENT_ASSETS,
+  CONVERSION_INTENT_ASSETS, DEFAULT_INTENT_RECEIPT_VALUES, decimalToAtomic, INTENT_ASSETS,
   NATIVE_INTENT_ASSET, RWA_INTENT_ASSETS,
 } from "../../lib/intents/capability-templates";
 import type { IntentComposerDraft } from "../../lib/intents/challenge-draft";
@@ -85,7 +85,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
       : INTENT_ASSETS[0];
   const outputAsset = rwa && !composed
     ? RWA_INTENT_ASSETS.find(({ address }) => address === (values as ReceiptValues).outputToken) ?? RWA_INTENT_ASSETS[0]
-    : staged ? INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? INTENT_ASSETS[0]
+    : staged ? CONVERSION_INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? INTENT_ASSETS[0]
     : !composed ? INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? INTENT_ASSETS[1]
       : INTENT_ASSETS[1];
   const amount = staged ? "" : values.amount;
