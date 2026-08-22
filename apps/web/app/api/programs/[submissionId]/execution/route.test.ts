@@ -101,8 +101,11 @@ describe("canonical program execution access", () => {
       inputs: [{ chainId: 196, token: "0x2222222222222222222222222222222222222222", maximumAtomic: "1000000" }],
       outcomes: [{ kind: "minimum-increase", chainId: 196,
         token: "0x3333333333333333333333333333333333333333", atomic: "1" }],
-      limits: { maxStages: 1, maxTransactions: 1, maxApprovals: 1, maxCalldataBytes: 4,
-        maxGasPerTransaction: "1", maxSolverFeeAtomic: "100000", maxNativeValueAtomicByChain: [{ chainId: 196, atomic: "0" }] },
+      limits: {
+        maxStages: 1, maxTransactions: 1, maxApprovals: 1, maxCalldataBytes: 4,
+        maxGasPerTransaction: "1", maxSolverFeeAtomic: "100000",
+        maxNativeValueAtomicByChain: [{ chainId: 196, atomic: "0" }],
+      },
       forbiddenTargets: [], forbiddenAssets: [],
     });
     mocks.verifyProof.mockResolvedValue({
@@ -133,6 +136,60 @@ describe("canonical program execution access", () => {
       code: "EXECUTION_UNAVAILABLE", message: "Program execution is unavailable.",
     });
     expect(mocks.assertExecutorReady).toHaveBeenCalledTimes(1);
+    expect(mocks.profileIdentity).not.toHaveBeenCalled();
+    expect(mocks.readPaymentConfig).not.toHaveBeenCalled();
+  });
+
+  it("refuses wallet preparation when the owner cannot fund the signed input", async () => {
+    const inputToken = "0x2222222222222222222222222222222222222222";
+    const execution = { version: 3, program: { deadline: "2000001000" } };
+    const policy = OpenIntentPolicyV3Schema.parse({
+      version: 3, kind: "open-onchain", requestId: submissionId, displayGoal: "Swap USDG",
+      owner, executionChainIds: [196], nonce: `0x${"33".repeat(32)}`,
+      createdAt: 2_000_000_000, deadline: 2_000_001_000,
+      competition: { closesAt: 2_000_000_300, maxRevisionsPerSolver: 1 }, maxEvidenceAgeSec: 300,
+      inputs: [{ chainId: 196, token: inputToken, maximumAtomic: "1000000" }],
+      outcomes: [{ kind: "minimum-increase", chainId: 196,
+        token: "0x3333333333333333333333333333333333333333", atomic: "1" }],
+      limits: { maxStages: 1, maxTransactions: 1, maxApprovals: 1, maxCalldataBytes: 4,
+        maxGasPerTransaction: "1", maxSolverFeeAtomic: "100000", maxNativeValueAtomicByChain: [{ chainId: 196, atomic: "0" }] },
+      forbiddenTargets: [], forbiddenAssets: [],
+    });
+    mocks.verifyProof.mockResolvedValue({
+      programId: submissionId, owner, realm: "getcobia.com", expiresAt: 2_000_000_300,
+    });
+    mocks.getExecutionContext.mockResolvedValue({
+      owner, solverId: "cobia-reference", state: "attested", policy,
+      snapshot: { tokenEvidence: [{ token: inputToken, symbol: "USDG", decimals: 6 }] },
+      artifacts: [{ kind: "execution", payload: execution, artifactHash: commitment(execution) }],
+    });
+    mocks.deriveAuthority.mockReturnValue({ policy: {}, snapshot: {} });
+    mocks.prepareExecution.mockReturnValue({
+      approval: { to: inputToken }, inputAmountAtomic: "1000000",
+    });
+    mocks.readExecutionConfig.mockReturnValue({
+      COBIA_EXECUTOR_V3_ADDRESS: "0x3333333333333333333333333333333333333333",
+      COBIA_EXECUTOR_V3_CODE_HASH: `0x${"22".repeat(32)}`,
+      COBIA_VERIFIER_PRIVATE_KEY: `0x${"11".repeat(32)}`,
+      XLAYER_RPC_URL: "https://rpc.xlayer.tech",
+    });
+    mocks.createPublicClient.mockReturnValue({
+      readContract: vi.fn()
+        .mockResolvedValueOnce(81_460n)
+        .mockResolvedValueOnce(1_000_000n),
+    });
+    mocks.assertExecutorReady.mockResolvedValue(undefined);
+
+    const response = await POST(request(), context);
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      code: "INPUT_BALANCE_INSUFFICIENT",
+      message: "Wallet needs 1 USDG but only holds 0.08146 USDG.",
+      inputToken,
+      requiredAtomic: "1000000",
+      availableAtomic: "81460",
+    });
     expect(mocks.profileIdentity).not.toHaveBeenCalled();
     expect(mocks.readPaymentConfig).not.toHaveBeenCalled();
   });

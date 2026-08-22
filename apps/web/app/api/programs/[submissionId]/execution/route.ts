@@ -1,6 +1,6 @@
 import { commitment, OpenIntentPolicyV3Schema } from "@cobia/domain";
 import { NextResponse } from "next/server";
-import { createPublicClient, erc20Abi, http, isAddressEqual, type Hex } from "viem";
+import { createPublicClient, erc20Abi, formatUnits, http, isAddressEqual, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { z } from "zod";
 import { xLayer } from "../../../../../lib/chain/xlayer";
@@ -118,10 +118,32 @@ export async function POST(
         inputAmount: BigInt(prepared.inputAmountAtomic),
         read: createAgentExecutorReadV1(client),
       });
-      const allowance = await client.readContract({
-        address: prepared.approval.to, abi: erc20Abi, functionName: "allowance",
-        args: [proof.owner, config.COBIA_EXECUTOR_V3_ADDRESS],
-      });
+      const required = BigInt(prepared.inputAmountAtomic);
+      const [balance, allowance] = await Promise.all([
+        client.readContract({
+          address: prepared.approval.to, abi: erc20Abi, functionName: "balanceOf",
+          args: [proof.owner],
+        }),
+        client.readContract({
+          address: prepared.approval.to, abi: erc20Abi, functionName: "allowance",
+          args: [proof.owner, config.COBIA_EXECUTOR_V3_ADDRESS],
+        }),
+      ]);
+      if (balance < required) {
+        const token = stored.snapshot.tokenEvidence?.find((item) =>
+          isAddressEqual(item.token, prepared.approval.to));
+        const needed = token ? formatUnits(required, token.decimals) : required.toString();
+        const available = token ? formatUnits(balance, token.decimals) : balance.toString();
+        const message = token
+          ? `Wallet needs ${needed} ${token.symbol} but only holds ${available} ${token.symbol}.`
+          : "The owner wallet cannot fund the signed input amount.";
+        return NextResponse.json({
+          code: "INPUT_BALANCE_INSUFFICIENT", message,
+          inputToken: prepared.approval.to,
+          requiredAtomic: required.toString(),
+          availableAtomic: balance.toString(),
+        }, { status: 409 });
+      }
       execution = {
         chainId: 196,
         programVersion: 3,
@@ -130,7 +152,7 @@ export async function POST(
           token: prepared.approval.to,
           executor: config.COBIA_EXECUTOR_V3_ADDRESS,
           allowance,
-          required: BigInt(prepared.inputAmountAtomic),
+          required,
         }),
         execution: prepared.execution,
         guarantee: "The wallet broadcasts only these independently attested calls. The atomic executor enforces the deadline and post-state bounds.",

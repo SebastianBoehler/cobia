@@ -211,7 +211,21 @@ export function AgentProgramView({ programId }: { programId: string }) {
         artifacts: { ...current.artifacts, receipt: { payload: body.receipt } },
       } : current);
       load(programId).then(setProgram).catch(() => undefined);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Execution failed."); }
+    } catch (cause) {
+      const failure = cause instanceof Error ? cause.message : "Execution failed.";
+      setPrepared(undefined);
+      setExecutionAccess(undefined);
+      setApprovalIndex(0);
+      setTransactionIndex(0);
+      setTransactionHashes([]);
+      try {
+        const refreshed = await load(programId);
+        setProgram(refreshed);
+        setError(refreshed.submission.executable ? failure : undefined);
+      } catch {
+        setError(failure);
+      }
+    }
     finally { setPending(false); }
   }
 

@@ -134,6 +134,59 @@ describe("AgentProgramView", () => {
     expect(hasRequiredConfirmations("0x7b", "0x7c", 1)).toBe(true);
   });
 
+  it("refreshes an expired program after the wallet execution call fails", async () => {
+    const current = {
+      submission: {
+        id: "550e8400-e29b-41d4-a716-446655440000", state: "current", executable: true,
+        owner: "0x1111111111111111111111111111111111111111", solverId: "cobia-reference",
+        revision: 1, programHash: `0x${"11".repeat(32)}`, validUntil: "2033-05-18T03:35:00Z",
+        blockNumber: "123", blockHash: `0x${"22".repeat(32)}`, displayGoal: "Swap USDG",
+        failureCodes: [],
+      },
+      artifacts: {
+        snapshot: { payload: { tokenEvidence: [{
+          token: "0x3333333333333333333333333333333333333333", symbol: "USDG", decimals: 6,
+        }] } },
+        program: { payload: { actions: [{
+          capabilityId: "uniswap-v3.exact-input", capabilityVersion: 1,
+          parameters: {
+            tokenIn: "0x3333333333333333333333333333333333333333",
+            tokenOut: "0x2222222222222222222222222222222222222222",
+          },
+        }] } },
+        replay: { payload: { reproduced: true } },
+      },
+    };
+    let programReads = 0;
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/execution")) {
+        return new Response(JSON.stringify({
+          chainId: 196, approvals: [],
+          execution: { to: "0x2222222222222222222222222222222222222222", data: "0x1234", value: "0x0" },
+        }));
+      }
+      programReads += 1;
+      return new Response(JSON.stringify(programReads === 1 ? current : {
+        ...current,
+        submission: { ...current.submission, state: "expired", executable: false },
+      }));
+    });
+    wallet.request.mockImplementation(async ({ method }: { method: string }) => {
+      if (method === "personal_sign") return `0x${"33".repeat(65)}`;
+      if (method === "eth_sendTransaction") throw new Error("Execution reverted.");
+      throw new Error(`Unexpected wallet method ${method}`);
+    });
+
+    render(<AgentProgramView programId="550e8400-e29b-41d4-a716-446655440000" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Prepare execution" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Swap now" }));
+
+    expect(await screen.findByText("Verified history")).toBeVisible();
+    expect(screen.getByRole("link", { name: /create fresh intent/i })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Swap now" })).not.toBeInTheDocument();
+  });
+
   it("reuses the fresh access signature when attributing the confirmed receipt", async () => {
     const transactionHash = `0x${"44".repeat(32)}`;
     const current = {
