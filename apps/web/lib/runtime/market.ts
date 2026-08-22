@@ -33,6 +33,7 @@ import { xLayer } from "../chain/xlayer";
 import { captureOpenIntentSnapshotV1 } from "../open-exchange/capture-snapshot";
 import { createOpenDecisionIntakeV1 } from "../open-exchange/decision-intake";
 import { verifyOpenCapabilityProposalV1 } from "../open-exchange/capability-verifier";
+import { verifyCompositionProposalV1 } from "../open-exchange/composition-verifier";
 import { verifyOpenStagedProposalV1 } from "../open-exchange/transaction-verifier";
 import {
   assertAgentExecutorReadyV1, createAgentExecutorReadV1,
@@ -247,6 +248,29 @@ export function submitOpenSolverDecision(value: {
     submissions: getSolverSubmissionRepository(),
     nowSec: () => Math.floor(Date.now() / 1_000),
     async verify(input) {
+      if (input.policy && typeof input.policy === "object" && "kind" in input.policy &&
+          input.policy.kind === "capability-composition") {
+        if (input.proposalKind !== "capability-v2") {
+          return { accepted: false as const, errorCodes: ["POLICY_MISMATCH"] };
+        }
+        return verifyCompositionProposalV1(input, {
+          client,
+          executor: config.COBIA_EXECUTOR_V3_ADDRESS,
+          attestor: verifier.address,
+          assertReady: ({ owner, inputToken, inputAmount }) => assertAgentExecutorReadyV1({
+            executor: config.COBIA_EXECUTOR_V3_ADDRESS,
+            expectedCodeHash: config.COBIA_EXECUTOR_V3_CODE_HASH,
+            expectedVerifier: verifier.address,
+            owner, inputToken, inputAmount,
+            read: createAgentExecutorReadV1(client),
+          }),
+          async replay(replayInput) {
+            return replayCapabilityRemotely({ blockNumber: replayInput.blockNumber,
+              program: replayInput.program, compiled: replayInput.compiled });
+          },
+          signTypedData: (typedData) => verifier.signTypedData(typedData),
+        });
+      }
       if (input.proposalKind === "transaction-program") {
         return verifyOpenStagedProposalV1({ ...input,
           providerArtifacts: input.providerArtifacts }, {

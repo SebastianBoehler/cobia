@@ -1,4 +1,6 @@
 import {
+  CapabilityCompositionPolicyV1Schema,
+  CapabilityCompositionSnapshotV1Schema,
   OpenIntentPolicyV3Schema,
   OpenIntentSnapshotV1Schema,
   commitment,
@@ -68,9 +70,23 @@ function capabilities(value: unknown): string[] {
   return z.array(z.string()).max(32).parse(value);
 }
 
+function parsePolicy(value: unknown) {
+  return value && typeof value === "object" && "kind" in value &&
+    value.kind === "capability-composition"
+    ? CapabilityCompositionPolicyV1Schema.parse(value)
+    : OpenIntentPolicyV3Schema.parse(value);
+}
+
+function parseSnapshot(value: unknown) {
+  return value && typeof value === "object" && "kind" in value &&
+    value.kind === "capability-composition"
+    ? CapabilityCompositionSnapshotV1Schema.parse(value)
+    : OpenIntentSnapshotV1Schema.parse(value);
+}
+
 function assertDecisionAuthority(input: {
   decision: ReturnType<typeof SolverDecisionV1Schema.parse>;
-  policy: ReturnType<typeof OpenIntentPolicyV3Schema.parse>;
+  policy: ReturnType<typeof parsePolicy>;
 }) {
   if (input.decision.decision === "abstain") return;
   if (input.decision.program.requestId !== input.policy.requestId ||
@@ -79,6 +95,9 @@ function assertDecisionAuthority(input: {
     throw new InvalidSolverDecisionError("Solver program does not match signed intent authority");
   }
   if (input.decision.proposalKind === "transaction-program") {
+    if (input.policy.kind === "capability-composition") {
+      throw new InvalidSolverDecisionError("Composition intents require registered capability programs");
+    }
     const { program } = input.decision;
     if (program.policyHash !== commitment(input.policy)) {
       throw new InvalidSolverDecisionError("Transaction program does not match signed intent policy");
@@ -105,7 +124,7 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
         throw new InvalidSolverDecisionError("Solver decision commitment mismatch");
       }
       const intent = required(await dependencies.intents.get(claim.intentId), "Intent is unavailable");
-      const policy = OpenIntentPolicyV3Schema.parse(intent.policy);
+      const policy = parsePolicy(intent.policy);
       if (intent.state !== "collecting" || policy.competition.closesAt <= nowSec ||
           claim.revision > policy.competition.maxRevisionsPerSolver) {
         throw new SolverDecisionUnavailableError("Intent competition is closed");
@@ -113,7 +132,10 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
       const storedSnapshot = required(
         await dependencies.snapshots.get(claim.intentId), "Intent snapshot is unavailable",
       );
-      const snapshot = OpenIntentSnapshotV1Schema.parse(storedSnapshot.snapshot);
+      const snapshot = parseSnapshot(storedSnapshot.snapshot);
+      if (snapshot.kind !== policy.kind) {
+        throw new InvalidSolverDecisionError("Intent policy and snapshot kinds mismatch");
+      }
       if (storedSnapshot.snapshotHash !== commitment(snapshot) || claim.snapshotHash !== storedSnapshot.snapshotHash) {
         throw new InvalidSolverDecisionError("Solver decision snapshot mismatch");
       }
@@ -131,6 +153,10 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
       assertDecisionAuthority({ decision, policy });
       if (decision.decision === "submit") {
         const declared = new Set(capabilities(profile.declaredCapabilities));
+        if (policy.kind === "capability-composition" &&
+            !declared.has("policy.capability-composition@1")) {
+          throw new InvalidSolverDecisionError("Solver did not declare composition policy support");
+        }
         const undeclared = decision.proposalKind === "capability-v2"
           ? decision.program.actions.some((action) =>
             !declared.has(`${action.capabilityId}@${action.capabilityVersion}`))
@@ -141,7 +167,10 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
         }
       }
       await dependencies.claims.consume({ claim, signature, decision });
-      const anchor = required(snapshot.anchors.find(({ chainId }) => chainId === 196), "X Layer anchor is unavailable");
+      const anchor = snapshot.kind === "capability-composition"
+        ? { blockNumber: snapshot.route.blockNumber, blockHash: snapshot.route.blockHash }
+        : required(snapshot.anchors.find(({ chainId }) => chainId === 196),
+          "X Layer anchor is unavailable");
       const run = await dependencies.runs.create({
         intentId: claim.intentId, solverId: claim.solverId, revision: claim.revision,
         blockNumber: anchor.blockNumber, blockHash: anchor.blockHash,
