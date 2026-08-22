@@ -3,6 +3,7 @@
 .hero { align-items: end; display: grid; gap: clamp(28px, 5vw, 64px); grid-template-columns: minmax(0, 1.4fr) minmax(280px, .6fr); padding: 12px 0 22px; }
 .heroCopy { max-width: 760px; }
 .hero h1 { font-size: clamp(2.75rem, 5.5vw, 4.75rem); font-weight: 620; letter-spacing: -.065em; line-height: .96; margin: 7px 0 0; max-width: 15ch; text-wrap: balance; }
+.hero h1[data-title-density="long"] { font-size: clamp(2rem, 3.4vw, 3.25rem); letter-spacing: -.045em; line-height: 1.04; max-width: 22ch; text-wrap: pretty; }
 .kicker { color: var(--muted); font-size: 12px; font-weight: 680; letter-spacing: .08em; margin: 0; text-transform: uppercase; }
 
 .statusCard { align-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; display: grid; gap: 12px; grid-template-columns: 36px minmax(0, 1fr); padding: 16px; }

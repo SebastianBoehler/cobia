@@ -5,6 +5,28 @@ import { IntentCompetitionView } from "./IntentCompetitionView";
 const closesAt = "2033-05-18T03:35:00.000Z";
 
 describe("IntentCompetitionView", () => {
+  it("marks long signed goals for a compact competition heading", () => {
+    const longGoal = "Use 1 USDG to enter the best verified stablecoin-yield route ending in USDt0 on X Layer. Only use Aave V3, Curve or Uniswap. Allow no more than 1% conversion loss, require a minimum receipt-token balance, and expire in ten minutes.";
+    const longHtml = renderToStaticMarkup(<IntentCompetitionView
+      goal={longGoal}
+      closesAt={closesAt}
+      observedAtSec={2_000_000_000}
+      current={[]}
+      history={[]}
+    />);
+    const shortHtml = renderToStaticMarkup(<IntentCompetitionView
+      goal="Swap 1 USDG into USDt0"
+      closesAt={closesAt}
+      observedAtSec={2_000_000_000}
+      current={[]}
+      history={[]}
+    />);
+
+    expect(longHtml).toContain('data-title-density="long"');
+    expect(longHtml).toContain(longGoal);
+    expect(shortHtml).toContain('data-title-density="short"');
+  });
+
   it("makes a live empty competition read as waiting for submissions", () => {
     const html = renderToStaticMarkup(<IntentCompetitionView
       goal="Supply bounded USDG"
@@ -125,6 +147,9 @@ describe("IntentCompetitionView", () => {
     expect(html).toContain("≥ 99%");
     expect(html).toContain("Terminal receipt");
     expect(html).toContain("USDt0");
+    expect(html).toContain('aria-label="Aave V3"');
+    expect(html).toContain('aria-label="Curve"');
+    expect(html).toContain('aria-label="Uniswap V3"');
     expect(html).toContain("curve-stableswap-ng.exact-input → aave-v3.supply");
     expect(html).toContain("+0.999000 aUSDt0");
     expect(html).toContain("$0.874002 net terminal · 30d");

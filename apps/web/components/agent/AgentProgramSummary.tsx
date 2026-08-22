@@ -1,6 +1,7 @@
 import { ArrowRight, Check, CircleAlert, CircleCheck, ExternalLink, History, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { xLayer } from "../../lib/chain/xlayer";
+import { goalTitleDensity } from "../../lib/intents/goal-title-density";
 import { formatTokenAmount } from "../../lib/token-amount";
 import { shortAddress } from "../../lib/wallet/eip1193";
 import { AgentProgramDetails } from "./AgentProgramDetails";
@@ -52,7 +53,9 @@ export function AgentProgramSummary({ program, action }: {
     <header className={styles.hero}>
       <div className={styles.heroCopy}>
         <p className={styles.kicker}>{completed ? "Confirmed execution" : "Verified program"}</p>
-        <h1>{submission.displayGoal ?? "Agent-authored route"}</h1>
+        <h1 data-title-density={goalTitleDensity(submission.displayGoal ?? "Agent-authored route")}>
+          {submission.displayGoal ?? "Agent-authored route"}
+        </h1>
       </div>
       <div className={`${styles.statusCard} ${styles[state.tone]}`} role="status" aria-live="polite">
         <span className={styles.statusIcon}><StatusIcon aria-hidden="true" /></span>

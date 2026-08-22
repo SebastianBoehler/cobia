@@ -90,6 +90,7 @@
 .intent-competition__summary { align-items: start; display: grid; gap: 24px; grid-template-columns: 48px minmax(0, 1fr) 190px; }
 .intent-competition__summary > svg { background: var(--cobalt-wash); border-radius: 14px; color: var(--cobalt); height: 48px; padding: 12px; width: 48px; }
 .intent-competition__summary h1 { font-size: clamp(36px, 5vw, 62px); letter-spacing: -.065em; line-height: 1; margin: 16px 0 0; text-wrap: balance; }
+.intent-competition__summary h1[data-title-density="long"] { font-size: clamp(30px, 3vw, 40px); letter-spacing: -.045em; line-height: 1.06; margin-top: 8px; text-wrap: pretty; }
 .intent-competition__summary p { color: var(--muted); font-size: 14px; line-height: 1.65; margin: 22px 0 0; max-width: 700px; }
 .intent-competition__status { align-items: center; color: var(--muted); display: inline-flex; font-size: 13px; font-weight: 650; gap: 7px; }
 .intent-competition__status--live { color: var(--verified); }
@@ -99,7 +100,7 @@
 .intent-competition__deadline strong { font-size: 13px; font-weight: 620; }
 .composition-authority__actions { display: grid; gap: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .composition-authority__actions > div { align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; display: grid; gap: 10px; grid-template-columns: 26px minmax(0, 1fr); min-height: 64px; padding: 12px 14px; }
-.composition-authority__actions span { align-items: center; background: var(--cobalt-wash); border-radius: 50%; color: var(--cobalt); display: inline-flex; font-size: 11px; height: 26px; justify-content: center; }
+.composition-authority__actions .brand-mark { flex: 0 0 auto; grid-row: 1 / span 2; }
 .composition-authority__actions strong { font-size: 13px; font-weight: 580; }
 .composition-authority__actions small { color: var(--verified); font-size: 10px; grid-column: 2; }
 .composition-authority__bounds { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 18px 0 0; }
@@ -145,6 +146,9 @@
 .competition-row__outcomes em { color: var(--cobalt-dark); }
 .competition-row__steps { display: grid; gap: 6px; }
 .competition-row__steps span { color: var(--verified); font-size: 11px; }
+.competition-row__route-marks { align-items: center; display: flex; gap: 5px; }
+.competition-row__route-marks > span { align-items: center; display: inline-flex; gap: 5px; }
+.competition-row__route-arrow { color: var(--muted); flex: 0 0 auto; }
 .competition-row > a { align-items: center; color: var(--cobalt-dark); display: inline-flex; font-size: 12px; font-weight: 650; gap: 7px; }
 .competition-list--history .competition-row { opacity: .74; }
 .competition-waiting { align-items: start; background: var(--wash); border: 1px solid var(--line); border-radius: 18px; color: var(--muted); display: grid; gap: 14px; grid-template-columns: 22px minmax(0, 1fr); padding: 22px 24px; }

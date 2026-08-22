@@ -4,8 +4,10 @@ import { ArrowRight, ChevronDown, CircleCheck, CircleDot, Clock3, History, Shiel
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { AssetMark } from "../brand/AssetMark";
+import { ProtocolMark } from "../brand/ProtocolMark";
 import { formatTokenAmount } from "../../lib/token-amount";
 import type { CompetitionProgramPreview } from "../../lib/competitions/submission-preview";
+import { goalTitleDensity } from "../../lib/intents/goal-title-density";
 
 export interface CompetitionSubmission {
   id: string;
@@ -21,6 +23,21 @@ export interface CompetitionSubmission {
 function stateLabel(value: string) {
   const words = value.replaceAll("-", " ");
   return words[0]?.toUpperCase() + words.slice(1);
+}
+
+function protocolLabel(action: string) {
+  const value = action.toLowerCase();
+  if (value.includes("aave")) return "Aave V3";
+  if (value.includes("curve")) return "Curve";
+  if (value.includes("uniswap")) return "Uniswap V3";
+  return action;
+}
+
+function ProtocolRoute({ actions, size }: { actions: string[]; size: number }) {
+  return <div className="competition-row__route-marks">{actions.map((action, index) => <span key={`${action}-${index}`}>
+    {index > 0 ? <ArrowRight aria-hidden="true" className="competition-row__route-arrow" size={12} /> : null}
+    <ProtocolMark protocol={protocolLabel(action)} size={size} />
+  </span>)}</div>;
 }
 
 function OutcomePreview({ preview }: { preview: CompetitionProgramPreview | null }) {
@@ -52,6 +69,7 @@ function SubmissionRow({ item, current }: { item: CompetitionSubmission; current
     <OutcomePreview preview={item.preview} />
     <div className="competition-row__steps">
       <small>{item.preview?.actions?.length ? "Verified route" : "Wallet sequence"}</small>
+      {item.preview?.actions?.length ? <ProtocolRoute actions={item.preview.actions} size={22} /> : null}
       <strong>{item.preview?.actions?.length
         ? item.preview.actions.map((action) => action.split("@")[0]).join(" → ")
         : item.preview ? `Up to ${item.preview.stepCount} wallet ${item.preview.stepCount === 1 ? "step" : "steps"}`
@@ -78,8 +96,9 @@ function CompositionAuthority({ value }: { value: CompositionAuthoritySummary })
     <header className="section-heading"><div><h2 id="composition-authority-title">Signed program authority</h2>
       <p>Solvers may combine only these registered actions. Every winning program is replayed in full.</p>
     </div><ShieldCheck aria-hidden="true" size={20} /></header>
-    <div className="composition-authority__actions">{value.actions.map((action, index) =>
-      <div key={action}><span>{index + 1}</span><strong>{action}</strong><small>Registered</small></div>)}</div>
+    <div className="composition-authority__actions">{value.actions.map((action) =>
+      <div key={action}><ProtocolMark protocol={protocolLabel(action)} size={28} />
+        <strong>{action}</strong><small>Registered</small></div>)}</div>
     <dl className="composition-authority__bounds">
       <div><dt>Conversion loss</dt><dd>≤ {value.maximumLossBps / 100}%</dd></div>
       <div><dt>Receipt value</dt><dd>≥ {value.minimumReceiptValueBps / 100}%</dd></div>
@@ -154,7 +173,7 @@ export function IntentCompetitionView({ goal, closesAt, observedAtSec, current, 
     <section className="intent-competition__summary">
       <ShieldCheck aria-hidden="true" size={24} />
       <div>
-        <h1>{goal}</h1>
+        <h1 data-title-density={goalTitleDensity(goal)}>{goal}</h1>
         <p>{live
           ? "Independent solvers are working from the signed policy and may publish improved revisions until the deadline."
           : "The proposal window has ended. Any submitted revisions remain available as auditable evidence below."}</p>

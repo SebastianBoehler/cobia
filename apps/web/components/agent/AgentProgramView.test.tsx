@@ -74,6 +74,26 @@ describe("AgentProgramView", () => {
     expect(screen.queryByRole("button", { name: /prepare execution/i })).not.toBeInTheDocument();
   });
 
+  it("marks a long signed goal for a compact program heading", async () => {
+    const longGoal = "Use 1 USDG to enter the best verified stablecoin-yield route ending in USDt0 on X Layer. Only use Aave V3, Curve or Uniswap. Allow no more than 1% conversion loss, require a minimum receipt-token balance, and expire in ten minutes.";
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({
+      submission: {
+        id: "550e8400-e29b-41d4-a716-446655440000", state: "expired", executable: false,
+        owner: "0x1111111111111111111111111111111111111111", solverId: "cobia-reference",
+        revision: 2, programHash: `0x${"11".repeat(32)}`, validUntil: "2033-05-18T03:35:00Z",
+        blockNumber: "123", blockHash: `0x${"22".repeat(32)}`, displayGoal: longGoal,
+        failureCodes: [],
+      },
+      artifacts: {},
+    })));
+
+    render(<AgentProgramView programId="550e8400-e29b-41d4-a716-446655440000" />);
+
+    expect(await screen.findByRole("heading", { name: longGoal })).toHaveAttribute(
+      "data-title-density", "long",
+    );
+  });
+
   it("makes a verifier infrastructure failure explicit", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({
       submission: {
