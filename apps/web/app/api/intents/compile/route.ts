@@ -8,6 +8,8 @@ import {
   getWalletAuthService, walletAuthClientKey,
 } from "../../../../lib/runtime/wallet-auth";
 import { WalletSessionRejectedError } from "../../../../lib/wallet-auth/service";
+import { getSolverProfileRepository } from "../../../../lib/runtime/market";
+import { currentUnixSeconds } from "../../../../lib/time";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -64,7 +66,12 @@ export async function POST(request: Request): Promise<Response> {
     if (!apiKey) throw new Error("Intent compiler API key is unavailable");
     const model = process.env.OPENAI_INTENT_MODEL ?? process.env.OPENAI_CODING_AGENT_MODEL ??
       process.env.OPENAI_SOLVER_MODEL ?? "gpt-5.6-terra";
-    const result = await createOpenAiIntentCompiler({ apiKey, model }).compile(goal, actionPreference);
+    const compositionAvailable = await getSolverProfileRepository().supportsCapability(
+      "policy.capability-composition@1", currentUnixSeconds(),
+    );
+    const result = await createOpenAiIntentCompiler({
+      apiKey, model, compositionAvailable,
+    }).compile(goal, actionPreference);
     await auth.completeCompilation(leaseId, result);
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

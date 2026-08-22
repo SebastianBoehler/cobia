@@ -21,18 +21,23 @@ const ProfileSchema = z.object({
   }
 });
 
-function sameProfile(stored: typeof cobiaSolvers.$inferSelect, input: z.infer<typeof ProfileSchema>) {
-  return stored.displayName === input.displayName && stored.operatorKind === input.operatorKind &&
-    stored.attestationAddress === input.attestationAddress &&
-    JSON.stringify(stored.declaredCapabilities) === JSON.stringify(input.declaredCapabilities);
-}
-
 export function solverProfileIdentityMatches(
   stored: Pick<typeof cobiaSolvers.$inferSelect, "operatorKind" | "attestationAddress">,
   input: Pick<z.infer<typeof ProfileSchema>, "operatorKind" | "attestationAddress">,
 ) {
   return stored.operatorKind === input.operatorKind &&
     stored.attestationAddress === input.attestationAddress;
+}
+
+export function solverCapabilityAvailable(
+  profiles: Pick<typeof cobiaSolvers.$inferSelect, "declaredCapabilities" | "updatedAt">[],
+  capability: string,
+  observedAtSec: number,
+  maximumAgeSec = 300,
+) {
+  const minimumUpdatedAtMs = (observedAtSec - maximumAgeSec) * 1_000;
+  return profiles.some(({ declaredCapabilities, updatedAt }) =>
+    updatedAt.getTime() >= minimumUpdatedAtMs && declaredCapabilities.includes(capability));
 }
 
 export function createSolverProfileRepository(db: CobiaDatabase) {
@@ -43,10 +48,10 @@ export function createSolverProfileRepository(db: CobiaDatabase) {
         const stored = await tx.query.cobiaSolvers.findFirst({ where: eq(cobiaSolvers.id, input.id) });
         if (stored) {
           if (!solverProfileIdentityMatches(stored, input)) throw new Error("Solver profile conflicts");
-          if (sameProfile(stored, input)) return stored;
           const rows = await tx.update(cobiaSolvers).set({
             displayName: input.displayName,
             declaredCapabilities: input.declaredCapabilities,
+            updatedAt: new Date(),
           }).where(eq(cobiaSolvers.id, input.id)).returning();
           if (!rows[0]) throw new Error("Solver profile was not updated");
           return rows[0];
@@ -111,6 +116,13 @@ export function createSolverProfileRepository(db: CobiaDatabase) {
 
     identity(id: string) {
       return db.query.cobiaSolvers.findFirst({ where: eq(cobiaSolvers.id, id) });
+    },
+
+    async supportsCapability(capability: string, observedAtSec: number) {
+      const rows = await db.query.cobiaSolvers.findMany({
+        columns: { declaredCapabilities: true, updatedAt: true },
+      });
+      return solverCapabilityAvailable(rows, capability, observedAtSec);
     },
 
     async list(observedAtSec: number) {

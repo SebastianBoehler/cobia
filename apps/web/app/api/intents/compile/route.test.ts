@@ -3,13 +3,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   readSession: vi.fn(), beginCompilation: vi.fn(), completeCompilation: vi.fn(),
   failCompilation: vi.fn(), compile: vi.fn(), clientKey: vi.fn(() => "client-key"),
+  supportsCapability: vi.fn(), compilerOptions: vi.fn(),
 }));
 vi.mock("../../../../lib/runtime/wallet-auth", () => ({
   getWalletAuthService: () => mocks,
   walletAuthClientKey: mocks.clientKey,
 }));
 vi.mock("../../../../lib/intents/intent-compiler", () => ({
-  createOpenAiIntentCompiler: () => ({ compile: mocks.compile }),
+  createOpenAiIntentCompiler: (options: unknown) => {
+    mocks.compilerOptions(options);
+    return { compile: mocks.compile };
+  },
+}));
+vi.mock("../../../../lib/runtime/market", () => ({
+  getSolverProfileRepository: () => ({ supportsCapability: mocks.supportsCapability }),
 }));
 
 import { POST } from "./route";
@@ -33,6 +40,7 @@ describe("authenticated intent compiler API", () => {
     mocks.readSession.mockResolvedValue({ owner: "0x1111111111111111111111111111111111111111" });
     mocks.beginCompilation.mockResolvedValue({ kind: "run", id: "550e8400-e29b-41d4-a716-446655440000" });
     mocks.compile.mockResolvedValue({ status: "review", values: {} });
+    mocks.supportsCapability.mockResolvedValue(true);
   });
 
   it("rejects missing sessions and cross-origin requests before invoking the model", async () => {
@@ -66,6 +74,12 @@ describe("authenticated intent compiler API", () => {
 
   it("records successful and failed model work against the durable lease", async () => {
     expect((await POST(request("token"))).status).toBe(200);
+    expect(mocks.supportsCapability).toHaveBeenCalledWith(
+      "policy.capability-composition@1", expect.any(Number),
+    );
+    expect(mocks.compilerOptions).toHaveBeenCalledWith(expect.objectContaining({
+      compositionAvailable: true,
+    }));
     expect(mocks.completeCompilation).toHaveBeenCalledWith(
       "550e8400-e29b-41d4-a716-446655440000", { status: "review", values: {} },
     );
@@ -73,6 +87,15 @@ describe("authenticated intent compiler API", () => {
     mocks.compile.mockRejectedValueOnce(new Error("provider unavailable"));
     expect((await POST(request("token"))).status).toBe(503);
     expect(mocks.failCompilation).toHaveBeenCalledWith("550e8400-e29b-41d4-a716-446655440000");
+  });
+
+  it("disables composed compiler output without a fresh compatible solver", async () => {
+    mocks.supportsCapability.mockResolvedValue(false);
+
+    expect((await POST(request("token"))).status).toBe(200);
+    expect(mocks.compilerOptions).toHaveBeenCalledWith(expect.objectContaining({
+      compositionAvailable: false,
+    }));
   });
 
   it("reports wallet and concurrency limits without invoking the model", async () => {

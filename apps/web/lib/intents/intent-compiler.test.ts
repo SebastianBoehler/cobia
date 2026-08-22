@@ -6,16 +6,20 @@ function response(text: string) {
     content: [{ type: "output_text", text }] }] });
 }
 
+function simple(value: Record<string, unknown>) {
+  return { ...value, kind: "simple", composed: null };
+}
+
 describe("intent compiler", () => {
   it("keeps constrained extraction from spending its output budget on reasoning", async () => {
     const fetcher = vi.fn().mockImplementation((_url, init: RequestInit) => {
       const request = JSON.parse(init.body as string);
       return Promise.resolve(request.reasoning?.effort === "none"
-        ? response(JSON.stringify({
+        ? response(JSON.stringify(simple({
           status: "clarification", question: "Which xStock should be acquired?",
           templateId: "rwa-acquisition", inputSymbol: "USDG", outputSymbol: "TSLAx",
           amount: "1", minimum: "", jurisdiction: null,
-        }))
+        })))
         : Response.json({ status: "incomplete", incomplete_details: { reason: "max_output_tokens" }, output: [] }));
     });
     const compiler = createOpenAiIntentCompiler({ apiKey: "test", model: "gpt-5.6-luna", fetcher });
@@ -26,11 +30,11 @@ describe("intent compiler", () => {
   });
 
   it("compiles prose to editable receipt values without creating wallet authority", async () => {
-    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify({
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(simple({
       status: "review", question: null, templateId: "exact-input-swap",
       inputSymbol: "USDG", outputSymbol: "USDt0", amount: "10", minimum: "9.95",
       jurisdiction: null,
-    })));
+    }))));
     const compiler = createOpenAiIntentCompiler({ apiKey: "test", model: "test-model", fetcher });
 
     await expect(compiler.compile("Swap 10 USDG for at least 9.95 USDt0", "exact-input-swap")).resolves.toMatchObject({
@@ -44,11 +48,11 @@ describe("intent compiler", () => {
   });
 
   it("adds a disclosed stablecoin floor when an exact input has no stated output minimum", async () => {
-    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify({
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(simple({
       status: "review", question: null, templateId: "exact-input-swap",
       inputSymbol: "USDG", outputSymbol: "USDt0", amount: "0.02", minimum: "",
       jurisdiction: null,
-    })));
+    }))));
     const compiler = createOpenAiIntentCompiler({ apiKey: "test", model: "test-model", fetcher });
 
     await expect(compiler.compile("Swap 0.02 USDG into USDt0 on X Layer", "any")).resolves.toMatchObject({
@@ -64,11 +68,11 @@ describe("intent compiler", () => {
   });
 
   it("returns a clarification instead of inventing unsupported bounds", async () => {
-    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify({
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(simple({
       status: "clarification", question: "What is the maximum amount to spend?",
       templateId: "exact-input-swap", inputSymbol: "USDG", outputSymbol: "USDt0",
       amount: "", minimum: "", jurisdiction: "DE",
-    })));
+    }))));
     const compiler = createOpenAiIntentCompiler({ apiKey: "test", model: "test-model", fetcher });
 
     await expect(compiler.compile("Get me some USDt0", "any")).resolves.toEqual({
@@ -77,11 +81,11 @@ describe("intent compiler", () => {
   });
 
   it("normalizes UI mention markers before asking the model", async () => {
-    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify({
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(simple({
       status: "review", question: null, templateId: "exact-input-swap",
       inputSymbol: "USDG", outputSymbol: "USDt0", amount: "10", minimum: "9.95",
       jurisdiction: null,
-    })));
+    }))));
     const compiler = createOpenAiIntentCompiler({ apiKey: "test", model: "test-model", fetcher });
 
     await compiler.compile("Swap 10 @USDG for at least 9.95 @USDt0 on @XLayer", "exact-input-swap");
@@ -92,11 +96,11 @@ describe("intent compiler", () => {
   });
 
   it("resolves an xStock to its exact registered X Layer token", async () => {
-    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify({
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(simple({
       status: "review", question: null, templateId: "rwa-acquisition",
       inputSymbol: "USDG", outputSymbol: "TSLAx", amount: "10", minimum: "0.01",
       jurisdiction: "DE",
-    })));
+    }))));
     const compiler = createOpenAiIntentCompiler({ apiKey: "test", model: "test-model", fetcher });
 
     await expect(compiler.compile(
@@ -110,6 +114,45 @@ describe("intent compiler", () => {
         outputToken: "0x8ad3c73f833d3f9a523ab01476625f269aeb7cf0",
         minimum: "0.01",
         jurisdiction: "DE",
+      },
+    });
+  });
+
+  it("compiles the exact multi-step yield goal without asking for one template", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify({
+      status: "review", question: null, kind: "composed",
+      templateId: "aave-supply", inputSymbol: "USDG", outputSymbol: "USDt0",
+      amount: "", minimum: "", jurisdiction: null,
+      composed: {
+        inputSymbol: "USDG", amount: "1",
+        capabilityIds: ["aave-v3.supply", "curve-stableswap-ng.exact-input",
+          "uniswap-v3.exact-input"],
+        maxConversionLossBps: 100, deadlineMinutes: 10,
+      },
+    })));
+    const compiler = createOpenAiIntentCompiler({ apiKey: "test", model: "test-model",
+      fetcher, compositionAvailable: true });
+
+    await expect(compiler.compile(
+      "Use at most 1 USDG to enter the best verified stablecoin-yield route on X Layer. " +
+      "Only use Aave V3, Curve or Uniswap. Allow no more than 1% conversion loss, " +
+      "require a minimum receipt-token balance, and expire in ten minutes.",
+      "any",
+    )).resolves.toEqual({
+      status: "review",
+      values: {
+        kind: "composed",
+        inputToken: "0x4ae46a509F6b1D9056937BA4500cb143933D2dc8",
+        amount: "1",
+        capabilityIds: ["aave-v3.supply", "curve-stableswap-ng.exact-input",
+          "uniswap-v3.exact-input"],
+        maxConversionLossBps: 100,
+        minimumReceiptValueBps: 9_900,
+        minimumReceiptSource: "conversion-loss",
+        horizonDays: 30,
+        horizonSource: "product-default",
+        competitionDurationSec: 300,
+        deadlineDurationSec: 600,
       },
     });
   });
