@@ -90,7 +90,7 @@ describe("solver competition projections", () => {
     const first = await submissions.append({
       intentId: policy.requestId, solverId: "alpha-solver", revision: 1,
       programHash: hash("5"), validUntilSec: nowSec + 120,
-      blockNumber: "123456", blockHash: hash("3"), observedAtSec: nowSec,
+      blockNumber: "123456", blockHash: hash("3"), observedAtSec: nowSec - 20,
     });
     await submissions.resolve(first.id, "verified", []);
     await submissions.resolve(first.id, "attested", []);
@@ -98,7 +98,7 @@ describe("solver competition projections", () => {
     const second = await submissions.append({
       intentId: policy.requestId, solverId: "alpha-solver", revision: 2,
       programHash: hash("6"), validUntilSec: nowSec + 180,
-      blockNumber: "123457", blockHash: hash("7"), observedAtSec: nowSec,
+      blockNumber: "123457", blockHash: hash("7"), observedAtSec: nowSec - 10,
     });
     await submissions.resolve(second.id, "verified", []);
     await submissions.resolve(second.id, "attested", []);
@@ -130,6 +130,8 @@ describe("solver competition projections", () => {
       expect.objectContaining({ id: first.id, presentationState: "superseded" }),
       expect.objectContaining({ id: rejected.id, presentationState: "rejected" }),
     ]));
+    const profile = await createSolverProfileRepository(db()).read("alpha-solver", nowSec);
+    expect(profile?.submissions.map(({ id }) => id)).toEqual([second.id, first.id]);
     await expect(submissions.append({
       intentId: policy.requestId, solverId: "alpha-solver", revision: 4,
       programHash: hash("b"), validUntilSec: nowSec + 200,

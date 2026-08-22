@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { projectSubmissionState } from "../competitions/submission-state";
 import { ObjectiveMeasurementV1Schema } from "../competitions/objective-measurement";
@@ -65,7 +65,7 @@ export function createSolverProfileRepository(db: CobiaDatabase) {
       if (!profile) return null;
       const submissions = await db.query.cobiaSolverSubmissions.findMany({
         where: eq(cobiaSolverSubmissions.solverId, id),
-        orderBy: [asc(cobiaSolverSubmissions.createdAt)],
+        orderBy: [desc(cobiaSolverSubmissions.createdAt)],
       });
       const objectiveArtifacts = submissions.length === 0 ? []
         : await db.query.cobiaProgramArtifactsV2.findMany({
