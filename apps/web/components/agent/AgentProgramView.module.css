@@ -1,12 +1,12 @@
-.shell { display: grid; gap: 16px; margin: 0 auto; max-width: 1080px; }
+.shell { display: grid; gap: 20px; margin: 0 auto; max-width: 1120px; }
 .loading { align-items: center; color: var(--muted); display: flex; gap: 12px; justify-content: center; min-height: 52svh; }
-.hero { align-items: end; display: grid; gap: clamp(28px, 5vw, 64px); grid-template-columns: minmax(0, 1.4fr) minmax(280px, .6fr); padding: 12px 0 22px; }
+.hero { align-items: start; display: grid; gap: clamp(24px, 4vw, 48px); grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr); padding: 8px 0 12px; }
 .heroCopy { max-width: 760px; }
 .hero h1 { font-size: clamp(2.75rem, 5.5vw, 4.75rem); font-weight: 620; letter-spacing: -.065em; line-height: .96; margin: 0; max-width: 15ch; text-wrap: balance; }
-.hero h1[data-title-density="long"] { font-size: clamp(2rem, 3.4vw, 3.25rem); letter-spacing: -.045em; line-height: 1.04; max-width: 22ch; text-wrap: pretty; }
+.hero h1[data-title-density="long"] { font-size: clamp(1.35rem, 2vw, 1.875rem); font-weight: 560; letter-spacing: -.035em; line-height: 1.3; max-width: 54ch; text-wrap: pretty; }
 
-.statusCard { align-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; display: grid; gap: 12px; grid-template-columns: 36px minmax(0, 1fr); padding: 16px; }
-.statusIcon { align-items: center; background: var(--wash); border-radius: 10px; display: flex; height: 36px; justify-content: center; width: 36px; }
+.statusCard { align-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; display: grid; gap: 10px; grid-template-columns: 34px minmax(0, 1fr); padding: 14px; }
+.statusIcon { align-items: center; background: var(--wash); border-radius: 10px; display: flex; height: 34px; justify-content: center; width: 34px; }
 .statusIcon svg { height: 18px; stroke-width: 2; width: 18px; }
 .statusCard strong { display: block; font-size: 15px; margin: 1px 0 5px; }
 .statusCard p { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 0; text-wrap: pretty; }
@@ -37,7 +37,7 @@
 .receiptMeta code { color: var(--muted); font: 12px/1.5 var(--font-geist-mono), monospace; overflow-wrap: anywhere; }
 
 .details { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: clip; }
-.details > summary { align-items: center; cursor: pointer; display: flex; gap: 18px; justify-content: space-between; list-style: none; padding: 18px 20px; }
+.details > summary { align-items: center; cursor: pointer; display: flex; gap: 18px; justify-content: space-between; list-style: none; min-height: 56px; padding: 14px 20px; }
 .details > summary::-webkit-details-marker { display: none; }
 .details > summary:hover { background: var(--wash); }
 .details > summary:focus-visible { outline: 3px solid color-mix(in oklch, var(--cobalt) 70%, transparent); outline-offset: -4px; }
@@ -80,7 +80,7 @@
   .shell { gap: 12px; }
   .hero { gap: 18px; padding-top: 4px; }
   .hero h1 { font-size: 2.6rem; }
-  .hero h1[data-title-density="long"] { font-size: 1.75rem; line-height: 1.08; }
+  .hero h1[data-title-density="long"] { font-size: 1.25rem; line-height: 1.4; }
   .balanceList strong { font-size: 2.1rem; }
   .actionPanel button, .actionPanel a, .receiptMeta a { justify-self: stretch; width: 100%; }
   .detailsBody { grid-template-columns: 1fr; }
