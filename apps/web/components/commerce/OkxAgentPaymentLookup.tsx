@@ -1,15 +1,9 @@
 "use client";
 
+import { ReceiptText } from "lucide-react";
 import { useState, type FormEvent } from "react";
+import type { OkxAgentPaymentSnapshotV1 } from "../../lib/commerce/okx-agent-payments";
 import styles from "./OkxAgentPaymentLookup.module.css";
-
-type PaymentSnapshot = {
-  provider: { id: string; displayName: string };
-  paymentId: string;
-  status: string;
-  payment: { chainId: number; atomicAmount: string; asset: string; recipient: string };
-  settlement: { transactionHash: string; blockNumber: number } | null;
-};
 
 function labelForStatus(status: string): string {
   return status.slice(0, 1).toUpperCase() + status.slice(1);
@@ -17,7 +11,7 @@ function labelForStatus(status: string): string {
 
 export function OkxAgentPaymentLookup() {
   const [reference, setReference] = useState("");
-  const [payment, setPayment] = useState<PaymentSnapshot>();
+  const [payment, setPayment] = useState<OkxAgentPaymentSnapshotV1>();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
 
@@ -32,7 +26,7 @@ export function OkxAgentPaymentLookup() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reference: reference.trim() }),
       });
-      const body = await response.json() as { payment?: PaymentSnapshot; message?: string };
+      const body = await response.json() as { payment?: OkxAgentPaymentSnapshotV1; message?: string };
       if (!response.ok || !body.payment) throw new Error(body.message ?? "Payment lookup failed.");
       setPayment(body.payment);
     } catch (cause) {
@@ -43,7 +37,7 @@ export function OkxAgentPaymentLookup() {
 
   return <section aria-labelledby="okx-agent-payment-title" className={styles.lookup}>
     <header className={styles.header}>
-      <span aria-hidden="true" className={styles.mark}>OK</span>
+      <span aria-hidden="true" className={styles.mark}><ReceiptText size={20} /></span>
       <div>
         <h2 id="okx-agent-payment-title">Inspect an OKX Agent Payment</h2>
         <p>Read payment and settlement evidence without creating or signing a payment.</p>
@@ -54,7 +48,9 @@ export function OkxAgentPaymentLookup() {
       <label>Payment ID or link
         <div>
           <input value={reference} onChange={(event) => setReference(event.target.value)} />
-          <button disabled={pending} type="submit">{pending ? "Inspecting…" : "Inspect payment"}</button>
+          <button className="button button--secondary" disabled={pending} type="submit">
+            {pending ? "Inspecting…" : "Inspect payment"}
+          </button>
         </div>
       </label>
     </form>

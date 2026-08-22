@@ -1,6 +1,6 @@
 .lookup { background: var(--wash); border: 1px solid var(--line); border-radius: 16px; margin-bottom: 18px; padding: 18px; }
 .header { align-items: center; display: grid; gap: 12px; grid-template-columns: auto minmax(0, 1fr) auto; }
-.header h3 { font-size: 16px; margin: 0; }
+.header h2, .header h3 { font-size: 16px; margin: 0; }
 .header p { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 4px 0 0; }
 .mark { align-items: center; background: var(--ink); border-radius: 10px; color: var(--surface); display: inline-flex; height: 40px; justify-content: center; width: 40px; }
 .mode { border: 1px solid var(--line-strong); border-radius: 999px; color: var(--muted); font-size: 11px; padding: 5px 8px; }
