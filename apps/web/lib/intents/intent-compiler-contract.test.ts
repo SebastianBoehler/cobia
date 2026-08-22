@@ -22,7 +22,8 @@ describe("intent compiler model contract", () => {
       const questionSchema = request.text.format.schema.properties.question;
       const instructions = request.instructions as string;
       const constrained = questionSchema.minLength === 1 &&
-        instructions.includes("For status review, question must be null");
+        instructions.includes("For status review, question must be null") &&
+        instructions.includes("Never return a nested branch by itself");
       return Promise.resolve(response(constrained
         ? conversion("", 10_000)
         : { ...conversion("", 10_000), question: "" }));
