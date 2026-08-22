@@ -10,6 +10,7 @@ import {
   resolveCompositionDraft,
   type ComposedIntentDraft,
 } from "./composition-draft";
+import { resolveRegisteredCompositionGoal } from "./registered-composition-goal";
 
 const TemplateSchema = z.enum(["aave-supply", "exact-input-swap", "round-trip", "rwa-acquisition"]);
 const CompilationSchema = z.object({
@@ -112,8 +113,15 @@ export function createOpenAiIntentCompiler(options: Options) {
     if (actionPreference === "service-purchase") return {
       status: "clarification", question: "Tag one supported service from the @ menu.",
     };
-    const templates = actionPreference === "any" ? TemplateSchema.options : [actionPreference];
     const normalizedGoal = goal.replace(/@(?=[A-Za-z0-9])/g, "");
+    const registeredComposition = actionPreference === "any"
+      ? resolveRegisteredCompositionGoal(normalizedGoal) : undefined;
+    if (registeredComposition) {
+      return options.compositionAvailable
+        ? { status: "review", values: registeredComposition }
+        : { status: "clarification", question: "No compatible multi-step solver is active yet." };
+    }
+    const templates = actionPreference === "any" ? TemplateSchema.options : [actionPreference];
     const response = await fetcher("https://api.openai.com/v1/responses", {
       method: "POST", headers: { Authorization: `Bearer ${options.apiKey}`,
         "Content-Type": "application/json" },

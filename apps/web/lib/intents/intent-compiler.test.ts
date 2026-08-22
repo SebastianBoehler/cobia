@@ -118,23 +118,19 @@ describe("intent compiler", () => {
     });
   });
 
-  it("compiles the exact multi-step yield goal without asking for one template", async () => {
+  it("compiles the complete registered multi-step yield goal without model clarification", async () => {
     const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify({
-      status: "review", question: null, kind: "composed",
+      status: "clarification",
+      question: "What minimum receipt-token balance should be required, and which output asset should the route target?",
+      kind: "simple",
       templateId: "aave-supply", inputSymbol: "USDG", outputSymbol: "USDt0",
-      amount: "", minimum: "", jurisdiction: null,
-      composed: {
-        inputSymbol: "USDG", amount: "1",
-        capabilityIds: ["aave-v3.supply", "curve-stableswap-ng.exact-input",
-          "uniswap-v3.exact-input"],
-        maxConversionLossBps: 100, deadlineMinutes: 10,
-      },
+      amount: "1", minimum: "", jurisdiction: null, composed: null,
     })));
     const compiler = createOpenAiIntentCompiler({ apiKey: "test", model: "test-model",
       fetcher, compositionAvailable: true });
 
     await expect(compiler.compile(
-      "Use at most 1 USDG to enter the best verified stablecoin-yield route on X Layer. " +
+      "Use 1 USDG to enter the best verified stablecoin-yield route on X Layer. " +
       "Only use Aave V3, Curve or Uniswap. Allow no more than 1% conversion loss, " +
       "require a minimum receipt-token balance, and expire in ten minutes.",
       "any",
@@ -155,5 +151,6 @@ describe("intent compiler", () => {
         deadlineDurationSec: 600,
       },
     });
+    expect(fetcher).not.toHaveBeenCalled();
   });
 });
