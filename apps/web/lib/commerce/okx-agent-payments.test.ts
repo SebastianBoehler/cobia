@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { parseOkxAgentPaymentReferenceV1, readOkxAgentPaymentV1 } from "./okx-agent-payments";
+import {
+  OkxAgentPaymentErrorV1,
+  parseOkxAgentPaymentReferenceV1,
+  readOkxAgentPaymentV1,
+} from "./okx-agent-payments";
 
 const paymentId = "a2a_01HZX8Q9RK3JWYV7M2N5T8P4AB";
 const detail = {
@@ -35,7 +39,26 @@ describe("OKX Agent Payment lookup", () => {
   it("rejects credential-bearing payment links", () => {
     expect(() => parseOkxAgentPaymentReferenceV1(
       `https://attacker:secret@pay.okx.com/p/${paymentId}`,
-    )).toThrow("OKX Agent Payment link is invalid");
+    )).toThrowError(new OkxAgentPaymentErrorV1(
+      "INVALID_REFERENCE",
+      "OKX Agent Payment reference is invalid",
+    ));
+  });
+
+  it("maps the live numeric not-found envelope without querying status", async () => {
+    const client = {
+      getPaymentDetail: vi.fn().mockResolvedValue({
+        code: 0,
+        msg: "success",
+        data: { available: false, challenge: null, status: null, error: "payment_not_found" },
+      }),
+      getPaymentStatus: vi.fn(),
+    };
+
+    await expect(readOkxAgentPaymentV1({ reference: paymentId, client })).rejects.toEqual(
+      new OkxAgentPaymentErrorV1("PAYMENT_NOT_FOUND", "OKX Agent Payment was not found"),
+    );
+    expect(client.getPaymentStatus).not.toHaveBeenCalled();
   });
 
   it("returns bounded X Layer payment and settlement evidence", async () => {
