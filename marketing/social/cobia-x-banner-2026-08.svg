@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="500" viewBox="0 0 1500 500">
+  <defs>
+    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="#DDE3ED"/>
+    </pattern>
+  </defs>
+
+  <rect width="1500" height="500" fill="#F9FAFC"/>
+  <rect x="1160" width="340" height="500" fill="url(#dots)" opacity="0.45"/>
+  <path d="M0 423H1500" stroke="#E3E7EE"/>
+  <path d="M292 0V500" stroke="#EEF1F5"/>
+
+  <g transform="translate(352 66)">
+    <g fill="none" stroke="#3655FF" stroke-linecap="round" stroke-width="2.2">
+      <circle cx="5" cy="17" r="3.1" fill="#3655FF" stroke="none"/>
+      <circle cx="29" cy="17" r="3.1" fill="#3655FF" stroke="none"/>
+      <path d="M8 17C12 17 11 7 19 7c5.2 0 5.4 7.1 7 8.5"/>
+      <path d="M8 17h18"/>
+      <path d="M8 17c4 0 3 10 11 10 5.2 0 5.4-7.1 7-8.5"/>
+    </g>
+    <text x="52" y="25" fill="#111827" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="19" font-weight="700" letter-spacing="5">COBIA</text>
+    <circle cx="179" cy="17" r="4" fill="#17A878"/>
+    <text x="193" y="23" fill="#596273" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="500" letter-spacing="1.4">LIVE ON X LAYER MAINNET</text>
+  </g>
+
+  <g fill="#111827" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="66" font-weight="500" letter-spacing="-2.2">
+    <text x="350" y="205">AI proposes.</text>
+    <text x="350" y="289" fill="#3655FF">Cobia verifies.</text>
+    <text x="350" y="373">Your wallet decides.</text>
+  </g>
+
+  <text x="352" y="454" fill="#596273" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="17" font-weight="500" letter-spacing="0.2">VERIFIED INTENTS  ·  EXACT CALLDATA  ·  PUBLIC RECEIPTS</text>
+
+  <g transform="translate(1198 137) scale(6.7)" fill="none" stroke="#3655FF" stroke-linecap="round" stroke-width="0.34" opacity="0.18">
+    <circle cx="5" cy="17" r="3.1" fill="#3655FF" stroke="none"/>
+    <circle cx="29" cy="17" r="3.1" fill="#3655FF" stroke="none"/>
+    <path d="M8 17C12 17 11 7 19 7c5.2 0 5.4 7.1 7 8.5"/>
+    <path d="M8 17h18"/>
+    <path d="M8 17c4 0 3 10 11 10 5.2 0 5.4-7.1 7-8.5"/>
+  </g>
+</svg>
