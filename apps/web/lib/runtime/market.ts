@@ -33,6 +33,7 @@ import { readMarketConfig } from "../env";
 import { xLayer } from "../chain/xlayer";
 import { captureOpenIntentSnapshotV1 } from "../open-exchange/capture-snapshot";
 import { createOpenDecisionIntakeV1 } from "../open-exchange/decision-intake";
+import { createOpenRunIntakeV1 } from "../open-exchange/run-intake";
 import { verifyOpenCapabilityProposalV1 } from "../open-exchange/capability-verifier";
 import { verifyRuntimeCompositionProposal } from "./composition-verification";
 import { verifyOpenStagedProposalV1 } from "../open-exchange/transaction-verifier";
@@ -219,6 +220,14 @@ export async function publishCapabilityCompositionIntent(input: {
   return publishCapabilityComposition(input, {
     intents: getIntentRepository(), snapshots: getOpenIntentSnapshotRepository(),
   });
+}
+
+export function startOpenSolverRun(value: { claim: unknown; signature: string }) {
+  return createOpenRunIntakeV1({
+    intents: getIntentRepository(), snapshots: getOpenIntentSnapshotRepository(),
+    profiles: getSolverProfileRepository(), runs: getSolverRunRepository(),
+    nowSec: () => Math.floor(Date.now() / 1_000),
+  }).start(value);
 }
 
 export function submitOpenSolverDecision(value: {

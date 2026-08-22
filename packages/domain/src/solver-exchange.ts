@@ -50,6 +50,34 @@ export function solverProfileClaimCommitmentV1(input: SolverProfileClaimV1): Has
   return commitment(SolverProfileClaimV1Schema.parse(input)) as Hash;
 }
 
+export const SolverRunClaimV1Schema = z.object({
+  version: z.literal(1),
+  solverId: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(64),
+  intentId: z.string().uuid(),
+  revision: z.number().int().min(1).max(20),
+  snapshotHash: NonZeroHashSchema,
+  nonce: NonZeroHashSchema,
+  issuedAt: z.number().int().positive().safe(),
+  expiresAt: z.number().int().positive().safe(),
+}).strict().superRefine((claim, context) => {
+  if (claim.expiresAt <= claim.issuedAt || claim.expiresAt - claim.issuedAt > 300) {
+    context.addIssue({ code: "custom", path: ["expiresAt"], message: "Run lifetime is invalid" });
+  }
+});
+
+export type SolverRunClaimV1 = z.infer<typeof SolverRunClaimV1Schema>;
+
+export function parseSolverRunClaimV1(input: unknown, nowSec: number): SolverRunClaimV1 {
+  const claim = SolverRunClaimV1Schema.parse(input);
+  if (claim.issuedAt > nowSec) throw new Error("Solver run claim is not active");
+  if (claim.expiresAt <= nowSec) throw new Error("Solver run claim expired");
+  return claim;
+}
+
+export function solverRunClaimCommitmentV1(input: SolverRunClaimV1): Hash {
+  return commitment(SolverRunClaimV1Schema.parse(input)) as Hash;
+}
+
 export const SolverDecisionClaimV1Schema = z.object({
   version: z.literal(1),
   solverId: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(64),

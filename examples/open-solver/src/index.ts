@@ -21,6 +21,7 @@ import { writeHeartbeat } from "./heartbeat";
 import { REFERENCE_CAPABILITIES } from "./route-tool";
 import { readReferenceSolverConfig, type ReferenceSolverConfig } from "./solver-config";
 import { solve } from "./strategy";
+import { announceSolverRun } from "./solver-run";
 
 function nonce(): Hash {
   return keccak256(toHex(crypto.getRandomValues(new Uint8Array(32))));
@@ -68,6 +69,9 @@ async function processIntent(input: {
   config: ReferenceSolverConfig;
   record(revision: number, state: string): Promise<void>;
 }) {
+  await announceSolverRun({ client: input.client, account: input.account,
+    solverId: input.solverId, intent: input.intent, revision: input.revision });
+  output({ event: "run-started", intentId: input.intent.id, revision: input.revision });
   const selected = await decideCuratedFirst({
     solveCurated: () => solve(input.intent),
     async solveOpen() {

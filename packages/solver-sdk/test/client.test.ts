@@ -3,6 +3,7 @@ import {
   OpenIntentPolicyV3Schema,
   solverDecisionClaimCommitmentV1,
   solverProfileClaimCommitmentV1,
+  solverRunClaimCommitmentV1,
 } from "@cobia/domain";
 import { privateKeyToAccount } from "viem/accounts";
 import { describe, expect, it, vi } from "vitest";
@@ -148,6 +149,28 @@ describe("solver exchange client", () => {
     const body = JSON.parse(String(fetch.mock.calls[0]?.[1]?.body));
     expect(body).toEqual({ claim, signature, decision });
     expect(JSON.stringify(body)).not.toMatch(/privateKey|seed|mnemonic/i);
+  });
+
+  it("announces a signed run before solver work begins", async () => {
+    const claim = {
+      version: 1 as const, solverId: "alpha-solver", intentId: policy.requestId, revision: 1,
+      snapshotHash: commitment(snapshot), nonce: hash("7"),
+      issuedAt: 2_000_000_000, expiresAt: 2_000_000_300,
+    };
+    const signature = await account.signMessage({
+      message: { raw: solverRunClaimCommitmentV1(claim) },
+    });
+    const fetch = vi.fn(async () => new Response(JSON.stringify({
+      intentId: claim.intentId, solverId: claim.solverId, revision: claim.revision,
+      state: "running",
+    }), { status: 202, headers: { "content-type": "application/json" } }));
+    const client = createSolverExchangeClient({ baseUrl: "https://getcobia.com", fetch });
+
+    await expect(client.startRun({ claim, signature })).resolves.toMatchObject({ state: "running" });
+    expect(fetch).toHaveBeenCalledWith(
+      `https://getcobia.com/api/intents/${policy.requestId}/runs`,
+      expect.objectContaining({ method: "POST" }),
+    );
   });
 
   it("allows decision verification to outlive the short read timeout", async () => {

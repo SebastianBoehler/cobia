@@ -6,8 +6,10 @@ import {
   OpenIntentSnapshotV1Schema,
   SolverDecisionClaimV1Schema,
   SolverProfileClaimV1Schema,
+  SolverRunClaimV1Schema,
   solverDecisionClaimCommitmentV1,
   solverProfileClaimCommitmentV1,
+  solverRunClaimCommitmentV1,
 } from "@cobia/domain";
 import { isAddress, isAddressEqual, recoverMessageAddress } from "viem";
 import { z } from "zod";
@@ -67,6 +69,12 @@ const DecisionReceiptSchema = z.object({
   state: z.enum(["accepted", "rejected", "abstained"]),
   submissionId: z.string().uuid().optional(),
   errorCodes: z.array(z.string()).optional(),
+}).strict();
+const RunReceiptSchema = z.object({
+  intentId: z.string().uuid(),
+  solverId: z.string(),
+  revision: z.number().int().positive(),
+  state: z.literal("running"),
 }).strict();
 
 export type SolverIntentV1 = z.infer<typeof IntentSchema>;
@@ -157,6 +165,25 @@ export function createSolverExchangeClient(input: {
         throw new Error("Solver registration response mismatch");
       }
       return registration;
+    },
+
+    async startRun(input: { claim: unknown; signature: string }) {
+      const claim = SolverRunClaimV1Schema.parse(input.claim);
+      const signature = SignatureSchema.parse(input.signature) as `0x${string}`;
+      await recoverMessageAddress({
+        message: { raw: solverRunClaimCommitmentV1(claim) }, signature,
+      });
+      const response = await request(`${origin}/api/intents/${claim.intentId}/runs`, {
+        method: "POST",
+        headers: { accept: "application/json", "content-type": "application/json" },
+        body: JSON.stringify({ claim, signature }),
+      });
+      const receipt = RunReceiptSchema.parse(await boundedJson(response, "Solver run exchange"));
+      if (receipt.intentId !== claim.intentId || receipt.solverId !== claim.solverId ||
+          receipt.revision !== claim.revision) {
+        throw new Error("Solver run response mismatch");
+      }
+      return receipt;
     },
 
     async submitDecision(input: { claim: unknown; signature: string; decision: unknown }) {
