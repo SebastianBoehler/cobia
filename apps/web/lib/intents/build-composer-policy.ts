@@ -60,7 +60,7 @@ export function buildIntentComposerPolicy(input: Input) {
       forbiddenTargets: protocolForbiddenTargets(input.excludedProtocols),
       competitionDurationSec: 300, maxSolverFeeAtomic: "0",
       templateId: "staged-conversion", outputToken: input.values.outputToken,
-      minimumOutputAtomic,
+      minimumOutputAtomic, minimumStages: input.values.minimumStages,
       inputs: inputs.map(({ token, maximumAtomic }) => ({ token,
         maximumAtomic: maximumAtomic! })),
     });

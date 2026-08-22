@@ -85,6 +85,7 @@ export const OpenIntentPolicyV3Schema = z.object({
   inputs: z.array(AssetSchema.extend({ maximumAtomic: PositiveAtomicSchema })).min(1).max(8),
   outcomes: z.array(OpenIntentOutcomeV3Schema).min(1).max(8),
   limits: z.object({
+    minimumStages: z.number().int().min(1).max(16).optional(),
     maxStages: z.number().int().min(1).max(16),
     maxTransactions: z.number().int().min(1).max(16),
     maxApprovals: z.number().int().min(0).max(32),
@@ -131,6 +132,11 @@ export const OpenIntentPolicyV3Schema = z.object({
   if (policy.createdAt >= policy.deadline || policy.competition.closesAt <= policy.createdAt ||
       policy.competition.closesAt > policy.deadline || policy.competition.closesAt - policy.createdAt > 900) {
     context.addIssue({ code: "custom", path: ["deadline"], message: "Policy time bounds are invalid" });
+  }
+  if (policy.limits.minimumStages !== undefined &&
+      policy.limits.minimumStages > policy.limits.maxStages) {
+    context.addIssue({ code: "custom", path: ["limits", "minimumStages"],
+      message: "Minimum stages cannot exceed maximum stages" });
   }
 });
 

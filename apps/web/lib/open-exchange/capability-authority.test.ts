@@ -34,4 +34,12 @@ describe("open capability authority", () => {
     expect(result.snapshot).toMatchObject({ blockNumber: "68461706",
       manifestHash: commitment(result.manifest) });
   });
+
+  it("preserves the wallet-signed minimum stage count", () => {
+    const constrained = OpenIntentPolicyV3Schema.parse({ ...policy,
+      limits: { ...policy.limits, minimumStages: 2 } });
+
+    expect(deriveCapabilityAuthorityV2(constrained, snapshot).policy.limits)
+      .toMatchObject({ minimumActions: 2, maxActions: 4 });
+  });
 });

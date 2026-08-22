@@ -31,7 +31,7 @@ type LegacyBuildInput = CommonInput & { inputToken: Address; inputAtomic: string
 );
 type BuildInput = LegacyBuildInput | CommonInput & { templateId: "staged-conversion";
   inputs: Array<{ token: Address; maximumAtomic: string }>;
-  outputToken: Address; minimumOutputAtomic: string };
+  outputToken: Address; minimumOutputAtomic: string; minimumStages?: number };
 
 function positive(value: string, label: string): bigint {
   if (!/^[1-9][0-9]*$/.test(value)) throw new Error(`${label} must be a positive atomic amount`);
@@ -85,6 +85,11 @@ export function buildOpenIntentPolicyV3(input: BuildInput): OpenIntentPolicyV3 {
     }
     const nativeValue = inputs.filter(({ token }) => isNativeAssetAddress(token))
       .reduce((sum, item) => sum + BigInt(item.maximumAtomic), 0n);
+    const minimumStages = input.minimumStages ?? 1;
+    if (!Number.isInteger(minimumStages) || minimumStages < 1 || minimumStages > 8) {
+      throw new Error("Minimum stages must be between 1 and 8");
+    }
+    const stageLimit = Math.max(inputs.length, minimumStages);
     return OpenIntentPolicyV3Schema.parse({
       version: 3, kind: "open-onchain", requestId: input.requestId,
       displayGoal: input.displayGoal.trim(), owner: input.owner.toLowerCase(),
@@ -96,8 +101,10 @@ export function buildOpenIntentPolicyV3(input: BuildInput): OpenIntentPolicyV3 {
       outcomes: [{ kind: "minimum-increase", chainId: 196,
         token: input.outputToken.toLowerCase(),
         atomic: positive(input.minimumOutputAtomic, "Minimum output").toString() }],
-      limits: { maxStages: inputs.length, maxTransactions: inputs.length,
-        maxApprovals: inputs.filter(({ token }) => !isNativeAssetAddress(token)).length,
+      limits: { ...(minimumStages > 1 ? { minimumStages } : {}),
+        maxStages: stageLimit, maxTransactions: stageLimit,
+        maxApprovals: Math.max(inputs.filter(({ token }) => !isNativeAssetAddress(token)).length,
+          minimumStages > 1 ? minimumStages : 0),
         maxCalldataBytes: 32_768, maxGasPerTransaction: "5000000",
         maxSolverFeeAtomic: input.maxSolverFeeAtomic,
         maxNativeValueAtomicByChain: [{ chainId: 196, atomic: nativeValue.toString() }] },

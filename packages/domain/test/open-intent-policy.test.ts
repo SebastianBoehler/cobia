@@ -90,6 +90,15 @@ describe("open intent policy v3", () => {
     expect(() => parseOpenIntentPolicyV3(policy, policy.deadline)).toThrow(/future/);
   });
 
+  it("accepts a bounded minimum stage count and rejects it above the maximum", () => {
+    expect(OpenIntentPolicyV3Schema.parse({
+      ...policy, limits: { ...policy.limits, minimumStages: 2 },
+    }).limits.minimumStages).toBe(2);
+    expect(() => OpenIntentPolicyV3Schema.parse({
+      ...policy, limits: { ...policy.limits, minimumStages: 9, maxStages: 8 },
+    })).toThrow(/minimum.*stage/i);
+  });
+
   it("anchors every declared chain without a protocol manifest", () => {
     const snapshot = OpenIntentSnapshotV1Schema.parse({
       version: 1,

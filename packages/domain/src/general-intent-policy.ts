@@ -59,6 +59,7 @@ export const GeneralIntentPolicyV2Schema = z.object({
   }).strict(),
   allowedCapabilities: z.array(CapabilitySchema).min(1).max(16),
   limits: z.object({
+    minimumActions: z.number().int().min(1).max(8).optional(),
     maxActions: z.number().int().min(1).max(8),
     maxApprovals: z.number().int().min(0).max(16),
     maxActionCalldataBytes: z.number().int().min(4).max(16_384),
@@ -114,6 +115,11 @@ export const GeneralIntentPolicyV2Schema = z.object({
   if (policy.objective.kind !== "satisfy" &&
     policy.forbiddenTargets.includes(policy.objective.read.target)) {
     context.addIssue({ code: "custom", path: ["objective", "read", "target"], message: "Objective target is forbidden" });
+  }
+  if (policy.limits.minimumActions !== undefined &&
+      policy.limits.minimumActions > policy.limits.maxActions) {
+    context.addIssue({ code: "custom", path: ["limits", "minimumActions"],
+      message: "Minimum actions cannot exceed maximum actions" });
   }
 });
 

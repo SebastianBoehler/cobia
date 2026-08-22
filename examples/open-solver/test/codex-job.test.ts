@@ -26,8 +26,10 @@ describe("Codex solver job", () => {
     expect(job.cwd).toBe(join(root, intentId));
     expect(JSON.parse(await readFile(job.intentPath, "utf8"))).toEqual(intent);
     const guidance = await readFile(join(job.cwd, "AGENTS.md"), "utf8");
-    expect(guidance).toContain("decision.json");
+    expect(guidance).toContain("Do not write decision.json");
     expect(job.prompt).toContain("decisionJson");
+    expect(job.prompt).toContain("entire final response");
+    expect(job.prompt).toContain("Do not call MCP resource-discovery tools");
     expect(guidance).toContain("route MCP tools");
     expect(guidance).toContain("not an allowlist");
     expect(guidance).toContain("research checkpoint");

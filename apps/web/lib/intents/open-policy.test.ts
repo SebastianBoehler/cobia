@@ -43,6 +43,20 @@ describe("open intent policy builder", () => {
     expect(policy.competition.closesAt).toBe(common.nowSec + 300);
   });
 
+  it("binds an explicit minimum route length into staged conversion authority", () => {
+    const policy = buildOpenIntentPolicyV3({
+      ...common,
+      templateId: "staged-conversion",
+      inputs: [{ token: INTENT_ASSETS[0].address, maximumAtomic: "10000000" }],
+      outputToken: NATIVE_INTENT_ASSET.address,
+      minimumOutputAtomic: "90000000000000000",
+      minimumStages: 2,
+    });
+
+    expect(policy.limits).toMatchObject({ minimumStages: 2, maxStages: 2,
+      maxTransactions: 2, maxApprovals: 2 });
+  });
+
   it("binds an RWA request to a registered instrument without choosing a route", () => {
     const policy = buildOpenIntentPolicyV3({
       ...common, templateId: "rwa-acquisition",

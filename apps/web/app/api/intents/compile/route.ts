@@ -34,9 +34,16 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ code: "WALLET_AUTH_REQUIRED", message: "Verify wallet control before compiling an intent." }, { status: 401 });
   }
   const auth = getWalletAuthService();
+  let parsedRequest: z.infer<typeof RequestSchema>;
+  try {
+    parsedRequest = RequestSchema.parse(await request.json());
+  } catch {
+    return NextResponse.json({ code: "INVALID_GOAL",
+      message: "Describe a goal between 3 and 500 characters." }, { status: 400 });
+  }
   let leaseId: string | undefined;
   try {
-    const { owner, goal, actionPreference } = RequestSchema.parse(await request.json());
+    const { owner, goal, actionPreference } = parsedRequest;
     let session;
     try {
       session = await auth.readSession(token);
@@ -116,12 +123,10 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (leaseId) await auth.failCompilation(leaseId).catch(() => undefined);
-    const invalid = error instanceof z.ZodError;
-    if (!invalid) console.error("Intent compilation failed", error);
+    console.error("Intent compilation failed", error);
     return NextResponse.json({
-      code: invalid ? "INVALID_GOAL" : "INTENT_COMPILER_UNAVAILABLE",
-      message: invalid ? "Describe a goal between 3 and 500 characters."
-        : "The policy draft could not be compiled. Try again.",
-    }, { status: invalid ? 400 : 503 });
+      code: "INTENT_COMPILER_UNAVAILABLE",
+      message: "The policy draft could not be compiled. Try again.",
+    }, { status: 503 });
   }
 }

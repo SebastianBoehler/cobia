@@ -99,6 +99,9 @@ describe("general capability verifier", () => {
 
     const tight = { ...policy, limits: { ...policy.limits, maxActionCalldataBytes: 4, maxApprovals: 0, maxExpectedGas: 21_000 } };
     expect((await verify({ policy: tight })).errorCodes).toEqual(expect.arrayContaining(["LIMIT_EXCEEDED"]));
+
+    const minimumActions = { ...policy, limits: { ...policy.limits, minimumActions: 2 } };
+    expect((await verify({ policy: minimumActions })).errorCodes).toContain("LIMIT_EXCEEDED");
   });
 
   it("rejects missing balances, deployment drift, and falsified observations", async () => {

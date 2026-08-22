@@ -29,6 +29,7 @@ export interface StagedConversionDraft {
   outputToken: Address;
   outputSymbol: string;
   outputDecimals: number;
+  minimumStages?: number;
   minimum: string;
   minimumSource?: "market-default";
   maxSolverFeeUsd: string;
@@ -42,6 +43,7 @@ export const ConversionModelDraftSchema = z.object({
   }).strict()).min(1).max(8),
   outputSymbol: z.string().min(1),
   minimumOutput: z.string(),
+  minimumStages: z.number().int().min(1).max(8),
 }).strict();
 
 export type ConversionModelDraft = z.infer<typeof ConversionModelDraftSchema>;
@@ -141,7 +143,7 @@ export function resolveConversionDraft(
   if (draft.minimumOutput && !atomic(draft.minimumOutput, output.decimals)) {
     return { kind: "clarification", question: `Enter a valid ${output.symbol} outcome amount.` };
   }
-  if (inputs.length === 1) {
+  if (inputs.length === 1 && draft.minimumStages === 1) {
     const simple = simpleSwap(inputs[0]!, output, draft.minimumOutput);
     if (simple) return simple;
   }
@@ -149,6 +151,7 @@ export function resolveConversionDraft(
   if (draft.minimumOutput) return {
     kind: "staged-conversion", templateId: "staged-conversion", inputs,
     outputToken: output.address, outputSymbol: output.symbol, outputDecimals: output.decimals,
+    ...(draft.minimumStages > inputs.length ? { minimumStages: draft.minimumStages } : {}),
     minimum: draft.minimumOutput, maxSolverFeeUsd: "0",
   };
 
@@ -167,6 +170,7 @@ export function resolveConversionDraft(
   return {
     kind: "staged-conversion", templateId: "staged-conversion", inputs,
     outputToken: output.address, outputSymbol: output.symbol, outputDecimals: output.decimals,
+    ...(draft.minimumStages > inputs.length ? { minimumStages: draft.minimumStages } : {}),
     minimum: formatAtomicAmount(minimumAtomic, output.decimals), minimumSource: "market-default",
     maxSolverFeeUsd: "0",
   };

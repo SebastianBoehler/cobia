@@ -150,6 +150,41 @@ describe("open transaction-program verifier", () => {
     }))).toMatchObject({ accepted: false });
   });
 
+  it("rejects a program shorter than the signed minimum route length", async () => {
+    const constrained = { ...policy,
+      limits: { ...policy.limits, minimumStages: 2 } };
+    const constrainedProgram = { ...program, policyHash: commitment(constrained) };
+    const constrainedEvidence = TransactionProgramEvidenceV1Schema.parse({
+      ...evidence, programHash: commitment(constrainedProgram),
+    });
+
+    await expect(verifyOpenTransactionProgramV1(dependencies({
+      policy: constrained, program: constrainedProgram, evidence: constrainedEvidence,
+    }))).resolves.toMatchObject({ accepted: false, errorCodes: ["LIMIT_EXCEEDED"] });
+  });
+
+  it("accepts an independently replayed native OKB output", async () => {
+    const native = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" as const;
+    const nativePolicy: OpenIntentPolicyV3 = { ...policy,
+      displayGoal: "Turn input tokens into native OKB",
+      outcomes: [{ kind: "minimum-increase", chainId: 196, token: native, atomic: "20" }] };
+    const nativeProgram = { ...program, policyHash: commitment(nativePolicy),
+      stages: [{ ...program.stages[0]!, output: { chainId: 196, token: native, minimumAtomic: "20" } }] };
+    const nativeSimulation = { ...simulation, assetDeltas: [
+      simulation.assetDeltas[0]!,
+      { token: native, account: owner, beforeAtomic: "100", afterAtomic: "120", deltaAtomic: "20" },
+    ], codeIdentities: identities.filter(({ address }) => address !== outputToken) };
+    const nativeEvidence = TransactionProgramEvidenceV1Schema.parse({
+      version: 1, programHash: commitment(nativeProgram), capturedAt: 1_786_900_100,
+      simulations: [nativeSimulation],
+    });
+
+    await expect(verifyOpenTransactionProgramV1(dependencies({
+      policy: nativePolicy, program: nativeProgram, evidence: nativeEvidence,
+      replay: vi.fn(async () => ({ reproduced: true, simulations: nativeEvidence.simulations })),
+    }))).resolves.toMatchObject({ accepted: true, objective: { atomic: "20" } });
+  });
+
   it("accepts one program that binds ERC-20 and native OKB input stages", async () => {
     const native = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" as const;
     const multiPolicy: OpenIntentPolicyV3 = {

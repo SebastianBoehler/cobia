@@ -27,7 +27,7 @@ export function StagedConversionPolicyEditor({ values, onChange }: {
       </label>
     </div>
     <dl className="policy-summary">
-      <div><dt>Program</dt><dd>{values.inputs.length} ordered wallet stages</dd></div>
+      <div><dt>Program</dt><dd>At least {values.minimumStages ?? values.inputs.length} ordered wallet stages</dd></div>
       <div><dt>Outcome</dt><dd>At least {values.minimum} {values.outputSymbol}</dd></div>
       <div><dt>Execution</dt><dd>Separately confirmed · not atomic</dd></div>
       <div><dt>Network</dt><dd>X Layer · chain 196</dd></div>

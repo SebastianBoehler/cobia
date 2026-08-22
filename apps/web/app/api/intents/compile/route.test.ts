@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 
 const mocks = vi.hoisted(() => ({
   readSession: vi.fn(), beginCompilation: vi.fn(), completeCompilation: vi.fn(),
@@ -106,6 +107,18 @@ describe("authenticated intent compiler API", () => {
     mocks.compile.mockRejectedValueOnce(new Error("provider unavailable"));
     expect((await POST(request("token"))).status).toBe(503);
     expect(mocks.failCompilation).toHaveBeenCalledWith("550e8400-e29b-41d4-a716-446655440000");
+  });
+
+  it("does not misreport a compiler failure as an invalid goal", async () => {
+    mocks.compile.mockImplementationOnce(() => z.never().parse("malformed model draft"));
+
+    const response = await POST(request("token"));
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({
+      code: "INTENT_COMPILER_UNAVAILABLE",
+      message: "The policy draft could not be compiled. Try again.",
+    });
   });
 
   it("disables composed compiler output without a fresh compatible solver", async () => {

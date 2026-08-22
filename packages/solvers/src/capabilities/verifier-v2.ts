@@ -273,7 +273,8 @@ export async function verifyCapabilityProgramV2(input: VerifyCapabilityProgramIn
   if (compiled.length !== program.actions.length) {
     return { accepted: false, errorCodes: [...errors].sort(), compiled };
   }
-  if (program.actions.length > policy.limits.maxActions || compiled.some(({ data }) => size(data) > policy.limits.maxActionCalldataBytes) ||
+  if (program.actions.length < (policy.limits.minimumActions ?? 1) ||
+    program.actions.length > policy.limits.maxActions || compiled.some(({ data }) => size(data) > policy.limits.maxActionCalldataBytes) ||
     compiled.reduce((sum, action) => sum + action.spend.length, 0) > policy.limits.maxApprovals ||
     compiled.reduce((sum, action) => sum + action.expectedGas, 0) > policy.limits.maxExpectedGas) errors.add("LIMIT_EXCEEDED");
   for (const action of compiled) {

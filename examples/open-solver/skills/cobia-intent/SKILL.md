@@ -11,6 +11,8 @@ description: Solve a signed Cobia intent by inspecting its machine policy, gathe
 4. Inspect the complete candidate against every input ceiling, output floor, deadline, recipient, and execution chain.
 5. Use optional simulation only when it helps research or rank candidates.
 6. Return the canonical candidate, or emit a more precise schema-valid abstention.
-7. Write only the resulting `SolverDecisionV1` JSON to `decision.json`.
+7. Return only `{"decisionJson":"<canonical SolverDecisionV1 JSON string>"}` as the entire final response. Do not write `decision.json`; the host writes it after validation.
+
+The route tools are already attached. Do not call MCP resource or resource-template discovery APIs.
 
 Never expose or request signing material. Never describe your own result as verified.

@@ -97,8 +97,10 @@ export async function runOpenTransactionProgramSandboxV1(input: {
     const decision = DecisionSchema.parse(JSON.parse(await readArtifact(traced, "out/decision.json")));
     if (decision.decision === "abstain") return null;
     const program = TransactionProgramV1Schema.parse(JSON.parse(await readArtifact(traced, "out/program.json")));
+    const walletStages = program.stages.filter((stage) => stage.kind === "wallet-transaction");
     if (program.requestId !== policy.requestId || program.policyHash !== commitment(policy) ||
         !isAddressEqual(program.owner, policy.owner) || program.stages.length > policy.limits.maxStages ||
+        walletStages.length < (policy.limits.minimumStages ?? 1) ||
         program.stages.some(({ chainId }) => !policy.executionChainIds.includes(chainId))) {
       throw new Error("Transaction program does not match open policy authority");
     }
@@ -109,7 +111,6 @@ export async function runOpenTransactionProgramSandboxV1(input: {
     const providerArtifacts = ProviderArtifactsV1Schema.parse(JSON.parse(
       await readArtifact(traced, "out/provider-artifacts.json"),
     )).artifacts;
-    const walletStages = program.stages.filter((stage) => stage.kind === "wallet-transaction");
     if (providerArtifacts.length !== walletStages.length || walletStages.some((stage) => {
       const artifact = providerArtifacts.find(({ stageId }) => stageId === stage.id);
       return !artifact || artifact.provider !== stage.provider;

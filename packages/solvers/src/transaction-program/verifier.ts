@@ -99,7 +99,8 @@ export async function verifyOpenTransactionProgramV1(input: {
     errors.add("UNSUPPORTED_STAGE");
   }
   const approvalCount = walletStages.filter(({ approval }) => approval).length;
-  if (program.stages.length > policy.limits.maxStages || walletStages.length > policy.limits.maxTransactions ||
+  if (walletStages.length < (policy.limits.minimumStages ?? 1) ||
+      program.stages.length > policy.limits.maxStages || walletStages.length > policy.limits.maxTransactions ||
       approvalCount > policy.limits.maxApprovals) errors.add("LIMIT_EXCEEDED");
   const nativeValues = new Map<number, bigint>();
   const nativeInputValues = new Map<string, bigint>();
@@ -158,10 +159,6 @@ export async function verifyOpenTransactionProgramV1(input: {
     if (simulation.calldataBytes > policy.limits.maxCalldataBytes ||
         BigInt(simulation.gasUsed) > BigInt(policy.limits.maxGasPerTransaction)) errors.add("GAS_LIMIT_EXCEEDED");
     for (const delta of simulation.assetDeltas) {
-      if (isNativeAssetAddress(delta.token)) {
-        errors.add("EVIDENCE_INVALID");
-        continue;
-      }
       if (BigInt(delta.afterAtomic) - BigInt(delta.beforeAtomic) !== BigInt(delta.deltaAtomic)) {
         errors.add("EVIDENCE_INVALID");
       }
@@ -175,7 +172,8 @@ export async function verifyOpenTransactionProgramV1(input: {
       if (isAddressEqual(allowance.owner, policy.owner) &&
           BigInt(allowance.afterAtomic) > BigInt(allowance.beforeAtomic)) errors.add("ALLOWANCE_EXPANDED");
     }
-    const required = new Set([stage.transaction.target, stage.output.token,
+    const required = new Set([stage.transaction.target,
+      ...(isNativeAssetAddress(stage.output.token) ? [] : [stage.output.token]),
       ...(isNativeAssetAddress(stage.input.token) ? [] : [stage.input.token]),
       ...(stage.approval ? [stage.approval.spender] : [])].map((value) => value.toLowerCase()));
     for (const address of required) {

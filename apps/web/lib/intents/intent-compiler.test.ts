@@ -15,11 +15,12 @@ function conversion(
   inputs: Array<{ symbol: string; amount: string; walletShareBps: number | null }>,
   outputSymbol = "USDG",
   minimumOutput = "",
+  minimumStages = 1,
 ) {
   return { status: "review", question: null, kind: "conversion",
     templateId: "exact-input-swap", inputSymbol: "USDG", outputSymbol,
     amount: "", minimum: "", jurisdiction: null, composed: null,
-    conversion: { inputs, outputSymbol, minimumOutput } };
+    conversion: { inputs, outputSymbol, minimumOutput, minimumStages } };
 }
 
 describe("intent compiler", () => {
@@ -72,6 +73,23 @@ describe("intent compiler", () => {
     expect(request.input).toContain("Swap 10 USDG");
     expect(JSON.parse(request.input).templates).toEqual(["exact-input-swap"]);
     expect(request.input).not.toContain("owner");
+  });
+
+  it("instructs the model to compile exact amounts as commands without conversational pushback", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(simple({
+      status: "review", question: null, templateId: "aave-supply",
+      inputSymbol: "USDG", outputSymbol: "USDG", amount: "1", minimum: "",
+      jurisdiction: null,
+    }))));
+    const compiler = createOpenAiIntentCompiler({ apiKey: "test", model: "test-model", fetcher,
+      walletBalances: { USDG: "1.205469" } });
+
+    await expect(compiler.compile("Supply 1 @USDG to @Aave on @XLayer", "any"))
+      .resolves.toMatchObject({ status: "review", values: { amount: "1" } });
+    const request = JSON.parse(fetcher.mock.calls[0]![1]!.body as string);
+    expect(request.instructions).toContain("not a conversation");
+    expect(request.instructions).toContain("exactly 1 USDG");
+    expect(request.instructions).toContain("Never ask whether to use a different amount");
   });
 
   it("adds a disclosed stablecoin floor when an exact input has no stated output minimum", async () => {
@@ -378,6 +396,28 @@ describe("intent compiler", () => {
       },
     });
     expect(fetcher).toHaveBeenCalledOnce();
+  });
+
+  it("preserves an explicit minimum route length without asking whether to use it", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(conversion([
+      { symbol: "USDG", amount: "", walletShareBps: 10_000 },
+    ], "OKB", "", 2))));
+    const compiler = createOpenAiIntentCompiler({
+      apiKey: "test", model: "test-model", fetcher,
+      walletBalances: { USDG: "1.205469" },
+      assetPricesUsd: { USDG: "1", OKB: "107.41" },
+    });
+
+    await expect(compiler.compile(
+      "turn all my @USDG into @OKB with a multi step route with at least 2 steps", "any",
+    )).resolves.toMatchObject({
+      status: "review",
+      values: { kind: "staged-conversion", outputSymbol: "OKB", minimumStages: 2 },
+    });
+    const request = JSON.parse(fetcher.mock.calls[0]![1]!.body as string);
+    expect(request.instructions).toContain("explicit minimum route length");
+    expect(request.text.format.schema.properties.conversion.anyOf[1]
+      .required).toContain("minimumStages");
   });
 
   it("drafts model-extracted verbless wallet conversion goals for review", async () => {

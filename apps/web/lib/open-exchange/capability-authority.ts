@@ -43,6 +43,8 @@ export function deriveCapabilityAuthorityV2(policyValue: unknown, snapshotValue:
     allowedCapabilities: manifest.capabilities.map(({ id, version }) => ({ id, version }))
       .sort((left, right) => `${left.id}@${left.version}`.localeCompare(`${right.id}@${right.version}`)),
     limits: {
+      ...(policy.limits.minimumStages !== undefined
+        ? { minimumActions: Math.min(policy.limits.minimumStages, 8) } : {}),
       maxActions: Math.min(policy.limits.maxStages, 8),
       maxApprovals: Math.min(policy.limits.maxApprovals, 16),
       maxActionCalldataBytes: Math.min(policy.limits.maxCalldataBytes, 16_384),
