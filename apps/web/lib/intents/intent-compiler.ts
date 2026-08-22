@@ -15,10 +15,11 @@ import {
   type ComposedIntentDraft,
 } from "./composition-draft";
 import { resolveRegisteredCompositionGoal } from "./registered-composition-goal";
+import { hasExactTaggedWalletInputs } from "./exact-wallet-inputs";
 import type { WalletBalances } from "./wallet-balance-request";
 import { INTENT_COMPILER_INSTRUCTIONS, INTENT_TEMPLATE_CONTRACTS } from "./intent-compiler-contract";
 import {
-  resolveConversionDraft, type StagedConversionDraft,
+  ConversionModelDraftSchema, resolveConversionDraft, type StagedConversionDraft,
   type WalletIntentAsset,
 } from "./staged-conversion-draft";
 
@@ -273,7 +274,13 @@ export function createOpenAiIntentCompiler(options: Options) {
       if (actionPreference !== "any") return { status: "clarification",
         question: "Select Any action to compile a wallet conversion." };
       if (!compiled.conversion) throw new Error("Intent compiler omitted conversion policy fields");
-      const resolved = resolveConversionDraft(compiled.conversion, options.assetPricesUsd,
+      const conversion = ConversionModelDraftSchema.parse(compiled.conversion);
+      if (!hasExactTaggedWalletInputs(goal, conversion.outputSymbol,
+        conversion.inputs.map(({ symbol }) => symbol), walletAssets)) {
+        return { status: "clarification",
+          question: "The draft did not preserve the exact wallet token tagged in your goal. Edit the token tag and try again." };
+      }
+      const resolved = resolveConversionDraft(conversion, options.assetPricesUsd,
         options.walletBalances, walletAssets);
       if ("kind" in resolved && resolved.kind === "clarification") {
         return { status: "clarification", question: resolved.question };
