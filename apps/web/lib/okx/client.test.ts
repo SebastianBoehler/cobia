@@ -201,6 +201,23 @@ describe("OKX Market client", () => {
     });
   });
 
+  it("resolves a registered Ethereum token with exact chain identity", async () => {
+    const token = "0x96f6ef951840721adbf46ac996b59e0235cb985c";
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(Response.json({
+      code: "0", msg: "", data: [{ chainIndex: "1", tokenContractAddress: token,
+        tokenName: "Ondo US Dollar Yield", tokenSymbol: "USDY", decimal: "18",
+        price: "1.15", liquidity: "73894", holders: "1200", tagList: {} }],
+    }));
+    const client = createOkxClient({ credentials, fetchImpl });
+
+    await expect(client.searchToken(1, "USDY")).resolves.toMatchObject({
+      chainId: 1, token, symbol: "USDY", priceUsd: "1.15",
+    });
+    expect(fetchImpl.mock.calls[0]![0]).toBe(
+      "https://web3.okx.com/api/v6/dex/market/token/search?chains=1&search=USDY&limit=100",
+    );
+  });
+
   it("resolves one exact X Layer token symbol without guessing among partial matches", async () => {
     const token = "0x1111111111111111111111111111111111111111";
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(Response.json({

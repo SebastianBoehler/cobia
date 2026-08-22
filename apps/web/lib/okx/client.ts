@@ -74,13 +74,13 @@ const EvmAddressSchema = z.string().regex(/^0x[0-9a-fA-F]{40}$/)
   .transform((value) => value.toLowerCase() as Address);
 const DecimalStringSchema = z.string().regex(/^\d+(?:\.\d+)?$/);
 const TokenBasicSchema = z.object({
-  chainIndex: z.literal("196"), tokenContractAddress: EvmAddressSchema,
+  chainIndex: NumericStringSchema, tokenContractAddress: EvmAddressSchema,
   tokenName: z.string().min(1), tokenSymbol: z.string().min(1),
   decimal: z.string().regex(/^\d+$/).transform(Number),
   tagList: z.object({ communityRecognized: z.boolean().optional() }).passthrough(),
 }).passthrough();
 const TokenPriceSchema = z.object({
-  chainIndex: z.literal("196"), tokenContractAddress: EvmAddressSchema,
+  chainIndex: NumericStringSchema, tokenContractAddress: EvmAddressSchema,
   time: z.string().regex(/^\d{13}$/), price: DecimalStringSchema,
   liquidity: DecimalStringSchema, holders: z.string().regex(/^\d+$/),
 }).passthrough();
@@ -161,7 +161,33 @@ export function createOkxClient(options: OkxClientOptions) {
   const fetchImpl = options.fetchImpl ?? fetch;
   const now = options.now ?? (() => new Date());
 
+  const searchToken = async (chainId: 1 | 196, searchInput: string) => {
+    const search = z.string().trim().min(1).max(64).parse(searchInput);
+    const path = `${TOKEN_SEARCH_PATH}?chains=${chainId}&search=${encodeURIComponent(search)}&limit=100`;
+    const timestamp = now().toISOString();
+    const response = await fetchImpl(`${OKX_ORIGIN}${path}`, { method: "GET",
+      headers: signOkxRequest({ ...options.credentials, timestamp, method: "GET", path }),
+      cache: "no-store" });
+    if (!response.ok) throw new OkxApiError(`HTTP_${response.status}`,
+      `OKX request failed with HTTP ${response.status}`);
+    const envelope = readEnvelope(await response.json());
+    if (envelope.code !== "0") throw new OkxApiError(envelope.code,
+      envelope.msg || "OKX request failed");
+    const parsed = z.array(TokenSearchSchema).safeParse(envelope.data);
+    if (!parsed.success) throw new OkxApiError("INVALID_TOKEN_SEARCH", "Invalid OKX token search response");
+    const address = EvmAddressSchema.safeParse(search);
+    const exact = parsed.data.filter((item) => item.chainIndex === String(chainId) && (address.success
+      ? item.tokenContractAddress === address.data
+      : item.tokenSymbol.toLowerCase() === search.toLowerCase()));
+    if (exact.length > 1) throw new OkxApiError("AMBIGUOUS_TOKEN", "OKX token symbol is ambiguous");
+    const item = exact[0];
+    return item ? { chainId, token: item.tokenContractAddress,
+      name: item.tokenName, symbol: item.tokenSymbol, decimals: item.decimal,
+      priceUsd: item.price, liquidityUsd: item.liquidity, holderCount: item.holders } : undefined;
+  };
+
   return {
+    searchToken,
     async listXLayerTokenBalances(addressInput: string) {
       const address = EvmAddressSchema.parse(addressInput);
       const path = `${TOKEN_BALANCES_PATH}?address=${address}&chains=196`;
@@ -185,28 +211,8 @@ export function createOkxClient(options: OkxClientOptions) {
     },
 
     async searchXLayerToken(searchInput: string) {
-      const search = z.string().trim().min(1).max(64).parse(searchInput);
-      const path = `${TOKEN_SEARCH_PATH}?chains=196&search=${encodeURIComponent(search)}&limit=100`;
-      const timestamp = now().toISOString();
-      const response = await fetchImpl(`${OKX_ORIGIN}${path}`, { method: "GET",
-        headers: signOkxRequest({ ...options.credentials, timestamp, method: "GET", path }),
-        cache: "no-store" });
-      if (!response.ok) throw new OkxApiError(`HTTP_${response.status}`,
-        `OKX request failed with HTTP ${response.status}`);
-      const envelope = readEnvelope(await response.json());
-      if (envelope.code !== "0") throw new OkxApiError(envelope.code,
-        envelope.msg || "OKX request failed");
-      const parsed = z.array(TokenSearchSchema).safeParse(envelope.data);
-      if (!parsed.success) throw new OkxApiError("INVALID_TOKEN_SEARCH", "Invalid OKX token search response");
-      const address = EvmAddressSchema.safeParse(search);
-      const exact = parsed.data.filter((item) => address.success
-        ? item.tokenContractAddress === address.data
-        : item.tokenSymbol.toLowerCase() === search.toLowerCase());
-      if (exact.length > 1) throw new OkxApiError("AMBIGUOUS_TOKEN", "OKX token symbol is ambiguous");
-      const item = exact[0];
-      return item ? { chainId: 196 as const, token: item.tokenContractAddress,
-        name: item.tokenName, symbol: item.tokenSymbol, decimals: item.decimal,
-        priceUsd: item.price, liquidityUsd: item.liquidity, holderCount: item.holders } : undefined;
+      const token = await searchToken(196, searchInput);
+      return token ? { ...token, chainId: 196 as const } : undefined;
     },
 
     async getXLayerTokenEvidence(tokenInput: string) {
