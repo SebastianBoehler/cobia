@@ -59,7 +59,7 @@ function schema() {
     type: "object",
     properties: {
       status: { type: "string", enum: ["review", "clarification"] },
-      question: { type: ["string", "null"] },
+      question: { type: ["string", "null"], minLength: 1 },
       kind: { type: "string", enum: ["simple", "composed", "conversion"] },
       templateId: { type: "string", enum: TemplateSchema.options },
       inputSymbol: { type: "string", enum: ["OKB", ...INTENT_ASSETS.map(({ symbol }) => symbol), "USDC"] },

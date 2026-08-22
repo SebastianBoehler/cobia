@@ -16,6 +16,24 @@ function conversion(amount: string, walletShareBps: number | null) {
 }
 
 describe("intent compiler model contract", () => {
+  it("forbids empty review questions in structured model output", async () => {
+    const fetcher = vi.fn().mockImplementation((_url, init: RequestInit) => {
+      const request = JSON.parse(init.body as string);
+      const questionSchema = request.text.format.schema.properties.question;
+      const instructions = request.instructions as string;
+      const constrained = questionSchema.minLength === 1 &&
+        instructions.includes("For status review, question must be null");
+      return Promise.resolve(response(constrained
+        ? conversion("", 10_000)
+        : { ...conversion("", 10_000), question: "" }));
+    });
+    const compiler = createOpenAiIntentCompiler({ apiKey: "test", model: "test-model", fetcher,
+      walletBalances: { USDG: "1" }, assetPricesUsd: { USDG: "1", OKB: "100" } });
+
+    await expect(compiler.compile("sell all @USDG into @OKB", "any"))
+      .resolves.toMatchObject({ status: "review" });
+  });
+
   it("defines Aave supply as a simple same-asset protocol action", async () => {
     const fetcher = vi.fn().mockImplementation((_url, init: RequestInit) => {
       const contract = JSON.parse(JSON.parse(init.body as string).input)
