@@ -71,7 +71,14 @@ describe("site metadata", () => {
 
   it("exposes crawl rules without indexing APIs or purchased bundles", () => {
     expect(robots()).toEqual({
-      rules: { userAgent: "*", allow: "/", disallow: ["/api/", "/programs/"] },
+      rules: [
+        {
+          userAgent: ["OAI-SearchBot", "GPTBot", "ChatGPT-User"],
+          allow: "/",
+          disallow: ["/api/", "/programs/"],
+        },
+        { userAgent: "*", allow: "/", disallow: ["/api/", "/programs/"] },
+      ],
       sitemap: `${SITE_ORIGIN}/sitemap.xml`,
       host: SITE_ORIGIN,
     });

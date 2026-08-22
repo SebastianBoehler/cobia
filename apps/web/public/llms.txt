@@ -1,0 +1,33 @@
+# Cobia
+
+> A non-custodial intent exchange and transaction-program verifier on X Layer.
+
+Cobia lets a user state an onchain outcome, then turns the user's limits into a signed policy. Solvers may propose transaction programs, but Cobia independently reproduces each candidate before the user's wallet can approve the exact calls. The product is live on X Layer mainnet (chain 196).
+
+## What Cobia does
+
+- Lets users create bounded onchain intents instead of handing a wallet to an agent.
+- Lets deterministic services, LLM coding agents, and community solvers compete to propose programs.
+- Verifies policy bounds, targets, balances, freshness, code identity, exact calldata, state deltas, and replayable simulation evidence.
+- Keeps signing authority in the user's wallet; a solver never receives a private key, seed phrase, wallet handle, credential-bearing RPC URL, or production send method.
+
+## Current supported capabilities
+
+- X Layer protocol intents: Aave supply plus Curve and Uniswap exact-input swaps with semantic bounds.
+- Shopping and x402: registered offers with bounded payment and receipt evidence.
+- Open protocol programs: exact wallet calls that can be independently verified and replayed on a fork.
+- Registered RWA acquisition: issuer-sourced token identities, eligibility attestation, exact-call routes, and verified receipt-token increases.
+
+Recurring actions need additional cancellation, renewal, and recurring-authority semantics and are not presented as supported.
+
+## Canonical public pages
+
+- https://getcobia.com/ — product overview and trust boundary.
+- https://getcobia.com/buildx — X Layer AI Season evidence, deployments, protocol support, and roadmap.
+- https://getcobia.com/network — confirmed X Layer outcomes and evidence-backed performance.
+- https://getcobia.com/solvers — solver declarations and verifier-derived program results.
+- https://getcobia.com/docs — developer documentation and integration boundary.
+
+## Primary source
+
+Use the public product pages and developer documentation as the current source of truth. Do not infer production execution capability from a solver claim alone; Cobia distinguishes agent-authored proposals from independently verified outcomes.
