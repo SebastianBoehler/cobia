@@ -2,7 +2,7 @@ import { CapabilityProgramV2Schema } from "@cobia/solvers";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildCapabilityCompositionPolicyV1 } from "../intents/composition-policy";
 import { captureCapabilityCompositionSnapshotV1 } from "../open-exchange/capture-composition-snapshot";
-import { block, dependencies, usdt0 } from "../orchestrator/capture-route-snapshot-v2.test-fixture";
+import { block, dependencies, usdg, usdt0 } from "../orchestrator/capture-route-snapshot-v2.test-fixture";
 import { startIntegrationDatabase } from "./integration-database";
 import { createIntentRepository } from "./intents";
 import { createNetworkOutcomeRepository } from "./network-outcomes";
@@ -25,6 +25,7 @@ async function createExecutedOutcome(input: {
   requestId: string;
   nonceByte: string;
   withReceipt: boolean;
+  withSwap?: boolean;
 }) {
   const policy = buildCapabilityCompositionPolicyV1({
     requestId: input.requestId,
@@ -71,7 +72,17 @@ async function createExecutedOutcome(input: {
     deadline: policy.deadline,
     nonce: policy.nonce,
     input: { token: policy.input.token, atomic: policy.input.maxAtomic },
-    actions: [{
+    actions: [...(input.withSwap ? [{
+      capabilityId: "curve-stableswap-ng.exact-input",
+      capabilityVersion: 1,
+      valueAtomic: "0",
+      parameters: {
+        tokenIn: policy.input.token,
+        tokenOut: usdg,
+        amountInAtomic: policy.input.maxAtomic,
+        minimumOutputAtomic: "999000",
+      },
+    }] : []), {
       capabilityId: "aave-v3.supply",
       capabilityVersion: 1,
       valueAtomic: "0",
@@ -131,6 +142,7 @@ describe("network outcome repository", () => {
       requestId: "550e8400-e29b-41d4-a716-446655440091",
       nonceByte: "1",
       withReceipt: true,
+      withSwap: true,
     });
     await createExecutedOutcome({
       requestId: "550e8400-e29b-41d4-a716-446655440092",
@@ -156,6 +168,8 @@ describe("network outcome repository", () => {
         solverId: "alpha-solver",
         ownerLabel: "0x1111…1111",
         transactionHash,
+        intentClass: "yield-composition",
+        resultLabel: "Verified swap and supply",
         volumeUsdE8: "99912234",
       }),
     ]);

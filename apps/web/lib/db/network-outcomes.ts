@@ -44,7 +44,8 @@ function capabilityPrincipal(payload: unknown) {
     chainId: parsed.data.chainId,
     token: parsed.data.input.token,
     atomic: parsed.data.input.atomic,
-    intentClass: hasSwap ? "stablecoin-swap" : hasSupply ? "protocol-supply" : "onchain-outcome",
+    intentClass: hasSwap && hasSupply ? "yield-composition"
+      : hasSwap ? "stablecoin-swap" : hasSupply ? "protocol-supply" : "onchain-outcome",
     resultLabel: hasSwap && hasSupply ? "Verified swap and supply"
       : hasSwap ? "Verified token swap" : hasSupply ? "Verified protocol supply"
         : "Verified X Layer outcome",
