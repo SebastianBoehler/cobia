@@ -3,6 +3,7 @@ import { ArrowRight, Clock3, History, Repeat2, ShoppingBag } from "lucide-react"
 import Link from "next/link";
 import { CommerceOffers } from "./CommerceOffers";
 import { ProtocolMark } from "../brand/ProtocolMark";
+import { OkxAgentPaymentLookup } from "../commerce/OkxAgentPaymentLookup";
 
 const supportedProtocols = [
   { name: "Aave V3" as const, capability: "Bounded supply with receipt-token floor" },
@@ -82,6 +83,7 @@ export function DiscoverView({
 
       <section aria-labelledby="commerce-title" className="discover-view__commerce">
         <header><div><h2 id="commerce-title">Paid resources</h2><p>Review supported services across the full marketplace. Verified purchases lead; external x402 listings remain details-only.</p></div><ShoppingBag aria-hidden="true" size={22} /></header>
+        <OkxAgentPaymentLookup />
         {sectionErrors?.commerce
           ? <p className="empty-state" role="status">{sectionErrors.commerce}</p>
           : <CommerceOffers offers={commerceOffers} observedAtSec={observedAtSec} sourceErrors={commerceSourceErrors} />}

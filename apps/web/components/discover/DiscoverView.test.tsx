@@ -28,6 +28,8 @@ describe("DiscoverView", () => {
     expect(html).toContain("Past discoveries");
     expect(html.indexOf("</aside>")).toBeLessThan(html.indexOf("Past discoveries"));
     expect(html.indexOf("Past discoveries")).toBeLessThan(html.indexOf("Paid resources"));
+    expect(html).toContain("Inspect an OKX Agent Payment");
+    expect(html).toContain("Read only");
     expect(html).toContain("Expired");
     expect(html).toContain("brand-mark--curve");
     expect(html).toContain("brand-mark--aave");
