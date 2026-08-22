@@ -168,6 +168,8 @@ describe("OKX Market client", () => {
     const token = "0x1111111111111111111111111111111111111111";
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ code: "0", msg: "", data: [{
       tokenAssets: [
+        { chainIndex: "196", tokenContractAddress: "", symbol: "OKB", balance: "0.01",
+          tokenPrice: "107.41", isRiskToken: false },
         { chainIndex: "196", tokenContractAddress: token, symbol: "EXAMPLE", balance: "2.5",
           tokenPrice: "1.25", isRiskToken: false },
         { chainIndex: "196", tokenContractAddress: "0x2222222222222222222222222222222222222222",

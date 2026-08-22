@@ -94,10 +94,17 @@ const TokenSearchSchema = TokenBasicSchema.extend({
     .transform((value) => value || undefined),
 }).passthrough();
 const WalletTokenBalanceSchema = z.object({
-  chainIndex: z.literal("196"), tokenContractAddress: EvmAddressSchema,
+  chainIndex: z.literal("196"), tokenContractAddress: z.union([EvmAddressSchema, z.literal("")]),
   symbol: z.string().min(1).max(64), balance: DecimalStringSchema,
   tokenPrice: DecimalStringSchema, isRiskToken: z.boolean(),
 }).passthrough();
+type WalletTokenBalance = z.infer<typeof WalletTokenBalanceSchema>;
+
+function isErc20WalletToken(
+  token: WalletTokenBalance,
+): token is WalletTokenBalance & { tokenContractAddress: Address } {
+  return !token.isRiskToken && token.tokenContractAddress !== "";
+}
 const WalletTokenBalanceResponseSchema = z.array(z.object({
   tokenAssets: z.array(WalletTokenBalanceSchema),
 }).passthrough());
@@ -170,7 +177,8 @@ export function createOkxClient(options: OkxClientOptions) {
       const data = WalletTokenBalanceResponseSchema.safeParse(envelope.data);
       if (!data.success) throw new OkxApiError("INVALID_WALLET_BALANCES",
         "Invalid OKX wallet balance response");
-      return data.data.flatMap(({ tokenAssets }) => tokenAssets).filter(({ isRiskToken }) => !isRiskToken)
+      return data.data.flatMap(({ tokenAssets }) => tokenAssets)
+        .filter(isErc20WalletToken)
         .map(({ tokenContractAddress: token, symbol, balance, tokenPrice: priceUsd }) => ({
           chainId: 196 as const, token, symbol, balance, priceUsd,
         }));
