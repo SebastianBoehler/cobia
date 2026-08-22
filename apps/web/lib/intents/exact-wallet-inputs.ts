@@ -30,3 +30,27 @@ export function hasExactTaggedWalletInputs(
   const actual = new Set(inputSymbols.map((symbol) => symbol.toLowerCase()));
   return expected.every((symbol) => actual.has(symbol.toLowerCase()));
 }
+
+export function preserveExactTaggedWalletInputs<T extends { symbol: string }>(
+  goal: string,
+  outputSymbol: string,
+  inputs: readonly T[],
+  walletAssets: readonly WalletIntentAsset[],
+): T[] | undefined {
+  const expected = exactTaggedWalletInputs(goal, outputSymbol, walletAssets);
+  if (!expected.length) return [...inputs];
+  if (expected.length !== inputs.length) return undefined;
+  const remaining = new Set(expected.map((symbol) => symbol.toLowerCase()));
+  const repaired: T[] = [];
+  for (const input of inputs) {
+    const requested = input.symbol.toLowerCase();
+    const candidates = [...remaining].filter((symbol) =>
+      symbol === requested || symbol.endsWith(requested));
+    if (candidates.length !== 1) return undefined;
+    const matched = candidates[0]!;
+    remaining.delete(matched);
+    repaired.push({ ...input, symbol: expected.find((symbol) =>
+      symbol.toLowerCase() === matched)! });
+  }
+  return remaining.size === 0 ? repaired : undefined;
+}

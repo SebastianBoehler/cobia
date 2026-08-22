@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { exactTaggedWalletInputs, hasExactTaggedWalletInputs } from "./exact-wallet-inputs";
+import {
+  exactTaggedWalletInputs, hasExactTaggedWalletInputs, preserveExactTaggedWalletInputs,
+} from "./exact-wallet-inputs";
 
 const walletAssets = [
   { address: "0x1111111111111111111111111111111111111111" as const, symbol: "aXlrUSDG", decimals: 18 },
@@ -19,5 +21,12 @@ describe("exact tagged wallet inputs", () => {
     expect(hasExactTaggedWalletInputs(
       "sell @aXlrUSDG into @OKB", "OKB", ["aXlrUSDG"], walletAssets,
     )).toBe(true);
+  });
+
+  it("repairs an unambiguous suffix substitution without changing its amount mode", () => {
+    expect(preserveExactTaggedWalletInputs(
+      "sell all @aXlrUSDG into @OKB", "OKB",
+      [{ symbol: "USDG", amount: "", walletShareBps: 10_000 }], walletAssets,
+    )).toEqual([{ symbol: "aXlrUSDG", amount: "", walletShareBps: 10_000 }]);
   });
 });
