@@ -70,10 +70,11 @@ export default function MediaKitPage() {
           <p>One intent, competing solvers, exact verification, wallet-authorized execution, and a public X Layer receipt.</p>
         </header>
         <video controls playsInline poster="/media/cobia-intent-proof-poster.jpg" preload="metadata">
-          <source src="/media/cobia-intent-proof-x-layer.mp4" type="video/mp4" />
+          <source src="/media/cobia-live-intent-flow-x-layer.mp4" type="video/mp4" />
         </video>
         <div className={styles.proofActions}>
-          <a className="button button--quiet" download href="/media/cobia-intent-proof-x-layer.mp4"><Download aria-hidden="true" size={17} />Download 16:9 video</a>
+          <a className="button button--quiet" download href="/media/cobia-live-intent-flow-x-layer.mp4"><Download aria-hidden="true" size={17} />Download live demo</a>
+          <a className="button button--quiet" download href="/media/cobia-intent-proof-x-layer.mp4"><Download aria-hidden="true" size={17} />Download motion cut</a>
           <a className="button button--quiet" download href="/media/cobia-mainnet-outcome.jpg"><Download aria-hidden="true" size={17} />Download outcome image</a>
         </div>
       </section>

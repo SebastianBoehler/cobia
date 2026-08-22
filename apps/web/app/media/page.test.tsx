@@ -15,7 +15,8 @@ describe("Media kit page", () => {
     expect(html).toContain("Company boilerplate");
     expect(html).toContain('href="/media/cobia-mark-cobalt.svg"');
     expect(html).toContain('href="/media/cobia-wordmark-dark.svg"');
-    expect(html).toContain('src="/media/cobia-intent-proof-x-layer.mp4"');
+    expect(html).toContain('src="/media/cobia-live-intent-flow-x-layer.mp4"');
+    expect(html).toContain('href="/media/cobia-intent-proof-x-layer.mp4"');
     expect(html).toContain("download");
     expect(html).not.toContain("marketing/remotion/output");
   });
