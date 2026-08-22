@@ -97,6 +97,53 @@ describe("intent compiler", () => {
     });
   });
 
+  it("never substitutes an X Layer stablecoin for an explicitly requested RWA output", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(conversion([
+      { symbol: "USDG", amount: "", walletShareBps: 10_000 },
+    ], "USDt0"))));
+    const compiler = createOpenAiIntentCompiler({
+      apiKey: "test", model: "test-model", fetcher, walletBalances: { USDG: "1.205944" },
+    });
+
+    await expect(compiler.compile("all my @USDG into @USDY", "any")).resolves.toEqual({
+      status: "clarification",
+      question: "Cobia could not bind the requested USDY outcome without changing the asset. Refine the RWA bounds and try again.",
+    });
+  });
+
+  it("asks for a missing RWA outcome bound instead of failing compilation", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(simple({
+      status: "review", question: null, templateId: "rwa-acquisition",
+      inputSymbol: "USDG", outputSymbol: "USDY", amount: "", minimum: "",
+      jurisdiction: null,
+    }))));
+    const compiler = createOpenAiIntentCompiler({
+      apiKey: "test", model: "test-model", fetcher, walletBalances: { USDG: "1.205944" },
+    });
+
+    await expect(compiler.compile("all my @USDG into @USDY", "any")).resolves.toEqual({
+      status: "clarification",
+      question: "Add a minimum USDY outcome for this cross-chain RWA intent.",
+    });
+  });
+
+  it("resolves an all-balance RWA input once the minimum outcome is explicit", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(simple({
+      status: "review", question: null, templateId: "rwa-acquisition",
+      inputSymbol: "USDG", outputSymbol: "USDY", amount: "all", minimum: "0.8",
+      jurisdiction: null,
+    }))));
+    const compiler = createOpenAiIntentCompiler({
+      apiKey: "test", model: "test-model", fetcher, walletBalances: { USDG: "1.205944" },
+    });
+
+    await expect(compiler.compile("all my @USDG into at least 0.8 @USDY", "any"))
+      .resolves.toMatchObject({
+        status: "review",
+        values: { templateId: "rwa-acquisition", amount: "1.205944", minimum: "0.8" },
+      });
+  });
+
   it("treats all token as the complete observed balance without asking again", async () => {
     const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(conversion([
       { symbol: "USDt0", amount: "", walletShareBps: 10_000 },
