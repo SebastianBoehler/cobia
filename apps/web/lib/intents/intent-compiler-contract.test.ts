@@ -59,4 +59,19 @@ describe("intent compiler model contract", () => {
       outputSymbol: "OKB", minimumOutput: "", minimumStages: 2,
     }).success).toBe(false);
   });
+
+  it("ignores malformed inactive branches when the selected conversion is valid", async () => {
+    const draft = { ...conversion("", 10_000), composed: {
+      inputSymbol: "USDG", amount: "", capabilityIds: [],
+      maxConversionLossBps: 0, deadlineMinutes: 1,
+    } };
+    const compiler = createOpenAiIntentCompiler({ apiKey: "test", model: "test-model",
+      fetcher: vi.fn().mockResolvedValue(response(draft)),
+      walletBalances: { USDG: "1.205469" }, assetPricesUsd: { USDG: "1", OKB: "111.4" } });
+
+    await expect(compiler.compile(
+      "Turn all my @USDG into @OKB using at least 2 wallet steps", "any",
+    )).resolves.toMatchObject({ status: "review",
+      values: { kind: "staged-conversion", outputSymbol: "OKB", minimumStages: 2 } });
+  });
 });

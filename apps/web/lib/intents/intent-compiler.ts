@@ -11,7 +11,6 @@ import {
 import type { ActionPreference } from "./intent-controls";
 import {
   COMPOSITION_CAPABILITY_IDS,
-  CompositionModelDraftSchema,
   resolveCompositionDraft,
   type ComposedIntentDraft,
 } from "./composition-draft";
@@ -19,7 +18,7 @@ import { resolveRegisteredCompositionGoal } from "./registered-composition-goal"
 import type { WalletBalances } from "./wallet-balance-request";
 import { INTENT_COMPILER_INSTRUCTIONS, INTENT_TEMPLATE_CONTRACTS } from "./intent-compiler-contract";
 import {
-  ConversionModelDraftSchema, resolveConversionDraft, type StagedConversionDraft,
+  resolveConversionDraft, type StagedConversionDraft,
   type WalletIntentAsset,
 } from "./staged-conversion-draft";
 
@@ -35,8 +34,8 @@ const CompilationSchema = z.object({
   walletShareBps: z.number().int().min(1).max(10_000).nullable().optional().default(null),
   minimum: z.string(),
   jurisdiction: z.string().regex(/^[A-Z]{2}$/).nullable(),
-  composed: CompositionModelDraftSchema.nullable(),
-  conversion: ConversionModelDraftSchema.nullable().optional().default(null),
+  composed: z.unknown().nullable(),
+  conversion: z.unknown().nullable().optional().default(null),
 }).strict();
 
 export type IntentCompilation =
@@ -225,7 +224,7 @@ export function createOpenAiIntentCompiler(options: Options) {
     if (roundTrip) {
       const amount = requestedInputAmount({ goal: normalizedGoal,
         symbol: roundTrip.symbol, decimals: roundTrip.decimals,
-        compiled, balances: options.walletBalances });
+        compiled: { amount: compiled.amount }, balances: options.walletBalances });
       if (!amount) return { status: "clarification",
         question: `Your ${roundTrip.symbol} wallet balance is zero. Fund it or enter an exact amount.` };
       const explicitMinimum = compiled.templateId === "round-trip" ? compiled.minimum : "";
@@ -251,7 +250,7 @@ export function createOpenAiIntentCompiler(options: Options) {
     if (rwaTarget && rwaInput) {
       const amount = requestedInputAmount({ goal: normalizedGoal,
         symbol: rwaInput.symbol, decimals: rwaInput.decimals,
-        compiled, balances: options.walletBalances });
+        compiled: { amount: compiled.amount }, balances: options.walletBalances });
       if (!amount) return { status: "clarification",
         question: `Your ${rwaInput.symbol} wallet balance is zero. Fund it or enter an exact amount.` };
       boundedCompilation = { ...boundedCompilation, amount };
