@@ -38,6 +38,7 @@ describe("Build X project page", () => {
 
     expect(html).toContain('href="https://getcobia.com"');
     expect(html).toContain('href="https://github.com/SebastianBoehler/cobia"');
+    expect(html).toContain('href="/network"');
     expect(html).toContain('href="https://x.com/Cobia_Web3/status/2090604315052302774"');
     expect(html).toContain("0x2278a9241529becaf1baac9a3de7777fd5ab6051e0e65b3b4fc45e1e3f3fc767");
     expect(html).toContain("0x83500273bbdaf6f2ad5e27f3d6807b7555383599ea537eca0206f9c18ab0d210");

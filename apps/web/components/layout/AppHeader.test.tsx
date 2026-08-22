@@ -36,7 +36,7 @@ describe("AppHeader", () => {
     expect(screen.getByRole("link", { name: "Portfolio" })).toHaveAttribute("href", "/portfolio");
     expect(screen.getByRole("link", { name: "Activity" })).toHaveAttribute("href", "/activity");
     expect(screen.getByRole("link", { name: "Discover" })).toHaveAttribute("href", "/discover");
-    expect(screen.getByRole("link", { name: "Solvers" })).toHaveAttribute("href", "/solvers");
+    expect(screen.getByRole("link", { name: "Network" })).toHaveAttribute("href", "/network");
     expect(screen.getByRole("link", { name: "Docs" })).toHaveAttribute("href", "/docs");
     expect(screen.getByRole("link", { name: "Build a solver" })).toHaveAttribute("href", "/docs/quickstart");
   });
@@ -70,7 +70,7 @@ describe("AppHeader", () => {
     mocks.pathname = "/solvers/cobia-reference";
     render(<AppHeader />);
 
-    expect(screen.getByRole("link", { name: "Solvers" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Network" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Discover" })).not.toHaveAttribute("aria-current");
   });
 
@@ -82,6 +82,6 @@ describe("AppHeader", () => {
     expect(screen.queryByRole("link", { name: "Intent" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Activity" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Discover" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Solvers" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Network" })).not.toBeInTheDocument();
   });
 });

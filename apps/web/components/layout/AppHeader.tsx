@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, Bot, CirclePlus, Clock3, Compass, House, WalletCards } from "lucide-react";
+import { ArrowUpRight, CirclePlus, Clock3, Compass, House, WalletCards, Waypoints } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CobiaLogo } from "../brand/CobiaLogo";
@@ -14,7 +14,7 @@ const navigation = [
   { href: "/portfolio", icon: WalletCards, label: "Portfolio", prefixes: ["/portfolio"] },
   { href: "/activity", icon: Clock3, label: "Activity", prefixes: ["/activity"] },
   { href: "/discover", icon: Compass, label: "Discover", prefixes: ["/discover"] },
-  { href: "/solvers", icon: Bot, label: "Solvers", prefixes: ["/solvers"] },
+  { href: "/network", icon: Waypoints, label: "Network", prefixes: ["/network", "/solvers"] },
 ] as const;
 
 const testnetNavigation = [

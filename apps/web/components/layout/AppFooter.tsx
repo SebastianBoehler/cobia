@@ -6,6 +6,7 @@ const productLinks = [
   { href: "/intents/new", label: "Create an intent" },
   { href: "/discover", label: "Discover" },
   { href: "/portfolio", label: "Portfolio" },
+  { href: "/network", label: "Network" },
 ] as const;
 
 const resourceLinks = [

@@ -82,6 +82,7 @@ describe("site metadata", () => {
       `${SITE_ORIGIN}/`,
       `${SITE_ORIGIN}/intents/new`,
       `${SITE_ORIGIN}/discover`,
+      `${SITE_ORIGIN}/network`,
       `${SITE_ORIGIN}/solvers`,
       `${SITE_ORIGIN}/buildx`,
       `${SITE_ORIGIN}/terms`,

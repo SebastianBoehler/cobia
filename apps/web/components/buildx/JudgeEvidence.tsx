@@ -36,6 +36,11 @@ const evidence = [
     href: `https://web3.okx.com/explorer/x-layer/evm/tx/${FIRST_VERIFIED_INTENT_TX}`, link: "Inspect execution",
   },
   {
+    title: "Cobia Network", status: "Public proof",
+    detail: "Confirmed outcomes and solver attribution resolve to exact programs, receipts and X Layer transactions.",
+    href: "/network", link: "Inspect network", internal: true,
+  },
+  {
     title: "Executor V3 deployment", status: "Deployed",
     detail: "Wallet-created X Layer mainnet contract with independently reproduced creation input and runtime identity.",
     href: `https://www.oklink.com/x-layer/tx/${MAINNET_DEPLOYMENT_TX}`, link: "Inspect transaction",
