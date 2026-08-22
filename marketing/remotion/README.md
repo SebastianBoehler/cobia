@@ -10,6 +10,7 @@ explain the interaction without representing a fabricated transaction.
 - `Cobia-Prompt-Tags-9x16` — vertical variant for short-form social
 - `Cobia-Intent-UI-Reveal` — live UI screenshot and prompt-bar detail
 - `Cobia-Verify-Flow-Square` — compact trust-boundary explainer
+- `Cobia-Landed-Program-Proof-X` — real intent and receipt around an explicitly labeled solver-selection mechanism
 
 ## Commands
 

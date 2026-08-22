@@ -7,10 +7,12 @@ import { PromptTrailer } from "./prompt/PromptTrailer";
 import { UiRevealTrailer } from "./reveal/UiRevealTrailer";
 import { VerifyFlowTrailer } from "./verify/VerifyFlowTrailer";
 import { TokenEvidenceClip } from "./evidence/TokenEvidenceClip";
+import { LandedProgramProofCut } from "./proof-cut/LandedProgramProofCut";
 
 export const RemotionRoot = () => (
   <>
     <Folder name="Cobia-Promos">
+      <Composition id="Cobia-Landed-Program-Proof-X" component={LandedProgramProofCut} durationInFrames={570} fps={30} width={1920} height={1080} />
       <Composition id="Cobia-Token-Evidence-X" component={TokenEvidenceClip} durationInFrames={360} fps={30} width={1920} height={1080} />
       <Composition id="Cobia-Tag-Picker-X" component={TagPickerClip} durationInFrames={270} fps={30} width={1920} height={1080} />
       <Composition id="Cobia-Bouncy-Prompt-X" component={BouncyPromptClip} durationInFrames={230} fps={30} width={1920} height={1080} />

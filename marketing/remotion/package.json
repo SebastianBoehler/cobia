@@ -13,6 +13,7 @@
     "render:bouncy-prompt:x": "remotion render Cobia-Bouncy-Prompt-X output/cobia-bouncy-prompt-x-16x9.mp4",
     "render:tag-picker:x": "remotion render Cobia-Tag-Picker-X output/cobia-tag-picker-x-16x9.mp4",
     "render:token-evidence:x": "remotion render Cobia-Token-Evidence-X output/cobia-token-evidence-x-16x9.mp4",
+    "render:landed-proof:x": "remotion render Cobia-Landed-Program-Proof-X output/cobia-landed-program-proof-x-16x9.mp4",
     "render:prompt": "remotion render Cobia-Prompt-Tags-16x9 output/cobia-prompt-tags-16x9.mp4",
     "render:prompt:vertical": "remotion render Cobia-Prompt-Tags-9x16 output/cobia-prompt-tags-9x16.mp4",
     "render:reveal": "remotion render Cobia-Intent-UI-Reveal output/cobia-intent-ui-reveal.mp4",
@@ -21,6 +22,7 @@
   },
   "dependencies": {
     "@remotion/cli": "4.0.514",
+    "@remotion/google-fonts": "4.0.514",
     "@remotion/media": "4.0.514",
     "@remotion/rough-notation": "4.0.514",
     "@remotion/transitions": "4.0.514",
