@@ -66,4 +66,43 @@ describe("commerce offer details", () => {
     expect(html).toContain("Verified purchase intent");
     expect(html).toContain("Review and buy");
   });
+
+  it("does not promote an opaque endpoint identifier into the page title", () => {
+    const opaque = CommerceOfferV1Schema.parse({
+      ...offer,
+      placement: { kind: "x402-exact", endpoint: `https://merchant.example/${hash("a")}` },
+    });
+    const html = renderToStaticMarkup(
+      <CommerceOfferDetails offer={opaque} observedAtSec={2_000_000_010} />,
+    );
+
+    expect(html).toContain("<h1>Example Merchant resource</h1>");
+    expect(html).toContain("Technical payment details");
+    expect(html).toContain("Source and freshness");
+  });
+
+  it("does not promote an opaque direct-contract product id into the page title", () => {
+    const opaque = CommerceOfferV1Schema.parse({
+      ...offer,
+      product: { ...offer.product, id: "0x1111111111111111111111111111111111111111" },
+      placement: { kind: "direct-contract", capabilityId: "commerce.order.place", capabilityVersion: 1 },
+    });
+    const html = renderToStaticMarkup(
+      <CommerceOfferDetails offer={opaque} observedAtSec={2_000_000_010} />,
+    );
+
+    expect(html).toContain("<h1>Example Merchant resource</h1>");
+  });
+
+  it("does not promote an opaque source-provided product name into the page title", () => {
+    const opaque = CommerceOfferV1Schema.parse({
+      ...offer,
+      product: { ...offer.product, name: "0x1111111111111111111111111111111111111111" },
+    });
+    const html = renderToStaticMarkup(
+      <CommerceOfferDetails offer={opaque} observedAtSec={2_000_000_010} />,
+    );
+
+    expect(html).toContain("<h1>Example Merchant resource</h1>");
+  });
 });

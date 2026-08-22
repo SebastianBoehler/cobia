@@ -19,7 +19,7 @@ describe("DiscoverView", () => {
     expect(html).toContain("Uniswap V3");
     expect(html).toContain("exact-call replay lane");
     expect(html.indexOf("Standing challenges")).toBeLessThan(html.indexOf("Paid resources"));
-    expect(html).toContain("Between rounds");
+    expect(html).not.toContain("Between rounds");
     expect(html).toContain("Custom intents");
     expect(html).toContain("Past discoveries");
     expect(html.indexOf("</aside>")).toBeLessThan(html.indexOf("Past discoveries"));
@@ -37,6 +37,17 @@ describe("DiscoverView", () => {
     expect(html).toContain("Create an intent");
     expect(html).toContain("Verified solver history will appear here after a program resolves.");
     expect(html).toContain("No supported paid resources are available yet");
+  });
+
+  it("keeps older discoveries available without making them compete with current actions", () => {
+    const history = Array.from({ length: 7 }, (_, index) => ({
+      id: `program-${index}`, goal: `Past discovery ${index}`, solver: "Cobia coding agent", state: "executed",
+    }));
+    const html = renderToStaticMarkup(<DiscoverView challenges={[]} history={history} intents={[]}
+      commerceOffers={[]} observedAtSec={2_000_000_000} />);
+
+    expect(html).toContain("Show 2 older discoveries");
+    expect(html).toContain('href="/programs/program-6"');
   });
 
   it("keeps healthy sections usable when one source is unavailable", () => {

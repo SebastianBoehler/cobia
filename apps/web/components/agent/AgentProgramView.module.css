@@ -3,13 +3,13 @@
 .hero { align-items: end; display: grid; gap: clamp(28px, 5vw, 64px); grid-template-columns: minmax(0, 1.4fr) minmax(280px, .6fr); padding: 12px 0 22px; }
 .heroCopy { max-width: 760px; }
 .hero h1 { font-size: clamp(2.75rem, 5.5vw, 4.75rem); font-weight: 620; letter-spacing: -.065em; line-height: .96; margin: 7px 0 0; max-width: 15ch; text-wrap: balance; }
-.kicker { color: var(--muted); font-size: 10px; font-weight: 680; letter-spacing: .09em; margin: 0; text-transform: uppercase; }
+.kicker { color: var(--muted); font-size: 12px; font-weight: 680; letter-spacing: .08em; margin: 0; text-transform: uppercase; }
 
 .statusCard { align-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; display: grid; gap: 12px; grid-template-columns: 36px minmax(0, 1fr); padding: 16px; }
 .statusIcon { align-items: center; background: var(--wash); border-radius: 10px; display: flex; height: 36px; justify-content: center; width: 36px; }
 .statusIcon svg { height: 18px; stroke-width: 2; width: 18px; }
-.statusCard strong { display: block; font-size: 13px; margin: 1px 0 5px; }
-.statusCard p { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0; text-wrap: pretty; }
+.statusCard strong { display: block; font-size: 15px; margin: 1px 0 5px; }
+.statusCard p { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 0; text-wrap: pretty; }
 .live .statusIcon, .live strong { color: var(--verified); }
 .failed .statusIcon, .failed strong { color: var(--rejected); }
 .history .statusIcon, .history strong { color: var(--estimated); }
@@ -20,20 +20,20 @@
 .balanceList { display: grid; gap: 18px; list-style: none; margin: 18px 0 0; padding: 0; }
 .balanceList li { display: grid; gap: 7px; }
 .balanceList strong { color: var(--verified); font-size: clamp(2rem, 4.2vw, 3.5rem); font-variant-numeric: tabular-nums; letter-spacing: -.055em; line-height: 1; overflow-wrap: anywhere; }
-.balanceList span { color: var(--muted); font: 12px/1.5 var(--font-geist-mono), monospace; font-variant-numeric: tabular-nums; }
-.balanceList small { color: var(--cobalt); font-size: 11px; font-weight: 650; }
-.disclaimer, .empty { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 18px 0 0; }
+.balanceList span { color: var(--muted); font: 13px/1.5 var(--font-geist-mono), monospace; font-variant-numeric: tabular-nums; }
+.balanceList small { color: var(--cobalt); font-size: 13px; font-weight: 650; }
+.disclaimer, .empty { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 18px 0 0; }
 
 .actionPanel, .receiptMeta { align-content: center; background: var(--wash); border-left: 1px solid var(--line); display: grid; gap: 18px; padding: clamp(22px, 3vw, 30px); }
-.actionPanel strong { font-size: 14px; }
-.actionPanel p { color: var(--muted); font-size: 12px; line-height: 1.55; margin: 7px 0 0; text-wrap: pretty; }
+.actionPanel strong { font-size: 15px; }
+.actionPanel p { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 7px 0 0; text-wrap: pretty; }
 .actionPanel > :global(.form-alert) { margin: 0; }
 .actionPanel button, .actionPanel a, .receiptMeta a { justify-self: start; }
 .receiptMeta dl { display: flex; gap: 28px; margin: 0; }
 .receiptMeta dl div { display: grid; gap: 5px; }
-.receiptMeta dt { color: var(--muted); font-size: 10px; text-transform: uppercase; }
-.receiptMeta dd { font: 12px/1.5 var(--font-geist-mono), monospace; font-variant-numeric: tabular-nums; margin: 0; }
-.receiptMeta code { color: var(--muted); font: 10px/1.5 var(--font-geist-mono), monospace; overflow-wrap: anywhere; }
+.receiptMeta dt { color: var(--muted); font-size: 12px; text-transform: uppercase; }
+.receiptMeta dd { font: 13px/1.5 var(--font-geist-mono), monospace; font-variant-numeric: tabular-nums; margin: 0; }
+.receiptMeta code { color: var(--muted); font: 12px/1.5 var(--font-geist-mono), monospace; overflow-wrap: anywhere; }
 
 .details { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: clip; }
 .details > summary { align-items: center; cursor: pointer; display: flex; gap: 18px; justify-content: space-between; list-style: none; padding: 18px 20px; }
@@ -41,28 +41,28 @@
 .details > summary:hover { background: var(--wash); }
 .details > summary:focus-visible { outline: 3px solid color-mix(in oklch, var(--cobalt) 70%, transparent); outline-offset: -4px; }
 .details > summary span { display: grid; gap: 4px; }
-.details > summary strong { font-size: 13px; }
-.details > summary small { color: var(--muted); font-size: 11px; }
+.details > summary strong { font-size: 15px; }
+.details > summary small { color: var(--muted); font-size: 13px; }
 .details > summary svg { color: var(--muted); flex: 0 0 auto; height: 18px; width: 18px; }
 .details[open] > summary svg { transform: rotate(180deg); }
 .detailsBody { border-top: 1px solid var(--line); display: grid; grid-template-columns: 1fr 1fr; }
 .detailSection { min-width: 0; padding: 24px; }
 .detailSection + .detailSection { border-left: 1px solid var(--line); }
 .detailSection h2 { font-size: 16px; letter-spacing: -.025em; margin: 6px 0 0; }
-.detailSection > p:last-child { color: var(--muted); font-size: 12px; line-height: 1.55; margin: 8px 0 0; }
+.detailSection > p:last-child { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 8px 0 0; }
 .failureCodes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
-.failureCodes code { background: color-mix(in oklch, var(--rejected) 8%, var(--surface)); border-radius: 8px; color: var(--rejected); font: 11px var(--font-geist-mono), monospace; padding: 7px 9px; }
+.failureCodes code { background: color-mix(in oklch, var(--rejected) 8%, var(--surface)); border-radius: 8px; color: var(--rejected); font: 12px var(--font-geist-mono), monospace; padding: 7px 9px; }
 .routeList { display: grid; list-style: none; margin: 16px 0 0; padding: 0; }
 .routeList li { align-items: start; border-top: 1px solid var(--line); display: grid; gap: 12px; grid-template-columns: 26px minmax(0, 1fr); padding: 14px 0; }
-.routeList li > span { align-items: center; background: var(--wash); border-radius: 7px; color: var(--muted); display: flex; font-size: 10px; height: 26px; justify-content: center; }
-.routeList strong { display: block; font-size: 12px; line-height: 1.5; }
-.routeList p { color: var(--muted); font: 10px/1.5 var(--font-geist-mono), monospace; margin: 4px 0 0; overflow-wrap: anywhere; }
+.routeList li > span { align-items: center; background: var(--wash); border-radius: 7px; color: var(--muted); display: flex; font-size: 12px; height: 26px; justify-content: center; }
+.routeList strong { display: block; font-size: 14px; line-height: 1.5; }
+.routeList p { color: var(--muted); font: 12px/1.5 var(--font-geist-mono), monospace; margin: 4px 0 0; overflow-wrap: anywhere; }
 .ledger { border-left: 0 !important; border-top: 1px solid var(--line); grid-column: 1 / -1; }
 .ledger dl { display: grid; grid-template-columns: repeat(3, 1fr); margin: 16px 0 0; }
 .ledger dl > div { border-top: 1px solid var(--line); min-width: 0; padding: 14px 12px 14px 0; }
-.ledger dt { align-items: center; color: var(--muted); display: flex; font-size: 10px; gap: 5px; margin-bottom: 7px; }
+.ledger dt { align-items: center; color: var(--muted); display: flex; font-size: 12px; gap: 5px; margin-bottom: 7px; }
 .ledger dt svg { height: 12px; width: 12px; }
-.ledger dd { font: 11px/1.5 var(--font-geist-mono), monospace; font-variant-numeric: tabular-nums; margin: 0; overflow-wrap: anywhere; }
+.ledger dd { font: 13px/1.5 var(--font-geist-mono), monospace; font-variant-numeric: tabular-nums; margin: 0; overflow-wrap: anywhere; }
 
 @media (prefers-reduced-motion: no-preference) {
   .details > summary svg { transition: transform 160ms ease; }

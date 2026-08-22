@@ -7,13 +7,25 @@ export function humanizeIdentifier(value: string) {
   return words[0]?.toUpperCase() + words.slice(1).toLowerCase();
 }
 
+function isOpaqueIdentifier(value: string) {
+  return /^(?:0x)?[0-9a-f]{16,}$/i.test(value);
+}
+
 export function productName(offer: CommerceOfferV1) {
-  if (offer.product.name) return offer.product.name;
-  if (offer.placement.kind === "direct-contract") return humanizeIdentifier(offer.product.id);
+  if (offer.product.name) return isOpaqueIdentifier(offer.product.name)
+    ? `${offer.merchant.displayName} resource`
+    : offer.product.name;
+  if (offer.placement.kind === "direct-contract") return isOpaqueIdentifier(offer.product.id)
+    ? `${offer.merchant.displayName} resource`
+    : humanizeIdentifier(offer.product.id);
   const segment = new URL(offer.placement.endpoint).pathname.split("/")
     .filter((part) => part && !part.startsWith(":"))
     .at(-1);
-  return segment ? humanizeIdentifier(decodeURIComponent(segment)) : "Unnamed paid resource";
+  if (!segment) return `${offer.merchant.displayName} resource`;
+  const decoded = decodeURIComponent(segment);
+  return isOpaqueIdentifier(decoded)
+    ? `${offer.merchant.displayName} resource`
+    : humanizeIdentifier(decoded);
 }
 
 export function paymentDisplay(offer: CommerceOfferV1) {

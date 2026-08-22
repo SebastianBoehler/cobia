@@ -10,6 +10,8 @@ describe("SolverDirectory", () => {
     }]} />);
     expect(html).toContain("Declared capabilities");
     expect(html).toContain("Verifier-derived results");
+    expect(html.indexOf("Verifier-derived results")).toBeLessThan(html.indexOf("Declared capabilities"));
+    expect(html).toContain("Review verifier evidence");
     expect(html).toContain('href="/solvers/cobia-coding-agent"');
   });
 });

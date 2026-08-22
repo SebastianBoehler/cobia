@@ -20,6 +20,12 @@ function label(value: string) {
   return words[0]?.toUpperCase() + words.slice(1);
 }
 
+function HistoryRows({ items }: { items: DiscoverHistory[] }) {
+  return <div className="history-table">{items.map((item) => <Link href={`/programs/${item.id}`} key={item.id}>
+    <span>{item.goal}</span><small>{item.solver}</small><strong>{label(item.state)}</strong><ArrowRight aria-hidden="true" size={15} />
+  </Link>)}</div>;
+}
+
 export function DiscoverView({
   challenges, intents, history, commerceOffers, observedAtSec, commerceSourceErrors, sectionErrors,
 }: {
@@ -31,12 +37,14 @@ export function DiscoverView({
   commerceSourceErrors?: Array<{ sourceId: string; code: string }>;
   sectionErrors?: Partial<Record<DiscoverSection, string>>;
 }) {
+  const visibleHistory = history.slice(0, 5);
+  const olderHistory = history.slice(5);
   return (
     <div className="discover-view">
       <section aria-labelledby="standing-title">
         <header><div><h2 id="standing-title">Standing challenges</h2><p>Supported, reusable goals. Each run opens a fresh, bounded solver competition.</p></div><Repeat2 aria-hidden="true" size={22} /></header>
         {sectionErrors?.challenges ? <p className="empty-state" role="status">{sectionErrors.challenges}</p> : challenges.length ? <div className="discover-list">{challenges.map((item) => <article key={item.id}>
-          <div><span className={`status ${item.availability === "live" ? "status--live" : ""}`}>{label(item.availability)}</span><h3>{item.title}</h3><p>{item.goal}</p></div>
+          <div>{item.availability === "live" ? <span className="status status--live">Live round</span> : null}<h3>{item.title}</h3><p>{item.goal}</p></div>
           <Link href={`/intents/new?challenge=${item.id}`}>Use challenge <ArrowRight aria-hidden="true" size={15} /></Link>
         </article>)}</div> : <p className="empty-state">No standing challenges are published yet.</p>}
         <div className="supported-protocols" aria-labelledby="protocols-title">
@@ -60,9 +68,10 @@ export function DiscoverView({
 
       <section aria-labelledby="history-title" className="discover-view__history">
         <header><div><h2 id="history-title">Past discoveries</h2><p>Completed and expired programs remain evidence, never current quotes.</p></div><History aria-hidden="true" size={22} /></header>
-        {sectionErrors?.history ? <p className="empty-state" role="status">{sectionErrors.history}</p> : history.length ? <div className="history-table">{history.map((item) => <Link href={`/programs/${item.id}`} key={item.id}>
-          <span>{item.goal}</span><small>{item.solver}</small><strong>{label(item.state)}</strong><ArrowRight aria-hidden="true" size={15} />
-        </Link>)}</div> : <p className="empty-state">Verified solver history will appear here after a program resolves.</p>}
+        {sectionErrors?.history ? <p className="empty-state" role="status">{sectionErrors.history}</p> : history.length ? <>
+          <HistoryRows items={visibleHistory} />
+          {olderHistory.length ? <details className="history-more"><summary>Show {olderHistory.length} older discoveries</summary><HistoryRows items={olderHistory} /></details> : null}
+        </> : <p className="empty-state">Verified solver history will appear here after a program resolves.</p>}
       </section>
 
       <section aria-labelledby="commerce-title" className="discover-view__commerce">

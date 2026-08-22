@@ -10,23 +10,23 @@
 .statusCard > header { align-items: start; display: flex; gap: 20px; justify-content: space-between; }
 .statusCard header strong, .statusCard header span { display: block; }
 .statusCard header strong { font-size: 15px; }
-.statusCard header div span { color: var(--muted); font-size: 11px; margin-top: 5px; }
-.locked { background: color-mix(in oklch, var(--estimated) 14%, var(--surface)); border-radius: 999px; color: color-mix(in oklch, var(--estimated) 75%, var(--ink)); font-size: 10px; font-weight: 700; padding: 7px 10px; white-space: nowrap; }
+.statusCard header div span { color: var(--muted); font-size: 13px; margin-top: 5px; }
+.locked { background: color-mix(in oklch, var(--estimated) 14%, var(--surface)); border-radius: 999px; color: color-mix(in oklch, var(--estimated) 75%, var(--ink)); font-size: 12px; font-weight: 700; padding: 7px 10px; white-space: nowrap; }
 .facts { background: var(--wash); border-radius: 16px; display: grid; gap: 0; grid-template-columns: repeat(3, 1fr); margin: 24px 0 0; }
 .facts div { padding: 16px; }
 .facts div + div { border-inline-start: 1px solid var(--line); }
-.facts dt { color: var(--muted); font-size: 10px; }
-.facts dd { font-size: 11px; font-weight: 650; margin: 6px 0 0; }
-.loading, .error, .verified { font-size: 12px; margin: 22px 0 0; }
+.facts dt { color: var(--muted); font-size: 12px; }
+.facts dd { font-size: 13px; font-weight: 650; line-height: 1.4; margin: 6px 0 0; }
+.loading, .error, .verified { font-size: 13px; margin: 22px 0 0; }
 .loading { color: var(--muted); }
 .error { color: var(--rejected); }
 .verified { align-items: center; color: var(--verified); display: flex; gap: 8px; }
 .contracts { display: grid; list-style: none; margin: 18px 0 0; padding: 0; }
 .contracts li { align-items: center; border-top: 1px solid var(--line); display: flex; gap: 16px; justify-content: space-between; padding: 14px 0; }
 .contracts strong, .contracts span { display: block; }
-.contracts strong { font-size: 12px; }
-.contracts span { color: var(--muted); font-family: var(--font-geist-mono), monospace; font-size: 9px; margin-top: 5px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; }
-.contracts small { color: var(--verified); font-size: 9px; white-space: nowrap; }
+.contracts strong { font-size: 14px; }
+.contracts span { color: var(--muted); font-family: var(--font-geist-mono), monospace; font-size: 12px; margin-top: 5px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; }
+.contracts small { color: var(--verified); font-size: 12px; white-space: nowrap; }
 .boundary { align-items: start; background: var(--cobalt-wash); border-radius: 24px; display: grid; gap: 20px; grid-template-columns: auto minmax(0, 1fr) auto; margin: 84px auto 0; max-width: 1120px; padding: clamp(26px, 4vw, 42px); }
 .boundary svg { color: var(--cobalt); }
 .boundary h2 { font-size: 22px; margin: 0; }
