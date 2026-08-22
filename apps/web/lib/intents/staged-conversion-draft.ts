@@ -1,9 +1,10 @@
 import { NATIVE_ASSET_ADDRESS } from "@cobia/domain";
 import type { Address } from "viem";
-import { INTENT_ASSETS, decimalToAtomic } from "./capability-templates";
+import { z } from "zod";
 import {
-  applyWalletBalanceShare, walletBalanceShare, type WalletBalances,
-} from "./wallet-balance-request";
+  decimalToAtomic, INTENT_ASSETS, stablecoinDefaultMinimum, type IntentReceiptValues,
+} from "./capability-templates";
+import type { WalletBalances } from "./wallet-balance-request";
 
 export interface StagedConversionInputDraft {
   kind: "native" | "erc20";
@@ -32,10 +33,19 @@ export interface StagedConversionDraft {
   maxSolverFeeUsd: string;
 }
 
-export interface StagedConversionClarification {
-  kind: "clarification";
-  question: string;
-}
+export const ConversionModelDraftSchema = z.object({
+  inputs: z.array(z.object({
+    symbol: z.string().min(1),
+    amount: z.string(),
+    walletShareBps: z.number().int().min(1).max(10_000).nullable(),
+  }).strict()).min(1).max(8),
+  outputSymbol: z.string().min(1),
+}).strict();
+
+export type ConversionModelDraft = z.infer<typeof ConversionModelDraftSchema>;
+
+type ConversionResolution = IntentReceiptValues | StagedConversionDraft |
+  { kind: "clarification"; question: string };
 
 const MARKET_FLOOR_BPS = 9_900n;
 const PRICE_DECIMALS = 18;
@@ -52,78 +62,107 @@ function formatAtomic(value: bigint, decimals: number): string {
   return fraction ? `${whole}.${fraction}` : whole.toString();
 }
 
-function input(symbol: string, amount: string, assets: readonly WalletIntentAsset[]): StagedConversionInputDraft | undefined {
-  if (symbol === "OKB") return atomic(amount, 18) ? {
-    kind: "native", chainId: 196, token: NATIVE_ASSET_ADDRESS,
-    symbol, decimals: 18, amount,
+function canonicalBalance(symbol: string, balances: WalletBalances): string | undefined {
+  const entry = Object.entries(balances).find(([candidate]) =>
+    candidate.toLowerCase() === symbol.toLowerCase());
+  return entry?.[1];
+}
+
+function walletAsset(symbol: string, assets: readonly WalletIntentAsset[]): WalletIntentAsset | undefined {
+  return assets.find((item) => item.symbol.toLowerCase() === symbol.toLowerCase());
+}
+
+function resolveAmount(
+  input: ConversionModelDraft["inputs"][number],
+  symbol: string,
+  decimals: number,
+  balances: WalletBalances,
+): string | { question: string } {
+  if (input.amount && input.walletShareBps !== null) {
+    return { question: `Specify either an exact ${symbol} amount or a wallet share, not both.` };
+  }
+  const available = canonicalBalance(symbol, balances);
+  const availableAtomic = available && atomic(available, decimals);
+  if (input.walletShareBps !== null) {
+    if (!availableAtomic) return { question: `Your ${symbol} wallet balance is zero. Fund it or enter an exact amount.` };
+    const amountAtomic = availableAtomic * BigInt(input.walletShareBps) / 10_000n;
+    return amountAtomic > 0n ? formatAtomic(amountAtomic, decimals)
+      : { question: `The requested ${symbol} wallet share rounds to zero.` };
+  }
+  const requestedAtomic = atomic(input.amount, decimals);
+  if (!requestedAtomic) return { question: `Enter a valid ${symbol} amount.` };
+  return input.amount;
+}
+
+function simpleSwap(
+  input: StagedConversionInputDraft,
+  output: (typeof INTENT_ASSETS)[number],
+): IntentReceiptValues | undefined {
+  const registeredInput = INTENT_ASSETS.find(({ address }) =>
+    address.toLowerCase() === input.token.toLowerCase());
+  const minimum = registeredInput && stablecoinDefaultMinimum(registeredInput, output, input.amount);
+  return registeredInput && minimum ? {
+    templateId: "exact-input-swap",
+    inputToken: registeredInput.address,
+    outputToken: output.address,
+    amount: input.amount,
+    minimum,
+    minimumSource: "stablecoin-default",
+    maxSolverFeeUsd: "0",
+    jurisdiction: "",
+    eligibilityAccepted: false,
   } : undefined;
-  const asset = assets.find((item) => item.symbol.toLowerCase() === symbol.toLowerCase());
-  return asset && atomic(amount, asset.decimals) ? {
-    kind: "erc20", chainId: 196, token: asset.address,
-    symbol: asset.symbol, decimals: asset.decimals, amount,
-  } : undefined;
 }
 
-function decimals(symbol: string, assets: readonly WalletIntentAsset[]): number | undefined {
-  return symbol === "OKB" ? 18 : assets.find((item) => item.symbol.toLowerCase() === symbol.toLowerCase())?.decimals;
-}
-
-function normalizedSymbol(value: string): string {
-  return value.toUpperCase() === "USDT0" ? "USDt0" : value.toUpperCase();
-}
-
-function resolveInputPart(part: string, balances: WalletBalances, assets: readonly WalletIntentAsset[]):
-  StagedConversionInputDraft | StagedConversionClarification | undefined {
-  const exact = part.trim().match(/^(\d+(?:\.\d+)?)\s+(?:of\s+)?@?([A-Za-z0-9.$_-]{1,64})$/i);
-  if (exact) return input(normalizedSymbol(exact[2]!), exact[1]!, assets);
-  const relative = part.trim().match(/\b@?([A-Za-z0-9.$_-]{1,64})(?:\s+(?:wallet\s+)?balance)?$/i);
-  if (!relative) return undefined;
-  const symbol = normalizedSymbol(relative[1]!);
-  const share = walletBalanceShare(part, symbol);
-  if (!share) return undefined;
-  if (share.kind === "ambiguous") return { kind: "clarification",
-    question: `What percentage of your ${symbol} balance should be used?` };
-  const assetDecimals = decimals(symbol, assets);
-  const balance = assetDecimals === undefined ? undefined
-    : decimalToAtomic(balances[symbol] ?? "", assetDecimals);
-  const amount = balance && assetDecimals !== undefined
-    ? applyWalletBalanceShare(BigInt(balance), assetDecimals, share) : undefined;
-  return amount ? input(symbol, amount, assets) : { kind: "clarification",
-    question: `Your ${symbol} wallet balance is zero. Fund it or enter an exact amount.` };
-}
-
-export function resolveStagedConversionGoal(
-  goal: string,
+export function resolveConversionDraft(
+  value: unknown,
   prices: Readonly<Record<string, string>> = {},
   balances: WalletBalances = {},
   walletAssets: readonly WalletIntentAsset[] = INTENT_ASSETS,
-): StagedConversionDraft | StagedConversionClarification | undefined {
-  const match = goal.trim().match(/^(?:turn|convert|swap)\s+(.+?)\s+(?:in)?to\s+(USDG|USDt0)$/i);
-  if (!match) return undefined;
+): ConversionResolution {
+  const draft = ConversionModelDraftSchema.parse(value);
   const output = INTENT_ASSETS.find(({ symbol }) =>
-    symbol.toLowerCase() === match[2]!.toLowerCase());
-  const parts = match[1]!.split(/\s+and\s+/i);
-  const parsedInputs = parts.map((part) => resolveInputPart(part, balances, walletAssets));
-  const clarification = parsedInputs.find((value) => value?.kind === "clarification");
-  if (clarification?.kind === "clarification") return clarification;
-  if (!output || !parsedInputs.length || parsedInputs.some((value) => !value)) return undefined;
-  const inputs = parsedInputs as StagedConversionInputDraft[];
-  const needsStagedPolicy = inputs.some(({ kind, token }) => kind === "native" ||
-    !INTENT_ASSETS.some((asset) => asset.address.toLowerCase() === token.toLowerCase()));
-  if (!needsStagedPolicy) return undefined;
-  if (new Set(inputs.map(({ token }) => token.toLowerCase())).size !== inputs.length ||
-      inputs.some(({ token }) => token.toLowerCase() === output.address.toLowerCase())) return undefined;
+    symbol.toLowerCase() === draft.outputSymbol.toLowerCase());
+  if (!output) return { kind: "clarification", question: "Choose a registered conversion output asset." };
+
+  const inputs: StagedConversionInputDraft[] = [];
+  for (const requested of draft.inputs) {
+    const isNative = requested.symbol.toLowerCase() === "okb";
+    const asset = isNative ? { address: NATIVE_ASSET_ADDRESS, symbol: "OKB", decimals: 18 }
+      : walletAsset(requested.symbol, walletAssets);
+    if (!asset) return { kind: "clarification",
+      question: `${requested.symbol} is not available in the connected wallet.` };
+    const amount = resolveAmount(requested, asset.symbol, asset.decimals, balances);
+    if (typeof amount !== "string") return { kind: "clarification", question: amount.question };
+    inputs.push({ kind: isNative ? "native" : "erc20", chainId: 196,
+      token: asset.address, symbol: asset.symbol, decimals: asset.decimals, amount });
+  }
+
+  if (new Set(inputs.map(({ token }) => token.toLowerCase())).size !== inputs.length) {
+    return { kind: "clarification", question: "Each conversion input asset may appear only once." };
+  }
+  if (inputs.some(({ token }) => token.toLowerCase() === output.address.toLowerCase())) {
+    return { kind: "clarification", question: `${output.symbol} cannot be both an input and the output.` };
+  }
+  if (inputs.length === 1) {
+    const simple = simpleSwap(inputs[0]!, output);
+    if (simple) return simple;
+  }
+
   const outputPrice = atomic(prices[output.symbol] ?? "", PRICE_DECIMALS);
   const inputValues = inputs.map((item) => {
     const price = atomic(prices[item.symbol] ?? "", PRICE_DECIMALS);
     const amount = atomic(item.amount, item.decimals);
     return price && amount ? amount * price / 10n ** BigInt(item.decimals) : undefined;
   });
-  if (!outputPrice || inputValues.some((value) => value === undefined)) return undefined;
+  if (!outputPrice || inputValues.some((value) => value === undefined)) return {
+    kind: "clarification", question: "A fresh price is unavailable for one of the requested assets.",
+  };
   const totalUsd = (inputValues as bigint[]).reduce((sum, value) => sum + value, 0n);
   const minimumAtomic = totalUsd * MARKET_FLOOR_BPS * 10n ** BigInt(output.decimals) /
     (10_000n * outputPrice);
-  if (minimumAtomic <= 0n) return undefined;
+  if (minimumAtomic <= 0n) return { kind: "clarification",
+    question: "The requested conversion amount is too small." };
   return {
     kind: "staged-conversion", templateId: "staged-conversion", inputs,
     outputToken: output.address, outputSymbol: output.symbol, outputDecimals: output.decimals,

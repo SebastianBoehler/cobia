@@ -11,7 +11,6 @@ import { WalletSessionRejectedError } from "../../../../lib/wallet-auth/service"
 import { getSolverProfileRepository } from "../../../../lib/runtime/market";
 import { currentUnixSeconds } from "../../../../lib/time";
 import { readPortfolio } from "../../../../lib/portfolio/read-portfolio";
-import { requestsWalletBalance } from "../../../../lib/intents/wallet-balance-request";
 import { readIntentAssetPrices } from "../../../../lib/intents/intent-asset-prices";
 
 export const runtime = "nodejs";
@@ -53,7 +52,7 @@ export async function POST(request: Request): Promise<Response> {
     let walletAssets: Array<{ address: Address; symbol: string; decimals: number }> | undefined;
     let walletPortfolio: Awaited<ReturnType<typeof readPortfolio>> | undefined;
     let admissionGoal = goal;
-    if (actionPreference === "any" || requestsWalletBalance(goal)) {
+    if (actionPreference === "any") {
       walletPortfolio = await readPortfolio(session.owner, 196).catch(() => undefined);
       if (!walletPortfolio) {
         return NextResponse.json({ code: "WALLET_BALANCE_UNAVAILABLE",
@@ -70,17 +69,13 @@ export async function POST(request: Request): Promise<Response> {
       admissionGoal = `${goal}\n[wallet-balances:${balanceFingerprint}]`;
     }
     let assetPricesUsd: Readonly<Record<string, string>> | undefined;
-    const needsMarketPrices = actionPreference === "any" &&
-      /\b(?:turn|convert|swap)\b[\s\S]*\b(?:in)?to\s+@?(?:USDG|USDt0)\b/i.test(goal);
-    if (needsMarketPrices) {
+    if (actionPreference === "any") {
       assetPricesUsd = await readIntentAssetPrices().catch(() => undefined);
-      if (!assetPricesUsd) {
-        return NextResponse.json({ code: "ASSET_PRICE_UNAVAILABLE",
-          message: "Cobia could not verify fresh X Layer asset prices. Try again." }, { status: 503 });
+      if (assetPricesUsd) {
+        const priceFingerprint = Object.entries(assetPricesUsd).sort(([left], [right]) =>
+          left.localeCompare(right)).map(([symbol, price]) => `${symbol}:${price}`).join(",");
+        admissionGoal = `${admissionGoal}\n[asset-prices:${priceFingerprint}]`;
       }
-      const priceFingerprint = Object.entries(assetPricesUsd).sort(([left], [right]) =>
-        left.localeCompare(right)).map(([symbol, price]) => `${symbol}:${price}`).join(",");
-      admissionGoal = `${admissionGoal}\n[asset-prices:${priceFingerprint}]`;
     }
     if (walletPortfolio) {
       const walletPrices = Object.fromEntries(walletPortfolio.balances

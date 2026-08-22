@@ -10,6 +10,16 @@ function simple(value: Record<string, unknown>) {
   return { ...value, kind: "simple", composed: null };
 }
 
+function conversion(
+  inputs: Array<{ symbol: string; amount: string; walletShareBps: number | null }>,
+  outputSymbol = "USDG",
+) {
+  return { status: "review", question: null, kind: "conversion",
+    templateId: "exact-input-swap", inputSymbol: "USDG", outputSymbol: "USDt0",
+    amount: "", minimum: "", jurisdiction: null, composed: null,
+    conversion: { inputs, outputSymbol } };
+}
+
 describe("intent compiler", () => {
   it("keeps constrained extraction from spending its output budget on reasoning", async () => {
     const fetcher = vi.fn().mockImplementation((_url, init: RequestInit) => {
@@ -68,12 +78,9 @@ describe("intent compiler", () => {
   });
 
   it("resolves an all-my-token swap to the exact observed wallet balance", async () => {
-    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(simple({
-      status: "clarification", question: "What exact USDt0 amount should be swapped into USDG?",
-      templateId: "exact-input-swap",
-      inputSymbol: "USDt0", outputSymbol: "USDG", amount: "", minimum: "",
-      jurisdiction: null,
-    }))));
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(conversion([
+      { symbol: "USDt0", amount: "", walletShareBps: 10_000 },
+    ]))));
     const compiler = createOpenAiIntentCompiler({
       apiKey: "test", model: "test-model", fetcher,
       walletBalances: { USDG: "1.5", USDt0: "4.25" },
@@ -90,13 +97,24 @@ describe("intent compiler", () => {
     });
   });
 
+  it("treats all token as the complete observed balance without asking again", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(conversion([
+      { symbol: "USDt0", amount: "", walletShareBps: 10_000 },
+    ]))));
+    const compiler = createOpenAiIntentCompiler({
+      apiKey: "test", model: "test-model", fetcher, walletBalances: { USDt0: "0.007632" },
+    });
+
+    await expect(compiler.compile("all @USDt0 to @USDG", "any")).resolves.toMatchObject({
+      status: "review",
+      values: { templateId: "exact-input-swap", amount: "0.007632", minimum: "0.007555" },
+    });
+  });
+
   it("resolves a precise share of a token balance", async () => {
-    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(simple({
-      status: "clarification", question: "What exact USDt0 amount should be swapped into USDG?",
-      templateId: "exact-input-swap",
-      inputSymbol: "USDt0", outputSymbol: "USDG", amount: "", minimum: "",
-      jurisdiction: null,
-    }))));
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(conversion([
+      { symbol: "USDt0", amount: "", walletShareBps: 5_000 },
+    ]))));
     const compiler = createOpenAiIntentCompiler({
       apiKey: "test", model: "test-model", fetcher, walletBalances: { USDt0: "4.25" },
     });
@@ -108,11 +126,9 @@ describe("intent compiler", () => {
   });
 
   it("asks for funding when an all-my-token input balance is zero", async () => {
-    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(simple({
-      status: "review", question: null, templateId: "exact-input-swap",
-      inputSymbol: "USDt0", outputSymbol: "USDG", amount: "", minimum: "",
-      jurisdiction: null,
-    }))));
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(conversion([
+      { symbol: "USDt0", amount: "", walletShareBps: 10_000 },
+    ]))));
     const compiler = createOpenAiIntentCompiler({
       apiKey: "test", model: "test-model", fetcher, walletBalances: { USDt0: "0" },
     });
@@ -124,7 +140,11 @@ describe("intent compiler", () => {
   });
 
   it("explains when native OKB is not a registered terminal asset", async () => {
-    const fetcher = vi.fn();
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(simple({
+      status: "clarification", question: "Native OKB is not a registered route output yet. Choose USDG or USDt0.",
+      templateId: "exact-input-swap", inputSymbol: "USDt0", outputSymbol: "USDG",
+      amount: "", minimum: "", jurisdiction: null,
+    }))));
     const compiler = createOpenAiIntentCompiler({
       apiKey: "test", model: "test-model", fetcher,
       walletBalances: { USDt0: "1" },
@@ -135,11 +155,13 @@ describe("intent compiler", () => {
       status: "clarification",
       question: "Native OKB is not a registered route output yet. Choose USDG or USDt0.",
     });
-    expect(fetcher).not.toHaveBeenCalled();
+    expect(fetcher).toHaveBeenCalledOnce();
   });
 
   it("compiles an exact native OKB conversion into one staged program draft", async () => {
-    const fetcher = vi.fn();
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(conversion([
+      { symbol: "OKB", amount: "0.005", walletShareBps: null },
+    ]))));
     const compiler = createOpenAiIntentCompiler({
       apiKey: "test", model: "test-model", fetcher,
       assetPricesUsd: { OKB: "107.41", USDG: "1" },
@@ -159,11 +181,14 @@ describe("intent compiler", () => {
         maxSolverFeeUsd: "0",
       },
     });
-    expect(fetcher).not.toHaveBeenCalled();
+    expect(fetcher).toHaveBeenCalledOnce();
   });
 
   it("compiles native OKB and USDt0 as two exact inputs to one staged program", async () => {
-    const fetcher = vi.fn();
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(conversion([
+      { symbol: "OKB", amount: "0.005", walletShareBps: null },
+      { symbol: "USDt0", amount: "1", walletShareBps: null },
+    ]))));
     const compiler = createOpenAiIntentCompiler({
       apiKey: "test", model: "test-model", fetcher,
       assetPricesUsd: { OKB: "107.41", USDt0: "1", USDG: "1" },
@@ -184,14 +209,53 @@ describe("intent compiler", () => {
         minimumSource: "market-default",
       },
     });
-    expect(fetcher).not.toHaveBeenCalled();
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+
+  it("drafts model-extracted verbless wallet conversion goals for review", async () => {
+    const exact = conversion([{ symbol: "OKB", amount: "0.05", walletShareBps: null }]);
+    const mixed = conversion([
+      { symbol: "OKB", amount: "0.05", walletShareBps: null },
+      { symbol: "USDt0", amount: "", walletShareBps: 10_000 },
+    ]);
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(response(JSON.stringify(exact)))
+      .mockResolvedValueOnce(response(JSON.stringify(mixed)));
+    const compiler = createOpenAiIntentCompiler({
+      apiKey: "test", model: "test-model", fetcher,
+      walletBalances: { OKB: "0.014858", USDt0: "0.007632" },
+      assetPricesUsd: { OKB: "111.93", USDt0: "1", USDG: "1" },
+    });
+
+    await expect(compiler.compile("0.05 @OKB into @USDG", "any")).resolves.toMatchObject({
+      status: "review",
+      values: { kind: "staged-conversion", inputs: [{ symbol: "OKB", amount: "0.05" }],
+        outputSymbol: "USDG", minimum: "5.540535" },
+    });
+    await expect(compiler.compile(
+      "0.05 @OKB and all @USDt0 both into @USDG", "any",
+    )).resolves.toMatchObject({
+      status: "review",
+      values: { kind: "staged-conversion", inputs: [
+        { symbol: "OKB", amount: "0.05" },
+        { symbol: "USDt0", amount: "0.007632" },
+      ], outputSymbol: "USDG", minimum: "5.54809" },
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
   it("compiles a verified wallet ERC-20 input without the stablecoin input whitelist", async () => {
-    const fetcher = vi.fn();
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(response(JSON.stringify(conversion([
+        { symbol: "EXAMPLE", amount: "0.4", walletShareBps: null },
+      ], "USDt0"))))
+      .mockResolvedValueOnce(response(JSON.stringify(conversion([
+        { symbol: "EXAMPLE", amount: "", walletShareBps: 10_000 },
+      ], "USDt0"))));
     const compiler = createOpenAiIntentCompiler({
       apiKey: "test", model: "test-model", fetcher,
       assetPricesUsd: { EXAMPLE: "2.5", USDt0: "1" },
+      walletBalances: { EXAMPLE: "0.4" },
       walletAssets: [{ address: "0x1111111111111111111111111111111111111111",
         symbol: "EXAMPLE", decimals: 18 }],
     });
@@ -200,11 +264,24 @@ describe("intent compiler", () => {
       status: "review", values: { kind: "staged-conversion", inputs: [{ symbol: "EXAMPLE", amount: "0.4",
         token: "0x1111111111111111111111111111111111111111" }], outputSymbol: "USDt0", minimum: "0.99" },
     });
-    expect(fetcher).not.toHaveBeenCalled();
+    await expect(compiler.compile("all @EXAMPLE into @USDt0", "any")).resolves.toMatchObject({
+      status: "review", values: { kind: "staged-conversion", inputs: [{ symbol: "EXAMPLE", amount: "0.4" }],
+        outputSymbol: "USDt0", minimum: "0.99" },
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    const request = JSON.parse(fetcher.mock.calls[0]![1]!.body as string);
+    expect(request.text.format.schema.properties.conversion.anyOf[1]
+      .properties.inputs.items.properties.symbol).toEqual({ type: "string" });
+    expect(JSON.parse(request.input).walletAssets).toEqual(expect.arrayContaining([
+      expect.objectContaining({ symbol: "EXAMPLE", balance: "0.4", priceUsd: "2.5" }),
+    ]));
   });
 
   it("resolves independent wallet shares for staged native and token inputs", async () => {
-    const fetcher = vi.fn();
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(conversion([
+      { symbol: "OKB", amount: "", walletShareBps: 5_000 },
+      { symbol: "USDt0", amount: "", walletShareBps: 2_500 },
+    ]))));
     const compiler = createOpenAiIntentCompiler({
       apiKey: "test", model: "test-model", fetcher,
       walletBalances: { OKB: "0.01", USDt0: "4" },
@@ -220,11 +297,15 @@ describe("intent compiler", () => {
         { symbol: "USDt0", amount: "1" },
       ], minimum: "1.521679" },
     });
-    expect(fetcher).not.toHaveBeenCalled();
+    expect(fetcher).toHaveBeenCalledOnce();
   });
 
   it("asks for an exact share instead of guessing what most means", async () => {
-    const fetcher = vi.fn();
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(simple({
+      status: "clarification", question: "What percentage of your OKB balance should be used?",
+      templateId: "exact-input-swap", inputSymbol: "USDG", outputSymbol: "USDt0",
+      amount: "", minimum: "", jurisdiction: null,
+    }))));
     const compiler = createOpenAiIntentCompiler({
       apiKey: "test", model: "test-model", fetcher,
       walletBalances: { OKB: "0.01" }, assetPricesUsd: { OKB: "107.41", USDG: "1" },
@@ -234,7 +315,7 @@ describe("intent compiler", () => {
       status: "clarification",
       question: "What percentage of your OKB balance should be used?",
     });
-    expect(fetcher).not.toHaveBeenCalled();
+    expect(fetcher).toHaveBeenCalledOnce();
   });
 
   it("returns a clarification instead of inventing unsupported bounds", async () => {

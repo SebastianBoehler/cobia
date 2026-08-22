@@ -134,9 +134,9 @@ describe("authenticated intent compiler API", () => {
     }));
   });
 
-  it("supplies live asset prices when a staged conversion uses native OKB", async () => {
+  it("supplies live asset prices without relying on conversion keywords", async () => {
     const response = await POST(request(
-      "token", "https://getcobia.com", "Turn 0.005 OKB and 1 USDt0 into USDG", "any",
+      "token", "https://getcobia.com", "0.005 OKB and all USDt0 both into USDG", "any",
     ));
 
     expect(response.status).toBe(200);
