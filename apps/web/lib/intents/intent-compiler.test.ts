@@ -13,11 +13,12 @@ function simple(value: Record<string, unknown>) {
 function conversion(
   inputs: Array<{ symbol: string; amount: string; walletShareBps: number | null }>,
   outputSymbol = "USDG",
+  minimumOutput = "",
 ) {
   return { status: "review", question: null, kind: "conversion",
     templateId: "exact-input-swap", inputSymbol: "USDG", outputSymbol: "USDt0",
     amount: "", minimum: "", jurisdiction: null, composed: null,
-    conversion: { inputs, outputSymbol } };
+    conversion: { inputs, outputSymbol, minimumOutput } };
 }
 
 describe("intent compiler", () => {
@@ -93,6 +94,27 @@ describe("intent compiler", () => {
         amount: "4.25",
         minimum: "4.2075",
         minimumSource: "stablecoin-default",
+      },
+    });
+  });
+
+  it("caps an enough-input conversion by the wallet balance and preserves the requested output", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(conversion([
+      { symbol: "USDt0", amount: "", walletShareBps: 10_000 },
+    ], "USDG", "1"))));
+    const compiler = createOpenAiIntentCompiler({
+      apiKey: "test", model: "test-model", fetcher,
+      walletBalances: { USDt0: "1.206141" },
+    });
+
+    await expect(compiler.compile(
+      "enough of @USDt0 so that I get 1 @USDG", "any",
+    )).resolves.toMatchObject({
+      status: "review",
+      values: {
+        templateId: "exact-input-swap",
+        amount: "1.206141",
+        minimum: "1",
       },
     });
   });

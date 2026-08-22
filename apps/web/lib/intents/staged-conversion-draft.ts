@@ -40,6 +40,7 @@ export const ConversionModelDraftSchema = z.object({
     walletShareBps: z.number().int().min(1).max(10_000).nullable(),
   }).strict()).min(1).max(8),
   outputSymbol: z.string().min(1),
+  minimumOutput: z.string(),
 }).strict();
 
 export type ConversionModelDraft = z.infer<typeof ConversionModelDraftSchema>;
@@ -97,17 +98,19 @@ function resolveAmount(
 function simpleSwap(
   input: StagedConversionInputDraft,
   output: (typeof INTENT_ASSETS)[number],
+  minimumOutput: string,
 ): IntentReceiptValues | undefined {
   const registeredInput = INTENT_ASSETS.find(({ address }) =>
     address.toLowerCase() === input.token.toLowerCase());
-  const minimum = registeredInput && stablecoinDefaultMinimum(registeredInput, output, input.amount);
+  const minimum = minimumOutput || (registeredInput &&
+    stablecoinDefaultMinimum(registeredInput, output, input.amount));
   return registeredInput && minimum ? {
     templateId: "exact-input-swap",
     inputToken: registeredInput.address,
     outputToken: output.address,
     amount: input.amount,
     minimum,
-    minimumSource: "stablecoin-default",
+    minimumSource: minimumOutput ? undefined : "stablecoin-default",
     maxSolverFeeUsd: "0",
     jurisdiction: "",
     eligibilityAccepted: false,
@@ -144,10 +147,19 @@ export function resolveConversionDraft(
   if (inputs.some(({ token }) => token.toLowerCase() === output.address.toLowerCase())) {
     return { kind: "clarification", question: `${output.symbol} cannot be both an input and the output.` };
   }
+  if (draft.minimumOutput && !atomic(draft.minimumOutput, output.decimals)) {
+    return { kind: "clarification", question: `Enter a valid ${output.symbol} outcome amount.` };
+  }
   if (inputs.length === 1) {
-    const simple = simpleSwap(inputs[0]!, output);
+    const simple = simpleSwap(inputs[0]!, output, draft.minimumOutput);
     if (simple) return simple;
   }
+
+  if (draft.minimumOutput) return {
+    kind: "staged-conversion", templateId: "staged-conversion", inputs,
+    outputToken: output.address, outputSymbol: output.symbol, outputDecimals: output.decimals,
+    minimum: draft.minimumOutput, maxSolverFeeUsd: "0",
+  };
 
   const outputPrice = atomic(prices[output.symbol] ?? "", PRICE_DECIMALS);
   const inputValues = inputs.map((item) => {
