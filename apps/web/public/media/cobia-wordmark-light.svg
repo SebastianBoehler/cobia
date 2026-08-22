@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="240" viewBox="0 0 960 240" fill="none">
+  <g transform="translate(42 18) scale(6)" stroke="#6F83FF" stroke-linecap="round" stroke-width="1.8">
+    <circle cx="5" cy="17" r="3.1" fill="#6F83FF" stroke="none"/>
+    <circle cx="29" cy="17" r="3.1" fill="#6F83FF" stroke="none"/>
+    <path d="M8 17C12 17 11 7 19 7c5.2 0 5.4 7.1 7 8.5"/>
+    <path d="M8 17h18"/>
+    <path d="M8 17c4 0 3 10 11 10 5.2 0 5.4-7.1 7-8.5"/>
+  </g>
+  <text x="300" y="158" fill="#F8F9FB" font-family="Geist, Inter, Helvetica Neue, Arial, sans-serif" font-size="104" font-weight="760" letter-spacing="24">COBIA</text>
+</svg>

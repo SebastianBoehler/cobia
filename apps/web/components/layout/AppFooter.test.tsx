@@ -15,6 +15,7 @@ describe("AppFooter", () => {
     expect(screen.getByRole("link", { name: "Create an intent" })).toHaveAttribute("href", "/intents/new");
     expect(screen.getByRole("link", { name: "Build a solver" })).toHaveAttribute("href", "/docs/quickstart");
     expect(screen.getByRole("link", { name: "Developer docs" })).toHaveAttribute("href", "/docs");
+    expect(screen.getByRole("link", { name: "Media kit" })).toHaveAttribute("href", "/media");
     expect(screen.getByRole("link", { name: "Terms" })).toHaveAttribute("href", "/terms");
     expect(screen.getByText(/wallet keeps execution authority/i)).toBeVisible();
   });

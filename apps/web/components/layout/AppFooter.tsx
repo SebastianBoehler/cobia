@@ -8,10 +8,11 @@ const productLinks = [
   { href: "/portfolio", label: "Portfolio" },
 ] as const;
 
-const builderLinks = [
+const resourceLinks = [
   { href: "/docs/quickstart", label: "Build a solver" },
   { href: "/docs", label: "Developer docs" },
   { href: "/solvers", label: "Solver directory" },
+  { href: "/media", label: "Media kit" },
 ] as const;
 
 export function AppFooter({ targetChainId }: { targetChainId: 196 | 1952 }) {
@@ -25,9 +26,9 @@ export function AppFooter({ targetChainId }: { targetChainId: 196 | 1952 }) {
         <strong>Product</strong>
         {productLinks.map((item) => <Link href={item.href} key={item.href}>{item.label}</Link>)}
       </nav>
-      <nav aria-label="Builders">
-        <strong>Builders</strong>
-        {builderLinks.map((item) => <Link href={item.href} key={item.href}>{item.label}</Link>)}
+      <nav aria-label="Resources">
+        <strong>Resources</strong>
+        {resourceLinks.map((item) => <Link href={item.href} key={item.href}>{item.label}</Link>)}
       </nav>
       <div className="app-footer__meta">
         <span>{targetChainId === 1952 ? "X Layer testnet · chain 1952" : "X Layer · chain 196"}</span>
