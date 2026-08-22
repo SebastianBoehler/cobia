@@ -39,6 +39,10 @@ import {
 } from "../coding-agent-sandbox/executor-preflight";
 import { replayCapabilityRemotely, replayTransactionRemotely } from "../replay/remote-client";
 import { createOkxClient } from "../okx/client";
+import {
+  CompositionOwnerBalanceRequiredError,
+  publishCapabilityComposition,
+} from "./composition-market";
 
 let activityRepository: ReturnType<typeof createActivityRepository> | undefined;
 let database: ReturnType<typeof createDatabase> | undefined;
@@ -176,6 +180,22 @@ export async function publishOpenIntent(input: {
   const intent = await getIntentRepository().create(input);
   await getOpenIntentSnapshotRepository().create(snapshot);
   return { intent, snapshot };
+}
+
+export async function publishCapabilityCompositionIntent(input: {
+  policy: import("@cobia/domain").CapabilityCompositionPolicyV1;
+  ownerSignature: `0x${string}`;
+}) {
+  try {
+    return await publishCapabilityComposition(input, {
+      intents: getIntentRepository(), snapshots: getOpenIntentSnapshotRepository(),
+    });
+  } catch (error) {
+    if (error instanceof CompositionOwnerBalanceRequiredError) {
+      throw new OwnerBalanceRequiredError();
+    }
+    throw error;
+  }
 }
 
 export function submitOpenSolverDecision(value: {

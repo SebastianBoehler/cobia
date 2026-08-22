@@ -1,4 +1,8 @@
-import { commitment, OpenIntentSnapshotV1Schema } from "@cobia/domain";
+import {
+  CapabilityCompositionSnapshotV1Schema,
+  OpenIntentSnapshotV1Schema,
+  commitment,
+} from "@cobia/domain";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import type { CobiaDatabase } from "./client";
@@ -9,7 +13,10 @@ const IntentIdSchema = z.string().uuid();
 export function createOpenIntentSnapshotRepository(db: CobiaDatabase) {
   return {
     async create(value: unknown) {
-      const snapshot = OpenIntentSnapshotV1Schema.parse(value);
+      const snapshot = z.discriminatedUnion("kind", [
+        OpenIntentSnapshotV1Schema,
+        CapabilityCompositionSnapshotV1Schema,
+      ]).parse(value);
       const snapshotHash = commitment(snapshot);
       return db.transaction(async (tx) => {
         const stored = await tx.query.cobiaOpenIntentSnapshots.findFirst({

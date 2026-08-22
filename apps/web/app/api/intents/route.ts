@@ -1,4 +1,10 @@
-import { OpenIntentPolicyV3Schema, commitment, parseOpenIntentPolicyV3 } from "@cobia/domain";
+import {
+  CapabilityCompositionPolicyV1Schema,
+  OpenIntentPolicyV3Schema,
+  commitment,
+  parseCapabilityCompositionPolicyV1,
+  parseOpenIntentPolicyV3,
+} from "@cobia/domain";
 import { NextResponse } from "next/server";
 import type { Hex } from "viem";
 import { z } from "zod";
@@ -7,6 +13,7 @@ import { PUBLIC_CACHE_10_SECONDS } from "../../../lib/http/cache-policy";
 import {
   getIntentRepository,
   OwnerBalanceRequiredError,
+  publishCapabilityCompositionIntent,
   publishOpenIntent,
 } from "../../../lib/runtime/market";
 
@@ -15,7 +22,10 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 const RequestBodySchema = z.object({
-  policy: OpenIntentPolicyV3Schema,
+  policy: z.discriminatedUnion("kind", [
+    OpenIntentPolicyV3Schema,
+    CapabilityCompositionPolicyV1Schema,
+  ]),
   ownerSignature: z.string().regex(/^0x[0-9a-fA-F]{130}$/),
 }).strict();
 
@@ -28,7 +38,10 @@ export async function GET(): Promise<Response> {
     const intents = rows.map(({ intent: row, snapshot }) => {
       return {
         id: row.id,
-        policy: OpenIntentPolicyV3Schema.parse(row.policy),
+        policy: row.policy && typeof row.policy === "object" &&
+          "kind" in row.policy && row.policy.kind === "capability-composition"
+          ? CapabilityCompositionPolicyV1Schema.parse(row.policy)
+          : OpenIntentPolicyV3Schema.parse(row.policy),
         policyHash: row.policyHash,
         ownerSignature: row.ownerSignature,
         snapshot: snapshot.snapshot,
@@ -57,14 +70,20 @@ export async function POST(request: Request): Promise<Response> {
     const body = RequestBodySchema.parse(await request.json());
     intentId = body.policy.requestId;
     const observedAtSec = Math.floor(Date.now() / 1_000);
-    const policy = parseOpenIntentPolicyV3(body.policy, observedAtSec);
+    const policy = body.policy.kind === "capability-composition"
+      ? parseCapabilityCompositionPolicyV1(body.policy, observedAtSec)
+      : parseOpenIntentPolicyV3(body.policy, observedAtSec);
     try {
       await verifyPolicyOwnerSignature(policy, body.ownerSignature as Hex);
     } catch {
       throw new InvalidOwnerSignatureError();
     }
     const ownerSignature = body.ownerSignature as Hex;
-    await publishOpenIntent({ policy, ownerSignature });
+    if (policy.kind === "capability-composition") {
+      await publishCapabilityCompositionIntent({ policy, ownerSignature });
+    } else {
+      await publishOpenIntent({ policy, ownerSignature });
+    }
     return NextResponse.json({
       intentId,
       policyHash: commitment(policy),
@@ -80,7 +99,7 @@ export async function POST(request: Request): Promise<Response> {
       code: invalid ? "INVALID_INTENT"
         : invalidSignature ? "INVALID_SIGNATURE"
           : balanceRequired ? "OWNER_BALANCE_REQUIRED" : "INTENT_UNAVAILABLE",
-      message: invalid ? "The signed general intent is invalid."
+      message: invalid ? "The signed intent is invalid."
         : invalidSignature ? "The owner signature is invalid."
           : balanceRequired
             ? "The owner needs a positive native balance on every execution chain."

@@ -1,14 +1,18 @@
 import { commitment, OpenIntentPolicyV3Schema } from "@cobia/domain";
+import { buildCapabilityCompositionPolicyV1 } from "../../../lib/intents/composition-policy";
+import { PROTOCOL_REGISTRY } from "../../../lib/adapters/registry";
 import { privateKeyToAccount } from "viem/accounts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   listDiscoverWithSnapshots: vi.fn(),
   publish: vi.fn(async () => undefined),
+  publishComposition: vi.fn(async () => undefined),
 }));
 vi.mock("../../../lib/runtime/market", () => ({
   getIntentRepository: () => ({ listDiscoverWithSnapshots: mocks.listDiscoverWithSnapshots }),
   publishOpenIntent: mocks.publish,
+  publishCapabilityCompositionIntent: mocks.publishComposition,
   OwnerBalanceRequiredError: class OwnerBalanceRequiredError extends Error {},
   ActiveManifestMismatchError: class ActiveManifestMismatchError extends Error {},
 }));
@@ -38,6 +42,14 @@ const snapshot = {
   anchors: [{ chainId: 196 as const, blockNumber: "68461706",
     blockHash: `0x${"66".repeat(32)}` as `0x${string}` }],
 };
+const compositionPolicy = buildCapabilityCompositionPolicyV1({
+  requestId: "550e8400-e29b-41d4-a716-446655440099",
+  owner: account.address, inputToken: PROTOCOL_REGISTRY.aaveV3.assets.USDG.underlying.address,
+  inputAtomic: "1000000", nonce: `0x${"77".repeat(32)}`, nowSec: nowSec - 100,
+  displayGoal: "Best registered stablecoin yield", competitionDurationSec: 300,
+  deadlineDurationSec: 600, maxConversionLossBps: 100,
+  minimumReceiptValueBps: 9_900, horizonDays: 30, forbiddenTargets: [],
+});
 
 async function signedRequest(signature?: `0x${string}`) {
   const ownerSignature = signature ?? await account.signMessage({ message: { raw: commitment(policy) } });
@@ -47,12 +59,21 @@ async function signedRequest(signature?: `0x${string}`) {
   });
 }
 
+async function signedCompositionRequest() {
+  const ownerSignature = await account.signMessage({ message: { raw: commitment(compositionPolicy) } });
+  return new Request("https://cobia.example/api/intents", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ policy: compositionPolicy, ownerSignature }),
+  });
+}
+
 describe("general intent competition API", () => {
   beforeEach(() => {
     vi.spyOn(Date, "now").mockReturnValue(nowSec * 1_000);
     vi.clearAllMocks();
     mocks.listDiscoverWithSnapshots.mockResolvedValue([]);
     mocks.publish.mockResolvedValue(undefined);
+    mocks.publishComposition.mockResolvedValue(undefined);
   });
 
   it("lists fresh signed intents for independent solver harnesses", async () => {
@@ -111,6 +132,21 @@ describe("general intent competition API", () => {
       links: { intent: `/intents/${policy.requestId}` },
     });
     expect(mocks.publish).toHaveBeenCalledWith(expect.objectContaining({ policy }));
+  });
+
+  it("publishes a signed registered composition through the same competition API", async () => {
+    const response = await POST(await signedCompositionRequest());
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toMatchObject({
+      intentId: compositionPolicy.requestId,
+      policyHash: commitment(compositionPolicy),
+      competitionClosesAt: compositionPolicy.competition.closesAt,
+    });
+    expect(mocks.publishComposition).toHaveBeenCalledWith(expect.objectContaining({
+      policy: compositionPolicy,
+    }));
+    expect(mocks.publish).not.toHaveBeenCalled();
   });
 
   it("rejects the wrong owner signature before persistence or sandbox scheduling", async () => {

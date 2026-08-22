@@ -1,4 +1,8 @@
-import type { OpenIntentSnapshotV1, SolverDecisionClaimV1 } from "@cobia/domain";
+import type {
+  CapabilityCompositionSnapshotV1,
+  OpenIntentSnapshotV1,
+  SolverDecisionClaimV1,
+} from "@cobia/domain";
 import type { Address, Hash, Hex } from "viem";
 import { sql } from "drizzle-orm";
 import { check, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
@@ -10,7 +14,9 @@ export const cobiaOpenIntentSnapshots = pgTable("cobia_open_intent_snapshots", {
   intentId: uuid("intent_id").primaryKey()
     .references(() => cobiaIntents.id, { onDelete: "restrict" }),
   snapshotHash: text("snapshot_hash").$type<Hash>().notNull(),
-  snapshot: jsonb("snapshot").$type<OpenIntentSnapshotV1>().notNull(),
+  snapshot: jsonb("snapshot").$type<
+    OpenIntentSnapshotV1 | CapabilityCompositionSnapshotV1
+  >().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   uniqueIndex("cobia_open_snapshots_hash_idx").on(table.snapshotHash),
@@ -18,7 +24,7 @@ export const cobiaOpenIntentSnapshots = pgTable("cobia_open_intent_snapshots", {
     ${table.snapshotHash} ~ '^0x[0-9a-f]{64}$'
     AND ${table.snapshot}->>'requestId' = ${table.intentId}::text
     AND (${table.snapshot}->>'version')::integer = 1
-    AND ${table.snapshot}->>'kind' = 'open-onchain'
+    AND ${table.snapshot}->>'kind' IN ('open-onchain', 'capability-composition')
   `),
 ]);
 

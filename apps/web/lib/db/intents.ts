@@ -1,4 +1,9 @@
-import { commitment, GeneralIntentPolicyV2Schema, OpenIntentPolicyV3Schema } from "@cobia/domain";
+import {
+  CapabilityCompositionPolicyV1Schema,
+  GeneralIntentPolicyV2Schema,
+  OpenIntentPolicyV3Schema,
+  commitment,
+} from "@cobia/domain";
 import { and, desc, eq, gt, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { CobiaDatabase } from "./client";
@@ -6,7 +11,11 @@ import { cobiaIntents, cobiaOpenIntentSnapshots, cobiaSolverSubmissions } from "
 
 const SignatureSchema = z.string().regex(/^0x[0-9a-fA-F]{130}$/);
 const CreateSchema = z.object({
-  policy: z.union([GeneralIntentPolicyV2Schema, OpenIntentPolicyV3Schema]),
+  policy: z.union([
+    GeneralIntentPolicyV2Schema,
+    OpenIntentPolicyV3Schema,
+    CapabilityCompositionPolicyV1Schema,
+  ]),
   ownerSignature: SignatureSchema,
 }).strict();
 
@@ -44,7 +53,7 @@ export function createIntentRepository(db: CobiaDatabase) {
       return db.query.cobiaIntents.findMany({
         where: and(eq(cobiaIntents.state, "collecting"),
           gt(cobiaIntents.competitionClosesAt, new Date(observedAtSec * 1_000)),
-          sql`${cobiaIntents.policy}->>'version' = '3'`),
+          sql`${cobiaIntents.policy}->>'kind' IN ('open-onchain', 'capability-composition')`),
         orderBy: [desc(cobiaIntents.createdAt)],
         limit: 30,
       });
@@ -62,7 +71,7 @@ export function createIntentRepository(db: CobiaDatabase) {
         .where(and(
           eq(cobiaIntents.state, "collecting"),
           gt(cobiaIntents.competitionClosesAt, new Date(observedAtSec * 1_000)),
-          sql`${cobiaIntents.policy}->>'version' = '3'`,
+          sql`${cobiaIntents.policy}->>'kind' IN ('open-onchain', 'capability-composition')`,
         ))
         .orderBy(desc(cobiaIntents.createdAt))
         .limit(30);

@@ -148,6 +148,13 @@
       "when": 1787275828240,
       "tag": "0020_wallet_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1787409915913,
+      "tag": "0021_capability_composition",
+      "breakpoints": true
     }
   ]
 }

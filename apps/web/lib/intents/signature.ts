@@ -1,11 +1,16 @@
-import { commitment, type OpenIntentPolicyV3, type PersistedIntentPolicy } from "@cobia/domain";
+import {
+  commitment,
+  type CapabilityCompositionPolicyV1,
+  type OpenIntentPolicyV3,
+  type PersistedIntentPolicy,
+} from "@cobia/domain";
 import { isAddressEqual, recoverMessageAddress, type Hex } from "viem";
 import { quoteSelectionCommitment, routeAccessCommitment } from "./commitments";
 
 export { quoteSelectionCommitment, routeAccessCommitment } from "./commitments";
 
 export async function verifyPolicyOwnerSignature(
-  policy: PersistedIntentPolicy | OpenIntentPolicyV3,
+  policy: PersistedIntentPolicy | OpenIntentPolicyV3 | CapabilityCompositionPolicyV1,
   signature: Hex,
 ): Promise<void> {
   const signer = await recoverMessageAddress({
