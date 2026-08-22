@@ -1,6 +1,6 @@
 # Cobia Intent Compatibility Boundary
 
-## Current flow
+## Current stablecoin route flow
 
 Cobia borrows the separation between intent, quote, and validation used by
 LI.FI Intents and the Open Intents Framework (OIF), but does not claim OIF or
@@ -30,12 +30,43 @@ and full-range Uniswap LP-entry routes have passed the pinned fork lane with
 receipt, event, deployment, and state checks. Fork funds and state are simulated;
 live mainnet execution still requires explicit wallet confirmation per step.
 
+## Current registered composition flow
+
+Cobia also supports one typed multi-step optimization lane on X Layer. It is
+composition over registered capabilities, not arbitrary transaction generation:
+
+1. The compiler recognizes a maximum-input stablecoin-yield goal only when it
+   contains an explicit amount, input asset, protocol set, conversion-loss
+   ceiling, and deadline. It also requires a fresh solver profile advertising
+   `policy.capability-composition@1`.
+2. The wallet reviews and signs `CapabilityCompositionPolicyV1`. The policy
+   commits the Aave V3 supply, Curve StableSwap NG exact-input, and/or Uniswap V3
+   exact-input capability versions, allowed assets, receipt-value floor,
+   30-day net-yield objective, gas/action bounds, competition window, and
+   manifest hash.
+3. The coordinator captures `CapabilityCompositionSnapshotV1`: the existing
+   pinned route snapshot plus gas price and OKB/USD evidence. It does not let a
+   solver introduce a later quote, price, capability, or deployment identity.
+4. A compatible solver may submit direct Aave supply or exactly one registered
+   Curve/Uniswap exact-input swap followed by terminal Aave supply. Each program
+   must carry one registered aToken minimum-increase constraint and pass a
+   disposable pinned-fork replay.
+5. The independent verifier re-derives the narrower general-program authority,
+   checks the exact opportunity/action correspondence and receipt floor, reruns
+   capability verification, and ranks accepted revisions by receipt USD value
+   plus horizon yield minus expected gas and solver fee.
+6. The winning attested program projects through the existing atomic Executor
+   V3 preparation path. The owner wallet still signs and broadcasts the exact
+   execution; proposal or fork evidence is not a mainnet receipt.
+
 ## Current primitive mapping
 
 | Open-intent primitive | Current Cobia primitive | Boundary |
 | --- | --- | --- |
 | Intent / order | `StablecoinPolicyV2` + commitment | Exact same-chain outcome and limits, not arbitrary calls |
+| Registered composition intent | `CapabilityCompositionPolicyV1` + commitment | Maximum-input yield objective over an allowlisted capability graph |
 | Solver quote | Sanitized `RouteQuoteV2` | Route authorization and estimated pre-gas APY; no private actions |
+| Composed solver program | `CapabilityProgramV2` + replay evidence | Direct Aave or one exact-input swap followed by Aave; no arbitrary stages |
 | Solver fill plan | Signed `RouteBundleV2` | Registered opportunity references and bounded actions, hidden until reveal payment |
 | Order server | Cobia orchestrator | Captures direct registered protocol state at one pinned block |
 | Oracle / validation | Deterministic verifier | Recomputes authorization; it does not predict execution success |
@@ -69,14 +100,17 @@ same reveal-payment boundary used by the browser.
 
 ## Target, not implemented
 
-- An authenticated external-solver interface could allow independent bundles
-  after signer admission, evidence provenance, and deterministic validation are
-  specified and tested.
+- Additional composition objectives need their own typed policy, snapshot,
+  solver, verifier, and ranking modules. `maximize-net-yield` is the only
+  registered composition objective today.
+- More than one swap, partial allocation, LP entry, borrow/repay, bridge,
+  exit/rebalancing, and cross-chain graphs are not accepted by the composition
+  authority.
 - OIF origination, fulfilment, settlement, and rebalancing adapters could become
   integration seams after Cobia defines an interoperable external order lifecycle.
 - ERC-7683 and EIP-7930 become relevant only if cross-chain or non-EVM orders
   are added.
-- Atomic multi-step settlement, persisted cross-process engine checkpoints, and
+- Arbitrary staged settlement, persisted cross-process engine checkpoints, and
   generalized exit/rebalancing flows require separate implementations and tests.
 
 None of these target capabilities should appear as current product behavior

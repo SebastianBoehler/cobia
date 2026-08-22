@@ -1,9 +1,10 @@
 # General-intent mainnet readiness evidence
 
-Snapshot: `2026-08-20T11:37:54Z`
+Snapshot: `2026-08-22T15:16:00Z`
 
-Verdict: **Open proposal generation and deterministic verification are
-implemented; arbitrary staged mainnet execution is not yet enabled.**
+Verdict: **Registered stablecoin-yield composition, independent verification,
+competition ranking, and Executor V3 preparation are implemented. Arbitrary
+staged mainnet execution is not enabled.**
 
 ## Implemented and verified locally
 
@@ -28,10 +29,36 @@ implemented; arbitrary staged mainnet execution is not yet enabled.**
   merchant manifest is empty. The inspected PixelBrief offer is blocked because
   its resource is HTTP-only.
 
-## Missing before the requested three-outcome mainnet demo
+## Registered composition capability
 
-1. Accept signed community solver decisions, bind them to a coordinator-selected
-   snapshot, and dispatch them through a production provider/code/replay runtime.
+The supported `CapabilityCompositionPolicyV1` lane is deliberately narrower
+than the general-intent schemas:
+
+- X Layer chain `196`; registered USDG/USDt0 assets; maximum-input semantics.
+- A `maximize-net-yield` objective with a signed 1-365 day horizon. The current
+  composer discloses and uses a 30-day product default.
+- Registered `aave-v3.supply@1`, `curve-stableswap-ng.exact-input@1`, and
+  `uniswap-v3.exact-input@1` only.
+- Either direct Aave supply or one exact-input swap followed by terminal Aave
+  supply. The policy schema permits bounded capability lists, but the current
+  authority intentionally rejects any wider action graph.
+- A signed conversion-loss ceiling, derived minimum registered receipt-value
+  floor, exact aToken minimum-increase constraint, frozen route/price/gas
+  evidence, and maximum gas/action/approval/fee bounds.
+- Solver admission requires a fresh registered profile advertising
+  `policy.capability-composition@1`; absence returns clarification instead of a
+  policy no deployed solver can execute.
+- Accepted revisions are ranked by deterministic USD-E8 receipt value plus the
+  committed Aave horizon yield, less expected gas and the maximum solver fee.
+  This is a comparable forecast objective, not a guaranteed profit claim.
+- An attested winner is prepared through the existing Executor V3 path. The
+  wallet remains the only party that can approve and broadcast it.
+
+## Still missing for the arbitrary three-outcome mainnet demo
+
+1. Extend the signed solver intake and coordinator-owned snapshots beyond the
+   registered yield-composition lane to arbitrary three-outcome programs and
+   their production provider/code/replay runtimes.
 2. Persist exact stage state and independently reconciled receipts so a bridge
    source, async delivery, destination acquisition, and x402 authorization
    cannot be skipped, reordered, duplicated, or mutated.
@@ -42,29 +69,28 @@ implemented; arbitrary staged mainnet execution is not yet enabled.**
 5. Register one real HTTPS x402 offer only after the complete manifest and live
    challenge gate passes.
 
-The existing V3 atomic path remains separate. It is not a fallback for an
-unverified open program, and fork replay is evidence generation only—not
-production execution.
+The V3 atomic path now consumes independently attested registered composition
+programs. It remains unavailable as a fallback for an unverified open program,
+and fork replay is evidence generation only—not production execution.
 
 ## Local gate evidence
 
-Most recent complete workspace checkpoint before the instrument registry:
+Most recent complete workspace checkpoint:
 
 | Gate | Result |
 | --- | --- |
-| `pnpm test` | 1,129 tests: domain 163, solvers 156, web 804, SDK 5, example 1 |
+| `pnpm test` | 288 files / 1,383 tests: domain 168, solvers 157, replay 1, SDK 14, web 1,012, example 31 |
 | `pnpm typecheck` | passed |
-| `pnpm lint` | passed |
+| `pnpm lint` | passed after removing four stale imports |
 | `pnpm build` | passed |
-| `pnpm audit --prod --audit-level high` | no vulnerabilities |
+| Composition PostgreSQL integration | 1 test passed with Testcontainers |
+| Pinned X Layer fork lane | 4 files / 7 tests passed; direct Aave, Uniswap→Aave, and Curve→Aave included |
 | `git diff --check` | passed |
 
-After the instrument registry, the focused web suite passed with 168 files and
-808 tests, web typecheck passed, and `git diff --check` passed.
-
-The current machine cannot run the PostgreSQL/Testcontainers, Solidity wrapper,
-or pinned Anvil-fork gates because its Docker daemon is unavailable. Those gates
-must pass after activation before a production-readiness claim.
+The local production build loaded the exact advanced prompt in Chrome with no
+Cobia application error. Review/publication stopped at the intentional signing-
+wallet gate; this verification did not connect a wallet, create a competition,
+or claim a mainnet transaction.
 
 The local Node runtime is `23.11.0` while the repository requires Node `>=24`.
 The recorded workspace gates passed despite the warning; the final release gate
