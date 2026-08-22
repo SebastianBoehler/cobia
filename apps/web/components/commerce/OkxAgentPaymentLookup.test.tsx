@@ -36,6 +36,7 @@ describe("OkxAgentPaymentLookup", () => {
     vi.stubGlobal("fetch", fetcher);
     render(<OkxAgentPaymentLookup />);
 
+    expect(screen.getByText("Read only")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Payment ID or link"), {
       target: { value: "a2a_01HZX8Q9RK3JWYV7M2N5T8P4AB" },
     });
@@ -44,6 +45,7 @@ describe("OkxAgentPaymentLookup", () => {
     expect(await screen.findByText("Completed")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "OKX Agent Payments" })).toBeInTheDocument();
     expect(screen.getByText("100000 atomic")).toBeInTheDocument();
+    expect(screen.getByText("X Layer · chain 196")).toBeInTheDocument();
     expect(screen.getByText("Payment settlement is not proof of order fulfillment.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "View settlement on X Layer" }))
       .toHaveAttribute("href", `https://web3.okx.com/explorer/xlayer/tx/${transactionHash}`);

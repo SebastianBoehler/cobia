@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import styles from "./OkxAgentPaymentLookup.module.css";
 
 type PaymentSnapshot = {
   provider: { id: string; displayName: string };
   paymentId: string;
   status: string;
-  payment: { atomicAmount: string };
-  settlement: { transactionHash: string } | null;
+  payment: { chainId: number; atomicAmount: string; asset: string; recipient: string };
+  settlement: { transactionHash: string; blockNumber: number } | null;
 };
 
 function labelForStatus(status: string): string {
@@ -40,22 +41,39 @@ export function OkxAgentPaymentLookup() {
     } finally { setPending(false); }
   }
 
-  return <section aria-labelledby="okx-agent-payment-title">
-    <h2 id="okx-agent-payment-title">Inspect an OKX Agent Payment</h2>
-    <form onSubmit={inspect}>
+  return <section aria-labelledby="okx-agent-payment-title" className={styles.lookup}>
+    <header className={styles.header}>
+      <span aria-hidden="true" className={styles.mark}>OK</span>
+      <div>
+        <h2 id="okx-agent-payment-title">Inspect an OKX Agent Payment</h2>
+        <p>Read payment and settlement evidence without creating or signing a payment.</p>
+      </div>
+      <span className={styles.mode}>Read only</span>
+    </header>
+    <form className={styles.form} onSubmit={inspect}>
       <label>Payment ID or link
-        <input value={reference} onChange={(event) => setReference(event.target.value)} />
+        <div>
+          <input value={reference} onChange={(event) => setReference(event.target.value)} />
+          <button disabled={pending} type="submit">{pending ? "Inspecting…" : "Inspect payment"}</button>
+        </div>
       </label>
-      <button disabled={pending} type="submit">{pending ? "Inspecting…" : "Inspect payment"}</button>
     </form>
-    {error ? <p role="alert">{error}</p> : null}
-    {payment ? <article aria-label="Payment evidence">
-      <p>{labelForStatus(payment.status)}</p>
-      <h3>{payment.provider.displayName}</h3>
-      <p>{payment.payment.atomicAmount} atomic</p>
+    {error ? <p className={styles.failure} role="alert">{error}</p> : null}
+    {payment ? <article aria-label="Payment evidence" className={styles.result}>
+      <div className={styles.resultHeading}>
+        <div><h3>{payment.provider.displayName}</h3><code>{payment.paymentId}</code></div>
+        <strong>{labelForStatus(payment.status)}</strong>
+      </div>
+      <dl>
+        <div><dt>Amount</dt><dd>{payment.payment.atomicAmount} atomic</dd></div>
+        <div><dt>Network</dt><dd>X Layer · chain {payment.payment.chainId}</dd></div>
+        <div><dt>Asset</dt><dd>{payment.payment.asset}</dd></div>
+        <div><dt>Recipient</dt><dd>{payment.payment.recipient}</dd></div>
+        {payment.settlement ? <div><dt>Block</dt><dd>{payment.settlement.blockNumber}</dd></div> : null}
+      </dl>
       {payment.settlement ? <a href={`https://web3.okx.com/explorer/xlayer/tx/${payment.settlement.transactionHash}`}
         rel="noreferrer" target="_blank">View settlement on X Layer</a> : null}
-      <p>Payment settlement is not proof of order fulfillment.</p>
+      <p className={styles.boundary}>Payment settlement is not proof of order fulfillment.</p>
     </article> : null}
   </section>;
 }
