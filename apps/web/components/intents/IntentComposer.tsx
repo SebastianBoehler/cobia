@@ -5,7 +5,7 @@ import {
 } from "@cobia/domain";
 import { ArrowLeft, ArrowRight, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { keccak256, stringToHex } from "viem";
 import {
   DEFAULT_INTENT_RECEIPT_VALUES, decimalToAtomic, INTENT_ASSETS,
@@ -60,7 +60,8 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
   }>();
   const [offers, setOffers] = useState<CommerceOfferV1[]>([]);
   const [assetPrices, setAssetPrices] = useState<Record<string, string | undefined>>({});
-  const [mentionsLoaded, setMentionsLoaded] = useState<string>();
+  const walletAssetsLoaded = useRef<string | undefined>(undefined);
+  const mentionsLoaded = useRef<string | undefined>(undefined);
   const [compiling, setCompiling] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
@@ -97,28 +98,32 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
     )
   ));
 
-  async function loadMentions() {
-    if (mentionsLoaded === composerContextKey) return;
-    setMentionsLoaded(composerContextKey);
-    if (wallet.account && wallet.targetChainId === 196) {
-      setPortfolioState({ key: composerContextKey, status: "loading" });
-      fetch(`/api/wallets/${wallet.account}/portfolio?chainId=196`)
-        .then(async (response) => {
-          if (!response.ok) throw new Error("Portfolio read failed");
-          return response.json() as Promise<PortfolioSnapshot>;
-        })
-        .then((snapshot) => {
-          setPortfolio({ key: composerContextKey, snapshot });
-          setPortfolioState({ key: composerContextKey, status: "ready" });
-        }).catch(() => setPortfolioState({ key: composerContextKey, status: "error" }));
-      fetch("/api/assets/resolve", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbols: ["OKB", ...INTENT_ASSETS.map(({ symbol }) => symbol)] }) })
-        .then(async (response): Promise<{ assets: Array<{ symbol: string; priceUsd?: string }> }> =>
-          response.ok ? response.json() : { assets: [] })
-        .then(({ assets }) => setAssetPrices(Object.fromEntries(assets.map((asset) =>
-          [asset.symbol.toLowerCase(), asset.priceUsd]))))
-        .catch(() => undefined);
-    }
+  const loadWalletAssets = useCallback(() => {
+    if (!wallet.account || wallet.targetChainId !== 196 || walletAssetsLoaded.current === composerContextKey) return;
+    walletAssetsLoaded.current = composerContextKey;
+    setPortfolioState({ key: composerContextKey, status: "loading" });
+    fetch(`/api/wallets/${wallet.account}/portfolio?chainId=196`)
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Portfolio read failed");
+        return response.json() as Promise<PortfolioSnapshot>;
+      })
+      .then((snapshot) => {
+        setPortfolio({ key: composerContextKey, snapshot });
+        setPortfolioState({ key: composerContextKey, status: "ready" });
+      }).catch(() => setPortfolioState({ key: composerContextKey, status: "error" }));
+    fetch("/api/assets/resolve", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbols: ["OKB", ...INTENT_ASSETS.map(({ symbol }) => symbol)] }) })
+      .then(async (response): Promise<{ assets: Array<{ symbol: string; priceUsd?: string }> }> =>
+        response.ok ? response.json() : { assets: [] })
+      .then(({ assets }) => setAssetPrices(Object.fromEntries(assets.map((asset) =>
+        [asset.symbol.toLowerCase(), asset.priceUsd]))))
+      .catch(() => undefined);
+  }, [composerContextKey, wallet.account, wallet.targetChainId]);
+
+  const loadMentions = useCallback(() => {
+    loadWalletAssets();
+    if (mentionsLoaded.current === composerContextKey) return;
+    mentionsLoaded.current = composerContextKey;
     fetch("/api/commerce/discover?limit=12")
       .then(async (response): Promise<{ offers: unknown[] }> => response.ok
         ? response.json() as Promise<{ offers: unknown[] }> : { offers: [] })
@@ -126,7 +131,11 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
         const parsed = CommerceOfferV1Schema.safeParse(offer);
         return parsed.success && parsed.data.eligibility.status === "executable" ? [parsed.data] : [];
       }))).catch(() => undefined);
-  }
+  }, [composerContextKey, loadWalletAssets]);
+
+  useEffect(() => {
+    if (step === "goal") loadWalletAssets();
+  }, [loadWalletAssets, step]);
 
   const mentions = useMemo<IntentMention[]>(() => [
     ...INTENT_ASSETS.map(({ symbol, address }) => {

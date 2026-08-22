@@ -220,8 +220,8 @@ describe("IntentComposer", () => {
     })).toBeVisible();
   });
 
-  it("shows spendable wallet balances and inserts an available asset", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string) => {
+  it("loads spendable wallet balances on mount and inserts an available asset", async () => {
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
       if (url.includes("/portfolio")) return Promise.resolve(Response.json({
         native: { symbol: "OKB", amountAtomic: "50000000000000000", formatted: "0.05" },
         balances: [
@@ -233,9 +233,9 @@ describe("IntentComposer", () => {
         { symbol: "OKB", priceUsd: "100" }, { symbol: "USDG", priceUsd: "1" },
       ] }));
       return Promise.resolve(Response.json({ offers: [] }));
-    }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
     render(<IntentComposer />);
-    fireEvent.focus(screen.getByLabelText("What should happen?"));
 
     const rail = await screen.findByRole("region", { name: "Available wallet assets" });
     expect(within(rail).getByRole("button", { name: /add @okb to goal.*0\.05 okb.*\$5\.00/i })).toBeVisible();
@@ -243,6 +243,10 @@ describe("IntentComposer", () => {
     expect(within(rail).queryByRole("button", { name: /@usdt0/i })).not.toBeInTheDocument();
     expect(within(rail).getByText("OKB")).toHaveTextContent("OKB");
     expect(within(rail).getByText("$5.00")).toBeVisible();
+
+    fireEvent.focus(screen.getByLabelText("What should happen?"));
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/portfolio"))).toHaveLength(1);
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/assets/resolve")).toHaveLength(1);
 
     fireEvent.click(within(rail).getByRole("button", { name: /add @usdg to goal/i }));
     expect(screen.getByLabelText("What should happen?")).toHaveValue("@USDG ");
@@ -327,8 +331,11 @@ describe("IntentComposer", () => {
   });
 
   it("compiles the goal before showing editable signed bounds", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ status: "review",
-      values: DEFAULT_INTENT_RECEIPT_VALUES })));
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string) => {
+      if (url.includes("/portfolio")) return Promise.resolve(Response.json({ balances: [], positions: [] }));
+      if (url === "/api/assets/resolve") return Promise.resolve(Response.json({ assets: [] }));
+      return Promise.resolve(Response.json({ status: "review", values: DEFAULT_INTENT_RECEIPT_VALUES }));
+    }));
     render(<IntentComposer />);
 
     fireEvent.change(screen.getByLabelText("What should happen?"), {
@@ -336,7 +343,9 @@ describe("IntentComposer", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Review policy" }));
 
-    expect(JSON.parse((fetch as ReturnType<typeof vi.fn>).mock.calls[0]![1].body)).toMatchObject({
+    const compileCall = (fetch as ReturnType<typeof vi.fn>).mock.calls
+      .find(([url]) => url === "/api/intents/compile")!;
+    expect(JSON.parse(compileCall[1].body)).toMatchObject({
       owner, actionPreference: "any",
     });
 
@@ -359,11 +368,21 @@ describe("IntentComposer", () => {
   });
 
   it("authenticates the wallet once when the compiler session is missing", async () => {
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(Response.json({ code: "WALLET_AUTH_REQUIRED" }, { status: 401 }))
-      .mockResolvedValueOnce(Response.json({ nonce: "aa".repeat(32), message: "Verify Cobia wallet" }))
-      .mockResolvedValueOnce(Response.json({ owner, expiresAt: 2_000_000_900 }))
-      .mockResolvedValueOnce(Response.json({ status: "review", values: DEFAULT_INTENT_RECEIPT_VALUES }));
+    let compileCalls = 0;
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url.includes("/portfolio")) return Promise.resolve(Response.json({ balances: [], positions: [] }));
+      if (url === "/api/assets/resolve") return Promise.resolve(Response.json({ assets: [] }));
+      if (url === "/api/intents/compile") {
+        compileCalls += 1;
+        return compileCalls === 1
+          ? Promise.resolve(Response.json({ code: "WALLET_AUTH_REQUIRED" }, { status: 401 }))
+          : Promise.resolve(Response.json({ status: "review", values: DEFAULT_INTENT_RECEIPT_VALUES }));
+      }
+      if (url === "/api/wallet-auth/challenge") {
+        return Promise.resolve(Response.json({ nonce: "aa".repeat(32), message: "Verify Cobia wallet" }));
+      }
+      return Promise.resolve(Response.json({ owner, expiresAt: 2_000_000_900 }));
+    });
     vi.stubGlobal("fetch", fetchMock);
     render(<IntentComposer />);
     fireEvent.change(screen.getByLabelText("What should happen?"), {
@@ -372,7 +391,9 @@ describe("IntentComposer", () => {
     fireEvent.click(screen.getByRole("button", { name: "Review policy" }));
 
     expect(await screen.findByRole("heading", { name: "Review the policy" })).toBeVisible();
-    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+    expect(fetchMock.mock.calls.map(([url]) => url).filter((url) => [
+      "/api/intents/compile", "/api/wallet-auth/challenge", "/api/wallet-auth/session",
+    ].includes(url))).toEqual([
       "/api/intents/compile", "/api/wallet-auth/challenge",
       "/api/wallet-auth/session", "/api/intents/compile",
     ]);
@@ -433,8 +454,9 @@ describe("IntentComposer", () => {
     await screen.findByRole("heading", { name: "Review the policy" });
     fireEvent.click(screen.getByRole("button", { name: "Sign and publish intent" }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    const body = JSON.parse(String(fetchMock.mock.calls[1][1].body));
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => url === "/api/intents")).toBe(true));
+    const publishCall = fetchMock.mock.calls.find(([url]) => url === "/api/intents")!;
+    const body = JSON.parse(String(publishCall[1].body));
     expect(fetchMock).toHaveBeenCalledWith("/api/intents", expect.objectContaining({ method: "POST" }));
     expect(state.request).toHaveBeenCalledWith({
       method: "personal_sign", params: [commitment(body.policy), owner],
@@ -473,8 +495,9 @@ describe("IntentComposer", () => {
     await screen.findByRole("heading", { name: "Review the policy" });
     fireEvent.click(screen.getByRole("button", { name: "Sign and publish intent" }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    const body = JSON.parse(String(fetchMock.mock.calls[1]![1].body));
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => url === "/api/intents")).toBe(true));
+    const publishCall = fetchMock.mock.calls.find(([url]) => url === "/api/intents")!;
+    const body = JSON.parse(String(publishCall[1].body));
     expect(state.switchToXLayer).toHaveBeenCalled();
     expect(body.policy).toMatchObject({
       executionChainIds: [196],
@@ -510,8 +533,9 @@ describe("IntentComposer", () => {
     await screen.findByRole("heading", { name: "Review the policy" });
     fireEvent.click(screen.getByRole("button", { name: "Sign and publish intent" }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    const body = JSON.parse(String(fetchMock.mock.calls[1]![1].body));
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => url === "/api/intents")).toBe(true));
+    const publishCall = fetchMock.mock.calls.find(([url]) => url === "/api/intents")!;
+    const body = JSON.parse(String(publishCall[1].body));
     expect(state.switchToXLayer).toHaveBeenCalled();
     expect(body.policy).toMatchObject({
       executionChainIds: [1, 196],
