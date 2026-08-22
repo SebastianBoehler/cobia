@@ -10,6 +10,7 @@ import { base, mainnet } from "viem/chains";
 import { createDatabase } from "../db/client";
 import { createActivityRepository } from "../db/activity";
 import { createIntentRepository } from "../db/intents";
+import { createNetworkOutcomeRepository } from "../db/network-outcomes";
 import { createChallengeRepository } from "../db/challenges";
 import { createCommerceOfferRepository } from "../db/commerce-offers";
 import { createCommercePlacementRepository } from "../db/commerce-placements";
@@ -46,6 +47,7 @@ import { OwnerBalanceRequiredError } from "./market-errors";
 let activityRepository: ReturnType<typeof createActivityRepository> | undefined;
 let database: ReturnType<typeof createDatabase> | undefined;
 let intentRepository: ReturnType<typeof createIntentRepository> | undefined;
+let networkOutcomeRepository: ReturnType<typeof createNetworkOutcomeRepository> | undefined;
 let challengeRepository: ReturnType<typeof createChallengeRepository> | undefined;
 let commerceOfferRepository: ReturnType<typeof createCommerceOfferRepository> | undefined;
 let commercePlacementRepository: ReturnType<typeof createCommercePlacementRepository> | undefined;
@@ -72,6 +74,11 @@ export function getActivityRepository() {
 export function getIntentRepository() {
   intentRepository ??= createIntentRepository(getDatabase());
   return intentRepository;
+}
+
+export function getNetworkOutcomeRepository() {
+  networkOutcomeRepository ??= createNetworkOutcomeRepository(getDatabase());
+  return networkOutcomeRepository;
 }
 
 export function getChallengeRepository() {
