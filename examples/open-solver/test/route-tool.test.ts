@@ -10,6 +10,7 @@ describe("reference route tool", () => {
       "aave-v3.supply@1",
       "curve-stableswap-ng.exact-input@1",
       "evm.raw@1",
+      "policy.capability-composition@1",
       "uniswap-v3.exact-input@1",
     ]);
   });

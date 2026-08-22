@@ -151,6 +151,7 @@ const worker = {
 };
 await register(client, { ...worker,
   displayName: config.display_name });
+let registeredAtMs = Date.now();
 output({ event: "registered", solverId: worker.solverId, operator: account.address });
 const state = await readState(worker.statePath);
 const maxAttempts = config.max_attempts_per_intent;
@@ -169,7 +170,14 @@ await watchSolverIntents({
   client,
   signal: controller.signal,
   pollIntervalMs: config.poll_interval_ms,
-  onPoll: () => writeHeartbeat(worker.statePath),
+  async onPoll() {
+    await writeHeartbeat(worker.statePath);
+    if (Date.now() - registeredAtMs >= 120_000) {
+      await register(client, { ...worker, displayName: config.display_name });
+      registeredAtMs = Date.now();
+      output({ event: "registration-refreshed", solverId: worker.solverId });
+    }
+  },
   isHandled: (intent) => competitionWorkTimeoutMs({
     competitionClosesAt: intent.competitionClosesAt,
     maximumMs: config.turn_timeout_ms,

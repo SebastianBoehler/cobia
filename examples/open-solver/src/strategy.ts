@@ -10,6 +10,7 @@ import { deriveCapabilityAuthorityV2 } from "../../../apps/web/lib/open-exchange
 import { startLocalFork } from "./local-fork";
 import { solveRegisteredInstrument } from "./rwa-strategy";
 import { buildSwapActions } from "./swap-routes";
+import { solveComposition } from "./composition-strategy";
 
 function aaveAsset(input: Address, output: Address) {
   return Object.values(PROTOCOL_REGISTRY.aaveV3.assets).find(({ underlying, aToken }) =>
@@ -24,6 +25,7 @@ function registeredSwap(input: Address, output: Address) {
 
 /** Reference lane: a real, fork-replayed Aave supply. Other solvers remain free to use transaction programs. */
 export async function solve(intent: SolverIntentV1): Promise<SolverDecisionV1> {
+  if (intent.policy.kind === "capability-composition") return solveComposition(intent);
   const input = intent.policy.inputs[0];
   const outcome = intent.policy.outcomes[0];
   if (input && intent.policy.inputs.length === 1 && intent.policy.outcomes.length === 1 &&
@@ -34,6 +36,9 @@ export async function solve(intent: SolverIntentV1): Promise<SolverDecisionV1> {
       outcome?.kind !== "minimum-increase" ||
       (!aaveAsset(input.token, outcome.token) && !registeredSwap(input.token, outcome.token))) {
     return { version: 1, decision: "abstain", reasonCode: "NO_SUPPORTED_REFERENCE_ROUTE" };
+  }
+  if (!intent.snapshot || intent.snapshot.kind !== "open-onchain") {
+    return { version: 1, decision: "abstain", reasonCode: "SNAPSHOT_KIND_MISMATCH" };
   }
   const executor = process.env.COBIA_EXECUTOR_V3_ADDRESS as Address | undefined;
   const upstreamRpc = process.env.XLAYER_RPC_URL;

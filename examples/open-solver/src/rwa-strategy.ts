@@ -68,6 +68,9 @@ export async function solveRegisteredInstrument(
   input: Input,
   outcome: Outcome,
 ): Promise<SolverDecisionV1> {
+  if (intent.policy.kind !== "open-onchain" || intent.snapshot.kind !== "open-onchain") {
+    return { version: 1, decision: "abstain", reasonCode: "SNAPSHOT_KIND_MISMATCH" };
+  }
   if (input.chainId !== 1 || outcome.chainId !== 1) {
     return { version: 1, decision: "abstain", reasonCode: "RWA_CHAIN_UNSUPPORTED" };
   }

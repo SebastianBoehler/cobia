@@ -1,4 +1,6 @@
 import {
+  CapabilityCompositionPolicyV1Schema,
+  CapabilityCompositionSnapshotV1Schema,
   commitment,
   OpenIntentPolicyV3Schema,
   OpenIntentSnapshotV1Schema,
@@ -17,10 +19,16 @@ const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
 const DECISION_REQUEST_TIMEOUT_MS = 185_000;
 const IntentSchema = z.object({
   id: z.string().uuid(),
-  policy: OpenIntentPolicyV3Schema,
+  policy: z.discriminatedUnion("kind", [
+    OpenIntentPolicyV3Schema,
+    CapabilityCompositionPolicyV1Schema,
+  ]),
   policyHash: HashSchema,
   ownerSignature: SignatureSchema,
-  snapshot: OpenIntentSnapshotV1Schema,
+  snapshot: z.discriminatedUnion("kind", [
+    OpenIntentSnapshotV1Schema,
+    CapabilityCompositionSnapshotV1Schema,
+  ]),
   snapshotHash: HashSchema,
   competitionClosesAt: z.number().int().positive().safe(),
   links: z.object({
@@ -36,6 +44,10 @@ const IntentSchema = z.object({
   }
   if (intent.snapshot.requestId !== intent.id || intent.snapshotHash !== commitment(intent.snapshot)) {
     context.addIssue({ code: "custom", path: ["snapshotHash"], message: "Snapshot commitment mismatch" });
+  }
+  if (intent.policy.kind !== intent.snapshot.kind) {
+    context.addIssue({ code: "custom", path: ["snapshot", "kind"],
+      message: "Policy and snapshot kinds must match" });
   }
 });
 
