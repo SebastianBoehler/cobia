@@ -479,7 +479,7 @@ describe("intent compiler", () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
     const request = JSON.parse(fetcher.mock.calls[0]![1]!.body as string);
     expect(request.text.format.schema.properties.conversion.anyOf[1]
-      .properties.inputs.items.properties.symbol).toEqual({ type: "string" });
+      .properties.inputs.items.anyOf[0].properties.symbol).toEqual({ type: "string" });
     expect(JSON.parse(request.input).walletAssets).toEqual(expect.arrayContaining([
       expect.objectContaining({ symbol: "EXAMPLE", balance: "0.4", priceUsd: "2.5" }),
     ]));

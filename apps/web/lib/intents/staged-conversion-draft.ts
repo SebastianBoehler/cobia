@@ -35,12 +35,22 @@ export interface StagedConversionDraft {
   maxSolverFeeUsd: string;
 }
 
+const ExactConversionInputSchema = z.object({
+  symbol: z.string().min(1),
+  amount: z.string().min(1),
+  walletShareBps: z.null(),
+}).strict();
+
+const WalletShareConversionInputSchema = z.object({
+  symbol: z.string().min(1),
+  amount: z.literal(""),
+  walletShareBps: z.number().int().min(1).max(10_000),
+}).strict();
+
 export const ConversionModelDraftSchema = z.object({
-  inputs: z.array(z.object({
-    symbol: z.string().min(1),
-    amount: z.string(),
-    walletShareBps: z.number().int().min(1).max(10_000).nullable(),
-  }).strict()).min(1).max(8),
+  inputs: z.array(z.union([
+    ExactConversionInputSchema, WalletShareConversionInputSchema,
+  ])).min(1).max(8),
   outputSymbol: z.string().min(1),
   minimumOutput: z.string(),
   minimumStages: z.number().int().min(1).max(8),
