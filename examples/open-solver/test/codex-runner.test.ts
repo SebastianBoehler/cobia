@@ -11,7 +11,7 @@ async function* events() {
     id: "message-1", type: "agent_message",
     text: JSON.stringify({ decisionJson: JSON.stringify({
       version: 1, decision: "abstain", reasonCode: "NO_PROFITABLE_ROUTE",
-    }) }),
+    }) }, null, 2),
   } } as const;
   yield { type: "turn.completed", usage: {
     input_tokens: 10, cached_input_tokens: 2, cache_write_input_tokens: 0,
@@ -91,6 +91,39 @@ describe("Codex solver runner", () => {
       codex: { startThread: () => ({ runStreamed: async () => ({ events: empty() }) }) },
       emit: vi.fn(),
     })).rejects.toThrow(/did not return/i);
+  });
+
+  it("accepts the final structured envelope after provider-added prose", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "cobia-codex-provider-prose-test-"));
+    async function* providerProse() {
+      yield { type: "thread.started", thread_id: "thread-provider-prose" } as const;
+      yield { type: "item.completed", item: {
+        id: "message-provider-prose", type: "agent_message",
+        text: "The supported solve returned no complete route.\n\n" +
+          JSON.stringify({ decisionJson: JSON.stringify({
+            version: 1, decision: "abstain", reasonCode: "NO_SUPPORTED_REFERENCE_ROUTE",
+          }) }),
+      } } as const;
+      yield { type: "turn.completed", usage: {
+        input_tokens: 10, cached_input_tokens: 0, cache_write_input_tokens: 0,
+        output_tokens: 8, reasoning_output_tokens: 2,
+      } } as const;
+    }
+
+    const result = await runCodexSolver({
+      job: { cwd, intentPath: join(cwd, "intent.json"),
+        decisionPath: join(cwd, "decision.json"), prompt: "solve" },
+      timeoutMs: 10_000,
+      exploration: { riskLevel: "conservative", maxTurns: 1, maxTotalTokens: 100 },
+      codex: { startThread: () => ({
+        runStreamed: async () => ({ events: providerProse() }),
+      }) },
+      emit: vi.fn(),
+    });
+
+    expect(result.decision).toEqual({
+      version: 1, decision: "abstain", reasonCode: "NO_SUPPORTED_REFERENCE_ROUTE",
+    });
   });
 
   it("continues an abstention until the configured exploration turn budget is spent", async () => {

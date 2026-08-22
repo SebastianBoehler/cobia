@@ -94,8 +94,10 @@ export function createSolverCodex(job: CodexJob): SolverCodexLike {
 
 function parseDecision(text: string | undefined): SolverDecisionV1 {
   if (!text) throw new Error("Codex did not return a solver decision");
+  const response = text.trim();
+  const envelopeText = response.startsWith("{") ? response : response.split(/\r?\n/).at(-1)!;
   let envelope: z.infer<typeof CodexDecisionEnvelopeSchema>;
-  try { envelope = CodexDecisionEnvelopeSchema.parse(JSON.parse(text)); }
+  try { envelope = CodexDecisionEnvelopeSchema.parse(JSON.parse(envelopeText)); }
   catch (error) { throw new Error("Codex did not return a valid decision envelope", { cause: error }); }
   let value: unknown;
   try { value = JSON.parse(envelope.decisionJson); }
