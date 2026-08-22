@@ -311,6 +311,21 @@ describe("IntentComposer", () => {
     }
   });
 
+  it("renders a mark beside every mention and route option", () => {
+    render(<IntentComposer />);
+
+    fireEvent.click(screen.getByText("Mention"));
+    const mentionMenu = screen.getByText("Assets").closest(".intent-mention-menu");
+    expect(mentionMenu).not.toBeNull();
+    if (!mentionMenu) throw new Error("Mention menu is unavailable");
+    expect(mentionMenu.querySelectorAll("button")).toHaveLength(
+      mentionMenu.querySelectorAll(".intent-option-mark").length,
+    );
+
+    fireEvent.click(screen.getByText("Routes"));
+    expect(document.querySelectorAll(".intent-route-control__menu label .intent-option-mark")).toHaveLength(3);
+  });
+
   it("compiles the goal before showing editable signed bounds", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ status: "review",
       values: DEFAULT_INTENT_RECEIPT_VALUES })));

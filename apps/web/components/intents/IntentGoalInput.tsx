@@ -4,6 +4,7 @@ import {
   ACTION_PREFERENCES, PROTOCOL_EXCLUSIONS, type ActionPreference, type ProtocolExclusionId,
 } from "../../lib/intents/intent-controls";
 import { IntentAvailableAssets, type AvailableIntentAsset } from "./IntentAvailableAssets";
+import { IntentOptionMark } from "./IntentOptionMark";
 
 const EXAMPLE_INTENTS = [
   "Swap 10 @USDG into at least 9.95 @USDt0 on @XLayer",
@@ -276,7 +277,11 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
                       onMention(mention);
                       event.currentTarget.closest("details")?.removeAttribute("open");
                     }} type="button">
-                    <span>@{mention.mention}</span><small>{mention.detail}</small>
+                    <span aria-hidden="true" className="intent-option-mark">
+                      <IntentOptionMark group={mention.group} mention={mention.mention} />
+                    </span>
+                    <span className="intent-mention-menu__label">@{mention.mention}</span>
+                    <small>{mention.detail}</small>
                   </button>)}</section> : null;
               })}
             </div>
@@ -292,7 +297,10 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
                   onChange={(event) => onExcludedProtocolsChange(event.target.checked
                     ? [...excludedProtocols, protocol.id]
                     : excludedProtocols.filter((id) => id !== protocol.id))} />
-                {protocol.label}
+                <span aria-hidden="true" className="intent-option-mark">
+                  <IntentOptionMark group="Protocols" mention={protocol.label} />
+                </span>
+                <span>{protocol.label}</span>
               </label>)}
             </div>
           </details>

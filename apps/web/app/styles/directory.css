@@ -178,7 +178,9 @@
 .solver-profile__capabilities h2 { font-size: 22px; letter-spacing: -.025em; margin: 0; }
 .solver-profile__capabilities header p, .solver-profile__capabilities > p { color: var(--muted); font-size: 13px; line-height: 1.5; margin: 6px 0 0; }
 .solver-profile__capabilities ul { display: flex; flex-wrap: wrap; gap: 9px; list-style: none; margin: 24px 0 0; padding: 0; }
-.solver-profile__capabilities li { background: var(--wash); border-radius: 9px; font: 12px/1.4 var(--font-geist-mono), monospace; padding: 8px 10px; white-space: nowrap; }
+.solver-profile__capabilities li { align-items: center; background: var(--wash); border-radius: 9px; display: inline-flex; font: 12px/1.4 var(--font-geist-mono), monospace; gap: 7px; padding: 8px 10px; white-space: nowrap; }
+.solver-profile__capabilities li > svg { color: var(--cobalt); flex: 0 0 auto; }
+.solver-profile__capabilities li > .brand-mark { flex: 0 0 auto; }
 .solver-profile__capabilities code { overflow-wrap: anywhere; }
 .solver-evidence { display: grid; gap: 20px; }
 .solver-profile .section-heading { margin-bottom: 20px; }

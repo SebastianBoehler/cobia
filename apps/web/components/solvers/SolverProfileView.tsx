@@ -1,6 +1,7 @@
-import { ArrowRight, Bot, ShieldCheck, Users } from "lucide-react";
+import { ArrowRight, Bot, Code2, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
 import type { SolverPerformanceReportV1 } from "@cobia/domain";
+import { ProtocolMark } from "../brand/ProtocolMark";
 
 export interface SolverProfileSubmission {
   id: string;
@@ -13,6 +14,14 @@ function chainLabel(chainId: number): string {
   if (chainId === 196) return "X Layer";
   if (chainId === 1) return "Ethereum";
   return `Chain ${chainId}`;
+}
+
+function capabilityProtocol(capability: string): string | null {
+  if (capability.startsWith("aave-")) return "Aave V3";
+  if (capability.startsWith("curve-")) return "Curve";
+  if (capability.startsWith("uniswap-")) return "Uniswap V3";
+  if (capability.startsWith("pendle.")) return "Pendle";
+  return null;
 }
 
 function rateLabel(rateBps: number | null): string {
@@ -77,7 +86,13 @@ export function SolverProfileView({ profile }: { profile: {
     </section>
     <section className="solver-profile__capabilities">
       <header><ShieldCheck aria-hidden="true" size={19} /><div><h2>Declared capabilities</h2><p>Declarations are discovery metadata, not execution authority.</p></div></header>
-      <ul>{profile.declaredCapabilities.map((item) => <li key={item}>{item}</li>)}</ul>
+      <ul>{profile.declaredCapabilities.map((item) => {
+        const protocol = capabilityProtocol(item);
+        return <li key={item} title={item}>
+          {protocol ? <ProtocolMark protocol={protocol} size={18} /> : <Code2 aria-hidden="true" size={15} />}
+          <span>{item}</span>
+        </li>;
+      })}</ul>
       {profile.attestationAddress ? <p>Attestation identity <code>{profile.attestationAddress}</code></p> : null}
     </section>
     <section className="solver-evidence">
