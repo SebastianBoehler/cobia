@@ -114,6 +114,17 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
     return () => document.removeEventListener("pointerdown", closeOnOutsideClick);
   }, []);
 
+  function acceptMentionSuggestion(mention: IntentMention) {
+    onMentionSuggestion(mention);
+    textareaRef.current?.focus();
+    requestAnimationFrame(() => {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+      textarea.focus();
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    });
+  }
+
   return (
     <section className="intent-goal">
       <label className="sr-only" htmlFor="intent-goal">What should happen?</label>
@@ -141,6 +152,11 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
             positionTypeahead();
           }}
           onKeyDown={(event) => {
+            if (event.key === "Tab" && !event.shiftKey && mentionSuggestions[0]) {
+              event.preventDefault();
+              acceptMentionSuggestion(mentionSuggestions[0]);
+              return;
+            }
             if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && value.trim().length >= 3) {
               event.preventDefault();
               onSubmit();
@@ -150,7 +166,7 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
         {mentionSuggestions.length ? <div aria-label="Mention suggestions"
           className="intent-typeahead" role="listbox" style={typeaheadPosition}>
           {mentionSuggestions.map((mention) => <button aria-selected="false" key={mention.id}
-            onClick={() => onMentionSuggestion(mention)} role="option" type="button">
+            onClick={() => acceptMentionSuggestion(mention)} role="option" type="button">
             <strong>@{mention.mention}</strong>
             {mention.address ? <code title={mention.address}>{shortAddress(mention.address)}</code>
               : <small>{mention.detail}</small>}

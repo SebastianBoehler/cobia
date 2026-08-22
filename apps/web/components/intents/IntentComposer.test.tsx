@@ -113,6 +113,33 @@ describe("IntentComposer", () => {
     expect(screen.getByLabelText("What should happen?")).toHaveValue("@USDG ");
   });
 
+  it("accepts the first mention suggestion with Tab and keeps the goal focused", () => {
+    render(<IntentComposer />);
+    const goal = screen.getByLabelText("What should happen?");
+    goal.focus();
+    fireEvent.change(goal, { target: { value: "@USD" } });
+
+    const shouldContinue = fireEvent.keyDown(goal, { key: "Tab" });
+
+    expect(shouldContinue).toBe(false);
+    expect(goal).toHaveValue("@USDG ");
+    expect(goal).toHaveFocus();
+  });
+
+  it("returns focus to the goal after clicking a mention suggestion", () => {
+    render(<IntentComposer />);
+    const goal = screen.getByLabelText("What should happen?");
+    fireEvent.change(goal, { target: { value: "@USD" } });
+    const suggestion = within(screen.getByRole("listbox", { name: "Mention suggestions" }))
+      .getByRole("option", { name: /@USDG/ });
+    suggestion.focus();
+
+    fireEvent.click(suggestion);
+
+    expect(goal).toHaveValue("@USDG ");
+    expect(goal).toHaveFocus();
+  });
+
   it("shows the canonical contract and exact USD price while typing a known token", async () => {
     vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string) => {
       if (url === "/api/assets/resolve") return Promise.resolve(Response.json({ assets: [{

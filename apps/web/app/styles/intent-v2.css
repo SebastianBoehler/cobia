@@ -7,7 +7,8 @@
 .intent-goal { grid-column: 1; grid-row: 1; min-width: 0; }
 .policy-editor { grid-column: 2; grid-row: 1 / span 4; position: sticky; top: 96px; }
 .intent-goal, .policy-editor { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: clamp(20px, 3vw, 30px); }
-.intent-goal { border-radius: 28px; box-shadow: 0 18px 50px color-mix(in oklch, var(--ink) 10%, transparent); padding: 12px 14px 12px 22px; }
+.intent-goal { border-color: var(--line-strong); border-radius: 28px; box-shadow: 0 18px 50px color-mix(in oklch, var(--ink) 10%, transparent); padding: 12px 14px 12px 22px; transition: border-color 120ms ease-out, box-shadow 120ms ease-out; }
+.intent-goal:focus-within { border-color: var(--cobalt); box-shadow: 0 0 0 3px color-mix(in oklch, var(--cobalt) 18%, transparent), 0 18px 50px color-mix(in oklch, var(--ink) 10%, transparent); }
 .intent-goal__input { min-height: 112px; position: relative; }
 .intent-goal textarea, .intent-goal__highlight, .intent-caret-mirror { border: 0; font: inherit; font-size: 20px; line-height: 1.45; min-height: 112px; padding: 12px 4px; white-space: pre-wrap; width: 100%; }
 .intent-goal textarea { background: transparent; caret-color: var(--ink); color: transparent; position: relative; resize: none; z-index: 1; }
