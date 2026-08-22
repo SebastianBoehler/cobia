@@ -17,7 +17,7 @@ function conversion(
   minimumOutput = "",
 ) {
   return { status: "review", question: null, kind: "conversion",
-    templateId: "exact-input-swap", inputSymbol: "USDG", outputSymbol: "USDt0",
+    templateId: "exact-input-swap", inputSymbol: "USDG", outputSymbol,
     amount: "", minimum: "", jurisdiction: null, composed: null,
     conversion: { inputs, outputSymbol, minimumOutput } };
 }
@@ -298,21 +298,25 @@ describe("intent compiler", () => {
     });
   });
 
-  it("explains when native OKB is not a registered terminal asset", async () => {
-    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(simple({
-      status: "clarification", question: "Native OKB is not a registered route output yet. Choose USDG or USDt0.",
-      templateId: "exact-input-swap", inputSymbol: "USDt0", outputSymbol: "USDG",
-      amount: "", minimum: "", jurisdiction: null,
-    }))));
+  it("preserves native OKB as the output of a multi-input conversion", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(conversion([
+      { symbol: "USDG", amount: "", walletShareBps: 10_000 },
+      { symbol: "USDt0", amount: "", walletShareBps: 10_000 },
+    ], "OKB"))));
     const compiler = createOpenAiIntentCompiler({
       apiKey: "test", model: "test-model", fetcher,
-      walletBalances: { USDt0: "1" },
-      assetPricesUsd: { OKB: "111.93", USDt0: "0.9999", USDG: "1.0001" },
+      walletBalances: { USDG: "0.964564", USDt0: "0.241177" },
+      assetPricesUsd: { OKB: "100", USDG: "1", USDt0: "1" },
     });
 
-    await expect(compiler.compile("all my @USDt0 into @OKB", "any")).resolves.toEqual({
-      status: "clarification",
-      question: "Native OKB is not a registered route output yet. Choose USDG or USDt0.",
+    await expect(compiler.compile("all @USDG and all @USDt0 into @OKB", "any")).resolves.toMatchObject({
+      status: "review",
+      values: {
+        kind: "staged-conversion",
+        inputs: [{ symbol: "USDG", amount: "0.964564" }, { symbol: "USDt0", amount: "0.241177" }],
+        outputToken: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        outputSymbol: "OKB", outputDecimals: 18, minimum: "0.0119368359",
+      },
     });
     expect(fetcher).toHaveBeenCalledOnce();
   });

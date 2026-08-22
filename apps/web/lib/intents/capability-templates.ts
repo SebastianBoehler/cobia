@@ -55,6 +55,8 @@ export const NATIVE_INTENT_ASSET = {
   address: NATIVE_ASSET_ADDRESS, symbol: "OKB", decimals: 18,
 } as const;
 
+export const CONVERSION_INTENT_ASSETS = [NATIVE_INTENT_ASSET, ...INTENT_ASSETS] as const;
+
 export const ETHEREUM_USDC = {
   address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48" as Address,
   symbol: "USDC", decimals: 6,

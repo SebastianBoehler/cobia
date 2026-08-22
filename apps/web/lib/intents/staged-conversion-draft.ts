@@ -1,8 +1,8 @@
-import { NATIVE_ASSET_ADDRESS } from "@cobia/domain";
 import type { Address } from "viem";
 import { z } from "zod";
 import {
-  decimalToAtomic, INTENT_ASSETS, stablecoinDefaultMinimum, type IntentReceiptValues,
+  CONVERSION_INTENT_ASSETS, decimalToAtomic, INTENT_ASSETS, NATIVE_INTENT_ASSET,
+  stablecoinDefaultMinimum, type IntentReceiptValues,
 } from "./capability-templates";
 import type { WalletBalances } from "./wallet-balance-request";
 import { deriveMarketMinimum, formatAtomicAmount } from "./market-minimum";
@@ -88,7 +88,7 @@ function resolveAmount(
 
 function simpleSwap(
   input: StagedConversionInputDraft,
-  output: (typeof INTENT_ASSETS)[number],
+  output: (typeof CONVERSION_INTENT_ASSETS)[number],
   minimumOutput: string,
 ): IntentReceiptValues | undefined {
   const registeredInput = INTENT_ASSETS.find(({ address }) =>
@@ -115,14 +115,14 @@ export function resolveConversionDraft(
   walletAssets: readonly WalletIntentAsset[] = INTENT_ASSETS,
 ): ConversionResolution {
   const draft = ConversionModelDraftSchema.parse(value);
-  const output = INTENT_ASSETS.find(({ symbol }) =>
+  const output = CONVERSION_INTENT_ASSETS.find(({ symbol }) =>
     symbol.toLowerCase() === draft.outputSymbol.toLowerCase());
   if (!output) return { kind: "clarification", question: "Choose a registered conversion output asset." };
 
   const inputs: StagedConversionInputDraft[] = [];
   for (const requested of draft.inputs) {
     const isNative = requested.symbol.toLowerCase() === "okb";
-    const asset = isNative ? { address: NATIVE_ASSET_ADDRESS, symbol: "OKB", decimals: 18 }
+    const asset = isNative ? NATIVE_INTENT_ASSET
       : walletAsset(requested.symbol, walletAssets);
     if (!asset) return { kind: "clarification",
       question: `${requested.symbol} is not available in the connected wallet.` };
