@@ -145,7 +145,9 @@ describe("IntentComposer", () => {
       if (url === "/api/assets/resolve") return Promise.resolve(Response.json({ assets: [{
         symbol: "USDG", address: INTENT_ASSETS[0].address, priceUsd: "0.9998",
       }], unresolved: [] }));
-      if (url.includes("/portfolio")) return Promise.resolve(Response.json({ balances: [] }));
+      if (url.includes("/portfolio")) return Promise.resolve(Response.json({ balances: [{
+        symbol: "USDG", formatted: "2.5",
+      }] }));
       return Promise.resolve(Response.json({ offers: [] }));
     }));
     render(<IntentComposer />);
@@ -154,7 +156,7 @@ describe("IntentComposer", () => {
 
     const suggestions = await screen.findByRole("listbox", { name: "Mention suggestions" });
     expect(await within(suggestions).findByRole("option", {
-      name: /@USDG.*0x4ae4…2dc8.*\$0\.9998/i,
+      name: /@USDG.*0x4ae4…2dc8.*\$0\.9998.*Balance 2\.5 USDG/i,
     })).toBeVisible();
   });
 
@@ -172,6 +174,21 @@ describe("IntentComposer", () => {
     expect(within(screen.getByTestId("intent-goal-highlight")).getByText("@AAPLx")).toBeVisible();
     expect(await within(await screen.findByRole("listbox", { name: "Mention suggestions" }))
       .findByRole("option", { name: /@AAPLx.*0x1111…1111.*Price unavailable/ })).toBeVisible();
+  });
+
+  it("marks a token in the goal when fresh resolution rejects it", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(() =>
+      Promise.resolve(Response.json({ assets: [], unresolved: ["FAKE"] }))));
+    render(<IntentComposer />);
+
+    fireEvent.change(screen.getByLabelText("What should happen?"), {
+      target: { value: "Swap 1 @FAKE into @USDG" },
+    });
+
+    await waitFor(() => expect(within(screen.getByTestId("intent-goal-highlight"))
+      .getByText("@FAKE")).toHaveClass("intent-mention--unresolved"));
+    expect(within(screen.getByTestId("intent-goal-highlight"))
+      .getByText("@USDG")).not.toHaveClass("intent-mention--unresolved");
   });
 
   it("shows OKX contract and price evidence on a resolved token mention", async () => {

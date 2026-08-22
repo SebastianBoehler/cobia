@@ -93,12 +93,15 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
   }
 
   const mentions = useMemo<IntentMention[]>(() => [
-    ...INTENT_ASSETS.map(({ symbol, address }) => ({ id: `asset:${symbol}`, group: "Assets" as const,
-      mention: symbol, address, priceUsd: assetPrices[symbol.toLowerCase()],
-      detail: portfolio?.balances?.find((balance) => balance.symbol === symbol)
-        ? `${Number(portfolio.balances.find((balance) => balance.symbol === symbol)!.formatted)
-          .toLocaleString("en-US", { maximumFractionDigits: 6 })} available`
-        : "X Layer asset" })),
+    ...INTENT_ASSETS.map(({ symbol, address }) => {
+      const balance = portfolio?.balances?.find((item) => item.symbol === symbol);
+      const walletBalance = balance
+        ? `${Number(balance.formatted).toLocaleString("en-US", { maximumFractionDigits: 6 })} ${symbol}`
+        : undefined;
+      return { id: `asset:${symbol}`, group: "Assets" as const, mention: symbol, address,
+        priceUsd: assetPrices[symbol.toLowerCase()], walletBalance,
+        detail: walletBalance ? `${walletBalance} available` : "X Layer asset" };
+    }),
     ...RWA_INTENT_ASSETS.map(({ symbol, address, instrument }) => ({ id: `asset:${symbol}`, group: "Assets" as const,
       mention: symbol, address, priceUsd: assetPrices[symbol.toLowerCase()],
       detail: `Registered RWA · ${instrument.chainId === 196 ? "X Layer" : "Ethereum"}` })),
@@ -112,7 +115,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
       mention: `${offer.merchant.displayName}/${(offer.product.name ?? offer.product.id).replaceAll(" ", "-")}`,
       detail: `${offer.payment.atomicAmount} atomic · chain ${offer.payment.chainId}` })),
   ], [assetPrices, offers, portfolio]);
-  const resolvedAssetMentions = useResolvedAssetMentions(goal, mentions);
+  const { assets: resolvedAssetMentions, unresolved: unresolvedAssetMentions } = useResolvedAssetMentions(goal, mentions);
   const allMentions = useMemo(() => [...mentions, ...resolvedAssetMentions], [mentions, resolvedAssetMentions]);
   const selectedMentions = useMemo(() => {
     const selected = allMentions.filter(({ mention }) => {
@@ -246,6 +249,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
         <IntentGoalInput action={action} compiling={compiling}
           submitEnabled={Boolean(wallet.account)}
           excludedProtocols={excludedProtocols} mentions={allMentions}
+          unresolvedMentions={unresolvedAssetMentions}
           value={goal} onActionChange={setAction} onChange={setGoal} onMention={mention}
           onMentionSuggestion={mentionSuggestion}
           onMentionMenuOpen={loadMentions}

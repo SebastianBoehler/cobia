@@ -16,9 +16,11 @@ function renderTaggedPrompt(prompt: string) {
     : part);
 }
 
-function renderRecognizedPrompt(prompt: string) {
+function renderRecognizedPrompt(prompt: string, unresolvedMentions: readonly string[]) {
+  const unresolved = new Set(unresolvedMentions.map((mention) => mention.toLowerCase()));
   return prompt.split(/(@[A-Za-z0-9]+(?:[./-][A-Za-z0-9]+)*)/g).map((part, index) =>
-    part.startsWith("@") ? <strong key={`${part}-${index}`}>{part}</strong> : part);
+    part.startsWith("@") ? <strong className={unresolved.has(part.slice(1).toLowerCase())
+      ? "intent-mention--unresolved" : undefined} key={`${part}-${index}`}>{part}</strong> : part);
 }
 
 function usdPrice(value: string): string {
@@ -39,10 +41,11 @@ export interface IntentMention {
   detail: string;
   address?: string;
   priceUsd?: string;
+  walletBalance?: string;
 }
 
 export function IntentGoalInput({ value, compiling, submitEnabled, action, excludedProtocols, mentions,
-  onChange, onActionChange, onMention, onMentionMenuOpen,
+  unresolvedMentions, onChange, onActionChange, onMention, onMentionMenuOpen,
   onMentionSuggestion, onExcludedProtocolsChange, onSubmit }: {
   value: string;
   compiling: boolean;
@@ -50,6 +53,7 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
   action: ActionPreference;
   excludedProtocols: readonly ProtocolExclusionId[];
   mentions: readonly IntentMention[];
+  unresolvedMentions: readonly string[];
   onChange(value: string): void;
   onActionChange(value: ActionPreference): void;
   onMention(value: IntentMention): void;
@@ -131,7 +135,7 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
       <div className="intent-goal__input" ref={inputRef}>
         <div aria-hidden="true" className="intent-goal__highlight"
           data-testid="intent-goal-highlight" ref={highlightRef}>
-          {renderRecognizedPrompt(value)}
+          {renderRecognizedPrompt(value, unresolvedMentions)}
         </div>
         <div aria-hidden="true" className="intent-caret-mirror">
           {value}<span className="intent-caret-anchor" ref={caretRef}>&#8203;</span>
@@ -170,8 +174,10 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
             <strong>@{mention.mention}</strong>
             {mention.address ? <code title={mention.address}>{shortAddress(mention.address)}</code>
               : <small>{mention.detail}</small>}
-            {mention.address ? <b>{mention.priceUsd ? usdPrice(mention.priceUsd) : "Price unavailable"}</b>
-              : null}
+            {mention.address ? <span className="intent-typeahead__evidence">
+              <b>{mention.priceUsd ? usdPrice(mention.priceUsd) : "Price unavailable"}</b>
+              {mention.walletBalance ? <small>Balance {mention.walletBalance}</small> : null}
+            </span> : null}
           </button>)}
         </div> : null}
       </div>

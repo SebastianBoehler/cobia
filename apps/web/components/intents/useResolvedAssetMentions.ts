@@ -26,8 +26,9 @@ function shortAddress(address: string): string {
 export function useResolvedAssetMentions(
   goal: string,
   knownMentions: readonly IntentMention[],
-): IntentMention[] {
+): { assets: IntentMention[]; unresolved: string[] } {
   const [assets, setAssets] = useState<ResolvedAsset[]>([]);
+  const [unresolved, setUnresolved] = useState<string[]>([]);
   const unknown = useMemo(() => {
     const known = new Set(knownMentions.map(({ mention }) => mention.toLowerCase()));
     return extractGoalMentions(goal).filter((mention) => !known.has(mention.toLowerCase())).slice(0, 8);
@@ -44,22 +45,34 @@ export function useResolvedAssetMentions(
         body: JSON.stringify({ symbols: unknown }),
         signal: controller.signal,
       }).then(async (response) => response.ok
-        ? response.json() as Promise<{ assets: ResolvedAsset[] }> : { assets: [] })
-        .then((result) => setAssets(result.assets))
-        .catch(() => { if (!controller.signal.aborted) setAssets([]); });
+        ? response.json() as Promise<{ assets: ResolvedAsset[]; unresolved: string[] }>
+        : { assets: [], unresolved: [] })
+        .then((result) => {
+          setAssets(result.assets);
+          setUnresolved(result.unresolved);
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) {
+            setAssets([]);
+            setUnresolved([]);
+          }
+        });
     }, 250);
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [key, unknown]);
 
   const active = new Set(unknown.map((mention) => mention.toLowerCase()));
-  return assets.filter((asset) => active.has(asset.symbol.toLowerCase())).map((asset) => ({
-    id: `resolved-asset:${asset.chainId}:${asset.address}`,
-    group: "Assets",
-    mention: asset.symbol,
-    address: asset.address,
-    priceUsd: asset.priceUsd,
-    detail: asset.status === "research-only"
-      ? `${asset.name} · ${shortAddress(asset.address)} · research only`
-      : `${asset.name} · ${asset.chainId === 196 ? "X Layer" : "Ethereum"}`,
-  }));
+  return {
+    assets: assets.filter((asset) => active.has(asset.symbol.toLowerCase())).map((asset) => ({
+      id: `resolved-asset:${asset.chainId}:${asset.address}`,
+      group: "Assets",
+      mention: asset.symbol,
+      address: asset.address,
+      priceUsd: asset.priceUsd,
+      detail: asset.status === "research-only"
+        ? `${asset.name} · ${shortAddress(asset.address)} · research only`
+        : `${asset.name} · ${asset.chainId === 196 ? "X Layer" : "Ethereum"}`,
+    })),
+    unresolved: unresolved.filter((mention) => active.has(mention.toLowerCase())),
+  };
 }
