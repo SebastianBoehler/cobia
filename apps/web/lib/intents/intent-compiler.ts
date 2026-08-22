@@ -122,6 +122,10 @@ function amountClarification(question: string | null): boolean {
   return Boolean(question && /\b(amount|balance|input|much|spend)\b/i.test(question));
 }
 
+function requestsNativeOkbOutput(goal: string): boolean {
+  return /\b(?:into|to|for)\s+OKB\s*$/i.test(goal) && /\b(?:USDG|USDt0)\b/i.test(goal);
+}
+
 export function createOpenAiIntentCompiler(options: Options) {
   const fetcher = options.fetcher ?? fetch;
   return { async compile(goal: string, actionPreference: ActionPreference): Promise<IntentCompilation> {
@@ -129,6 +133,10 @@ export function createOpenAiIntentCompiler(options: Options) {
       status: "clarification", question: "Tag one supported service from the @ menu.",
     };
     const normalizedGoal = goal.replace(/@(?=[A-Za-z0-9])/g, "");
+    if (requestsNativeOkbOutput(normalizedGoal)) return {
+      status: "clarification",
+      question: "Native OKB is not a registered route output yet. Choose USDG or USDt0.",
+    };
     const balanceRelative = requestsWalletBalance(normalizedGoal);
     const stagedConversion = actionPreference === "any"
       ? resolveStagedConversionGoal(normalizedGoal, options.assetPricesUsd, options.walletBalances)

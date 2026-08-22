@@ -123,6 +123,21 @@ describe("intent compiler", () => {
     });
   });
 
+  it("explains when native OKB is not a registered terminal asset", async () => {
+    const fetcher = vi.fn();
+    const compiler = createOpenAiIntentCompiler({
+      apiKey: "test", model: "test-model", fetcher,
+      walletBalances: { USDt0: "1" },
+      assetPricesUsd: { OKB: "111.93", USDt0: "0.9999", USDG: "1.0001" },
+    });
+
+    await expect(compiler.compile("all my @USDt0 into @OKB", "any")).resolves.toEqual({
+      status: "clarification",
+      question: "Native OKB is not a registered route output yet. Choose USDG or USDt0.",
+    });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
   it("compiles an exact native OKB conversion into one staged program draft", async () => {
     const fetcher = vi.fn();
     const compiler = createOpenAiIntentCompiler({

@@ -58,6 +58,22 @@ describe("asset mention resolver", () => {
     expect(mismatch.assets[0]?.priceUsd).toBeUndefined();
   });
 
+  it("queries USDt0 by its canonical USDT market symbol", async () => {
+    const canonical = "0x779ded0c9e1022225f8e0630b35a9b54be713736" as const;
+    const okx = { searchXLayerToken: vi.fn(async (symbol: string) => symbol === "USDT"
+      ? { chainId: 196 as const, token: canonical, name: "Tether USD", symbol: "USDT",
+        decimals: 6, priceUsd: "0.9999", liquidityUsd: "2500000", holderCount: "4200" }
+      : undefined) };
+
+    const result = await resolveAssetMentionsV1(["USDt0"], tool({ assets: [] }), okx);
+
+    expect(okx.searchXLayerToken).toHaveBeenCalledWith("USDT");
+    expect(result.assets[0]).toMatchObject({
+      symbol: "USDt0", priceUsd: "0.9999",
+    });
+    expect(result.assets[0]?.address.toLowerCase()).toBe(canonical);
+  });
+
   it("discovers other xStocks as exact research-only X Layer identities", async () => {
     const xstocks = tool({ assets: [aapl] });
     const result = await resolveAssetMentionsV1(["aaplx"], xstocks);

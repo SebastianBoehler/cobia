@@ -1,4 +1,5 @@
 import { isAddressEqual, type Address } from "viem";
+import { SUPPORTED_ASSETS } from "../chain/supported-assets";
 import { INTENT_ASSETS, RWA_INTENT_ASSETS } from "../intents/capability-templates";
 import type { SolverToolV1 } from "../solver-tools/types";
 import type { XStocksToolValueV1 } from "../solver-tools/xstocks";
@@ -67,9 +68,12 @@ export async function resolveAssetMentionsV1(
   await Promise.all(unique.map(async (symbol) => {
     const supported = INTENT_ASSETS.find((asset) => asset.symbol.toLowerCase() === symbol.toLowerCase());
     if (supported) {
+      const canonical = SUPPORTED_ASSETS.find((asset) =>
+        isAddressEqual(asset.address, supported.address));
       assets.push({ symbol: supported.symbol, name: supported.symbol, chainId: 196,
         address: supported.address, status: "supported",
-        priceUsd: await exactXLayerPrice(supported.symbol, supported.address, okx) });
+        priceUsd: await exactXLayerPrice(canonical?.symbol ?? supported.symbol,
+          supported.address, okx) });
       return;
     }
     const registered = RWA_INTENT_ASSETS.find((asset) =>
