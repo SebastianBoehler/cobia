@@ -1,4 +1,5 @@
 import {
+  CapabilityCompositionPolicyV1Schema, CapabilityCompositionSnapshotV1Schema,
   commitment, OpenIntentPolicyV3Schema, OpenIntentSnapshotV1Schema,
 } from "@cobia/domain";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
@@ -232,8 +233,13 @@ export function createSolverSubmissionRepository(db: CobiaDatabase) {
       });
       const snapshotArtifact = artifacts.find(({ kind }) => kind === "snapshot");
       if (!snapshotArtifact) throw new Error("Program snapshot artifact is unavailable");
-      const policy = OpenIntentPolicyV3Schema.parse(intent.policy);
-      const snapshot = OpenIntentSnapshotV1Schema.parse(snapshotArtifact.payload);
+      const composed = intent.policy.kind === "capability-composition";
+      const policy = composed
+        ? CapabilityCompositionPolicyV1Schema.parse(intent.policy)
+        : OpenIntentPolicyV3Schema.parse(intent.policy);
+      const snapshot = composed
+        ? CapabilityCompositionSnapshotV1Schema.parse(snapshotArtifact.payload)
+        : OpenIntentSnapshotV1Schema.parse(snapshotArtifact.payload);
       return {
         state: submission.state,
         solverId: submission.solverId,

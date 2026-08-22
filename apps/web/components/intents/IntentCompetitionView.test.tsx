@@ -99,4 +99,31 @@ describe("IntentCompetitionView", () => {
     expect(html).not.toContain("Verified objective");
     expect(html).toContain("View details");
   });
+
+  it("shows composed authority, ordered actions, receipt outcome, and net-yield rank", () => {
+    const html = renderToStaticMarkup(<IntentCompetitionView
+      goal="Best registered stablecoin yield"
+      closesAt={closesAt}
+      observedAtSec={2_000_000_000}
+      composition={{ actions: ["Aave V3 supply", "Curve exact input", "Uniswap V3 exact input"],
+        maximumLossBps: 100, minimumReceiptValueBps: 9_900, horizonDays: 30 }}
+      history={[]}
+      current={[{ id: "11111111-1111-4111-8111-111111111111", solverId: "alpha",
+        revision: 1, state: "current", validUntil: closesAt,
+        objective: { kind: "composition-net-yield-usd-e8", direction: "maximize",
+          atomic: "87400234", horizonDays: 30 },
+        preview: { outcomes: [{ symbol: "aUSDt0", decimals: 6,
+          beforeAtomic: "0", afterAtomic: "999000", minimumAtomic: "998999" }],
+          stepCount: 2, actions: ["curve-stableswap-ng.exact-input@1", "aave-v3.supply@1"] } }]}
+    />);
+
+    expect(html).toContain("Signed program authority");
+    expect(html).toContain("Conversion loss");
+    expect(html).toContain("≤ 1%");
+    expect(html).toContain("Receipt value");
+    expect(html).toContain("≥ 99%");
+    expect(html).toContain("curve-stableswap-ng.exact-input → aave-v3.supply");
+    expect(html).toContain("+0.999000 aUSDt0");
+    expect(html).toContain("$0.874002 net terminal · 30d");
+  });
 });

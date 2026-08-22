@@ -1,5 +1,9 @@
 import { notFound } from "next/navigation";
-import { OpenIntentSnapshotV1Schema } from "@cobia/domain";
+import {
+  CapabilityCompositionPolicyV1Schema,
+  CapabilityCompositionSnapshotV1Schema,
+  OpenIntentSnapshotV1Schema,
+} from "@cobia/domain";
 import { IntentCompetitionView } from "@/components/intents/IntentCompetitionView";
 import { IntentCompetitionRefresh } from "@/components/intents/IntentCompetitionRefresh";
 import { AppHeader } from "@/components/layout/AppHeader";
@@ -26,7 +30,16 @@ export default async function IntentCompetitionPage({ params }: PageProps<"/inte
     getOpenIntentSnapshotRepository().get(intentId),
   ]);
   if (!storedSnapshot) throw new Error("Published open intent snapshot is unavailable");
-  const snapshot = OpenIntentSnapshotV1Schema.parse(storedSnapshot.snapshot);
+  const composed = intent.policy.kind === "capability-composition";
+  const snapshot = composed
+    ? CapabilityCompositionSnapshotV1Schema.parse(storedSnapshot.snapshot)
+    : OpenIntentSnapshotV1Schema.parse(storedSnapshot.snapshot);
+  const compositionPolicy = composed
+    ? CapabilityCompositionPolicyV1Schema.parse(intent.policy) : undefined;
+  const maximumLoss = compositionPolicy?.constraints.find((item) =>
+    item.kind === "maximum-conversion-loss");
+  const receiptFloor = compositionPolicy?.constraints.find((item) =>
+    item.kind === "minimum-registered-receipt-value");
   const map = (item: (typeof rows.current)[number]) => ({
     id: item.id, solverId: item.solverId, revision: item.revision,
     state: item.presentationState, validUntil: item.validUntil.toISOString(),
@@ -42,7 +55,17 @@ export default async function IntentCompetitionPage({ params }: PageProps<"/inte
         observedAtSec={observedAtSec}
         current={rows.current.map(map)}
         history={rows.history.map(map)}
-        tokenEvidence={snapshot.tokenEvidence}
+        tokenEvidence={snapshot.kind === "open-onchain" ? snapshot.tokenEvidence : undefined}
+        composition={compositionPolicy && maximumLoss && receiptFloor ? {
+          actions: compositionPolicy.allowedCapabilities.map(({ id }) => ({
+            "aave-v3.supply": "Aave V3 supply",
+            "curve-stableswap-ng.exact-input": "Curve exact input",
+            "uniswap-v3.exact-input": "Uniswap V3 exact input",
+          })[id] ?? id),
+          maximumLossBps: maximumLoss.maximumLossBps,
+          minimumReceiptValueBps: receiptFloor.minimumValueBps,
+          horizonDays: compositionPolicy.objective.horizonDays,
+        } : undefined}
       />
     </main>
   </>;

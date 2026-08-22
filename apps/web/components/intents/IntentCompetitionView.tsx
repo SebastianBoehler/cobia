@@ -13,7 +13,8 @@ export interface CompetitionSubmission {
   revision: number;
   state: string;
   validUntil: string;
-  objective: { atomic: string; direction: "maximize" | "minimize" } | null;
+  objective: { atomic: string; direction: "maximize" | "minimize";
+    kind?: string; horizonDays?: number } | null;
   preview: CompetitionProgramPreview | null;
 }
 
@@ -50,11 +51,41 @@ function SubmissionRow({ item, current }: { item: CompetitionSubmission; current
     </div>
     <OutcomePreview preview={item.preview} />
     <div className="competition-row__steps">
-      <small>Wallet sequence</small>
-      <strong>{item.preview ? `Up to ${item.preview.stepCount} wallet ${item.preview.stepCount === 1 ? "step" : "steps"}` : "Not recorded"}</strong>
+      <small>{item.preview?.actions?.length ? "Verified route" : "Wallet sequence"}</small>
+      <strong>{item.preview?.actions?.length
+        ? item.preview.actions.map((action) => action.split("@")[0]).join(" → ")
+        : item.preview ? `Up to ${item.preview.stepCount} wallet ${item.preview.stepCount === 1 ? "step" : "steps"}`
+          : "Not recorded"}</strong>
+      {item.objective?.kind === "composition-net-yield-usd-e8"
+        ? <span>${(Number(item.objective.atomic) / 1e8).toLocaleString("en-US", {
+          maximumFractionDigits: 6,
+        })} net terminal · {item.objective.horizonDays}d</span> : null}
     </div>
     <Link href={`/programs/${item.id}`}>View details <ArrowRight aria-hidden="true" size={15} /></Link>
   </article>;
+}
+
+export interface CompositionAuthoritySummary {
+  actions: string[];
+  maximumLossBps: number;
+  minimumReceiptValueBps: number;
+  horizonDays: number;
+}
+
+function CompositionAuthority({ value }: { value: CompositionAuthoritySummary }) {
+  return <section className="composition-authority" aria-labelledby="composition-authority-title">
+    <header className="section-heading"><div><h2 id="composition-authority-title">Signed program authority</h2>
+      <p>Solvers may combine only these registered actions. Every winning program is replayed in full.</p>
+    </div><ShieldCheck aria-hidden="true" size={20} /></header>
+    <div className="composition-authority__actions">{value.actions.map((action, index) =>
+      <div key={action}><span>{index + 1}</span><strong>{action}</strong><small>Registered</small></div>)}</div>
+    <dl className="composition-authority__bounds">
+      <div><dt>Conversion loss</dt><dd>≤ {value.maximumLossBps / 100}%</dd></div>
+      <div><dt>Receipt value</dt><dd>≥ {value.minimumReceiptValueBps / 100}%</dd></div>
+      <div><dt>Objective horizon</dt><dd>{value.horizonDays} days</dd></div>
+      <div><dt>Ranking</dt><dd>Net terminal USD value</dd></div>
+    </dl>
+  </section>;
 }
 
 function usd(value: string): string {
@@ -105,13 +136,14 @@ function TokenEvidence({ items }: { items: TokenMarketEvidenceV1[] }) {
 }
 
 export function IntentCompetitionView({ goal, closesAt, observedAtSec, current, history,
-  tokenEvidence = [] }: {
+  tokenEvidence = [], composition }: {
   goal: string;
   closesAt: string;
   observedAtSec: number;
   current: CompetitionSubmission[];
   history: CompetitionSubmission[];
   tokenEvidence?: TokenMarketEvidenceV1[];
+  composition?: CompositionAuthoritySummary;
 }) {
   const live = Date.parse(closesAt) > observedAtSec * 1_000;
   const emptyTitle = live ? "Waiting for solver submissions" : "Closed without a verified program";
@@ -133,6 +165,7 @@ export function IntentCompetitionView({ goal, closesAt, observedAtSec, current, 
       </div>
     </section>
 
+    {composition ? <CompositionAuthority value={composition} /> : null}
     {tokenEvidence.length ? <TokenEvidence items={tokenEvidence} /> : null}
 
     <section aria-labelledby="current-programs">

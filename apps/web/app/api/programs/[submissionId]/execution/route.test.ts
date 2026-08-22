@@ -254,4 +254,5 @@ describe("canonical program execution access", () => {
     expect(mocks.profileIdentity).not.toHaveBeenCalled();
     expect(mocks.readPaymentConfig).not.toHaveBeenCalled();
   });
+
 });

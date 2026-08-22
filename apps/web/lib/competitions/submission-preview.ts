@@ -1,11 +1,15 @@
 import { z } from "zod";
+import { isAddressEqual, type Address } from "viem";
+import { PROTOCOL_REGISTRY } from "../adapters/registry";
 
 const AddressSchema = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
 const SnapshotSchema = z.object({ tokenEvidence: z.array(z.object({
   token: AddressSchema, symbol: z.string().min(1), decimals: z.number().int().min(0).max(36),
 })).optional() }).passthrough();
 const ProgramSchema = z.object({
-  actions: z.array(z.unknown()).optional(),
+  actions: z.array(z.object({ capabilityId: z.string().optional(),
+    capabilityVersion: z.number().optional() })
+    .passthrough()).optional(),
   balanceConstraints: z.array(z.object({ token: AddressSchema, atomic: z.string().regex(/^\d+$/) })).optional(),
 }).passthrough();
 const EvidenceSchema = z.object({ balanceDeltas: z.array(z.object({
@@ -27,6 +31,19 @@ export interface CompetitionProgramPreview {
     minimumAtomic?: string;
   }[];
   stepCount: number;
+  actions?: string[];
+}
+
+function registeredToken(token: string) {
+  for (const [symbol, asset] of Object.entries(PROTOCOL_REGISTRY.aaveV3.assets)) {
+    if (isAddressEqual(asset.underlying.address, token as Address)) {
+      return { symbol, decimals: asset.decimals };
+    }
+    if (isAddressEqual(asset.aToken.address, token as Address)) {
+      return { symbol: `a${symbol}`, decimals: asset.decimals };
+    }
+  }
+  return undefined;
 }
 
 export function projectCompetitionProgramPreview(
@@ -51,7 +68,8 @@ export function projectCompetitionProgramPreview(
 
   return {
     outcomes: evidence.data.balanceDeltas.map((delta) => {
-      const token = tokenEvidence.find((item) => item.token.toLowerCase() === delta.token.toLowerCase());
+      const token = tokenEvidence.find((item) => item.token.toLowerCase() === delta.token.toLowerCase())
+        ?? registeredToken(delta.token);
       const constraint = constraints.find((item) => item.token.toLowerCase() === delta.token.toLowerCase());
       return {
         symbol: token?.symbol ?? "Token",
@@ -62,5 +80,9 @@ export function projectCompetitionProgramPreview(
       };
     }),
     stepCount: batch.success ? batchSteps : approvalSteps + routeSteps,
+    ...(program.success && program.data.actions?.length && program.data.actions.every(
+      ({ capabilityId, capabilityVersion }) => capabilityId && capabilityVersion)
+      ? { actions: program.data.actions.map(
+        ({ capabilityId, capabilityVersion }) => `${capabilityId}@${capabilityVersion}`) } : {}),
   };
 }

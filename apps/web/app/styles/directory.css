@@ -97,6 +97,15 @@
 .intent-competition__deadline-label { align-items: center; color: var(--muted); display: inline-flex; font-size: 12px; gap: 7px; }
 .intent-competition__deadline-label svg { color: var(--muted); }
 .intent-competition__deadline strong { font-size: 13px; font-weight: 620; }
+.composition-authority__actions { display: grid; gap: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.composition-authority__actions > div { align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; display: grid; gap: 10px; grid-template-columns: 26px minmax(0, 1fr); min-height: 64px; padding: 12px 14px; }
+.composition-authority__actions span { align-items: center; background: var(--cobalt-wash); border-radius: 50%; color: var(--cobalt); display: inline-flex; font-size: 11px; height: 26px; justify-content: center; }
+.composition-authority__actions strong { font-size: 13px; font-weight: 580; }
+.composition-authority__actions small { color: var(--verified); font-size: 10px; grid-column: 2; }
+.composition-authority__bounds { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 18px 0 0; }
+.composition-authority__bounds div { border-top: 1px solid var(--line); padding: 14px 12px 0 0; }
+.composition-authority__bounds dt { color: var(--muted); font-size: 11px; }
+.composition-authority__bounds dd { font: 12px var(--font-geist-mono), monospace; margin: 5px 0 0; }
 .token-evidence-grid { display: flex; flex-wrap: wrap; gap: 10px; }
 .token-evidence-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; flex: 1 1 340px; max-width: 460px; min-width: 0; overflow: hidden; transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease; }
 .token-evidence-card:hover { border-color: var(--line-strong); box-shadow: var(--shadow-soft); transform: translateY(-1px); }
@@ -135,6 +144,7 @@
 .competition-row__outcomes span, .competition-row__outcomes em { color: var(--muted); font-size: 12px; font-style: normal; }
 .competition-row__outcomes em { color: var(--cobalt-dark); }
 .competition-row__steps { display: grid; gap: 6px; }
+.competition-row__steps span { color: var(--verified); font-size: 11px; }
 .competition-row > a { align-items: center; color: var(--cobalt-dark); display: inline-flex; font-size: 12px; font-weight: 650; gap: 7px; }
 .competition-list--history .competition-row { opacity: .74; }
 .competition-waiting { align-items: start; background: var(--wash); border: 1px solid var(--line); border-radius: 18px; color: var(--muted); display: grid; gap: 14px; grid-template-columns: 22px minmax(0, 1fr); padding: 22px 24px; }
@@ -208,6 +218,7 @@
   .intent-competition__deadline { grid-column: 1 / -1; }
   .token-evidence-card { flex-basis: 100%; max-width: none; }
   .competition-row { align-items: start; grid-template-columns: 1fr; }
+  .composition-authority__actions, .composition-authority__bounds { grid-template-columns: 1fr; }
   .solver-profile { gap: 52px; }
   .solver-profile__overview { background: transparent; border-radius: 0; box-shadow: none; display: grid; gap: 38px; overflow: visible; }
   .solver-profile__hero { grid-template-columns: 54px minmax(0, 1fr); padding: 0; }

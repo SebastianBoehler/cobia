@@ -1,4 +1,9 @@
-import { commitment, OpenIntentPolicyV3Schema } from "@cobia/domain";
+import {
+  CapabilityCompositionPolicyV1Schema,
+  OpenIntentPolicyV3Schema,
+  commitment,
+} from "@cobia/domain";
+import { CapabilityProgramV2Schema } from "@cobia/solvers";
 import { NextResponse } from "next/server";
 import { createPublicClient, erc20Abi, formatUnits, http, isAddressEqual, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -21,6 +26,7 @@ import {
   solverSuccessFeeRequiredResponse,
 } from "../../../../../lib/payments/solver-success-fee";
 import { deriveCapabilityAuthorityV2 } from "../../../../../lib/open-exchange/capability-authority";
+import { deriveCompositionAuthorityV1 } from "../../../../../lib/open-exchange/composition-authority";
 import {
   getSolverProfileRepository, getSolverSubmissionRepository, getSolverSuccessFeeRepository,
 } from "../../../../../lib/runtime/market";
@@ -81,9 +87,14 @@ export async function POST(
         code: "EXECUTION_EXPIRED", message: "The verified execution window has closed. Create a fresh intent.",
       }, { status: 409 });
     }
-    const policy = OpenIntentPolicyV3Schema.parse(stored.policy);
+    const policy = stored.policy.kind === "capability-composition"
+      ? CapabilityCompositionPolicyV1Schema.parse(stored.policy)
+      : OpenIntentPolicyV3Schema.parse(stored.policy);
     let execution: Record<string, unknown>;
     if (executionValue.kind === "wallet-call-batch") {
+      if (policy.kind === "capability-composition") {
+        throw new Error("Composition execution requires an attested capability program");
+      }
       const batch = z.object({ version: z.literal(1), kind: z.literal("wallet-call-batch"),
         owner: z.string(), deadline: z.number().int(), assurance: z.literal("exact-call-fork-replay"),
         stages: z.array(z.object({ stageId: z.string(), chainId: z.union([
@@ -102,7 +113,18 @@ export async function POST(
       };
     } else {
       const config = readCodingAgentV3ExecutionConfig();
-      const authority = deriveCapabilityAuthorityV2(stored.policy, stored.snapshot);
+      const authority = policy.kind === "capability-composition"
+        ? (() => {
+          const programArtifact = stored.artifacts.find(({ kind }) => kind === "program");
+          if (!programArtifact) throw new Error("Verified composition program is unavailable");
+          const program = CapabilityProgramV2Schema.parse(programArtifact.payload);
+          return deriveCompositionAuthorityV1(policy, stored.snapshot, {
+            inputAtomic: program.input.atomic,
+            actions: program.actions,
+            balanceConstraints: program.balanceConstraints,
+          });
+        })()
+        : deriveCapabilityAuthorityV2(policy, stored.snapshot);
       const prepared = prepareAgentExecutionV3({
         context: { ...stored, policy: authority.policy, snapshot: authority.snapshot,
           policyHash: commitment(authority.policy), snapshotHash: commitment(authority.snapshot),
@@ -133,8 +155,10 @@ export async function POST(
         }),
       ]);
       if (balance < required) {
-        const token = stored.snapshot.tokenEvidence?.find((item) =>
-          isAddressEqual(item.token, prepared.approval.to));
+        const token = "tokenEvidence" in stored.snapshot
+          ? stored.snapshot.tokenEvidence?.find((item) =>
+            isAddressEqual(item.token, prepared.approval.to))
+          : undefined;
         const needed = token ? formatUnits(required, token.decimals) : required.toString();
         const available = token ? formatUnits(balance, token.decimals) : balance.toString();
         const message = token
