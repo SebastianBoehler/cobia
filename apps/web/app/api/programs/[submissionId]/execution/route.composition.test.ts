@@ -41,7 +41,7 @@ const owner = "0x1111111111111111111111111111111111111111";
 describe("composition program execution", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("projects an attested composition program through Executor V3", async () => {
+  it("projects an attested composition program and rejects a stale live call", async () => {
     const inputToken = PROTOCOL_REGISTRY.aaveV3.assets.USDG.underlying.address;
     const policy = buildCapabilityCompositionPolicyV1({
       requestId: submissionId, owner, inputToken, inputAtomic: "1000000",
@@ -89,21 +89,31 @@ describe("composition program execution", () => {
       COBIA_VERIFIER_PRIVATE_KEY: `0x${"11".repeat(32)}`,
       XLAYER_RPC_URL: "https://rpc.xlayer.tech",
     });
-    mocks.createPublicClient.mockReturnValue({ readContract: vi.fn()
-      .mockResolvedValueOnce(1_000_000n).mockResolvedValueOnce(1_000_000n) });
+    const call = vi.fn().mockResolvedValue({ data: "0x" });
+    mocks.createPublicClient.mockReturnValue({ call, readContract: vi.fn()
+      .mockResolvedValue(1_000_000n) });
     mocks.assertExecutorReady.mockResolvedValue(undefined);
 
-    const request = new Request(`https://getcobia.com/api/programs/${submissionId}/execution`, {
+    const request = () => new Request(`https://getcobia.com/api/programs/${submissionId}/execution`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ proof: {}, ownerSignature: `0x${"11".repeat(65)}` }),
     });
-    const response = await POST(request, { params: Promise.resolve({ submissionId }) });
+    const response = await POST(request(), { params: Promise.resolve({ submissionId }) });
 
     expect(response.status).toBe(200);
     expect(mocks.deriveAuthority).toHaveBeenCalledWith(policy, expect.anything(),
       expect.objectContaining({ actions: program.actions }));
     await expect(response.json()).resolves.toMatchObject({
       chainId: 196, programVersion: 3, successFee: { state: "waived" },
+    });
+    expect(call).toHaveBeenCalledWith(expect.objectContaining({ account: owner }));
+
+    call.mockRejectedValueOnce(new Error("ProtocolCallFailed"));
+    const stale = await POST(request(), { params: Promise.resolve({ submissionId }) });
+    expect(stale.status).toBe(409);
+    await expect(stale.json()).resolves.toEqual({
+      code: "EXECUTION_STATE_MOVED",
+      message: "Live protocol state moved beyond the verified bounds. Create a fresh intent.",
     });
   });
 });

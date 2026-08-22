@@ -171,6 +171,16 @@ export async function POST(
           availableAtomic: balance.toString(),
         }, { status: 409 });
       }
+      if (allowance >= required) {
+        try {
+          await client.call({ account: proof.owner, to: prepared.execution.to,
+            data: prepared.execution.data, value: 0n });
+        } catch {
+          return NextResponse.json({ code: "EXECUTION_STATE_MOVED",
+            message: "Live protocol state moved beyond the verified bounds. Create a fresh intent." },
+          { status: 409 });
+        }
+      }
       execution = {
         chainId: 196,
         programVersion: 3,

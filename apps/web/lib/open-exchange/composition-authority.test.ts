@@ -1,5 +1,6 @@
 import { commitment, type CapabilityCompositionSnapshotV1 } from "@cobia/domain";
 import { describe, expect, it } from "vitest";
+import { isAddressEqual } from "viem";
 import { PROTOCOL_REGISTRY, registryHash } from "../adapters/registry";
 import { productionCapabilityManifestV1 } from "../capabilities/manifest";
 import { buildCapabilityCompositionPolicyV1 } from "../intents/composition-policy";
@@ -90,6 +91,30 @@ describe("deriveCompositionAuthorityV1", () => {
     expect(result.policy.balanceConstraints[0]).toMatchObject({
       token: usdt0.aToken.address.toLowerCase(), atomic: "998999",
     });
+  });
+
+  it("accepts a committed quote with the signed slippage floor", () => {
+    const slippageSnapshot = structuredClone(snapshot);
+    const quote = slippageSnapshot.route.opportunities.find((item) =>
+      item.kind === "curve-stableswap-ng-exact-input");
+    if (!quote || quote.kind !== "curve-stableswap-ng-exact-input") throw new Error("Fixture quote missing");
+    quote.quotedOutputAtomic = "1000160";
+    const supply = slippageSnapshot.route.opportunities.find((item) =>
+      item.kind === "aave-v3-supply" && isAddressEqual(item.asset, usdt0.underlying.address));
+    if (!supply || supply.kind !== "aave-v3-supply") throw new Error("Fixture supply missing");
+    supply.validatedSupplyAtomic = "990159";
+
+    expect(() => deriveCompositionAuthorityV1(policy, slippageSnapshot, {
+      inputAtomic: "1000000",
+      actions: [{ capabilityId: "curve-stableswap-ng.exact-input", capabilityVersion: 1,
+        valueAtomic: "0", parameters: { tokenIn: usdg.underlying.address,
+          tokenOut: usdt0.underlying.address, amountInAtomic: "1000000",
+          minimumOutputAtomic: "990159" } },
+      { capabilityId: "aave-v3.supply", capabilityVersion: 1, valueAtomic: "0",
+        parameters: { asset: usdt0.underlying.address, amountAtomic: "990159" } }],
+      balanceConstraints: [{ kind: "minimumIncrease", token: usdt0.aToken.address,
+        atomic: "990158" }],
+    })).not.toThrow();
   });
 
   it("rejects capability widening, excessive loss, and the wrong receipt", () => {

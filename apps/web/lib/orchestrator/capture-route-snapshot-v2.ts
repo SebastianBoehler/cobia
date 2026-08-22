@@ -204,7 +204,8 @@ export async function captureRouteSnapshotV2(
   if (deployed > 0n && policy.allowedAdapters.includes("aave-v3@1")) {
     const amountCandidates = [
       { asset: inputAsset.key, amountAtomic: deployed },
-      ...swaps.outputAmounts,
+      ...swaps.outputAmounts.map((item) => ({ ...item,
+        amountAtomic: minimumAfterSlippage(item.amountAtomic, policy.maxSlippageBps) })),
     ];
     const amounts = new Map(amountCandidates.map((candidate) => [
       `${candidate.asset}:${candidate.amountAtomic}`,

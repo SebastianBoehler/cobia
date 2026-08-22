@@ -36,7 +36,7 @@ describe("captureRouteSnapshotV2 Curve venue", () => {
     });
     expect(deps.readReserve).toHaveBeenCalledWith({
       asset: "USDG",
-      amountAtomic: curveQuote().amountOutAtomic,
+      amountAtomic: curveQuote().amountOutAtomic * 9_900n / 10_000n,
       block,
     });
     expect(snapshot.opportunities.filter((opportunity) =>

@@ -107,34 +107,38 @@ export function AgentProgramView({ programId }: { programId: string }) {
     return { value, signature: signature as Hex };
   }
 
+  async function requestExecution(access: ExecutionAccess): Promise<Prepared> {
+    const requestBody = JSON.stringify({ proof: access.value, ownerSignature: access.signature });
+    let response = await fetch(`/api/programs/${programId}/execution`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: requestBody,
+    });
+    let body = await response.json();
+    if (response.status === 402) {
+      if (!wallet.account) throw new Error("Connect the owner wallet.");
+      const credential = await authorizePayment(response, {
+        account: wallet.account, request: wallet.request, switchChain: wallet.switchChain,
+      }, { terms: body.terms as PaymentTerms, owner: wallet.account });
+      response = await fetch(`/api/programs/${programId}/execution`, {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: credential },
+        body: requestBody,
+      });
+      body = await response.json();
+    }
+    if (!response.ok) throw new Error(message(body, "Execution preflight failed."));
+    return body as Prepared;
+  }
+
   async function prepare() {
     setPending(true); setError(undefined);
     try {
       await wallet.switchToXLayer();
       const access = await accessProof();
       setExecutionAccess(access);
-      const requestBody = JSON.stringify({ proof: access.value, ownerSignature: access.signature });
-      let response = await fetch(`/api/programs/${programId}/execution`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: requestBody,
-      });
-      let body = await response.json();
-      if (response.status === 402) {
-        if (!wallet.account) throw new Error("Connect the owner wallet.");
-        const credential = await authorizePayment(response, {
-          account: wallet.account, request: wallet.request, switchChain: wallet.switchChain,
-        }, { terms: body.terms as PaymentTerms, owner: wallet.account });
-        response = await fetch(`/api/programs/${programId}/execution`, {
-          method: "POST", headers: { "Content-Type": "application/json", Authorization: credential },
-          body: requestBody,
-        });
-        body = await response.json();
-      }
-      if (!response.ok) throw new Error(message(body, "Execution preflight failed."));
+      const body = await requestExecution(access);
       if (body.chainId === 1 || body.chainId === 196 || body.chainId === 8453) {
         await wallet.switchChain(body.chainId);
       }
-      setPrepared(body as Prepared);
+      setPrepared(body);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Execution preflight failed.");
     } finally { setPending(false); }
@@ -180,20 +184,22 @@ export function AgentProgramView({ programId }: { programId: string }) {
     if (!prepared) return;
     setPending(true); setError(undefined);
     try {
-      if (prepared.chainId) await wallet.switchChain(prepared.chainId);
-      const direct = prepared.transactions?.[transactionIndex];
-      if (!prepared.execution && !direct) throw new Error("No verified execution call is available.");
-      const transactionHash = await send((prepared.execution ?? direct)!, 1);
+      const access = executionAccess?.value.expiresAt &&
+        executionAccess.value.expiresAt > Math.floor(Date.now() / 1_000) + 10
+        ? executionAccess : await accessProof();
+      const ready = await requestExecution(access);
+      setExecutionAccess(access); setPrepared(ready);
+      if (ready.chainId) await wallet.switchChain(ready.chainId);
+      const direct = ready.transactions?.[transactionIndex];
+      if (!ready.execution && !direct) throw new Error("No verified execution call is available.");
+      const transactionHash = await send((ready.execution ?? direct)!, 1);
       const hashes = [...transactionHashes, transactionHash];
       setTransactionHashes(hashes);
       if (direct && transactionIndex + 1 < prepared.transactions!.length) {
         setTransactionIndex((value) => value + 1);
         return;
       }
-      const receiptAccess = executionAccess?.value.expiresAt &&
-        executionAccess.value.expiresAt > Math.floor(Date.now() / 1_000) + 10
-        ? executionAccess
-        : await accessProof();
+      const receiptAccess = access;
       const response = await fetch(`/api/programs/${programId}/execution/receipt`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

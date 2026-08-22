@@ -76,24 +76,24 @@ describe("captureRouteSnapshotV2", () => {
       (opportunity) => opportunity.kind !== "uniswap-v3-full-range-lp",
     )).toEqual([
       {
-        id: `aave-v3:${usdg.toLowerCase()}:49900000`,
+        id: `aave-v3:${usdg.toLowerCase()}:49401000`,
         kind: "aave-v3-supply",
         adapterId: "aave-v3@1",
         asset: usdg.toLowerCase(),
         supplyRateBps: 40,
         tvlUsdE6: "699993126000",
         availableLiquidityAtomic: "40000000000000",
-        validatedSupplyAtomic: "49900000",
+        validatedSupplyAtomic: "49401000",
       },
       {
-        id: `aave-v3:${usdg.toLowerCase()}:50010000`,
+        id: `aave-v3:${usdg.toLowerCase()}:49509900`,
         kind: "aave-v3-supply",
         adapterId: "aave-v3@1",
         asset: usdg.toLowerCase(),
         supplyRateBps: 40,
         tvlUsdE6: "699993126000",
         availableLiquidityAtomic: "40000000000000",
-        validatedSupplyAtomic: "50010000",
+        validatedSupplyAtomic: "49509900",
       },
       {
         id: `aave-v3:${usdt0.toLowerCase()}:50000000`,
@@ -133,7 +133,7 @@ describe("captureRouteSnapshotV2", () => {
     expect(snapshot.opportunities).toHaveLength(6);
     expect(deps.readReserve).toHaveBeenCalledWith({
       asset: "USDG",
-      amountAtomic: 49_900_000n,
+      amountAtomic: 49_401_000n,
       block,
     });
     expect(deps.readReserve).toHaveBeenCalledWith({

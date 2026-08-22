@@ -46,6 +46,10 @@ function usdE8(atomic: string, value: ReturnType<typeof valuation>): bigint {
   return BigInt(atomic) * BigInt(value.priceUsdE8) / 10n ** BigInt(value.decimals);
 }
 
+function minimumAfterLoss(value: string, lossBps: number): bigint {
+  return (BigInt(value) * BigInt(10_000 - lossBps) + 9_999n) / 10_000n;
+}
+
 export function deriveCompositionAuthorityV1(
   policyInput: unknown,
   snapshotInput: unknown,
@@ -106,20 +110,30 @@ export function deriveCompositionAuthorityV1(
     const swap = SwapParametersSchema.parse(swapAction.parameters);
     const opportunityKind = swapAction.capabilityId.startsWith("curve")
       ? "curve-stableswap-ng-exact-input" : "uniswap-v3-exact-input";
-    const opportunity = snapshot.route.opportunities.find((candidate) =>
-      candidate.kind === opportunityKind &&
-      isAddressEqual(candidate.tokenIn, swap.tokenIn as Address) &&
-      isAddressEqual(candidate.tokenOut, swap.tokenOut as Address) &&
-      candidate.quotedInputAtomic === swap.amountInAtomic &&
-      candidate.quotedOutputAtomic === swap.minimumOutputAtomic);
-    if (!opportunity || !isAddressEqual(swap.tokenIn as Address, policy.input.token) ||
-        !isAddressEqual(swap.tokenOut as Address, suppliedAsset.underlying.address) ||
-        swap.amountInAtomic !== selection.inputAtomic ||
-        supply.amountAtomic !== swap.minimumOutputAtomic) {
-      throw new Error("Swap route does not match a committed opportunity");
-    }
+    const opportunity = snapshot.route.opportunities.find((candidate) => {
+      if (candidate.kind !== "curve-stableswap-ng-exact-input" &&
+          candidate.kind !== "uniswap-v3-exact-input") return false;
+      return candidate.kind === opportunityKind &&
+        isAddressEqual(candidate.tokenIn, swap.tokenIn as Address) &&
+        isAddressEqual(candidate.tokenOut, swap.tokenOut as Address) &&
+        candidate.quotedInputAtomic === swap.amountInAtomic;
+    });
     const loss = policy.constraints.find((constraint) =>
       constraint.kind === "maximum-conversion-loss")!;
+    if (!opportunity || (opportunity.kind !== "curve-stableswap-ng-exact-input" &&
+        opportunity.kind !== "uniswap-v3-exact-input")) {
+      throw new Error("Swap route does not match a committed opportunity");
+    }
+    if (!isAddressEqual(swap.tokenIn as Address, policy.input.token) ||
+        !isAddressEqual(swap.tokenOut as Address, suppliedAsset.underlying.address) ||
+        swap.amountInAtomic !== selection.inputAtomic ||
+        supply.amountAtomic !== swap.minimumOutputAtomic ||
+        BigInt(swap.minimumOutputAtomic) > BigInt(opportunity.quotedOutputAtomic) ||
+        BigInt(swap.minimumOutputAtomic) < minimumAfterLoss(
+          opportunity.quotedOutputAtomic, loss.maximumLossBps,
+        )) {
+      throw new Error("Swap route does not match a committed opportunity");
+    }
     const inputValue = usdE8(swap.amountInAtomic, valuation(snapshot, swap.tokenIn));
     const outputValue = usdE8(swap.minimumOutputAtomic, valuation(snapshot, swap.tokenOut));
     if (outputValue * 10_000n < inputValue * BigInt(10_000 - loss.maximumLossBps)) {
