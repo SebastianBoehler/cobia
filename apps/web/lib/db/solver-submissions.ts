@@ -5,7 +5,7 @@ import {
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { ObjectiveMeasurementV1Schema } from "../competitions/objective-measurement";
-import { projectCompetitionProgramPreview } from "../competitions/submission-preview";
+import { projectCompetitionProgramPreview, projectProgramProtocols } from "../competitions/submission-preview";
 import { projectSubmissionState } from "../competitions/submission-state";
 import type { CobiaDatabase } from "./client";
 import {
@@ -270,6 +270,13 @@ export function createSolverSubmissionRepository(db: CobiaDatabase) {
       const historical = rows.map((row) => ({
         ...row, presentationState: projectSubmissionState(row, observedAtSec),
       })).filter(({ presentationState }) => !["current", "pending"].includes(presentationState));
+      const programArtifacts = historical.length === 0 ? [] : await db.query.cobiaProgramArtifactsV2.findMany({
+        where: and(inArray(cobiaProgramArtifactsV2.submissionId, historical.map(({ id }) => id)),
+          eq(cobiaProgramArtifactsV2.kind, "program")),
+      });
+      const programsBySubmission = new Map(programArtifacts.map(
+        ({ submissionId, payload }) => [submissionId, payload],
+      ));
       return Promise.all(historical.map(async (row) => {
         const solver = await db.query.cobiaSolvers.findFirst({ where: eq(cobiaSolvers.id, row.solverId) });
         if (!solver) throw new Error("Historical submission solver is unavailable");
@@ -281,7 +288,8 @@ export function createSolverSubmissionRepository(db: CobiaDatabase) {
           ? await db.query.cobiaChallenges.findFirst({ where: eq(cobiaChallenges.id, round.challengeId) }) : null;
         const goal = intent?.displayGoal ?? challenge?.displayGoal;
         if (!goal) throw new Error("Historical submission parent is unavailable");
-        return { id: row.id, goal, solver: solver.displayName, state: row.presentationState };
+        return { id: row.id, goal, solver: solver.displayName, state: row.presentationState,
+          protocols: projectProgramProtocols(programsBySubmission.get(row.id)) };
       }));
     },
   };

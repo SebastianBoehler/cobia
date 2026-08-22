@@ -5,6 +5,9 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 import { AssetMark } from "../brand/AssetMark";
 import { ProtocolMark } from "../brand/ProtocolMark";
+import {
+  IntentCompetitionActivity, type CompetitionSolverRun,
+} from "./IntentCompetitionActivity";
 import { formatTokenAmount } from "../../lib/token-amount";
 import type { CompetitionProgramPreview } from "../../lib/competitions/submission-preview";
 import { goalTitleDensity } from "../../lib/intents/goal-title-density";
@@ -92,22 +95,30 @@ export interface CompositionAuthoritySummary {
 }
 
 function CompositionAuthority({ value }: { value: CompositionAuthoritySummary }) {
-  return <section className="composition-authority" aria-labelledby="composition-authority-title">
-    <header className="section-heading"><div><h2 id="composition-authority-title">Signed program authority</h2>
-      <p>Solvers may combine only these registered actions. Every winning program is replayed in full.</p>
-    </div><ShieldCheck aria-hidden="true" size={20} /></header>
-    <div className="composition-authority__actions">{value.actions.map((action) =>
-      <div key={action}><ProtocolMark protocol={protocolLabel(action)} size={28} />
-        <strong>{action}</strong><small>Registered</small></div>)}</div>
-    <dl className="composition-authority__bounds">
-      <div><dt>Conversion loss</dt><dd>≤ {value.maximumLossBps / 100}%</dd></div>
-      <div><dt>Receipt value</dt><dd>≥ {value.minimumReceiptValueBps / 100}%</dd></div>
-      {value.terminalAsset
-        ? <div><dt>Terminal receipt</dt><dd>{value.terminalAsset}</dd></div> : null}
-      <div><dt>Objective horizon</dt><dd>{value.horizonDays} days</dd></div>
-      <div><dt>Ranking</dt><dd>Net terminal USD value</dd></div>
-    </dl>
-  </section>;
+  const maximumLoss = value.maximumLossBps / 100;
+  const minimumValue = value.minimumReceiptValueBps / 100;
+  const protocolSummary = `${value.actions.length} ${value.actions.length === 1 ? "protocol" : "protocols"}`;
+  return <details className="composition-authority">
+    <summary>
+      <span className="composition-authority__summary-icon"><ShieldCheck aria-hidden="true" size={20} /></span>
+      <span><strong>Signed guardrails</strong><small>{protocolSummary} · Max {maximumLoss}% loss
+        {value.terminalAsset ? ` · Ends in ${value.terminalAsset}` : ""}</small></span>
+      <ChevronDown aria-hidden="true" className="composition-authority__chevron" size={18} />
+    </summary>
+    <div className="composition-authority__body">
+      <p>Every proposal can use only these actions, and the verifier replays the complete program.</p>
+      <div className="composition-authority__actions">{value.actions.map((action) =>
+        <div key={action}><ProtocolMark protocol={protocolLabel(action)} size={28} />
+          <strong>{action}</strong></div>)}</div>
+      <dl className="composition-authority__bounds">
+        <div><dt>Your limit</dt><dd>Lose no more than {maximumLoss}% while converting</dd></div>
+        <div><dt>Minimum outcome</dt><dd>Receive value worth at least {minimumValue}% of the input</dd></div>
+        {value.terminalAsset
+          ? <div><dt>Required result</dt><dd>End with {value.terminalAsset} receipt tokens</dd></div> : null}
+        <div><dt>Winner</dt><dd>Highest estimated net value after {value.horizonDays} days</dd></div>
+      </dl>
+    </div>
+  </details>;
 }
 
 function usd(value: string): string {
@@ -158,7 +169,7 @@ function TokenEvidence({ items }: { items: TokenMarketEvidenceV1[] }) {
 }
 
 export function IntentCompetitionView({ goal, closesAt, observedAtSec, current, history,
-  tokenEvidence = [], composition }: {
+  tokenEvidence = [], composition, solverRuns = [] }: {
   goal: string;
   closesAt: string;
   observedAtSec: number;
@@ -166,17 +177,18 @@ export function IntentCompetitionView({ goal, closesAt, observedAtSec, current, 
   history: CompetitionSubmission[];
   tokenEvidence?: TokenMarketEvidenceV1[];
   composition?: CompositionAuthoritySummary;
+  solverRuns?: CompetitionSolverRun[];
 }) {
   const live = Date.parse(closesAt) > observedAtSec * 1_000;
-  const emptyTitle = live ? "Waiting for solver submissions" : "Closed without a verified program";
+  const pendingSolverIds = history.filter(({ state }) => state === "pending").map(({ solverId }) => solverId);
   return <div className="intent-competition">
     <section className="intent-competition__summary">
-      <ShieldCheck aria-hidden="true" size={24} />
-      <div>
+      <div className="intent-competition__intro">
         <h1 data-title-density={goalTitleDensity(goal)}>{goal}</h1>
         <p>{live
-          ? "Independent solvers are working from the signed policy and may publish improved revisions until the deadline."
-          : "The proposal window has ended. Any submitted revisions remain available as auditable evidence below."}</p>
+          ? "Independent solvers compete within the policy you signed. Only verified programs can be ranked."
+          : current.length ? "The proposal window has ended. Verified programs remain available below."
+            : "Closed without a verified program. Submitted revisions remain available as auditable evidence."}</p>
       </div>
       <div className="intent-competition__deadline">
         <span className={`intent-competition__status ${live ? "intent-competition__status--live" : ""}`}>
@@ -187,24 +199,23 @@ export function IntentCompetitionView({ goal, closesAt, observedAtSec, current, 
       </div>
     </section>
 
+    {live ? <IntentCompetitionActivity
+      currentSolverIds={current.map(({ solverId }) => solverId)}
+      pendingSolverIds={pendingSolverIds}
+      runs={solverRuns}
+    /> : null}
+
+    {current.length ? <section aria-labelledby="current-programs">
+      <header className="section-heading"><div><h2 id="current-programs">Verified proposals</h2><p>Programs that reproduced their signed outcome, ranked by objective evidence.</p></div><span>{current.length}</span></header>
+      <div className="competition-list">{current.map((item) => <SubmissionRow current item={item} key={item.id} />)}</div>
+    </section> : null}
+
     {composition ? <CompositionAuthority value={composition} /> : null}
     {tokenEvidence.length ? <TokenEvidence items={tokenEvidence} /> : null}
 
-    <section aria-labelledby="current-programs">
-      <header className="section-heading"><div><h2 id="current-programs">Current programs</h2><p>Newest live revision from each solver, ranked by verifier-owned objective evidence.</p></div><span>{current.length}</span></header>
-      {current.length ? <div className="competition-list">{current.map((item) => <SubmissionRow current item={item} key={item.id} />)}</div>
-        : <div className={`competition-waiting ${live ? "competition-waiting--live" : ""}`} role="status">
-          <CircleDot aria-hidden="true" size={20} />
-          <div><strong>{emptyTitle}</strong><p>{live
-            ? "New solver jobs can still be submitted before the deadline. This page will show independently verified programs as they arrive."
-            : "No independently verified solver program arrived before this competition closed."}</p></div>
-        </div>}
-    </section>
-
-    <section aria-labelledby="revision-history">
+    {history.length ? <section aria-labelledby="revision-history">
       <header className="section-heading"><div><h2 id="revision-history">Revision history</h2><p>Superseded, rejected, expired, and executed programs remain auditable.</p></div><History aria-hidden="true" size={20} /></header>
-      {history.length ? <div className="competition-list competition-list--history">{history.map((item) => <SubmissionRow current={false} item={item} key={item.id} />)}</div>
-        : <p className="empty-state">No earlier revisions yet.</p>}
-    </section>
+      <div className="competition-list competition-list--history">{history.map((item) => <SubmissionRow current={false} item={item} key={item.id} />)}</div>
+    </section> : null}
   </div>;
 }

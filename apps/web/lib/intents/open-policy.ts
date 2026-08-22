@@ -1,4 +1,6 @@
-import { OpenIntentPolicyV3Schema, type OpenIntentPolicyV3 } from "@cobia/domain";
+import {
+  isNativeAssetAddress, OpenIntentPolicyV3Schema, type OpenIntentPolicyV3,
+} from "@cobia/domain";
 import { isAddressEqual, type Address, type Hash } from "viem";
 import { PROTOCOL_REGISTRY } from "../adapters/registry";
 
@@ -10,8 +12,6 @@ const RECEIPT_FLOOR_BPS = 9_950n;
 interface CommonInput {
   requestId: string;
   owner: Address;
-  inputToken: Address;
-  inputAtomic: string;
   nonce: Hash;
   nowSec: number;
   displayGoal: string;
@@ -20,13 +20,18 @@ interface CommonInput {
   forbiddenTargets: Address[];
 }
 
-type BuildInput = CommonInput & (
+type LegacyBuildInput = CommonInput & { inputToken: Address; inputAtomic: string } & (
   | { templateId: "aave-supply"; exposureBps: number }
   | { templateId: "exact-input-swap"; outputToken: Address; minimumOutputAtomic: string }
   | { templateId: "round-trip"; minimumProfitAtomic: string }
   | { templateId: "rwa-acquisition"; outputToken: Address; minimumOutputAtomic: string;
+      outputChainId: 1 | 196 }
+  | { templateId: "rwa-acquisition"; outputToken: Address; minimumOutputAtomic: string;
       instrumentCommitment: Hash; jurisdiction: string; instrumentChainId: 1 | 196 }
 );
+type BuildInput = LegacyBuildInput | CommonInput & { templateId: "staged-conversion";
+  inputs: Array<{ token: Address; maximumAtomic: string }>;
+  outputToken: Address; minimumOutputAtomic: string };
 
 function positive(value: string, label: string): bigint {
   if (!/^[1-9][0-9]*$/.test(value)) throw new Error(`${label} must be a positive atomic amount`);
@@ -40,7 +45,7 @@ function receiptToken(inputToken: Address): Address {
   return entry.aToken.address.toLowerCase() as Address;
 }
 
-function outcome(input: BuildInput) {
+function outcome(input: LegacyBuildInput) {
   const amount = positive(input.inputAtomic, "Input");
   if (input.templateId === "aave-supply") {
     if (!Number.isInteger(input.exposureBps) || input.exposureBps < 1 || input.exposureBps > 10_000) {
@@ -69,8 +74,59 @@ export function buildOpenIntentPolicyV3(input: BuildInput): OpenIntentPolicyV3 {
     input.competitionDurationSec > MAX_COMPETITION_DURATION_SEC) {
     throw new Error("Competition duration must be between 1 and 900 seconds");
   }
+  if (input.templateId === "staged-conversion") {
+    const inputs = input.inputs.map((item) => ({ chainId: 196 as const,
+      token: item.token.toLowerCase() as Address,
+      maximumAtomic: positive(item.maximumAtomic, "Input").toString() }))
+      .sort((left, right) => left.token.localeCompare(right.token));
+    if (inputs.length < 1 || inputs.length > 8 ||
+        new Set(inputs.map(({ token }) => token)).size !== inputs.length) {
+      throw new Error("Staged conversion inputs must be unique");
+    }
+    const nativeValue = inputs.filter(({ token }) => isNativeAssetAddress(token))
+      .reduce((sum, item) => sum + BigInt(item.maximumAtomic), 0n);
+    return OpenIntentPolicyV3Schema.parse({
+      version: 3, kind: "open-onchain", requestId: input.requestId,
+      displayGoal: input.displayGoal.trim(), owner: input.owner.toLowerCase(),
+      executionChainIds: [196], nonce: input.nonce, createdAt: input.nowSec,
+      deadline: input.nowSec + DEADLINE_LIFETIME_SEC,
+      competition: { closesAt: input.nowSec + input.competitionDurationSec,
+        maxRevisionsPerSolver: MAX_REVISIONS_PER_SOLVER },
+      maxEvidenceAgeSec: 300, inputs,
+      outcomes: [{ kind: "minimum-increase", chainId: 196,
+        token: input.outputToken.toLowerCase(),
+        atomic: positive(input.minimumOutputAtomic, "Minimum output").toString() }],
+      limits: { maxStages: inputs.length, maxTransactions: inputs.length,
+        maxApprovals: inputs.filter(({ token }) => !isNativeAssetAddress(token)).length,
+        maxCalldataBytes: 32_768, maxGasPerTransaction: "5000000",
+        maxSolverFeeAtomic: input.maxSolverFeeAtomic,
+        maxNativeValueAtomicByChain: [{ chainId: 196, atomic: nativeValue.toString() }] },
+      forbiddenTargets: input.forbiddenTargets, forbiddenAssets: [],
+    });
+  }
   if (input.templateId === "rwa-acquisition") {
-    const chainIds = input.instrumentChainId === 196 ? [196] : [1, 196];
+    if ("instrumentChainId" in input) {
+      const chainIds = input.instrumentChainId === 196 ? [196] : [1, 196];
+      return OpenIntentPolicyV3Schema.parse({
+        version: 3, kind: "open-onchain", requestId: input.requestId,
+        displayGoal: input.displayGoal.trim(), owner: input.owner.toLowerCase(),
+        executionChainIds: chainIds, nonce: input.nonce, createdAt: input.nowSec,
+        deadline: input.nowSec + DEADLINE_LIFETIME_SEC,
+        competition: { closesAt: input.nowSec + input.competitionDurationSec,
+          maxRevisionsPerSolver: MAX_REVISIONS_PER_SOLVER }, maxEvidenceAgeSec: 300,
+        inputs: [{ chainId: input.instrumentChainId, token: input.inputToken.toLowerCase(),
+          maximumAtomic: input.inputAtomic }],
+        outcomes: [{ kind: "registered-instrument", chainId: input.instrumentChainId,
+          token: input.outputToken.toLowerCase(), minimumIncreaseAtomic: input.minimumOutputAtomic,
+          instrumentCommitment: input.instrumentCommitment, jurisdiction: input.jurisdiction,
+          eligibilityAttested: true }],
+        limits: { maxStages: 4, maxTransactions: 2, maxApprovals: 2, maxCalldataBytes: 32_768,
+          maxGasPerTransaction: "5000000", maxSolverFeeAtomic: input.maxSolverFeeAtomic,
+          maxNativeValueAtomicByChain: chainIds.map((chainId) => ({ chainId, atomic: "0" })) },
+        forbiddenTargets: input.forbiddenTargets, forbiddenAssets: [],
+      });
+    }
+    const chainIds = [...new Set([196, input.outputChainId])].sort((left, right) => left - right);
     return OpenIntentPolicyV3Schema.parse({
       version: 3, kind: "open-onchain", requestId: input.requestId,
       displayGoal: input.displayGoal.trim(), owner: input.owner.toLowerCase(),
@@ -79,11 +135,9 @@ export function buildOpenIntentPolicyV3(input: BuildInput): OpenIntentPolicyV3 {
       competition: { closesAt: input.nowSec + input.competitionDurationSec,
         maxRevisionsPerSolver: MAX_REVISIONS_PER_SOLVER },
       maxEvidenceAgeSec: 300,
-      inputs: [{ chainId: input.instrumentChainId, token: input.inputToken.toLowerCase(), maximumAtomic: input.inputAtomic }],
-      outcomes: [{ kind: "registered-instrument", chainId: input.instrumentChainId,
-        token: input.outputToken.toLowerCase(), minimumIncreaseAtomic: input.minimumOutputAtomic,
-        instrumentCommitment: input.instrumentCommitment, jurisdiction: input.jurisdiction,
-        eligibilityAttested: true }],
+      inputs: [{ chainId: 196, token: input.inputToken.toLowerCase(), maximumAtomic: input.inputAtomic }],
+      outcomes: [{ kind: "minimum-increase", chainId: input.outputChainId,
+        token: input.outputToken.toLowerCase(), atomic: input.minimumOutputAtomic }],
       limits: { maxStages: 4, maxTransactions: 2, maxApprovals: 2, maxCalldataBytes: 32_768,
         maxGasPerTransaction: "5000000", maxSolverFeeAtomic: input.maxSolverFeeAtomic,
         maxNativeValueAtomicByChain: chainIds.map((chainId) => ({ chainId, atomic: "0" })) },

@@ -9,6 +9,7 @@ import "./globals.css";
 import "./styles/landing.css";
 import "./styles/intent-v2.css";
 import "./styles/directory.css";
+import "./styles/competition.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

@@ -1,4 +1,6 @@
-import { commitment, OpenIntentSnapshotV1Schema, TransactionProgramV1Schema } from "@cobia/domain";
+import {
+  commitment, isNativeAssetAddress, OpenIntentSnapshotV1Schema, TransactionProgramV1Schema,
+} from "@cobia/domain";
 import {
   ProviderArtifactsV1Schema,
   TransactionProgramEvidenceV1Schema,
@@ -107,7 +109,7 @@ export async function captureOpenTransactionProgramSimulationsV1(input: {
       const checkpoint = await input.rpc("evm_snapshot") as string;
       const discoveryRun = await runCalls(input.rpc, owner, verified.calls);
       const found = discovered(discoveryRun.receipts, owner);
-      found.tokens.add(stage.input.token);
+      if (!isNativeAssetAddress(stage.input.token)) found.tokens.add(stage.input.token);
       found.tokens.add(stage.output.token);
       if (stage.approval) found.allowances.set(`${stage.approval.token}:${stage.approval.spender}`,
         { token: stage.approval.token, spender: stage.approval.spender });
@@ -121,7 +123,8 @@ export async function captureOpenTransactionProgramSimulationsV1(input: {
         [token, await tokenBalance(input.rpc, token, owner)] as const)));
       const logs = reproduced.receipts.flatMap(({ logs }) => logs.map(({ address, data, topics }) =>
         ({ address: address.toLowerCase(), data: data.toLowerCase(), topics: topics.map((value) => value.toLowerCase()) })));
-      const required = new Set<Address>([stage.transaction.target, stage.input.token, stage.output.token]);
+      const required = new Set<Address>([stage.transaction.target, stage.output.token]);
+      if (!isNativeAssetAddress(stage.input.token)) required.add(stage.input.token);
       if (stage.approval) { required.add(stage.approval.token); required.add(stage.approval.spender); }
       simulations.push({ stageId: stage.id, chainId: stage.chainId,
         blockNumber: anchor.blockNumber, blockHash: anchor.blockHash,

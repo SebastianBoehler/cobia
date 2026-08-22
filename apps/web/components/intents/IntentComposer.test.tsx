@@ -431,7 +431,7 @@ describe("IntentComposer", () => {
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     const body = JSON.parse(String(fetchMock.mock.calls[1]![1].body));
-    expect(state.switchChain).toHaveBeenCalledWith(196);
+    expect(state.switchToXLayer).toHaveBeenCalled();
     expect(body.policy).toMatchObject({
       executionChainIds: [196],
       inputs: [{ chainId: 196, token: values.inputToken.toLowerCase() }],
@@ -439,5 +439,101 @@ describe("IntentComposer", () => {
         token: tesla.address.toLowerCase(), minimumIncreaseAtomic: "10000000000000000" }],
     });
     expect(body.policy.outcomes[0].instrumentCommitment).toMatch(/^0x[0-9a-f]{64}$/);
+  });
+
+  it("signs USDt0 to USDY as a cross-chain bounded intent without legal fields", async () => {
+    const usdt0 = INTENT_ASSETS.find(({ symbol }) => symbol === "USDt0")!;
+    const usdy = RWA_INTENT_ASSETS.find(({ symbol }) => symbol === "USDY")!;
+    const values = {
+      templateId: "rwa-acquisition" as const,
+      inputToken: usdt0.address,
+      outputToken: usdy.address,
+      amount: "1",
+      minimum: "0.8",
+      maxSolverFeeUsd: "0",
+      jurisdiction: "",
+      eligibilityAccepted: true,
+    };
+    const fetchMock = vi.fn().mockImplementation((url: string) => url === "/api/intents/compile"
+      ? Promise.resolve(Response.json({ status: "review", values }))
+      : Promise.resolve(Response.json({ links: { intent: "/intents/usdy" } }, { status: 202 })));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<IntentComposer />);
+    fireEvent.change(screen.getByLabelText("What should happen?"), {
+      target: { value: "turn 1 USDt0 into USDY" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Review policy" }));
+    await screen.findByRole("heading", { name: "Review the policy" });
+    fireEvent.click(screen.getByRole("button", { name: "Sign and publish intent" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const body = JSON.parse(String(fetchMock.mock.calls[1]![1].body));
+    expect(state.switchToXLayer).toHaveBeenCalled();
+    expect(body.policy).toMatchObject({
+      executionChainIds: [1, 196],
+      inputs: [{ chainId: 196, token: usdt0.address.toLowerCase(), maximumAtomic: "1000000" }],
+      outcomes: [{ kind: "minimum-increase", chainId: 1,
+        token: usdy.address.toLowerCase(), atomic: "800000000000000000" }],
+    });
+    expect(JSON.stringify(body.policy)).not.toContain("jurisdiction");
+    expect(JSON.stringify(body.policy)).not.toContain("eligibilityAttested");
+  });
+
+  it("reviews and signs one staged policy with native OKB and USDt0 inputs", async () => {
+    const values = {
+      kind: "staged-conversion" as const,
+      templateId: "staged-conversion" as const,
+      inputs: [
+        { kind: "native" as const, chainId: 196 as const,
+          token: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" as const,
+          symbol: "OKB", decimals: 18, amount: "0.005" },
+        { kind: "erc20" as const, chainId: 196 as const,
+          token: INTENT_ASSETS.find(({ symbol }) => symbol === "USDt0")!.address,
+          symbol: "USDt0", decimals: 6, amount: "1" },
+      ],
+      outputToken: INTENT_ASSETS.find(({ symbol }) => symbol === "USDG")!.address,
+      outputSymbol: "USDG", outputDecimals: 6,
+      minimum: "1.521679", minimumSource: "market-default" as const,
+      maxSolverFeeUsd: "0",
+    };
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url === "/api/assets/resolve") {
+        return Promise.resolve(Response.json({ assets: [], unresolved: [] }));
+      }
+      return url === "/api/intents/compile"
+        ? Promise.resolve(Response.json({ status: "review", values }))
+        : Promise.resolve(Response.json({ links: { intent: "/intents/staged" } }, { status: 202 }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<IntentComposer />);
+    fireEvent.change(screen.getByLabelText("What should happen?"), {
+      target: { value: "Turn 0.005 @OKB and 1 @USDt0 into @USDG" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Review policy" }));
+
+    expect(await screen.findByRole("heading", { name: "Review the staged conversion" })).toBeVisible();
+    expect(screen.getByLabelText("Maximum input · OKB")).toHaveValue("0.005");
+    expect(screen.getByLabelText("Maximum input · USDt0")).toHaveValue("1");
+    expect(screen.getByText("Native OKB")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Sign and publish intent" }));
+
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => url === "/api/intents")).toBe(true));
+    const publish = fetchMock.mock.calls.find(([url]) => url === "/api/intents")!;
+    const body = JSON.parse(String(publish[1].body));
+    expect(body.policy).toMatchObject({
+      kind: "open-onchain",
+      inputs: [
+        { token: INTENT_ASSETS.find(({ symbol }) => symbol === "USDt0")!.address.toLowerCase(),
+          maximumAtomic: "1000000" },
+        { token: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          maximumAtomic: "5000000000000000" },
+      ],
+      outcomes: [{ token: INTENT_ASSETS.find(({ symbol }) => symbol === "USDG")!.address.toLowerCase(),
+        atomic: "1521679" }],
+      limits: { maxNativeValueAtomicByChain: [{ chainId: 196, atomic: "5000000000000000" }] },
+    });
+    expect(state.request).toHaveBeenCalledWith({
+      method: "personal_sign", params: [commitment(body.policy), owner],
+    });
   });
 });

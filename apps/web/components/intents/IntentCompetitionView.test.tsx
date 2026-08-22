@@ -27,7 +27,7 @@ describe("IntentCompetitionView", () => {
     expect(shortHtml).toContain('data-title-density="short"');
   });
 
-  it("makes a live empty competition read as waiting for submissions", () => {
+  it("shows an active exchange without pretending that a solver has started", () => {
     const html = renderToStaticMarkup(<IntentCompetitionView
       goal="Supply bounded USDG"
       closesAt={closesAt}
@@ -36,10 +36,54 @@ describe("IntentCompetitionView", () => {
       history={[]}
     />);
 
-    expect(html).not.toContain("Live · accepting proposals");
-    expect(html).toContain("Accepting proposals");
-    expect(html).toContain("Waiting for solver submissions");
-    expect(html).toContain("New solver jobs can still be submitted before the deadline.");
+    expect(html).toContain('data-competition-state="open"');
+    expect(html).toContain("Solver competition is active");
+    expect(html).toContain("Listening for signed proposals");
+    expect(html).toContain("Checks for updates every 10 seconds");
+    expect(html).not.toContain("Waiting for solver submissions");
+  });
+
+  it("shows evidence-backed solver work as a polite busy state", () => {
+    const html = renderToStaticMarkup(<IntentCompetitionView
+      goal="Supply bounded USDG"
+      closesAt={closesAt}
+      observedAtSec={2_000_000_000}
+      current={[]}
+      history={[]}
+      solverRuns={[
+        { solverId: "cobia-route-scout", displayName: "Cobia Route Scout",
+          revision: 1, state: "running", updatedAt: "2033-05-18T03:33:20.000Z" },
+        { solverId: "cobia-route-challenger", displayName: "Cobia Route Challenger",
+          revision: 1, state: "queued", updatedAt: "2033-05-18T03:33:21.000Z" },
+      ]}
+    />);
+
+    expect(html).toContain("Solvers are working");
+    expect(html).toContain('aria-busy="true"');
+    expect(html).toContain("Cobia Route Scout");
+    expect(html).toContain("Building a program");
+    expect(html).toContain("Cobia Route Challenger");
+    expect(html).toContain("Waiting to start");
+  });
+
+  it("distinguishes verifier work from proposals ready for wallet review", () => {
+    const pending = renderToStaticMarkup(<IntentCompetitionView
+      goal="Supply bounded USDG" closesAt={closesAt} observedAtSec={2_000_000_000}
+      current={[]}
+      history={[{ id: "11111111-1111-4111-8111-111111111111", solverId: "alpha", revision: 1,
+        state: "pending", validUntil: closesAt, objective: null, preview: null }]}
+    />);
+    const ready = renderToStaticMarkup(<IntentCompetitionView
+      goal="Supply bounded USDG" closesAt={closesAt} observedAtSec={2_000_000_000}
+      history={[]}
+      current={[{ id: "11111111-1111-4111-8111-111111111111", solverId: "alpha", revision: 1,
+        state: "current", validUntil: closesAt, objective: null, preview: null }]}
+    />);
+
+    expect(pending).toContain('data-competition-state="verifying"');
+    expect(pending).toContain("Verifier is checking proposals");
+    expect(ready).toContain('data-competition-state="ready"');
+    expect(ready).toContain("Verified proposals are ready");
   });
 
   it("does not describe an elapsed competition as pending", () => {
@@ -53,7 +97,7 @@ describe("IntentCompetitionView", () => {
 
     expect(html).toContain("Competition closed");
     expect(html).toContain("Closed without a verified program");
-    expect(html).not.toContain("Waiting for solver submissions");
+    expect(html).not.toContain("Solver activity");
   });
 
   it("renders compact, icon-led token evidence with the exact frozen details available", () => {
@@ -140,12 +184,13 @@ describe("IntentCompetitionView", () => {
           stepCount: 2, actions: ["curve-stableswap-ng.exact-input@1", "aave-v3.supply@1"] } }]}
     />);
 
-    expect(html).toContain("Signed program authority");
-    expect(html).toContain("Conversion loss");
-    expect(html).toContain("≤ 1%");
-    expect(html).toContain("Receipt value");
-    expect(html).toContain("≥ 99%");
-    expect(html).toContain("Terminal receipt");
+    expect(html).toContain("Signed guardrails");
+    expect(html).toContain("3 protocols · Max 1% loss · Ends in USDt0");
+    expect(html).toContain("Your limit");
+    expect(html).toContain("Lose no more than 1% while converting");
+    expect(html).toContain("Minimum outcome");
+    expect(html).toContain("Receive value worth at least 99% of the input");
+    expect(html).toContain("Required result");
     expect(html).toContain("USDt0");
     expect(html).toContain('aria-label="Aave V3"');
     expect(html).toContain('aria-label="Curve"');

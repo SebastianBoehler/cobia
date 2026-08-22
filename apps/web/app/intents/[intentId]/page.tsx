@@ -8,7 +8,8 @@ import { IntentCompetitionView } from "@/components/intents/IntentCompetitionVie
 import { IntentCompetitionRefresh } from "@/components/intents/IntentCompetitionRefresh";
 import { AppHeader } from "@/components/layout/AppHeader";
 import {
-  getIntentRepository, getOpenIntentSnapshotRepository, getSolverSubmissionRepository,
+  getIntentRepository, getOpenIntentSnapshotRepository, getSolverRunRepository,
+  getSolverSubmissionRepository,
 } from "@/lib/runtime/market";
 import { currentUnixSeconds } from "@/lib/time";
 import { SUPPORTED_ASSETS } from "@/lib/chain/supported-assets";
@@ -26,9 +27,10 @@ export default async function IntentCompetitionPage({ params }: PageProps<"/inte
   const intent = await getIntentRepository().get(intentId);
   if (!intent) notFound();
   const observedAtSec = currentUnixSeconds();
-  const [rows, storedSnapshot] = await Promise.all([
+  const [rows, storedSnapshot, solverRuns] = await Promise.all([
     getSolverSubmissionRepository().listForIntent(intentId, observedAtSec),
     getOpenIntentSnapshotRepository().get(intentId),
+    getSolverRunRepository().listForIntent(intentId),
   ]);
   if (!storedSnapshot) throw new Error("Published open intent snapshot is unavailable");
   const composed = intent.policy.kind === "capability-composition";
@@ -62,6 +64,9 @@ export default async function IntentCompetitionPage({ params }: PageProps<"/inte
         observedAtSec={observedAtSec}
         current={rows.current.map(map)}
         history={rows.history.map(map)}
+        solverRuns={solverRuns.map((run) => ({
+          ...run, updatedAt: run.updatedAt.toISOString(),
+        }))}
         tokenEvidence={snapshot.kind === "open-onchain" ? snapshot.tokenEvidence : undefined}
         composition={compositionPolicy && maximumLoss && receiptFloor ? {
           actions: compositionPolicy.allowedCapabilities.map(({ id }) => ({

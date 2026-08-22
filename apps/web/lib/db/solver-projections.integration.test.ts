@@ -92,6 +92,10 @@ describe("solver competition projections", () => {
       programHash: hash("5"), validUntilSec: nowSec + 120,
       blockNumber: "123456", blockHash: hash("3"), observedAtSec: nowSec - 20,
     });
+    await submissions.appendArtifact(first.id, "program", { actions: [
+      { capabilityId: "curve-stableswap-ng.exact-input" },
+      { capabilityId: "aave-v3.supply" },
+    ] });
     await submissions.resolve(first.id, "verified", []);
     await submissions.resolve(first.id, "attested", []);
     await completeRun("alpha-solver", 2, "123457", hash("7"));
@@ -129,6 +133,9 @@ describe("solver competition projections", () => {
     expect(view.history).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: first.id, presentationState: "superseded" }),
       expect.objectContaining({ id: rejected.id, presentationState: "rejected" }),
+    ]));
+    await expect(submissions.listHistory(nowSec)).resolves.toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: first.id, protocols: ["Curve", "Aave V3"] }),
     ]));
     const profile = await createSolverProfileRepository(db()).read("alpha-solver", nowSec);
     expect(profile?.submissions.map(({ id }) => id)).toEqual([second.id, first.id]);

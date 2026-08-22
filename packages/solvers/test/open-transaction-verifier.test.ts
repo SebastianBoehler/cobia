@@ -149,4 +149,47 @@ describe("open transaction-program verifier", () => {
       policy: { ...policy, forbiddenTargets: [target] },
     }))).toMatchObject({ accepted: false });
   });
+
+  it("accepts one program that binds ERC-20 and native OKB input stages", async () => {
+    const native = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" as const;
+    const multiPolicy: OpenIntentPolicyV3 = {
+      ...policy,
+      displayGoal: "Turn 5 native OKB and 10 input tokens into output tokens",
+      inputs: [policy.inputs[0]!, { chainId: 196, token: native, maximumAtomic: "5" }],
+      limits: { ...policy.limits, maxStages: 2, maxTransactions: 2, maxApprovals: 1,
+        maxNativeValueAtomicByChain: [{ chainId: 196, atomic: "5" }] },
+    };
+    const { approval: _approval, ...stageWithoutApproval } = program.stages[0]!;
+    const nativeStage = {
+      ...stageWithoutApproval, id: "02-native", dependsOn: ["01-solve"],
+      input: { token: native, atomic: "5" },
+      transaction: { ...program.stages[0]!.transaction, valueAtomic: "5" },
+    };
+    const multiProgram = { ...program, policyHash: commitment(multiPolicy),
+      stages: [program.stages[0], nativeStage] };
+    const ercSimulation = { ...simulation, assetDeltas: [
+      simulation.assetDeltas[0]!,
+      { ...simulation.assetDeltas[1]!, afterAtomic: "10", deltaAtomic: "10" },
+    ] };
+    const nativeSimulation = { ...simulation, stageId: "02-native", assetDeltas: [
+      { ...simulation.assetDeltas[1]!, beforeAtomic: "10", afterAtomic: "20", deltaAtomic: "10" },
+    ], allowanceDeltas: [], codeIdentities: identities.filter(({ address }) => address !== inputToken) };
+    const multiEvidence = TransactionProgramEvidenceV1Schema.parse({
+      version: 1, programHash: commitment(multiProgram), capturedAt: 1_786_900_100,
+      simulations: [ercSimulation, nativeSimulation],
+    });
+    const nativePayload = { ...providerPayload, stageId: "02-native",
+      transaction: { ...providerPayload.transaction, valueAtomic: "5" } };
+    const multiArtifacts = { version: 1, artifacts: [providerArtifacts.artifacts[0], {
+      stageId: "02-native", provider: "evm.raw@1",
+      payloadHash: commitment(nativePayload), payload: nativePayload,
+    }] };
+
+    await expect(verifyOpenTransactionProgramV1(dependencies({
+      policy: multiPolicy, program: multiProgram, evidence: multiEvidence,
+      providerArtifacts: multiArtifacts,
+      replay: vi.fn(async () => ({ reproduced: true, simulations: multiEvidence.simulations })),
+    }))).resolves.toMatchObject({ accepted: true,
+      objective: { atomic: "20" }, stageAuthorizations: [{ stageId: "01-solve" }, { stageId: "02-native" }] });
+  });
 });

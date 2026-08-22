@@ -47,7 +47,7 @@ function encoded(value: bigint) {
   return encodeAbiParameters([{ type: "uint256" }], [value]);
 }
 
-function fakeRpc() {
+function fakeRpc(native = false) {
   let balances = new Map([[inputToken, 10n], [outputToken, 0n]]);
   let saved = new Map(balances);
   let sequence = 0;
@@ -62,11 +62,11 @@ function fakeRpc() {
       return encoded(balances.get(call.to) ?? 0n);
     }
     if (method === "eth_sendTransaction") {
-      balances.set(inputToken, balances.get(inputToken)! - 10n);
+      if (!native) balances.set(inputToken, balances.get(inputToken)! - 10n);
       balances.set(outputToken, balances.get(outputToken)! + 2n);
       const txHash = hash((++sequence).toString(16));
       receipts.set(txHash, { status: "0x1", gasUsed: "0x186a0", logs: [
-        { address: inputToken, data: encoded(10n), topics: [transfer, padHex(owner), padHex(target)] },
+        ...(!native ? [{ address: inputToken, data: encoded(10n), topics: [transfer, padHex(owner), padHex(target)] }] : []),
         { address: outputToken, data: encoded(2n), topics: [transfer, padHex(target), padHex(owner)] },
       ] });
       return txHash;
@@ -106,5 +106,26 @@ describe("open transaction fork replay", () => {
       evidence: { version: 1, programHash: commitment(program), capturedAt: 2_000_000_020,
         simulations: first.simulations }, providerArtifacts, snapshot, rpc: fakeRpc() });
     expect(exact.reproduced).toBe(true);
+  });
+
+  it("tracks native OKB through exact value instead of gas-contaminated balance deltas", async () => {
+    const native = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" as Address;
+    const stage = program.stages[0];
+    const nativeProgram = { ...program, stages: [{ ...stage,
+      input: { token: native, atomic: "10" },
+      transaction: { ...stage.transaction, valueAtomic: "10" } }] };
+    const nativePayload = { ...payload,
+      transaction: { ...payload.transaction, valueAtomic: "10" } };
+    const nativeArtifacts = { version: 1 as const, artifacts: [{ stageId: "01-swap",
+      provider: "evm.raw@1" as const, payloadHash: commitment(nativePayload), payload: nativePayload }] };
+
+    const simulations = await captureOpenTransactionProgramSimulationsV1({
+      program: nativeProgram, providerArtifacts: nativeArtifacts, snapshot, rpc: fakeRpc(true),
+    });
+
+    expect(simulations[0]?.assetDeltas).toEqual([
+      { token: outputToken, account: owner, beforeAtomic: "0", afterAtomic: "2", deltaAtomic: "2" },
+    ]);
+    expect(simulations[0]?.codeIdentities.map(({ address }) => address)).toEqual([outputToken, target]);
   });
 });

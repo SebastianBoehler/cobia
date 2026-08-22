@@ -7,7 +7,8 @@ describe("DiscoverView", () => {
     const html = renderToStaticMarkup(<DiscoverView
       challenges={[{ id: "stable-outcome", title: "Stable outcome", goal: "Find the strongest bounded stablecoin outcome.", availability: "between-rounds" }]}
       intents={[{ id: "550e8400-e29b-41d4-a716-446655440000", goal: "Move 10 USDG with a minimum.", state: "collecting", closesAt: "2026-08-18T18:00:00.000Z" }]}
-      history={[{ id: "program-1", goal: "Past stablecoin discovery", solver: "Cobia coding agent", state: "expired" }]}
+      history={[{ id: "program-1", goal: "Past stablecoin discovery", solver: "Cobia coding agent", state: "expired",
+        protocols: ["Curve", "Aave V3"] }]}
       commerceOffers={[]}
       observedAtSec={2_000_000_000}
     />);
@@ -28,6 +29,8 @@ describe("DiscoverView", () => {
     expect(html.indexOf("</aside>")).toBeLessThan(html.indexOf("Past discoveries"));
     expect(html.indexOf("Past discoveries")).toBeLessThan(html.indexOf("Paid resources"));
     expect(html).toContain("Expired");
+    expect(html).toContain("brand-mark--curve");
+    expect(html).toContain("brand-mark--aave");
     expect(html).not.toContain("Execute");
     expect(html).toContain('href="/intents/new?challenge=stable-outcome"');
   });
@@ -45,6 +48,7 @@ describe("DiscoverView", () => {
   it("keeps older discoveries available without making them compete with current actions", () => {
     const history = Array.from({ length: 7 }, (_, index) => ({
       id: `program-${index}`, goal: `Past discovery ${index}`, solver: "Cobia coding agent", state: "executed",
+      protocols: [],
     }));
     const html = renderToStaticMarkup(<DiscoverView challenges={[]} history={history} intents={[]}
       commerceOffers={[]} observedAtSec={2_000_000_000} />);

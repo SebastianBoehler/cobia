@@ -7,6 +7,7 @@ export * from "./commerce-order-policy";
 export * from "./general-intent-policy";
 export * from "./network-metrics";
 export * from "./open-intent-policy";
+export * from "./native-asset";
 export * from "./onchain-read";
 export * from "./persisted";
 export * from "./policy";

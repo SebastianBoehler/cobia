@@ -1,6 +1,6 @@
 import type { Address } from "viem";
 import {
-  CAPABILITY_TEMPLATES, INTENT_ASSETS, RWA_INTENT_ASSETS, atomicLabel, rwaInputAsset,
+  CAPABILITY_TEMPLATES, INTENT_ASSETS, RWA_INTENT_ASSETS, atomicLabel,
   type CapabilityTemplateId, type IntentReceiptValues,
 } from "../../lib/intents/capability-templates";
 
@@ -12,12 +12,7 @@ export function PolicyReceiptEditor({ values, owner, onChange }: {
   onChange(values: ReceiptValues): void;
 }) {
   const rwa = values.templateId === "rwa-acquisition";
-  const selectedInstrument = rwa
-    ? RWA_INTENT_ASSETS.find(({ address }) => address === values.outputToken)?.instrument
-      ?? RWA_INTENT_ASSETS[0]!.instrument
-    : undefined;
-  const input = selectedInstrument ? rwaInputAsset(selectedInstrument)
-    : INTENT_ASSETS.find(({ address }) => address === values.inputToken) ?? INTENT_ASSETS[0];
+  const input = INTENT_ASSETS.find(({ address }) => address === values.inputToken) ?? INTENT_ASSETS[0];
   const output = rwa
     ? RWA_INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? RWA_INTENT_ASSETS[0]
     : INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? INTENT_ASSETS[1];
@@ -36,36 +31,26 @@ export function PolicyReceiptEditor({ values, owner, onChange }: {
         <label>Verified capability<select value={values.templateId} onChange={(event) => {
           const templateId = event.target.value as CapabilityTemplateId;
           onChange(templateId === "rwa-acquisition"
-            ? { ...values, templateId, inputToken: rwaInputAsset(RWA_INTENT_ASSETS[0]!.instrument).address,
+            ? { ...values, templateId, inputToken: INTENT_ASSETS[0]!.address,
               outputToken: RWA_INTENT_ASSETS[0]!.address,
-              jurisdiction: RWA_INTENT_ASSETS[0]!.instrument.eligibleJurisdictions[0]!,
-              eligibilityAccepted: false, minimumSource: undefined }
+              jurisdiction: "", eligibilityAccepted: true, minimumSource: undefined }
             : { ...values, templateId, inputToken: INTENT_ASSETS[0]!.address,
               outputToken: INTENT_ASSETS[1]!.address, eligibilityAccepted: false, minimumSource: undefined });
         }}>{CAPABILITY_TEMPLATES.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}</select></label>
         <label>Maximum input<input inputMode="decimal" value={values.amount} onChange={(event) => set("amount", event.target.value)} /></label>
-        <label>Input asset{rwa
-          ? <input readOnly value={`${input.symbol} · ${instrument?.chainId === 196 ? "X Layer" : "Ethereum"}`} />
-          : <select value={values.inputToken} onChange={(event) => set("inputToken", event.target.value as Address)}>{INTENT_ASSETS.map(({ address, symbol }) => <option key={address} value={address}>{symbol}</option>)}</select>}</label>
+        <label>Input asset<select value={values.inputToken} onChange={(event) => set("inputToken", event.target.value as Address)}>{INTENT_ASSETS.map(({ address, symbol }) => <option key={address} value={address}>{symbol}</option>)}</select></label>
         {values.templateId === "exact-input-swap" ? <label>Output asset<select value={values.outputToken} onChange={(event) => set("outputToken", event.target.value as Address)}>{INTENT_ASSETS.filter(({ address }) => address !== values.inputToken).map(({ address, symbol }) => <option key={address} value={address}>{symbol}</option>)}</select></label> : null}
-        {rwa ? <label>Registered instrument<select value={values.outputToken} onChange={(event) => {
+        {rwa ? <label>Output asset<select value={values.outputToken} onChange={(event) => {
           const outputToken = event.target.value as Address;
-          const selected = RWA_INTENT_ASSETS.find(({ address }) => address === outputToken)!;
-          onChange({ ...values, inputToken: rwaInputAsset(selected.instrument).address,
-            outputToken, jurisdiction: selected.instrument.eligibleJurisdictions[0]!,
-            eligibilityAccepted: false, minimumSource: undefined });
+          onChange({ ...values, outputToken, jurisdiction: "", eligibilityAccepted: true,
+            minimumSource: undefined });
         }}>{RWA_INTENT_ASSETS.map(({ address, symbol, instrument: item }) => <option key={address} value={address}>{symbol} · {item.platform}</option>)}</select></label> : null}
-        {rwa && instrument ? <label>Jurisdiction<select value={values.jurisdiction} onChange={(event) => onChange({ ...values,
-          jurisdiction: event.target.value, eligibilityAccepted: false })}>{instrument.eligibleJurisdictions.map((code) => <option key={code} value={code}>{code}</option>)}</select></label> : null}
         {values.templateId !== "aave-supply" ? <label>{values.templateId === "round-trip" ? "Minimum profit" : "Minimum output"}<input inputMode="decimal" value={values.minimum} onChange={(event) => set("minimum", event.target.value)} />
           {values.minimumSource === "stablecoin-default" ? <small>Auto-set to a 1% USDG/USDt0 protection floor. Review or edit it before signing.</small> : null}
         </label> : null}
         <div className="policy-fee" role="status"><strong>No solver fee during launch</strong>
           <span>Cobia currently waives the solver success fee. Signing and verified execution remain separate wallet confirmations.</span>
         </div>
-        {rwa && instrument ? <label className="policy-attestation"><input checked={values.eligibilityAccepted}
-          onChange={(event) => set("eligibilityAccepted", event.target.checked)} type="checkbox" />
-          <span>I have reviewed the issuer restriction: {instrument.eligibilityNote}</span></label> : null}
       </div>
       <dl className="policy-summary">
         <div><dt>Owner</dt><dd>{owner ?? "Connect wallet"}</dd></div>

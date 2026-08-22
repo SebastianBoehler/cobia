@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   readSession: vi.fn(), beginCompilation: vi.fn(), completeCompilation: vi.fn(),
   failCompilation: vi.fn(), compile: vi.fn(), clientKey: vi.fn(() => "client-key"),
-  supportsCapability: vi.fn(), compilerOptions: vi.fn(),
+  supportsCapability: vi.fn(), compilerOptions: vi.fn(), readPortfolio: vi.fn(),
+  readIntentAssetPrices: vi.fn(),
 }));
 vi.mock("../../../../lib/runtime/wallet-auth", () => ({
   getWalletAuthService: () => mocks,
@@ -18,16 +19,23 @@ vi.mock("../../../../lib/intents/intent-compiler", () => ({
 vi.mock("../../../../lib/runtime/market", () => ({
   getSolverProfileRepository: () => ({ supportsCapability: mocks.supportsCapability }),
 }));
+vi.mock("../../../../lib/portfolio/read-portfolio", () => ({
+  readPortfolio: mocks.readPortfolio,
+}));
+vi.mock("../../../../lib/intents/intent-asset-prices", () => ({
+  readIntentAssetPrices: mocks.readIntentAssetPrices,
+}));
 
 import { POST } from "./route";
 
-function request(cookie?: string, origin = "https://getcobia.com") {
+function request(cookie?: string, origin = "https://getcobia.com", goal = "Supply 10 USDG to Aave",
+  actionPreference = "aave-supply") {
   return new Request("https://getcobia.com/api/intents/compile", {
     method: "POST",
     headers: { "content-type": "application/json", origin,
       ...(cookie ? { cookie: `cobia_wallet_session=${cookie}` } : {}) },
     body: JSON.stringify({ owner: "0x1111111111111111111111111111111111111111",
-      goal: "Supply 10 USDG to Aave", actionPreference: "aave-supply" }),
+      goal, actionPreference }),
   });
 }
 
@@ -41,6 +49,14 @@ describe("authenticated intent compiler API", () => {
     mocks.beginCompilation.mockResolvedValue({ kind: "run", id: "550e8400-e29b-41d4-a716-446655440000" });
     mocks.compile.mockResolvedValue({ status: "review", values: {} });
     mocks.supportsCapability.mockResolvedValue(true);
+    mocks.readPortfolio.mockResolvedValue({
+      native: { symbol: "OKB", amountAtomic: "10000000000000000", formatted: "0.01" },
+      balances: [
+        { symbol: "USDG", amountAtomic: "1500000", formatted: "1.5" },
+        { symbol: "USDt0", amountAtomic: "4250000", formatted: "4.25" },
+      ],
+    });
+    mocks.readIntentAssetPrices.mockResolvedValue({ OKB: "107.41", USDt0: "1", USDG: "1" });
   });
 
   it("rejects missing sessions and cross-origin requests before invoking the model", async () => {
@@ -95,6 +111,38 @@ describe("authenticated intent compiler API", () => {
     expect((await POST(request("token"))).status).toBe(200);
     expect(mocks.compilerOptions).toHaveBeenCalledWith(expect.objectContaining({
       compositionAvailable: false,
+    }));
+  });
+
+  it("supplies a fresh wallet snapshot when the goal spends all of one token", async () => {
+    const response = await POST(request(
+      "token", "https://getcobia.com", "Swap all my USDt0 into USDG", "any",
+    ));
+
+    expect(response.status).toBe(200);
+    expect(mocks.readPortfolio).toHaveBeenCalledWith(
+      "0x1111111111111111111111111111111111111111", 196,
+    );
+    expect(mocks.compilerOptions).toHaveBeenCalledWith(expect.objectContaining({
+      walletBalances: { OKB: "0.01", USDG: "1.5", USDt0: "4.25" },
+    }));
+    expect(mocks.beginCompilation).toHaveBeenCalledWith(expect.objectContaining({
+      goal: expect.stringContaining("OKB:10000000000000000"),
+    }));
+    expect(mocks.beginCompilation).toHaveBeenCalledWith(expect.objectContaining({
+      goal: expect.stringContaining("USDt0:4250000"),
+    }));
+  });
+
+  it("supplies live asset prices when a staged conversion uses native OKB", async () => {
+    const response = await POST(request(
+      "token", "https://getcobia.com", "Turn 0.005 OKB and 1 USDt0 into USDG", "any",
+    ));
+
+    expect(response.status).toBe(200);
+    expect(mocks.readIntentAssetPrices).toHaveBeenCalledOnce();
+    expect(mocks.compilerOptions).toHaveBeenCalledWith(expect.objectContaining({
+      assetPricesUsd: { OKB: "107.41", USDt0: "1", USDG: "1" },
     }));
   });
 

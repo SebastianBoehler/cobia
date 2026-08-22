@@ -1,7 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { CobiaDatabase } from "./client";
-import { cobiaSolverRuns } from "./schema";
+import { cobiaSolverRuns, cobiaSolvers } from "./schema";
 
 const HashSchema = z.string().regex(/^0x[0-9a-fA-F]{64}$/)
   .transform((value) => value.toLowerCase() as `0x${string}`);
@@ -47,6 +47,21 @@ export function createSolverRunRepository(db: CobiaDatabase) {
   }
 
   return {
+    async listForIntent(intentIdValue: string) {
+      const intentId = z.string().uuid().parse(intentIdValue);
+      return await db.select({
+        solverId: cobiaSolverRuns.solverId,
+        displayName: cobiaSolvers.displayName,
+        revision: cobiaSolverRuns.revision,
+        state: cobiaSolverRuns.state,
+        failureCode: cobiaSolverRuns.failureCode,
+        updatedAt: cobiaSolverRuns.updatedAt,
+      }).from(cobiaSolverRuns)
+        .innerJoin(cobiaSolvers, eq(cobiaSolverRuns.solverId, cobiaSolvers.id))
+        .where(eq(cobiaSolverRuns.intentId, intentId))
+        .orderBy(asc(cobiaSolverRuns.createdAt));
+    },
+
     async create(value: z.input<typeof CreateSchema>) {
       const input = CreateSchema.parse(value);
       return db.transaction(async (tx) => {

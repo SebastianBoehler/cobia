@@ -13,7 +13,7 @@ const supportedProtocols = [
 
 export interface DiscoverChallenge { id: string; title: string; goal: string; availability: "live" | "between-rounds" }
 export interface DiscoverIntent { id: string; goal: string; state: string; closesAt: string }
-export interface DiscoverHistory { id: string; goal: string; solver: string; state: string }
+export interface DiscoverHistory { id: string; goal: string; solver: string; state: string; protocols: string[] }
 export type DiscoverSection = "challenges" | "intents" | "history" | "commerce";
 
 function label(value: string) {
@@ -23,7 +23,12 @@ function label(value: string) {
 
 function HistoryRows({ items }: { items: DiscoverHistory[] }) {
   return <div className="history-table">{items.map((item) => <Link href={`/programs/${item.id}`} key={item.id}>
-    <span>{item.goal}</span><small>{item.solver}</small><strong>{label(item.state)}</strong><ArrowRight aria-hidden="true" size={15} />
+    <span>{item.goal}</span>
+    <div className="history-route">{item.protocols.map((protocol, index) => <span key={protocol}>
+      {index > 0 ? <ArrowRight aria-hidden="true" className="history-route__arrow" size={11} /> : null}
+      <ProtocolMark protocol={protocol} size={22} />
+    </span>)}</div>
+    <small>{item.solver}</small><strong>{label(item.state)}</strong><ArrowRight aria-hidden="true" size={15} />
   </Link>)}</div>;
 }
 

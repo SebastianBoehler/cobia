@@ -10,6 +10,9 @@ import {
 import { WalletSessionRejectedError } from "../../../../lib/wallet-auth/service";
 import { getSolverProfileRepository } from "../../../../lib/runtime/market";
 import { currentUnixSeconds } from "../../../../lib/time";
+import { readPortfolio } from "../../../../lib/portfolio/read-portfolio";
+import { requestsWalletBalance } from "../../../../lib/intents/wallet-balance-request";
+import { readIntentAssetPrices } from "../../../../lib/intents/intent-asset-prices";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,8 +49,35 @@ export async function POST(request: Request): Promise<Response> {
       }
       throw error;
     }
+    let walletBalances: Record<string, string> | undefined;
+    let admissionGoal = goal;
+    if (requestsWalletBalance(goal)) {
+      const portfolio = await readPortfolio(session.owner, 196).catch(() => null);
+      if (!portfolio) {
+        return NextResponse.json({ code: "WALLET_BALANCE_UNAVAILABLE",
+          message: "Cobia could not read your X Layer token balance. Try again." }, { status: 503 });
+      }
+      walletBalances = Object.fromEntries([
+        [portfolio.native.symbol, portfolio.native.formatted],
+        ...portfolio.balances.map(({ symbol, formatted }) => [symbol, formatted]),
+      ]);
+      const balanceFingerprint = [portfolio.native, ...portfolio.balances]
+        .map(({ symbol, amountAtomic }) => `${symbol}:${amountAtomic}`).sort().join(",");
+      admissionGoal = `${goal}\n[wallet-balances:${balanceFingerprint}]`;
+    }
+    let assetPricesUsd: Readonly<Record<string, string>> | undefined;
+    if (/(^|\s)@?OKB\b/i.test(goal)) {
+      assetPricesUsd = await readIntentAssetPrices().catch(() => undefined);
+      if (!assetPricesUsd) {
+        return NextResponse.json({ code: "ASSET_PRICE_UNAVAILABLE",
+          message: "Cobia could not verify fresh X Layer asset prices. Try again." }, { status: 503 });
+      }
+      const priceFingerprint = Object.entries(assetPricesUsd).sort(([left], [right]) =>
+        left.localeCompare(right)).map(([symbol, price]) => `${symbol}:${price}`).join(",");
+      admissionGoal = `${admissionGoal}\n[asset-prices:${priceFingerprint}]`;
+    }
     const admission = await auth.beginCompilation({ owner: session.owner,
-      clientKey: walletAuthClientKey(request), goal, actionPreference });
+      clientKey: walletAuthClientKey(request), goal: admissionGoal, actionPreference });
     if (admission.kind === "cached") {
       return NextResponse.json(admission.result, { headers: { "Cache-Control": "no-store" } });
     }
@@ -70,7 +100,7 @@ export async function POST(request: Request): Promise<Response> {
       "policy.capability-composition@1", currentUnixSeconds(),
     );
     const result = await createOpenAiIntentCompiler({
-      apiKey, model, compositionAvailable,
+      apiKey, model, compositionAvailable, walletBalances, assetPricesUsd,
     }).compile(goal, actionPreference);
     await auth.completeCompilation(leaseId, result);
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });

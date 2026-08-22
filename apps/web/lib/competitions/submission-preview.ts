@@ -34,6 +34,22 @@ export interface CompetitionProgramPreview {
   actions?: string[];
 }
 
+const protocolPrefixes = [
+  ["aave-v3.", "Aave V3"],
+  ["curve-stableswap-ng.", "Curve"],
+  ["uniswap-v3.", "Uniswap V3"],
+] as const;
+
+export function projectProgramProtocols(payload: unknown): string[] {
+  const program = ProgramSchema.safeParse(payload);
+  if (!program.success) return [];
+  const protocols = program.data.actions?.flatMap(({ capabilityId }) => {
+    const match = capabilityId && protocolPrefixes.find(([prefix]) => capabilityId.startsWith(prefix));
+    return match ? [match[1]] : [];
+  }) ?? [];
+  return protocols.filter((protocol, index) => protocols.indexOf(protocol) === index);
+}
+
 function registeredToken(token: string) {
   for (const [symbol, asset] of Object.entries(PROTOCOL_REGISTRY.aaveV3.assets)) {
     if (isAddressEqual(asset.underlying.address, token as Address)) {

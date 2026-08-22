@@ -3,6 +3,7 @@ import {
   OpenIntentSnapshotV1Schema,
   TransactionProgramV1Schema,
   commitment,
+  isNativeAssetAddress,
 } from "@cobia/domain";
 import { isAddressEqual, type Address, type Hash, type Hex } from "viem";
 import { TransactionProgramEvidenceV1Schema, type TransactionProgramEvidenceV1 } from "./evidence";
@@ -101,6 +102,7 @@ export async function verifyOpenTransactionProgramV1(input: {
   if (program.stages.length > policy.limits.maxStages || walletStages.length > policy.limits.maxTransactions ||
       approvalCount > policy.limits.maxApprovals) errors.add("LIMIT_EXCEEDED");
   const nativeValues = new Map<number, bigint>();
+  const nativeInputValues = new Map<string, bigint>();
   const providerByStage = new Map(providerArtifacts.artifacts.map((artifact) => [artifact.stageId, artifact]));
   if (providerArtifacts.artifacts.length !== walletStages.length) errors.add("PROVIDER_ARTIFACT_INVALID");
   const stageAuthorizations: StageAuthorizationV1[] = [];
@@ -109,6 +111,12 @@ export async function verifyOpenTransactionProgramV1(input: {
       stage.chainId,
       (nativeValues.get(stage.chainId) ?? 0n) + BigInt(stage.transaction.valueAtomic),
     );
+    if (isNativeAssetAddress(stage.input.token)) {
+      if (stage.approval || stage.input.atomic !== stage.transaction.valueAtomic) {
+        errors.add("INPUT_LIMIT_EXCEEDED");
+      }
+      add(nativeInputValues, key(stage.chainId, stage.input.token), BigInt(stage.input.atomic));
+    }
     if (policy.forbiddenTargets.includes(stage.transaction.target) ||
         (stage.approval && policy.forbiddenTargets.includes(stage.approval.spender))) errors.add("FORBIDDEN_TARGET");
     if (policy.forbiddenAssets.includes(stage.input.token) || policy.forbiddenAssets.includes(stage.output.token)) {
@@ -132,6 +140,11 @@ export async function verifyOpenTransactionProgramV1(input: {
   const aggregateDeltas = new Map<string, bigint>();
   const finalBalances = new Map<string, bigint>();
   const declaredInputs = new Map(policy.inputs.map((item) => [key(item.chainId, item.token), BigInt(item.maximumAtomic)]));
+  for (const [asset, amount] of nativeInputValues) {
+    const maximum = declaredInputs.get(asset);
+    if (maximum === undefined) errors.add("UNDECLARED_ASSET_DECREASE");
+    else if (amount > maximum) errors.add("INPUT_LIMIT_EXCEEDED");
+  }
   for (const stage of walletStages) {
     const simulation = simulationByStage.get(stage.id);
     const anchor = snapshot.anchors.find(({ chainId }) => chainId === stage.chainId);
@@ -145,6 +158,10 @@ export async function verifyOpenTransactionProgramV1(input: {
     if (simulation.calldataBytes > policy.limits.maxCalldataBytes ||
         BigInt(simulation.gasUsed) > BigInt(policy.limits.maxGasPerTransaction)) errors.add("GAS_LIMIT_EXCEEDED");
     for (const delta of simulation.assetDeltas) {
+      if (isNativeAssetAddress(delta.token)) {
+        errors.add("EVIDENCE_INVALID");
+        continue;
+      }
       if (BigInt(delta.afterAtomic) - BigInt(delta.beforeAtomic) !== BigInt(delta.deltaAtomic)) {
         errors.add("EVIDENCE_INVALID");
       }
@@ -158,7 +175,8 @@ export async function verifyOpenTransactionProgramV1(input: {
       if (isAddressEqual(allowance.owner, policy.owner) &&
           BigInt(allowance.afterAtomic) > BigInt(allowance.beforeAtomic)) errors.add("ALLOWANCE_EXPANDED");
     }
-    const required = new Set([stage.transaction.target, stage.input.token, stage.output.token,
+    const required = new Set([stage.transaction.target, stage.output.token,
+      ...(isNativeAssetAddress(stage.input.token) ? [] : [stage.input.token]),
       ...(stage.approval ? [stage.approval.spender] : [])].map((value) => value.toLowerCase()));
     for (const address of required) {
       const identity = simulation.codeIdentities.find((item) => item.address === address);

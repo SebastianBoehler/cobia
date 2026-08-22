@@ -43,7 +43,7 @@ export const CAPABILITY_TEMPLATES = [
   { id: "aave-supply", label: "Supply to Aave V3", description: "One bounded supply action and a minimum receipt-token increase." },
   { id: "exact-input-swap", label: "Exchange an exact input", description: "Curve or Uniswap V3 with an explicit minimum output." },
   { id: "round-trip", label: "Atomic round trip", description: "At most two exchange actions ending with more of the starting asset." },
-  { id: "rwa-acquisition", label: "Acquire a registered RWA", description: "A fresh exact-call route to an issuer-registered token with explicit eligibility evidence." },
+  { id: "rwa-acquisition", label: "Acquire a cross-chain asset", description: "An open solver intent with exact source and destination balance limits." },
 ] as const;
 
 export const INTENT_ASSETS = SUPPORTED_ASSETS.map(({ address, displaySymbol, decimals }) => ({

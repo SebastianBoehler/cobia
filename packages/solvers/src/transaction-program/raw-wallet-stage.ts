@@ -1,4 +1,6 @@
-import { TransactionStageV1Schema, type TransactionStageV1 } from "@cobia/domain";
+import {
+  isNativeAssetAddress, TransactionStageV1Schema, type TransactionStageV1,
+} from "@cobia/domain";
 import {
   encodeFunctionData,
   erc20Abi,
@@ -71,6 +73,10 @@ export function verifyRawWalletStageV1(input: {
   if (transaction.data.slice(0, 10) !== stage.transaction.selector) errors.push("RAW_SELECTOR_MISMATCH");
   if (keccak256(transaction.data) !== stage.transaction.dataHash) errors.push("RAW_CALLDATA_MISMATCH");
   if (transaction.valueAtomic !== stage.transaction.valueAtomic) errors.push("RAW_VALUE_MISMATCH");
+  if (isNativeAssetAddress(stage.input.token)) {
+    if (stage.approval) errors.push("RAW_NATIVE_APPROVAL_INVALID");
+    if (stage.input.atomic !== stage.transaction.valueAtomic) errors.push("RAW_NATIVE_VALUE_MISMATCH");
+  }
   if (errors.length) return reject(...errors);
 
   const calls: UnsignedWalletCallV1[] = [];

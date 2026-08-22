@@ -44,6 +44,22 @@ describe("generic raw wallet stage", () => {
     expect(result.calls).toHaveLength(3);
   });
 
+  it("binds a native OKB input directly to the exact transaction value", () => {
+    const native = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" as const;
+    const nativeStage = { ...stage, input: { token: native, atomic: "5" },
+      approval: undefined, transaction: { ...stage.transaction, valueAtomic: "5" } };
+    const nativeArtifact = { ...artifact,
+      transaction: { ...artifact.transaction, valueAtomic: "5" } };
+
+    expect(verifyRawWalletStageV1({
+      stage: nativeStage, artifact: nativeArtifact, currentAllowanceAtomic: "0",
+    })).toEqual({ accepted: true, calls: [{ to: target, data, value: "0x5" }] });
+    expect(verifyRawWalletStageV1({
+      stage: { ...nativeStage, input: { token: native, atomic: "4" } },
+      artifact: nativeArtifact, currentAllowanceAtomic: "0",
+    })).toEqual({ accepted: false, errorCodes: ["RAW_NATIVE_VALUE_MISMATCH"] });
+  });
+
   it.each([
     ["target", { transaction: { ...artifact.transaction, to: output } }],
     ["sender", { transaction: { ...artifact.transaction, from: output } }],

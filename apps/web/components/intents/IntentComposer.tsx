@@ -9,7 +9,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { keccak256, stringToHex } from "viem";
 import {
   DEFAULT_INTENT_RECEIPT_VALUES, decimalToAtomic, INTENT_ASSETS,
-  RWA_INTENT_ASSETS, rwaInputAsset,
+  RWA_INTENT_ASSETS,
 } from "../../lib/intents/capability-templates";
 import type { IntentComposerDraft } from "../../lib/intents/challenge-draft";
 import { type ActionPreference, type ProtocolExclusionId } from "../../lib/intents/intent-controls";
@@ -23,11 +23,17 @@ import { authenticateIntentCompiler } from "../../lib/wallet-auth/client";
 import { extractGoalMentions, useResolvedAssetMentions } from "./useResolvedAssetMentions";
 import type { ComposedIntentDraft } from "../../lib/intents/composition-draft";
 import { buildIntentComposerPolicy } from "../../lib/intents/build-composer-policy";
+import type { StagedConversionDraft } from "../../lib/intents/staged-conversion-draft";
+import { StagedConversionPolicyEditor } from "./StagedConversionPolicyEditor";
 
-type ComposerValues = ReceiptValues | ComposedIntentDraft;
+type ComposerValues = ReceiptValues | ComposedIntentDraft | StagedConversionDraft;
 
 function isComposed(values: ComposerValues): values is ComposedIntentDraft {
   return "kind" in values && values.kind === "composed";
+}
+
+function isStaged(values: ComposerValues): values is StagedConversionDraft {
+  return "kind" in values && values.kind === "staged-conversion";
 }
 
 function errorMessage(cause: unknown): string {
@@ -55,28 +61,32 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   const composed = isComposed(values);
-  const rwa = !composed && values.templateId === "rwa-acquisition";
-  const selectedInstrument = rwa
-    ? RWA_INTENT_ASSETS.find(({ address }) => address === values.outputToken)?.instrument
-      ?? RWA_INTENT_ASSETS[0]!.instrument
-    : undefined;
-  const inputAsset = selectedInstrument ? rwaInputAsset(selectedInstrument)
-    : INTENT_ASSETS.find(({ address }) => address === values.inputToken) ?? INTENT_ASSETS[0];
+  const staged = isStaged(values);
+  const rwa = !composed && !staged && values.templateId === "rwa-acquisition";
+  const inputAsset = !staged ? INTENT_ASSETS.find(({ address }) => address === values.inputToken) ?? INTENT_ASSETS[0]
+      : INTENT_ASSETS[0];
   const outputAsset = rwa && !composed
-    ? RWA_INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? RWA_INTENT_ASSETS[0]
+    ? RWA_INTENT_ASSETS.find(({ address }) => address === (values as ReceiptValues).outputToken) ?? RWA_INTENT_ASSETS[0]
+    : staged ? INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? INTENT_ASSETS[0]
     : !composed ? INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? INTENT_ASSETS[1]
       : INTENT_ASSETS[1];
-  const inputAtomic = useMemo(() => decimalToAtomic(values.amount, inputAsset.decimals), [inputAsset.decimals, values.amount]);
+  const amount = staged ? "" : values.amount;
+  const inputAtomic = useMemo(() => decimalToAtomic(amount, inputAsset.decimals), [inputAsset.decimals, amount]);
   const minimum = composed ? "" : values.minimum;
   const minimumAtomic = useMemo(() => decimalToAtomic(minimum, outputAsset.decimals), [minimum, outputAsset.decimals]);
-  const valid = Boolean(wallet.account && goal.trim() && inputAtomic && (composed
-    ? values.maxConversionLossBps >= 0 && values.maxConversionLossBps <= 500 &&
-      values.minimumReceiptValueBps >= 9_500 && values.minimumReceiptValueBps <= 10_000 &&
-      values.horizonDays >= 1 && values.horizonDays <= 365 &&
-      values.competitionDurationSec >= 60 &&
-      values.deadlineDurationSec >= values.competitionDurationSec
-    : (values.templateId === "aave-supply" || minimumAtomic) &&
-      (!rwa || values.eligibilityAccepted)));
+  const stagedInputsValid = staged && values.inputs.every((item) =>
+    decimalToAtomic(item.amount, item.decimals));
+  const valid = Boolean(wallet.account && goal.trim() && (
+    staged ? stagedInputsValid && minimumAtomic : inputAtomic && (
+      composed
+        ? values.maxConversionLossBps >= 0 && values.maxConversionLossBps <= 500 &&
+          values.minimumReceiptValueBps >= 9_500 && values.minimumReceiptValueBps <= 10_000 &&
+          values.horizonDays >= 1 && values.horizonDays <= 365 &&
+          values.competitionDurationSec >= 60 &&
+          values.deadlineDurationSec >= values.competitionDurationSec
+        : values.templateId === "aave-supply" || minimumAtomic
+    )
+  ));
   async function loadMentions() {
     if (mentionsLoaded) return;
     setMentionsLoaded(true);
@@ -114,7 +124,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
     }),
     ...RWA_INTENT_ASSETS.map(({ symbol, address, instrument }) => ({ id: `asset:${symbol}`, group: "Assets" as const,
       mention: symbol, address, priceUsd: assetPrices[symbol.toLowerCase()],
-      detail: `Registered RWA · ${instrument.chainId === 196 ? "X Layer" : "Ethereum"}` })),
+      detail: `Cross-chain asset · ${instrument.chainId === 196 ? "X Layer" : "Ethereum"}` })),
     { id: "network:x-layer", group: "Networks", mention: "XLayer", detail: "Chain 196" },
     { id: "network:ethereum", group: "Networks", mention: "Ethereum", detail: "Chain 1" },
     { id: "protocol:aave", group: "Protocols", mention: "Aave", detail: "Earn on X Layer" },
@@ -191,12 +201,11 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!valid || !wallet.account || !inputAtomic) return;
+    if (!valid || !wallet.account) return;
     setPending(true);
     setError(undefined);
     try {
-      if (selectedInstrument) await wallet.switchChain(selectedInstrument.chainId);
-      else await wallet.switchToXLayer();
+      await wallet.switchToXLayer();
       const requestId = crypto.randomUUID();
       const nowSec = Math.floor(Date.now() / 1_000);
       const nonce = keccak256(stringToHex(`${requestId}:${wallet.account}:${nowSec}:${crypto.randomUUID()}`));
@@ -247,6 +256,8 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
         </button></div>
         {composed
           ? <CompositionPolicyEditor owner={wallet.account} values={values} onChange={setValues} />
+          : staged
+            ? <StagedConversionPolicyEditor values={values} onChange={setValues} />
           : <PolicyReceiptEditor owner={wallet.account} values={values} onChange={setValues} />}
         {error ? <p className="form-alert" role="alert">{error}</p> : null}
         <button className="button button--primary intent-submit" disabled={!valid || pending} type="submit">

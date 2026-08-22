@@ -38,6 +38,12 @@ describe("solver run repository", () => {
 
     expect(abstained).toMatchObject({ state: "abstained", failureCode: null });
     expect(await runs.readBrokerAnchor(run.id)).toMatchObject({ state: "abstained" });
+    expect(await runs.listForIntent(policy.requestId)).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        solverId: "cobia-coding-agent", displayName: "Cobia Coding Agent",
+        revision: 1, state: "abstained",
+      }),
+    ]));
   });
 
   it("stores stable failure codes and rejects a second terminal transition", async () => {
