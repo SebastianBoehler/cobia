@@ -33,17 +33,15 @@ import { xLayer } from "../chain/xlayer";
 import { captureOpenIntentSnapshotV1 } from "../open-exchange/capture-snapshot";
 import { createOpenDecisionIntakeV1 } from "../open-exchange/decision-intake";
 import { verifyOpenCapabilityProposalV1 } from "../open-exchange/capability-verifier";
-import { verifyCompositionProposalV1 } from "../open-exchange/composition-verifier";
+import { verifyRuntimeCompositionProposal } from "./composition-verification";
 import { verifyOpenStagedProposalV1 } from "../open-exchange/transaction-verifier";
 import {
   assertAgentExecutorReadyV1, createAgentExecutorReadV1,
 } from "../coding-agent-sandbox/executor-preflight";
 import { replayCapabilityRemotely, replayTransactionRemotely } from "../replay/remote-client";
 import { createOkxClient } from "../okx/client";
-import {
-  CompositionOwnerBalanceRequiredError,
-  publishCapabilityComposition,
-} from "./composition-market";
+import { publishCapabilityComposition } from "./composition-market";
+import { OwnerBalanceRequiredError } from "./market-errors";
 
 let activityRepository: ReturnType<typeof createActivityRepository> | undefined;
 let database: ReturnType<typeof createDatabase> | undefined;
@@ -59,11 +57,7 @@ let solverDecisionClaimRepository: ReturnType<typeof createSolverDecisionClaimRe
 let solverSuccessFeeRepository: ReturnType<typeof createSolverSuccessFeeRepository> | undefined;
 let walletAuthRepository: ReturnType<typeof createWalletAuthRepository> | undefined;
 
-export class OwnerBalanceRequiredError extends Error {
-  constructor() {
-    super("Intent owner has no native execution balance");
-  }
-}
+export { OwnerBalanceRequiredError };
 
 function getDatabase() {
   database ??= createDatabase(readDatabaseUrl());
@@ -187,16 +181,9 @@ export async function publishCapabilityCompositionIntent(input: {
   policy: import("@cobia/domain").CapabilityCompositionPolicyV1;
   ownerSignature: `0x${string}`;
 }) {
-  try {
-    return await publishCapabilityComposition(input, {
-      intents: getIntentRepository(), snapshots: getOpenIntentSnapshotRepository(),
-    });
-  } catch (error) {
-    if (error instanceof CompositionOwnerBalanceRequiredError) {
-      throw new OwnerBalanceRequiredError();
-    }
-    throw error;
-  }
+  return publishCapabilityComposition(input, {
+    intents: getIntentRepository(), snapshots: getOpenIntentSnapshotRepository(),
+  });
 }
 
 export function submitOpenSolverDecision(value: {
@@ -253,23 +240,7 @@ export function submitOpenSolverDecision(value: {
         if (input.proposalKind !== "capability-v2") {
           return { accepted: false as const, errorCodes: ["POLICY_MISMATCH"] };
         }
-        return verifyCompositionProposalV1(input, {
-          client,
-          executor: config.COBIA_EXECUTOR_V3_ADDRESS,
-          attestor: verifier.address,
-          assertReady: ({ owner, inputToken, inputAmount }) => assertAgentExecutorReadyV1({
-            executor: config.COBIA_EXECUTOR_V3_ADDRESS,
-            expectedCodeHash: config.COBIA_EXECUTOR_V3_CODE_HASH,
-            expectedVerifier: verifier.address,
-            owner, inputToken, inputAmount,
-            read: createAgentExecutorReadV1(client),
-          }),
-          async replay(replayInput) {
-            return replayCapabilityRemotely({ blockNumber: replayInput.blockNumber,
-              program: replayInput.program, compiled: replayInput.compiled });
-          },
-          signTypedData: (typedData) => verifier.signTypedData(typedData),
-        });
+        return verifyRuntimeCompositionProposal(input, { client, config, verifier });
       }
       if (input.proposalKind === "transaction-program") {
         return verifyOpenStagedProposalV1({ ...input,

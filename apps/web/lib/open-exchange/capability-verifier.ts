@@ -1,16 +1,10 @@
 import type { OpenIntentPolicyV3 } from "@cobia/domain";
-import {
-  type CapabilityProgramReplayResultV2,
-  type CompiledCapabilityActionV1,
-} from "@cobia/solvers";
-import { createPublicClient, type Address, type Hex } from "viem";
+import type { CapabilityProgramReplayResultV2 } from "@cobia/solvers";
 import { deriveCapabilityAuthorityV2 } from "./capability-authority";
 import {
   verifyDerivedCapabilityProposalV1,
   type CapabilityVerifierDependencies,
 } from "./capability-verifier-core";
-
-type Client = ReturnType<typeof createPublicClient>;
 
 function objective(policy: OpenIntentPolicyV3, replay: CapabilityProgramReplayResultV2) {
   if (policy.outcomes.length !== 1) return undefined;

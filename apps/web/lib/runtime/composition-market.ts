@@ -5,6 +5,7 @@ import { createOkxClient } from "../okx/client";
 import { captureCapabilityCompositionSnapshotV1 } from "../open-exchange/capture-composition-snapshot";
 import { routeSnapshotDependencies } from "../orchestrator/route-snapshot-client";
 import { xLayer } from "../chain/xlayer";
+import { OwnerBalanceRequiredError } from "./market-errors";
 
 interface Repositories {
   intents: { create(input: {
@@ -13,8 +14,6 @@ interface Repositories {
   }): Promise<unknown> };
   snapshots: { create(snapshot: unknown): Promise<unknown> };
 }
-
-export class CompositionOwnerBalanceRequiredError extends Error {}
 
 export async function publishCapabilityComposition(
   input: {
@@ -30,7 +29,7 @@ export async function publishCapabilityComposition(
     cacheTime: 0,
   });
   if (await client.getBalance({ address: input.policy.owner as Address }) === 0n) {
-    throw new CompositionOwnerBalanceRequiredError("Intent owner has no native execution balance");
+    throw new OwnerBalanceRequiredError();
   }
   const okx = createOkxClient({ credentials: readOkxCredentials() });
   const snapshot = await captureCapabilityCompositionSnapshotV1(input.policy, {
