@@ -15,6 +15,7 @@ export interface MainnetV3StateSpec {
   executor: Address;
   canary: Address;
   activationAtSec: number;
+  openAccessAfterSec: number;
   codeHashes: { riskManager: Hash; executor: Hash };
   tokens: readonly { token: Address; limits: MainnetV3Limits }[];
   permissions: readonly {
@@ -108,8 +109,8 @@ export async function verifyMainnetV3State(input: {
   assertion(sameAddress(await read(spec.riskManager, "pendingVerifier"), ZERO_ADDRESS), "unexpected pending verifier");
   assertion(asBigInt(await read(spec.riskManager, "verifierActivateAfter"), "verifier activation") === 0n,
     "unexpected verifier activation");
-  assertion(asBigInt(await read(spec.riskManager, "openAccessAfter"), "open access") === 0n,
-    "unexpected open-access activation");
+  assertion(asBigInt(await read(spec.riskManager, "openAccessAfter"), "open access") ===
+    BigInt(spec.openAccessAfterSec), "open-access proposal mismatch");
 
   const expectedPaused = mode === "proposed";
   assertion(asBoolean(await read(spec.riskManager, "paused"), "risk pause") === expectedPaused,

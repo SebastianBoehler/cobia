@@ -31,6 +31,7 @@ function fixture() {
     executor,
     canary,
     activationAtSec,
+    openAccessAfterSec: 0,
     codeHashes: {
       riskManager: keccak256(codes.get(risk)!), executor: keccak256(codes.get(executor)!),
     },
@@ -96,6 +97,19 @@ describe("mainnet V3 state verifier", () => {
     activate(value);
     const evidence = await verifyMainnetV3State({ ...value, mode: "active" });
     expect(evidence).toMatchObject({ mode: "active", chainId: 196, blockHash: hash("1") });
+  });
+
+  it("accepts only the scheduled public-access transition pinned by the release spec", async () => {
+    const value = fixture();
+    Object.assign(value.spec, { openAccessAfterSec: 2_000_100_000 });
+    value.values.set(`${risk}:openAccessAfter`, 2_000_100_000n);
+
+    await expect(verifyMainnetV3State({ ...value, mode: "proposed" }))
+      .resolves.toMatchObject({ mode: "proposed" });
+
+    value.values.set(`${risk}:openAccessAfter`, 2_000_100_001n);
+    await expect(verifyMainnetV3State({ ...value, mode: "proposed" }))
+      .rejects.toThrow("open-access proposal mismatch");
   });
 
   it.each([

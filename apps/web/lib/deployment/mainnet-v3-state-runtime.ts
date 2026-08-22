@@ -40,6 +40,7 @@ export const mainnetV3StateSpec: MainnetV3StateSpec = {
   executor: getAddress("0xa31dDF9b68F0d3cE859c3dC2c12e17d9288231A0"),
   canary: getAddress("0x9Afbf85e52612A9922617aDdA9569e13f565de31"),
   activationAtSec: 1_787_229_041,
+  openAccessAfterSec: 1_787_440_661,
   codeHashes: {
     riskManager: "0xe415bc68d215ff3c077c707e4493c0517b6ad76446feb49c0fe6cc00add9372c",
     executor: "0x3f8d413eb3adc61d371012de8cb0aad91817bd3f077529bad2ee329aef103894",
