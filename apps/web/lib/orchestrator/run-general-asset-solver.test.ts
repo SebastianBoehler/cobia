@@ -7,9 +7,11 @@ import {
 } from "@cobia/domain";
 import { buildGeneralAssetDecisionV1 } from "@cobia/solvers";
 import { encodeFunctionData, keccak256, stringToHex } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import { describe, expect, it, vi } from "vitest";
 import { COBIA_EXECUTOR_V4_ABI } from "../execution-v4/abi";
-import { generalAssetStageNonceV4 } from "../execution-v4/attestation";
+import { authorizationTypedDataV4, generalAssetStageNonceV4 } from
+  "../execution-v4/attestation";
 import { buildAuthorizationV4, type ExecutionProgramV4 } from "../execution-v4/commitment";
 import { publishAndRunGeneralAssetSolverV1 } from "./run-general-asset-solver";
 import type { GeneralAssetSolutionVerdictV1 } from "./validate-general-asset-solution";
@@ -22,6 +24,7 @@ const inputToken = address("3");
 const outputToken = address("4");
 const target = address("5");
 const spender = address("6");
+const verifier = privateKeyToAccount(`0x${"77".repeat(32)}`);
 const inputIdentity = AssetIdentityEvidenceV1Schema.parse({
   version: 1, chainId: 196, token: inputToken, runtimeCodeHash: hash("1"),
   proxy: { kind: "none" }, decimals: 18,
@@ -62,7 +65,11 @@ const policy = GeneralAssetPolicyV1Schema.parse({
   forbiddenTargets: [], forbiddenAssets: [],
 });
 
-function verifiedArtifacts(value: unknown) {
+async function verifiedArtifacts(value: unknown, replayOverrides: {
+  outputAtomic?: string;
+  endingAllowanceAtomic?: string;
+  extraDecrease?: boolean;
+} = {}) {
   const program = GeneralAssetProgramV1Schema.parse(value);
   const stage = program.stages[0]!;
   const freshInput = AssetIdentityEvidenceV1Schema.parse({ ...inputIdentity,
@@ -70,7 +77,8 @@ function verifiedArtifacts(value: unknown) {
   const freshOutput = AssetIdentityEvidenceV1Schema.parse({ ...outputIdentity,
     blockNumber: "124", blockHash: hash("b"), expiresAtSec: 2_000_000_031 });
   const freshValuation = AssetValuationEvidenceV1Schema.parse({ ...valuation,
-    assetIdentityHash: commitment(freshInput), expiresAtSec: 2_000_000_031,
+    assetIdentityHash: commitment(freshInput), conservativeValueUsdE8: "200",
+    expiresAtSec: 2_000_000_031,
     quotes: valuation.quotes.map((quote) => ({ ...quote, expiresAtSec: 2_000_000_031 })) });
   const freshEvidenceBody = { identities: [freshInput, freshOutput],
     valuations: [freshValuation],
@@ -79,8 +87,12 @@ function verifiedArtifacts(value: unknown) {
     blockHash: hash("b"), compiledCallHash: hash("c"), matchesCompiledCalls: true,
     success: true, gasUsed: "200000",
     ownerAssetDeltas: [{ token: inputToken, deltaAtomic: "-100" },
-      { token: outputToken, deltaAtomic: "90" }],
-    endingAllowances: [{ token: inputToken, spender, atomic: "0" }],
+      { token: outputToken, deltaAtomic: replayOverrides.outputAtomic ?? "90" },
+      ...(replayOverrides.extraDecrease
+        ? [{ token: target, deltaAtomic: "-1" }]
+        : [])],
+    endingAllowances: [{ token: inputToken, spender,
+      atomic: replayOverrides.endingAllowanceAtomic ?? "0" }],
     traceHash: hash("d"), stateDiffHash: hash("e") }];
   const executionProgram: ExecutionProgramV4 = {
     policyHash: program.policyHash, manifestHash: program.manifestHash,
@@ -99,7 +111,7 @@ function verifiedArtifacts(value: unknown) {
     constraints: [{ token: outputToken, kind: 1, minimum: 90n }],
   };
   const verifierAuthorization = buildAuthorizationV4(executionProgram, executor);
-  const signature = `0x${"12".repeat(65)}` as const;
+  const signature = await verifier.signTypedData(authorizationTypedDataV4(verifierAuthorization));
   const evidenceHash = hash("a");
   return { accepted: true as const, errorCodes: [], replay,
     execution: { version: 4 as const, kind: "general-asset-execution" as const,
@@ -137,6 +149,7 @@ function dependencies() {
     verify: vi.fn(async ({ program }: { program: unknown }): Promise<GeneralAssetSolutionVerdictV1> =>
       verifiedArtifacts(program)),
     executor,
+    verifierSigner: verifier.address,
     nowSec: () => 2_000_000_001,
   };
 }
@@ -177,7 +190,7 @@ describe("production general asset solver orchestration", () => {
   it("does not publish an execution artifact for a different executor", async () => {
     const deps = dependencies();
     deps.verify.mockImplementation(async ({ program }: { program: unknown }) => {
-      const result = verifiedArtifacts(program);
+      const result = await verifiedArtifacts(program);
       return { ...result, authorization: [{ ...result.authorization[0]!, executor: target }] };
     });
 
@@ -192,7 +205,7 @@ describe("production general asset solver orchestration", () => {
   it("does not publish when the encoded execution uses a different fresh anchor", async () => {
     const deps = dependencies();
     deps.verify.mockImplementation(async ({ program }: { program: unknown }) => {
-      const result = verifiedArtifacts(program);
+      const result = await verifiedArtifacts(program);
       return { ...result, verificationAnchor: { ...result.verificationAnchor,
         blockHash: hash("f") } };
     });
@@ -203,6 +216,33 @@ describe("production general asset solver orchestration", () => {
 
     expect(deps.publish).not.toHaveBeenCalled();
     expect(deps.submissions.append).not.toHaveBeenCalled();
+  });
+
+  it("does not publish an artifact signed by another verifier", async () => {
+    const deps = dependencies();
+    deps.verifierSigner = address("9");
+
+    await expect(publishAndRunGeneralAssetSolverV1({ policy,
+      ownerSignature: `0x${"aa".repeat(65)}`, evidence, revision: 1,
+      nowSec: 2_000_000_001 }, deps)).rejects.toThrow(/signature|signer/i);
+
+    expect(deps.publish).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["output minimum", { outputAtomic: "89" }],
+    ["allowance cleanup", { endingAllowanceAtomic: "1" }],
+    ["undeclared decrease", { extraDecrease: true }],
+  ])("does not publish replay evidence that violates %s", async (_name, replayOverrides) => {
+    const deps = dependencies();
+    deps.verify.mockImplementation(async ({ program }: { program: unknown }) =>
+      verifiedArtifacts(program, replayOverrides));
+
+    await expect(publishAndRunGeneralAssetSolverV1({ policy,
+      ownerSignature: `0x${"aa".repeat(65)}`, evidence, revision: 1,
+      nowSec: 2_000_000_001 }, deps)).rejects.toThrow(/replay|flow|allowance|output|asset/i);
+
+    expect(deps.publish).not.toHaveBeenCalled();
   });
 
   it("does not publish or advertise the lane while V4 is not public-ready", async () => {
