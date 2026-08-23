@@ -34,6 +34,7 @@ if (format === "plan") {
   const createdAt = Number(argument("created-at"));
   process.stdout.write(`${JSON.stringify({
     proposals: buildSafeBatch({
+      chainId: 196,
       safe: plan.owner,
       name: "Cobia Executor V3 proposals",
       description: "Starts the 48-hour V3 token, canary wallet, and unpause delays.",
@@ -41,6 +42,7 @@ if (format === "plan") {
       transactions: plan.proposalTransactions,
     }),
     activation: buildSafeBatch({
+      chainId: 196,
       safe: plan.owner,
       name: "Cobia Executor V3 activation",
       description: "Activates matured registry permissions and V3 risk bounds, then unpauses mainnet execution.",

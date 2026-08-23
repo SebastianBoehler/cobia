@@ -1,0 +1,21 @@
+{
+  "chainId": 196,
+  "combinedProtocolBudgetUsdE8": "5000000000000",
+  "v4ProtocolCapUsdE8": "4800000000000",
+  "v3Assets": [
+    {
+      "chainId": 196,
+      "token": "0x4ae46a509f6b1d9056937ba4500cb143933d2dc8",
+      "decimals": 6,
+      "fixedUsdE8PerToken": "100000000",
+      "maximumRemainingAtomic": "988018352"
+    },
+    {
+      "chainId": 196,
+      "token": "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+      "decimals": 6,
+      "fixedUsdE8PerToken": "100000000",
+      "maximumRemainingAtomic": "989090337"
+    }
+  ]
+}

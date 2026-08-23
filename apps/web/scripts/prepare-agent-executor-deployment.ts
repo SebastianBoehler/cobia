@@ -54,6 +54,7 @@ if (format === "plan") {
   const createdAt = Number(argument("created-at"));
   process.stdout.write(`${JSON.stringify({
     proposals: buildSafeBatch({
+      chainId: 196,
       safe: plan.owner,
       name: "Cobia Executor V2 proposals",
       description: "Pauses the registry and starts the 48-hour capability, token, canary, and unpause delays.",
@@ -61,6 +62,7 @@ if (format === "plan") {
       transactions: plan.proposalTransactions,
     }),
     activation: buildSafeBatch({
+      chainId: 196,
       safe: plan.owner,
       name: "Cobia Executor V2 activation",
       description: "Activates the exact delayed proposals and unpauses the registry after independent re-verification.",

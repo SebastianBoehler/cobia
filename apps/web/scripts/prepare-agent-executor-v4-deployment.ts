@@ -1,8 +1,14 @@
 import { readFileSync } from "node:fs";
 import { getAddress, isAddress, type Address, type Hash, type Hex } from "viem";
 import { buildAgentExecutorDeploymentPlanV4 } from "../lib/deployment/agent-executor-v4-plan";
+import { buildSafeBatch } from "../lib/deployment/safe-batch";
 import type { PartitionedMigrationBudgetInputV4 } from "../lib/deployment/v4-migration-budget";
-import { addressArgument, argument, executorArtifactsV4 } from "./executor-deployment-input";
+import {
+  addressArgument,
+  argument,
+  executorArtifactsV4,
+  optionalArgument,
+} from "./executor-deployment-input";
 
 interface AdapterFile {
   adapterId: Hash;
@@ -66,4 +72,36 @@ const plan = buildAgentExecutorDeploymentPlanV4({
   adapters: adapters(argument("adapters")),
   migration: migration(argument("migration"), chainId),
 });
-process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
+const format = optionalArgument("format") ?? "plan";
+if (format === "plan") {
+  process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
+} else if (format === "safe-batches") {
+  const createdAt = Number(argument("created-at"));
+  const batch = (name: string, description: string, transactions: readonly {
+    to: Address; value: Hex; data: Hex;
+  }[]) => buildSafeBatch({ chainId, safe: plan.owner, name, description, createdAt, transactions });
+  process.stdout.write(`${JSON.stringify({
+    proposal: batch(
+      `Cobia Executor V4 chain ${chainId} proposal`,
+      "Applies the reviewed migration cap and starts the 48-hour adapter, canary, and unpause delays.",
+      [...plan.migrationRiskReductionTransactions, ...plan.proposalTransactions],
+    ),
+    activation: batch(
+      `Cobia Executor V4 chain ${chainId} activation`,
+      "Activates the matured adapter, canary wallet, and unpause proposals after independent re-verification.",
+      plan.activationTransactions,
+    ),
+    openProposal: batch(
+      `Cobia Executor V4 chain ${chainId} open-access proposal`,
+      "Starts the separate 48-hour public open-access delay after canary verification.",
+      [plan.openProposalTransaction],
+    ),
+    openActivation: batch(
+      `Cobia Executor V4 chain ${chainId} open-access activation`,
+      "Activates public open access after the separate delay and independent re-verification.",
+      [plan.openActivationTransaction],
+    ),
+  }, null, 2)}\n`);
+} else {
+  throw new Error(`Unsupported --format ${format}`);
+}

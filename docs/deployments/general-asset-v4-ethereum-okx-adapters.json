@@ -1,0 +1,8 @@
+[
+  {
+    "adapterId": "0x3e7635abf6db088b95e2d5cc00be769367a2d400fafa57df8b6444cddce2a90a",
+    "target": "0x28b1dc1a5e3699a428bc51d234dfab7c9cb2a183",
+    "selector": "0x0c307f76",
+    "runtimeCodeHash": "0x9f98910b7b582853751e81f25b94703cd62ec39b1428ad589553a1e6253cdb73"
+  }
+]

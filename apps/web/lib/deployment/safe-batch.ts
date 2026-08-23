@@ -57,13 +57,15 @@ export function addSafeBatchChecksum(batch: SafeBatchFile): SafeBatchFile {
 }
 
 export function buildSafeBatch(input: {
+  chainId: number;
   safe: Address;
   name: string;
   description: string;
   createdAt: number;
   transactions: readonly { to: Address; value: Hex; data: Hex }[];
 }): SafeBatchFile {
-  if (!input.name.trim() || !input.description.trim() ||
+  if (!Number.isSafeInteger(input.chainId) || input.chainId <= 0 ||
+    !input.name.trim() || !input.description.trim() ||
     !Number.isSafeInteger(input.createdAt) || input.createdAt <= 0 ||
     input.transactions.length === 0) {
     throw new Error("Safe batch metadata is invalid");
@@ -80,7 +82,7 @@ export function buildSafeBatch(input: {
   });
   return addSafeBatchChecksum({
     version: "1.0",
-    chainId: "196",
+    chainId: input.chainId.toString(),
     createdAt: input.createdAt,
     meta: {
       name: input.name,

@@ -31,6 +31,7 @@ describe("Safe transaction builder batch", () => {
 
   it("builds checksummed chain-196 call-only transactions", () => {
     const batch = buildSafeBatch({
+      chainId: 196,
       safe,
       name: "Cobia proposals",
       description: "Starts the delayed activation window.",
@@ -41,6 +42,20 @@ describe("Safe transaction builder batch", () => {
     expect(batch.chainId).toBe("196");
     expect(batch.transactions).toEqual([{ to: owner, value: "0", data: "0x1234" }]);
     expect(batch.meta.createdFromOwnerAddress).toBe("");
+    expect(batch.meta.checksum).toMatch(/^0x[0-9a-f]{64}$/);
+  });
+
+  it("binds the requested chain into the checksummed batch", () => {
+    const batch = buildSafeBatch({
+      chainId: 1,
+      safe,
+      name: "Ethereum proposals",
+      description: "Starts the delayed activation window.",
+      createdAt: 1_000,
+      transactions: [{ to: owner, value: "0x0", data: "0x1234" }],
+    });
+
+    expect(batch.chainId).toBe("1");
     expect(batch.meta.checksum).toMatch(/^0x[0-9a-f]{64}$/);
   });
 });

@@ -1,0 +1,35 @@
+{
+  "version": "1.0",
+  "chainId": "196",
+  "createdAt": 1787503380000,
+  "meta": {
+    "name": "Cobia Executor V4 chain 196 proposal",
+    "description": "Applies the reviewed migration cap and starts the 48-hour adapter, canary, and unpause delays.",
+    "txBuilderVersion": "2.1.0",
+    "createdFromSafeAddress": "0x08eea990F0b165A20d723e59517044a519C83351",
+    "createdFromOwnerAddress": "",
+    "checksum": "0x03a75102eccfdbd3512de9a26d60ef80387100d693f05a07ddadcc09367098ec"
+  },
+  "transactions": [
+    {
+      "to": "0xE399a72B7d0fEF974e868582671D4c7a23d37637",
+      "value": "0",
+      "data": "0x950bca37000000000000000000000000000000000000000000000000000000174876e800000000000000000000000000000000000000000000000000000000746a5288000000000000000000000000000000000000000000000000000000045d964b8000"
+    },
+    {
+      "to": "0xEf955cC592346e3b4cb8c7a67f3FE6B2c4688877",
+      "value": "0",
+      "data": "0xe47461c53e7635abf6db088b95e2d5cc00be769367a2d400fafa57df8b6444cddce2a90a000000000000000000000000722db4f285f8bd91ef7af6da397e83f7fa4e80a70c307f760000000000000000000000000000000000000000000000000000000038e02cc6683c3fff0758aefa8b75189fd541ce1623cc9e6139de3119185f2a7f"
+    },
+    {
+      "to": "0xE399a72B7d0fEF974e868582671D4c7a23d37637",
+      "value": "0",
+      "data": "0xbeb7f7050000000000000000000000009afbf85e52612a9922617adda9569e13f565de31"
+    },
+    {
+      "to": "0xE399a72B7d0fEF974e868582671D4c7a23d37637",
+      "value": "0",
+      "data": "0xfae8a3d6"
+    }
+  ]
+}

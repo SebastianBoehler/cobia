@@ -1,0 +1,20 @@
+{
+  "version": "1.0",
+  "chainId": "196",
+  "createdAt": 1787503380000,
+  "meta": {
+    "name": "Cobia Executor V4 chain 196 open-access proposal",
+    "description": "Starts the separate 48-hour public open-access delay after canary verification.",
+    "txBuilderVersion": "2.1.0",
+    "createdFromSafeAddress": "0x08eea990F0b165A20d723e59517044a519C83351",
+    "createdFromOwnerAddress": "",
+    "checksum": "0x814952c858b2e243e8ab43a27eca03066e6bdbe37cd04c72b50c76f827ea4caa"
+  },
+  "transactions": [
+    {
+      "to": "0xE399a72B7d0fEF974e868582671D4c7a23d37637",
+      "value": "0",
+      "data": "0x39e7aae5"
+    }
+  ]
+}

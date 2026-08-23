@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "providerFamily": "okx",
+      "adapter": {
+        "id": "okx.swap",
+        "version": 1
+      },
+      "chainId": 196,
+      "target": "0x722db4f285f8bd91ef7af6da397e83f7fa4e80a7",
+      "runtimeCodeHash": "0x38e02cc6683c3fff0758aefa8b75189fd541ce1623cc9e6139de3119185f2a7f",
+      "selectors": [
+        "0x0c307f76"
+      ],
+      "approvalSpenders": [
+        {
+          "address": "0x8b773d83bc66be128c60e07e17c8901f7a64f000",
+          "runtimeCodeHash": "0x69c96ed2d046e83e322c31cbc8c0943dbad47bc7cc31d1f8760921c47b0d7671"
+        }
+      ]
+    },
+    {
+      "providerFamily": "okx",
+      "adapter": {
+        "id": "okx.swap",
+        "version": 1
+      },
+      "chainId": 1,
+      "target": "0x28b1dc1a5e3699a428bc51d234dfab7c9cb2a183",
+      "runtimeCodeHash": "0x9f98910b7b582853751e81f25b94703cd62ec39b1428ad589553a1e6253cdb73",
+      "selectors": [
+        "0x0c307f76"
+      ],
+      "approvalSpenders": [
+        {
+          "address": "0x40aa958dd87fc8305b97f2ba922cddca374bcd7f",
+          "runtimeCodeHash": "0xe8711c5f0fe7f3c28078140bb97b65aa015a58c06c14bad5abffa44f00f1ddf5"
+        }
+      ]
+    }
+  ]
+}
