@@ -67,6 +67,8 @@ async function processIntent(input: {
   intent: SolverIntentV1;
   revision: number;
   config: ReferenceSolverConfig;
+  limiter: WorkLimiter;
+  signal: AbortSignal;
   record(revision: number, state: string): Promise<void>;
 }) {
   await announceSolverRun({ client: input.client, account: input.account,
@@ -74,6 +76,7 @@ async function processIntent(input: {
   output({ event: "run-started", intentId: input.intent.id, revision: input.revision });
   const selected = await decideCuratedFirst({
     solveCurated: () => solve(input.intent),
+    schedule: (work) => input.limiter.run(work),
     async solveOpen() {
       const timeoutMs = competitionWorkTimeoutMs({
         competitionClosesAt: input.intent.competitionClosesAt,
@@ -107,6 +110,7 @@ async function processIntent(input: {
         exploration: { riskLevel: input.config.risk_level,
           maxTurns: input.config.max_codex_turns_per_intent,
           maxTotalTokens: input.config.max_total_tokens_per_intent },
+        signal: input.signal,
         emit: output,
       });
       output({ event: "codex-decision", intentId: input.intent.id,
@@ -116,6 +120,10 @@ async function processIntent(input: {
     },
     onCuratedError() {
       output({ event: "curated-error", intentId: input.intent.id });
+    },
+    onOpenError(error) {
+      output({ event: "open-error", intentId: input.intent.id,
+        message: error instanceof Error ? error.message : String(error) });
     },
   });
   const canonical = canonicalDecisionCommitment(selected.decision);
@@ -203,20 +211,20 @@ await watchSolverIntents({
       retry: retryable ? new Date(failed.retryAfterMs).toISOString() : "stopped" });
   },
   async onIntent(intent) {
-    await limiter.run(async () => {
-      if (competitionWorkTimeoutMs({ competitionClosesAt: intent.competitionClosesAt,
-        maximumMs: config.turn_timeout_ms }) === 0) {
-        attempts.stop(intent.id);
-        await persistState();
-        output({ event: "intent-expired", intentId: intent.id });
-        return;
-      }
-      const revision = (state[intent.id]?.attempts ?? 0) + 1;
-      await processIntent({ ...worker, config, intent, revision,
-        record(revision, receiptState) {
-          attempts.completed(intent.id, revision, receiptState);
-          return persistState();
-        } });
-    });
+    if (competitionWorkTimeoutMs({ competitionClosesAt: intent.competitionClosesAt,
+      maximumMs: config.turn_timeout_ms }) === 0) {
+      attempts.stop(intent.id);
+      await persistState();
+      output({ event: "intent-expired", intentId: intent.id });
+      return;
+    }
+    const revision = attempts.revision(intent.id);
+    attempts.started(intent.id, revision);
+    await persistState();
+    await processIntent({ ...worker, config, limiter, signal: controller.signal, intent, revision,
+      record(revision, receiptState) {
+        attempts.completed(intent.id, revision, receiptState);
+        return persistState();
+      } });
   },
 });

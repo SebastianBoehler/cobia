@@ -248,4 +248,32 @@ describe("Codex solver runner", () => {
       vi.useRealTimers();
     }
   });
+
+  it("returns a terminal abstention when the host shuts down", async () => {
+    const controller = new AbortController();
+    const result = runCodexSolver({
+      job: { cwd: "/tmp", intentPath: "/tmp/intent.json",
+        decisionPath: "/tmp/decision.json", prompt: "solve" },
+      timeoutMs: 10_000,
+      signal: controller.signal,
+      exploration: { riskLevel: "balanced", maxTurns: 1, maxTotalTokens: 1_000 },
+      codex: { startThread: () => ({ runStreamed: async (_prompt, options) => ({
+        events: (async function* () {
+          yield { type: "thread.started", thread_id: "thread-shutdown" } as const;
+          if (options.signal.aborted) throw new Error("aborted");
+          await new Promise<void>((_resolve, reject) => {
+            options.signal.addEventListener("abort", () => reject(new Error("aborted")),
+              { once: true });
+          });
+        })(),
+      }) }) },
+      emit: vi.fn(),
+    });
+
+    controller.abort();
+    await expect(result).resolves.toMatchObject({
+      decision: { decision: "abstain", reasonCode: "SOLVER_SHUTDOWN" },
+      usage: { stopReason: "shutdown" },
+    });
+  });
 });

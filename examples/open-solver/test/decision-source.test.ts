@@ -1,6 +1,7 @@
 import type { SolverDecisionV1 } from "@cobia/solver-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { decideCuratedFirst } from "../src/decision-source";
+import { WorkLimiter } from "../src/job-control";
 
 const abstain = { version: 1, decision: "abstain",
   reasonCode: "NO_SUPPORTED_REFERENCE_ROUTE" } as const;
@@ -31,5 +32,32 @@ describe("curated-first solver decisions", () => {
       solveOpen: async () => abstain, onCuratedError }))
       .resolves.toEqual({ decision: abstain, source: "codex" });
     expect(onCuratedError).toHaveBeenCalledWith(error);
+  });
+
+  it("resolves a failed open search as an explicit terminal abstention", async () => {
+    const error = new Error("provider unavailable");
+    const onOpenError = vi.fn();
+
+    await expect(decideCuratedFirst({ solveCurated: async () => abstain,
+      solveOpen: async () => { throw error; }, onOpenError }))
+      .resolves.toEqual({ decision: { version: 1, decision: "abstain",
+        reasonCode: "SOLVER_INTERNAL_ERROR" }, source: "host" });
+    expect(onOpenError).toHaveBeenCalledWith(error);
+  });
+
+  it("lets queued curated work run before a long open fallback", async () => {
+    const limiter = new WorkLimiter(1);
+    const order: string[] = [];
+    const schedule = <T>(work: () => Promise<T>) => limiter.run(work);
+
+    const first = decideCuratedFirst({ schedule,
+      solveCurated: async () => { order.push("first-curated"); return abstain; },
+      solveOpen: async () => { order.push("first-open"); return abstain; } });
+    const second = decideCuratedFirst({ schedule,
+      solveCurated: async () => { order.push("second-curated"); return abstain; },
+      solveOpen: async () => { order.push("second-open"); return abstain; } });
+
+    await Promise.all([first, second]);
+    expect(order.slice(0, 3)).toEqual(["first-curated", "second-curated", "first-open"]);
   });
 });

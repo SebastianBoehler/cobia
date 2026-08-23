@@ -129,13 +129,14 @@ function nextPrompt(input: {
 export async function runCodexSolver(input: {
   job: CodexJob;
   timeoutMs: number;
+  signal?: AbortSignal;
   exploration: CodexExplorationBudget;
   codex?: SolverCodexLike;
   emit(event: SolverCodexEvent): void;
 }): Promise<{ decision: SolverDecisionV1; threadId: string; usage: {
   turns: number; inputTokens: number; cachedInputTokens: number; outputTokens: number;
   reasoningOutputTokens: number; totalTokens: number; stopReason: "submitted" | "turn-limit" |
-  "token-limit" | "timeout";
+  "token-limit" | "timeout" | "shutdown";
 } }> {
   if (!Number.isSafeInteger(input.timeoutMs) || input.timeoutMs <= 0) {
     throw new Error("Codex solver timeout must be a positive integer");
@@ -167,6 +168,9 @@ export async function runCodexSolver(input: {
     const remainingMs = deadlineMs - Date.now();
     if (remainingMs <= 0) throw new Error("Codex solver exploration timed out");
     const controller = new AbortController();
+    const abortForShutdown = () => controller.abort();
+    if (input.signal?.aborted) controller.abort();
+    else input.signal?.addEventListener("abort", abortForShutdown, { once: true });
     const timer = setTimeout(() => controller.abort(), remainingMs);
     let finalMessage: string | undefined;
     let turnUsage: Usage | undefined;
@@ -187,11 +191,13 @@ export async function runCodexSolver(input: {
       }
     } catch (error) {
       if (!controller.signal.aborted) throw error;
-      decision ??= { version: 1, decision: "abstain", reasonCode: "SOLVER_TIMEOUT" };
+      decision ??= { version: 1, decision: "abstain",
+        reasonCode: input.signal?.aborted ? "SOLVER_SHUTDOWN" : "SOLVER_TIMEOUT" };
       stoppedForTimeout = true;
       break;
     } finally {
       clearTimeout(timer);
+      input.signal?.removeEventListener("abort", abortForShutdown);
     }
     if (!turnUsage) throw new Error("Codex solver turn did not report usage");
     decision = parseDecision(finalMessage);
@@ -213,7 +219,8 @@ export async function runCodexSolver(input: {
   if (!threadId) throw new Error("Codex did not start a solver thread");
   if (!decision) throw new Error("Codex did not return a solver decision");
   await writeFile(input.job.decisionPath, `${JSON.stringify(decision, null, 2)}\n`, { mode: 0o600 });
-  const stopReason = stoppedForTimeout ? "timeout" : decision.decision === "submit" ? "submitted"
+  const stopReason = input.signal?.aborted ? "shutdown" : stoppedForTimeout ? "timeout"
+    : decision.decision === "submit" ? "submitted"
     : usage.totalTokens >= input.exploration.maxTotalTokens ? "token-limit" : "turn-limit";
   return { decision, threadId, usage: { ...usage, stopReason } };
 }

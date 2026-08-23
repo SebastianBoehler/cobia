@@ -24,16 +24,29 @@ export class IntentAttempts {
   isHandled(intentId: string, nowMs = Date.now()) {
     const entry = this.state[intentId];
     if (!entry) return false;
+    if (entry.state === "running") return false;
     if (entry.state !== "error") return true;
     return entry.attempts >= this.options.maxAttempts || (entry.retryAfterMs ?? 0) > nowMs;
   }
 
   failed(intentId: string, nowMs = Date.now()) {
-    const attempts = (this.state[intentId]?.attempts ?? 0) + 1;
+    const current = this.state[intentId];
+    const attempts = (current?.attempts ?? 0) + 1;
     const retryAfterMs = nowMs + this.options.retryBaseMs * (2 ** (attempts - 1));
-    const entry = { state: "error", attempts, retryAfterMs };
+    const entry = { state: "error", ...(current?.revision ? { revision: current.revision } : {}),
+      attempts, retryAfterMs };
     this.state[intentId] = entry;
     return entry;
+  }
+
+  revision(intentId: string) {
+    return this.state[intentId]?.revision ?? 1;
+  }
+
+  started(intentId: string, revision: number) {
+    const current = this.state[intentId];
+    this.state[intentId] = { state: "running", revision,
+      attempts: current?.attempts ?? 0 };
   }
 
   stop(intentId: string, state = "expired") {
