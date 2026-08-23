@@ -37,11 +37,11 @@ export default async function Home() {
         <GeneralIntentHero />
         <section className="buildx-callout" aria-labelledby="buildx-callout-title">
           <div>
-            <h2 id="buildx-callout-title">Proudly built for X Layer’s AI Season.</h2>
-            <p>Cobia’s Build X submission makes agent-authored programs inspectable—from public deployments and protocol adapters to replay evidence and an explicit roadmap.</p>
+            <h2 id="buildx-callout-title">Built for AI Season. Proven on X Layer mainnet.</h2>
+            <p>Cobia separates open-ended AI search from wallet authority, then resolves every accepted plan to public programs, receipts, and X Layer transactions.</p>
           </div>
           <Link className="button button--paper" href="/buildx">
-            Explore Build X proof <ArrowRight aria-hidden="true" size={17} />
+            See Build X evidence <ArrowRight aria-hidden="true" size={17} />
           </Link>
         </section>
         <nav className="product-strip" aria-label="Cobia product">

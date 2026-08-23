@@ -1,41 +1,34 @@
-import { ArrowRight, BadgeDollarSign, Boxes, CreditCard, Landmark } from "lucide-react";
+import { ArrowRight, BadgeDollarSign, Code2, ShieldCheck, Waypoints } from "lucide-react";
 import Link from "next/link";
 
 const domains = [
   {
     icon: BadgeDollarSign,
-    title: "X Layer protocol intents",
-    description: "Aave supply plus Curve and Uniswap exact-input swaps with semantic bounds.",
-    status: "Supported",
+    title: "X Layer execution",
+    description: "Aave supply plus Curve and Uniswap swaps with explicit outcome limits.",
+    status: "Live",
     live: true,
   },
   {
-    icon: CreditCard,
-    title: "Shopping and x402",
-    description: "Registered offers bind merchant and product details to bounded payment and receipt evidence.",
-    status: "Supported · offer required",
+    icon: Waypoints,
+    title: "Open solver exchange",
+    description: "Signed solver runs, revisions, abstentions, and verifier-owned histories remain inspectable.",
+    status: "Live",
     live: true,
   },
   {
-    icon: Boxes,
-    title: "Open protocol programs",
-    description: "Other exact wallet calls can compete when code, approvals, outcomes, and fork replay all verify.",
-    status: "Verified program lane",
+    icon: Code2,
+    title: "Independent fork replay",
+    description: "Cobia reproduces exact calls and outcomes on pinned state before wallet review.",
+    status: "Verified",
     live: true,
   },
   {
-    icon: Landmark,
-    title: "Verified xStocks acquisition",
-    description: "Issuer-sourced token identity, eligibility attestation, exact-call routing, and verified balance increases.",
-    status: "V4 staged · eligibility required",
-    live: false,
-  },
-  {
-    icon: Landmark,
-    title: "Recurring actions",
-    description: "Subscriptions still need cancellation, renewal, and recurring-authority semantics.",
-    status: "Additional semantics needed",
-    live: false,
+    icon: ShieldCheck,
+    title: "Public outcome evidence",
+    description: "Accepted plans resolve to programs, receipts, asset deltas, and X Layer transactions.",
+    status: "Public",
+    live: true,
   },
 ] as const;
 
@@ -43,8 +36,8 @@ export function DomainCapabilityGrid() {
   return (
     <section className="domain-section" aria-labelledby="domain-title">
       <header className="section-heading-row">
-        <div><h2 id="domain-title">One intent model, explicit capabilities.</h2></div>
-        <p>Known workflows use semantic adapters. Other protocols can use the exact wallet-call lane when every call and outcome reproduces independently.</p>
+        <div><h2 id="domain-title">One safety model. Four live proof surfaces.</h2></div>
+        <p>AI solvers can search broadly. Cobia keeps execution exact by separating proposals, independent verification, and owner approval.</p>
       </header>
       <div className="domain-grid">
         {domains.map(({ icon: Icon, title, description, status, live }) => (

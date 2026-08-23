@@ -115,6 +115,7 @@
   .general-hero__actions .button { width: 100%; }
   .general-hero__actions .text-link { align-self: flex-start; }
   .intent-composer-preview { border-radius: 24px; padding: 8px; }
+  .landing-prompt input { font-size: 16px; }
   .rotating-prompt { min-height: 220px; }
   .buildx-callout { align-items: stretch; grid-template-columns: 1fr; margin-bottom: 18px; max-width: calc(100% - 40px); padding: 30px 24px; }
   .buildx-callout::after { font-size: 160px; inset-inline-end: -10px; top: 24px; }

@@ -10,21 +10,22 @@ vi.mock("@/lib/network/site-network-server", () => ({
 import Home from "./page";
 
 describe("home conversion path", () => {
-  it("starts with a general goal and one canonical intent action", async () => {
+  it("starts with a plain-language outcome and leads directly to mainnet proof", async () => {
     const html = renderToStaticMarkup(await Home());
-    const createIndex = html.indexOf("Create an intent");
-    const exploreIndex = html.indexOf("Explore challenges");
+    const outcomeIndex = html.indexOf("Describe an outcome");
+    const proofIndex = html.indexOf("See mainnet proof");
 
-    expect(createIndex).toBeGreaterThan(-1);
-    expect(exploreIndex).toBeGreaterThan(createIndex);
+    expect(outcomeIndex).toBeGreaterThan(-1);
+    expect(proofIndex).toBeGreaterThan(outcomeIndex);
     expect(html).toContain('href="/intents/new"');
+    expect(html).toContain('href="/buildx#evidence"');
     expect(html).toContain('action="/intents/new"');
     expect(html).toContain('name="goal"');
     expect(html).toContain("@USDG");
     expect(html).toContain("@Aave");
     expect(html).toContain("State the outcome. Keep the keys.");
-    expect(html).toContain("Cobia turns your limits into a signed policy");
-    expect(html).toContain("AI proposes. Cobia verifies. Your wallet decides.");
+    expect(html).toContain("AI solvers compete to produce the best transaction plan");
+    expect(html).toContain("25+ confirmed outcomes");
     expect(html).not.toContain("home-eyebrow");
     expect(html).not.toContain("home-mode-tabs");
     expect(html).not.toContain("Policy receipt");
@@ -61,27 +62,23 @@ describe("home conversion path", () => {
 
     expect(seasonIndex).toBeGreaterThan(heroIndex);
     expect(seasonIndex).toBeLessThan(productIndex);
-    expect(html).toContain("Proudly built for X Layer’s AI Season.");
-    expect(html).toContain("Cobia’s Build X submission");
-    expect(html).toContain("Explore Build X proof");
+    expect(html).toContain("Built for AI Season. Proven on X Layer mainnet.");
+    expect(html).toContain("separates open-ended AI search from wallet authority");
+    expect(html).toContain("See Build X evidence");
     expect(html).not.toMatch(/judg(?:e|ing)/i);
     expect(html).toContain('href="/buildx"');
   });
 
-  it("shows semantic and open verified lanes without overstating future domains", async () => {
+  it("shows only live proof surfaces instead of planned capabilities", async () => {
     const html = renderToStaticMarkup(await Home());
 
-    expect(html).toContain("X Layer protocol intents");
-    expect(html).toContain("Curve and Uniswap exact-input swaps");
-    expect(html).toContain("Supported");
-    expect(html).toContain("Shopping and x402");
-    expect(html).toContain("Supported · offer required");
-    expect(html).toContain("Open protocol programs");
-    expect(html).toContain("Verified program lane");
-    expect(html).toContain("Verified xStocks acquisition");
-    expect(html).toContain("V4 staged · eligibility required");
-    expect(html).toContain("Recurring actions");
-    expect(html).toContain("Additional semantics needed");
+    expect(html).toContain("One safety model. Four live proof surfaces.");
+    expect(html).toContain("X Layer execution");
+    expect(html).toContain("Open solver exchange");
+    expect(html).toContain("Independent fork replay");
+    expect(html).toContain("Public outcome evidence");
+    expect(html).not.toContain("Verified xStocks acquisition");
+    expect(html).not.toContain("Recurring actions");
     expect(html).toContain('href="/solvers"');
   });
 });

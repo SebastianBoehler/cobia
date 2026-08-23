@@ -9,17 +9,18 @@ export function GeneralIntentHero() {
       <div className="general-hero__copy">
         <h1 id="home-title">State the outcome. Keep the keys.</h1>
         <p>
-          Describe what should happen onchain. Cobia turns your limits into a signed
-          policy and independently verifies exact calls before your wallet approves them.
+          Describe the outcome. AI solvers compete to produce the best transaction plan.
+          Cobia independently replays every call against your limits before your wallet
+          can approve it.
         </p>
         <div className="general-hero__actions">
           <Link className="button button--primary" href="/intents/new">
-            Create an intent <ArrowRight aria-hidden="true" size={17} />
+            Describe an outcome <ArrowRight aria-hidden="true" size={17} />
           </Link>
-          <Link className="text-link" href="/discover">Explore challenges</Link>
+          <Link className="text-link" href="/buildx#evidence">See mainnet proof</Link>
         </div>
         <p className="general-hero__note">
-          AI proposes. Cobia verifies. Your wallet decides.
+          Live on X Layer mainnet · 25+ confirmed outcomes · 3 signed solver profiles · public source
         </p>
       </div>
 

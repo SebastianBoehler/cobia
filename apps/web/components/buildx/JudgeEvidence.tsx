@@ -2,7 +2,6 @@ import {
   ArrowDown,
   ArrowUpRight,
   Check,
-  Clock3,
   Code2,
   ShieldCheck,
   Sparkles,
@@ -60,29 +59,17 @@ const evidence = [
     detail: "Verifier, solver exchange, replay service, contracts, tests and deployment evidence are reviewable.",
     href: "https://github.com/SebastianBoehler/cobia", link: "Browse repository",
   },
-  {
-    title: "Ethy AI via x402", status: "Canary attempted",
-    detail: "Cobia accepted a signed 0.10 USD₮0 authorization. No settlement transaction or independently verifiable receipt has been observed; the canary remains pending.",
-    href: "/api/commerce/placements?id=c66aba5f-6d71-4ec4-88cf-e01ea32bca21", link: "Track canary status", internal: true,
-  },
 ] as const;
 
 const supportedProtocols = ["Aave V3", "Curve StableSwap", "Uniswap V3"] as const;
 
 const foundations = [
-  ["Agent intelligence", "Agents research and propose programs; deterministic verification retains authorization authority."],
-  ["Execution boundary", "Open-world generation is separated from fail-closed execution permission."],
-  ["Live infrastructure", "A public product, two network deployments, persistent evidence and wallet-owned signing paths."],
-  ["X Layer native", "Chain 196 protocols, chain 1952 evidence, USD₮0 x402 settlement and Builder Code attribution."],
-  ["Open network effects", "Each new solver, merchant and protocol expands the same independently verified intent market."],
-  ["Ecosystem utility", "Cobia is a transaction firewall that can turn agent demand into safer X Layer activity."],
-] as const;
-
-const roadmap = [
-  ["Shipped", "Foundation", "Public product, open solver exchange, fresh-fork replay, X Layer deployments and one pinned x402 merchant."],
-  ["Next proof", "Close the loop", "Resolve the 0.10 USD₮0 Ethy canary, then publish its receipt, resource hash and one tampered-term rejection."],
-  ["30 days", "Expand supply", "Add OKLink paid data, QuickSwap route competition, one external solver and an X Layer ecosystem-directory submission."],
-  ["90 days", "Earn distribution", "Ship a wallet integration kit, secure three design partners and prepare the verification surface for external audit."],
+  ["AI application", "AI solvers research, write, and test transaction plans while deterministic verification retains authorization authority."],
+  ["Innovation", "Open-ended generation is separated from fail-closed execution permission."],
+  ["Product completeness", "A live product, 25+ confirmed outcomes, signed solver histories, and public receipts run on X Layer mainnet."],
+  ["User value", "Owners use AI assistance without giving an agent a private key, wallet handle, or production send method."],
+  ["X Layer native", "Chain 196 protocols, mainnet receipts, testnet deployment evidence, and Builder Code attribution are built into the product."],
+  ["Ecosystem growth", "Each new solver, merchant, and protocol expands the same independently verified transaction market."],
 ] as const;
 
 function EvidenceLink({ item }: { item: typeof evidence[number] }) {
@@ -97,13 +84,14 @@ export function JudgeEvidence() {
     <section className={styles.hero}>
       <div className={styles.heroInner}>
         <div className={styles.heroCopy}>
+          <p className={styles.eyebrow}>Build X · General Hackathon</p>
           <h1>AI proposes. <span>Cobia proves what may execute.</span></h1>
-          <p className={styles.lede}>An intent exchange and transaction firewall for X Layer. Solvers compete on outcomes while independent verification and the owner wallet keep authority.</p>
+          <p className={styles.lede}>Cobia is the transaction firewall for AI agents on X Layer. Competing solvers build transaction plans, Cobia independently replays every call, and only the owner wallet can approve the exact verified plan.</p>
           <div className={styles.actions}>
-            <a className="button button--primary" href="https://getcobia.com" rel="noreferrer" target="_blank">
-              Open live product <ArrowUpRight aria-hidden="true" size={16} />
-            </a>
-            <a className="text-link" href="https://github.com/SebastianBoehler/cobia" rel="noreferrer" target="_blank">Inspect source</a>
+            <Link className="button button--primary" href="/intents/new">
+              Describe an outcome <ArrowUpRight aria-hidden="true" size={16} />
+            </Link>
+            <a className="text-link" href="#evidence">See mainnet proof</a>
           </div>
         </div>
         <div aria-label="Cobia verification sequence" className={styles.signal}>
@@ -124,25 +112,24 @@ export function JudgeEvidence() {
           </div>
         </div>
       </div>
-      <a className={styles.scrollCue} href="#boundary">Read the evidence <ArrowDown aria-hidden="true" size={15} /></a>
+      <ul className={styles.proofStrip} aria-label="Cobia live proof summary">
+        <li>Live on chain 196</li>
+        <li>25+ confirmed outcomes</li>
+        <li>3 signed solver profiles</li>
+        <li>Public programs, receipts, and source</li>
+      </ul>
+      <a className={styles.scrollCue} href="#product-proof">Watch the product proof <ArrowDown aria-hidden="true" size={15} /></a>
     </section>
 
-    <section className={styles.boundary} id="boundary">
-      <header><h2>Creative search.<br />Verified authorization.</h2></header>
-      <ol>{boundary.map(([number, title, detail]) => <li key={number}>
-        <div><h3>{title}</h3><p>{detail}</p></div>
-      </li>)}</ol>
-    </section>
-
-    <section className={styles.protocols} aria-labelledby="protocols-title">
+    <section className={styles.productProof} id="product-proof" aria-labelledby="product-proof-title">
       <div>
-        <h2 id="protocols-title">Protocols that already enter verified programs.</h2>
-        <p>Aave supply plus Curve and Uniswap exact-input routes are pinned to explicit X Layer adapters and independently replayed before wallet review.</p>
+        <h2 id="product-proof-title">One intent, from outcome to evidence.</h2>
+        <p>See Cobia turn a natural-language goal into explicit limits, solver proposals, independent proof, wallet review, and an inspectable X Layer result.</p>
+        <a className="text-link" href="#evidence">Inspect the mainnet evidence</a>
       </div>
-      <ul>{supportedProtocols.map((protocol) => <li key={protocol}>
-        <ProtocolMark protocol={protocol} size={58} />
-        <strong>{protocol}</strong>
-      </li>)}</ul>
+      <video controls playsInline poster="/media/cobia-intent-proof-poster.jpg" preload="metadata">
+        <source src="/media/cobia-live-intent-flow-x-layer.mp4" type="video/mp4" />
+      </video>
     </section>
 
     <section className={styles.evidence} id="evidence">
@@ -159,20 +146,27 @@ export function JudgeEvidence() {
       </article>)}</div>
     </section>
 
-    <section className={styles.foundations}>
-      <header className={styles.sectionHeader}><div><h2>Built to scale trust, not custody.</h2></div></header>
-      <dl>{foundations.map(([term, detail]) => <div key={term}><dt>{term}</dt><dd>{detail}</dd></div>)}</dl>
+    <section className={styles.boundary} id="boundary">
+      <header><h2>Let AI search.<br />Keep execution exact.</h2></header>
+      <ol>{boundary.map(([number, title, detail]) => <li key={number}>
+        <div><h3>{title}</h3><p>{detail}</p></div>
+      </li>)}</ol>
     </section>
 
-    <section className={styles.roadmap} id="roadmap">
-      <header className={styles.sectionHeader}>
-        <div><h2>Proof first. Supply next. Distribution follows.</h2></div>
-        <strong className={styles.roadmapNote}>Targets, not shipped claims</strong>
-      </header>
-      <ol>{roadmap.map(([time, title, detail]) => <li key={time}>
-        <div className={styles.roadmapMarker}><i aria-hidden="true" /></div>
-        <div><p className={styles.roadmapTime}>{time}</p><h3>{title}</h3><p>{detail}</p></div>
-      </li>)}</ol>
+    <section className={styles.protocols} aria-labelledby="protocols-title">
+      <div>
+        <h2 id="protocols-title">Protocols already entering verified plans.</h2>
+        <p>Aave supply plus Curve and Uniswap swaps are pinned to explicit X Layer adapters and independently replayed before wallet review.</p>
+      </div>
+      <ul>{supportedProtocols.map((protocol) => <li key={protocol}>
+        <ProtocolMark protocol={protocol} size={58} />
+        <strong>{protocol}</strong>
+      </li>)}</ul>
+    </section>
+
+    <section className={styles.foundations}>
+      <header className={styles.sectionHeader}><div><h2>Why Cobia matters to X Layer.</h2></div></header>
+      <dl>{foundations.map(([term, detail]) => <div key={term}><dt>{term}</dt><dd>{detail}</dd></div>)}</dl>
     </section>
 
     <section className={styles.close}>
@@ -181,7 +175,7 @@ export function JudgeEvidence() {
         <a className="button button--paper" href="https://getcobia.com" rel="noreferrer" target="_blank">Review Cobia <ArrowUpRight aria-hidden="true" size={16} /></a>
         <a href="https://web3.okx.com/xlayer/build-x-series" rel="noreferrer" target="_blank">AI Season rules <ArrowUpRight aria-hidden="true" size={14} /></a>
       </div>
-      <p className={styles.closeNote}><Clock3 aria-hidden="true" size={14} /> Financial controls remain gated until their independent production release checks pass.</p>
+      <p className={styles.closeNote}><ShieldCheck aria-hidden="true" size={14} /> New permissions activate only after independent production checks and governance read-back.</p>
     </section>
   </main>;
 }

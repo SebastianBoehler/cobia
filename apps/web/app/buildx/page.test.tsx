@@ -6,20 +6,21 @@ vi.mock("../../components/layout/AppHeader", () => ({ AppHeader: () => null }));
 import BuildXEvidencePage, { metadata } from "./page";
 
 describe("Build X project page", () => {
-  it("leads visitors from the trust boundary to public proof and the roadmap", () => {
+  it("leads visitors from a real product recording to mainnet proof before architecture", () => {
     const html = renderToStaticMarkup(<BuildXEvidencePage />);
     const text = html.replace(/<[^>]+>/g, "");
+    const productProofIndex = html.indexOf('id="product-proof"');
     const boundaryIndex = html.indexOf('id="boundary"');
     const evidenceIndex = html.indexOf('id="evidence"');
-    const roadmapIndex = html.indexOf('id="roadmap"');
 
     expect(text).toContain("AI proposes. Cobia proves what may execute.");
-    expect(boundaryIndex).toBeGreaterThan(-1);
-    expect(evidenceIndex).toBeGreaterThan(boundaryIndex);
-    expect(roadmapIndex).toBeGreaterThan(evidenceIndex);
+    expect(productProofIndex).toBeGreaterThan(-1);
+    expect(evidenceIndex).toBeGreaterThan(productProofIndex);
+    expect(boundaryIndex).toBeGreaterThan(evidenceIndex);
+    expect(html).not.toContain('id="roadmap"');
   });
 
-  it("links the attempted paid canary to its honest, durable status", () => {
+  it("keeps incomplete canaries out of the primary proof list", () => {
     const html = renderToStaticMarkup(<BuildXEvidencePage />);
 
     expect(html).toContain("Deployed");
@@ -27,10 +28,20 @@ describe("Build X project page", () => {
     expect(html).toContain("Confirmed outcome");
     expect(html).toContain("First mainnet intent outcome");
     expect(html).toContain("1 USDt0 for 0.999471 USDG");
-    expect(html).toContain("Canary attempted");
-    expect(html).toContain("No settlement transaction or independently verifiable receipt has been observed");
-    expect(html).toContain('href="/api/commerce/placements?id=c66aba5f-6d71-4ec4-88cf-e01ea32bca21"');
+    expect(html).not.toContain("Canary attempted");
+    expect(html).not.toContain("No settlement transaction or independently verifiable receipt has been observed");
     expect(html).not.toContain("Ethy settlement verified");
+  });
+
+  it("surfaces the existing product proof and quantified live evidence", () => {
+    const html = renderToStaticMarkup(<BuildXEvidencePage />);
+
+    expect(html).toContain("Build X · General Hackathon");
+    expect(html).toContain("transaction firewall for AI agents on X Layer");
+    expect(html).toContain("25+ confirmed outcomes");
+    expect(html).toContain("3 signed solver profiles");
+    expect(html).toContain('/media/cobia-live-intent-flow-x-layer.mp4');
+    expect(html).toContain("Why Cobia matters to X Layer.");
   });
 
   it("links the live product, source, social post, and both X Layer deployments", () => {
