@@ -2,20 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { Pause, Play } from "lucide-react";
-
-const prompts = [
-  "Move 10 @USDG into the best verified position while keeping at least 10.04 @USDt0 on @XLayer.",
-  "Buy a fresh crypto market brief with an x402 payment capped at 0.01 @USDC.",
-  "Use @Uniswap only if its exact calls reproduce and satisfy my balance floor.",
-  "Pay this subscription monthly on @XLayer, but stop before total spend exceeds 120 @USDt0.",
-] as const;
+import type { GeneralAssetLaunchState } from "../../lib/network/general-asset-launch-status";
+import { publicIntentExamples } from "../../lib/intents/public-examples";
+import { useGeneralAssetLaunchState } from "../network/useGeneralAssetLaunchState";
 
 function tagged(prompt: string) {
   return prompt.split(/(@[A-Za-z0-9]+)/g).map((part, index) => part.startsWith("@")
     ? <strong key={`${part}-${index}`}>{part}</strong> : part);
 }
 
-export function RotatingIntentPrompt() {
+export function RotatingIntentPrompt({ launchState }: { launchState?: GeneralAssetLaunchState }) {
+  const observedLaunchState = useGeneralAssetLaunchState();
+  const prompts = publicIntentExamples(launchState ?? observedLaunchState);
   const [active, setActive] = useState(0);
   const [interactionPaused, setInteractionPaused] = useState(false);
   const [manuallyPaused, setManuallyPaused] = useState(false);
@@ -25,7 +23,7 @@ export function RotatingIntentPrompt() {
     if (paused || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const timer = window.setInterval(() => setActive((value) => (value + 1) % prompts.length), 4_500);
     return () => window.clearInterval(timer);
-  }, [paused]);
+  }, [paused, prompts.length]);
 
   const prompt = prompts[active];
   return (

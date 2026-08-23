@@ -118,6 +118,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .app-header__resources .app-header__build-link:hover { border-color: var(--line-strong); }
 .public-launch { align-items: center; background: var(--cobalt-wash); box-shadow: inset 0 -1px var(--line); color: var(--cobalt-dark); display: flex; font-size: 13px; gap: 8px; justify-content: center; min-height: 36px; padding: 7px 20px; }
 .public-launch strong { font-variant-numeric: tabular-nums; font-weight: 720; }
+.public-launch__next { border-inline-start: 1px solid currentColor; padding-inline-start: 9px; }
 .public-launch--live { background: color-mix(in oklch, var(--verified) 10%, var(--surface)); color: var(--verified); }
 .public-launch--paused { background: color-mix(in oklch, var(--rejected) 9%, var(--surface)); color: var(--rejected); }
 .wallet-control { justify-self: end; position: relative; }

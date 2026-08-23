@@ -5,12 +5,7 @@ import {
 } from "../../lib/intents/intent-controls";
 import { IntentAvailableAssets, type AvailableIntentAsset } from "./IntentAvailableAssets";
 import { IntentOptionMark } from "./IntentOptionMark";
-
-const EXAMPLE_INTENTS = [
-  "Swap 10 @USDG into at least 9.95 @USDt0 on @XLayer",
-  "Supply 10 @USDG to @Aave on @XLayer",
-  "Acquire at least 0.01 @TSLAx with at most 10 @USDG on @XLayer for an eligible DE holder",
-] as const;
+import { V3_INTENT_EXAMPLES } from "../../lib/intents/public-examples";
 
 function extractMentionQuery(value: string): string | undefined {
   return value.match(/(?:^|\s)@([A-Za-z0-9.$_-]*)$/)?.[1];
@@ -51,7 +46,8 @@ export interface IntentMention {
 }
 
 export function IntentGoalInput({ value, compiling, submitEnabled, action, excludedProtocols, mentions,
-  unresolvedMentions, availableAssets, portfolioState, onChange, onActionChange, onMention, onMentionMenuOpen,
+  unresolvedMentions, availableAssets, portfolioState, examples = V3_INTENT_EXAMPLES,
+  onChange, onActionChange, onMention, onMentionMenuOpen,
   onMentionSuggestion, onExcludedProtocolsChange, onSubmit }: {
   value: string;
   compiling: boolean;
@@ -62,6 +58,7 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
   unresolvedMentions: readonly string[];
   availableAssets: readonly AvailableIntentAsset[];
   portfolioState: "idle" | "loading" | "ready" | "error";
+  examples?: readonly string[];
   onChange(value: string): void;
   onActionChange(value: ActionPreference): void;
   onMention(value: IntentMention): void;
@@ -253,7 +250,7 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
         </div> : null}
       </div>
       {!value.trim() ? <div aria-label="Example intents" className="intent-examples">
-        {EXAMPLE_INTENTS.map((example) => <button aria-label={`Use example: ${example}`}
+        {examples.map((example) => <button aria-label={`Use example: ${example}`}
           key={example} onClick={() => onChange(example)} type="button">
           {renderTaggedPrompt(example)}
         </button>)}

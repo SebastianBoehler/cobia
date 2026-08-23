@@ -17,14 +17,13 @@ beforeEach(() => {
 describe("RotatingIntentPrompt", () => {
   it("rotates complete labelled prompts instead of changing isolated words", () => {
     render(<RotatingIntentPrompt />);
-    expect(screen.getByText(/Move 10/)).toBeVisible();
+    expect(screen.getByText(/Swap 10/)).toBeVisible();
     expect(screen.getByText("@USDG")).toBeVisible();
-    expect(screen.queryByText("Supported")).not.toBeInTheDocument();
+    expect(screen.queryByText(/subscription/)).not.toBeInTheDocument();
 
     act(() => vi.advanceTimersByTime(4_500));
 
-    expect(screen.getByText(/Buy a fresh crypto market brief/)).toBeVisible();
-    expect(screen.queryByText("Supported when listed")).not.toBeInTheDocument();
+    expect(screen.getByText(/Supply 10/)).toBeVisible();
   });
 
   it("stays on the first prompt when reduced motion is requested", () => {
@@ -35,7 +34,7 @@ describe("RotatingIntentPrompt", () => {
 
     act(() => vi.advanceTimersByTime(9_000));
 
-    expect(screen.getByText(/Move 10/)).toBeVisible();
+    expect(screen.getByText(/Swap 10/)).toBeVisible();
   });
 
   it("lets the user stop and resume automatic changes", () => {
@@ -43,10 +42,19 @@ describe("RotatingIntentPrompt", () => {
     act(() => screen.getByRole("button", { name: "Pause examples" }).click());
 
     act(() => vi.advanceTimersByTime(9_000));
-    expect(screen.getByText(/Move 10/)).toBeVisible();
+    expect(screen.getByText(/Swap 10/)).toBeVisible();
 
     act(() => screen.getByRole("button", { name: "Play examples" }).click());
     act(() => vi.advanceTimersByTime(4_500));
-    expect(screen.getByText(/Buy a fresh crypto market brief/)).toBeVisible();
+    expect(screen.getByText(/Supply 10/)).toBeVisible();
+  });
+
+  it("adds the xStocks showcase only for public V4", () => {
+    render(<RotatingIntentPrompt launchState="live" />);
+
+    expect(screen.getByText(/Swap 10/)).toBeVisible();
+    act(() => vi.advanceTimersByTime(4_500));
+    expect(screen.getByText(/Acquire at least 0.01/)).toBeVisible();
+    expect(screen.getByText("@TSLAx")).toBeVisible();
   });
 });

@@ -26,7 +26,7 @@ describe("home conversion path", () => {
     expect(html).toContain("Cobia turns your limits into a signed policy");
     expect(html).toContain("AI proposes. Cobia verifies. Your wallet decides.");
     expect(html).not.toContain("home-eyebrow");
-    expect(html).not.toMatch(/Earn|Swap|Profit/);
+    expect(html).not.toContain("home-mode-tabs");
     expect(html).not.toContain("Policy receipt");
   });
 
@@ -78,8 +78,8 @@ describe("home conversion path", () => {
     expect(html).toContain("Supported · offer required");
     expect(html).toContain("Open protocol programs");
     expect(html).toContain("Verified program lane");
-    expect(html).toContain("Registered RWA acquisition");
-    expect(html).toContain("Supported · eligibility required");
+    expect(html).toContain("Verified xStocks acquisition");
+    expect(html).toContain("V4 staged · eligibility required");
     expect(html).toContain("Recurring actions");
     expect(html).toContain("Additional semantics needed");
     expect(html).toContain('href="/solvers"');

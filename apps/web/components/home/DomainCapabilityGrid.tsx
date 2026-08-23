@@ -25,10 +25,10 @@ const domains = [
   },
   {
     icon: Landmark,
-    title: "Registered RWA acquisition",
-    description: "Issuer-sourced token identities, eligibility attestation, exact-call routes, and verified receipt-token increases.",
-    status: "Supported · eligibility required",
-    live: true,
+    title: "Verified xStocks acquisition",
+    description: "Issuer-sourced token identity, eligibility attestation, exact-call routing, and verified balance increases.",
+    status: "V4 staged · eligibility required",
+    live: false,
   },
   {
     icon: Landmark,

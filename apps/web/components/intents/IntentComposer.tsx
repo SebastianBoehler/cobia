@@ -31,6 +31,8 @@ import { StagedConversionPolicyEditor } from "./StagedConversionPolicyEditor";
 import type { AvailableIntentAsset } from "./IntentAvailableAssets";
 import type { GeneralAssetDraftV1 } from "../../lib/intents/general-asset-draft";
 import { GeneralAssetPolicyEditor } from "./GeneralAssetPolicyEditor";
+import { publicIntentExamples } from "../../lib/intents/public-examples";
+import { useGeneralAssetLaunchState } from "../network/useGeneralAssetLaunchState";
 
 type ComposerValues = ReceiptValues | ComposedIntentDraft | StagedConversionDraft | GeneralAssetDraftV1;
 type NativeBalanceReadiness =
@@ -78,6 +80,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   const [nativeBalanceReadiness, setNativeBalanceReadiness] = useState<NativeBalanceReadiness>();
+  const generalAssetLaunchState = useGeneralAssetLaunchState();
   const composerContextKey = `${wallet.account ?? "disconnected"}:${wallet.targetChainId}`;
   const walletPortfolioKey = wallet.account && wallet.targetChainId === 196 ? composerContextKey : undefined;
   const activePortfolio = portfolio && portfolio.key === walletPortfolioKey ? portfolio.snapshot : undefined;
@@ -345,6 +348,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
       {step === "goal" ? <>
         <IntentGoalInput action={action} compiling={compiling}
           submitEnabled={Boolean(wallet.account)}
+          examples={publicIntentExamples(generalAssetLaunchState)}
           excludedProtocols={excludedProtocols} mentions={allMentions}
           unresolvedMentions={unresolvedAssetMentions}
           availableAssets={availableAssets} portfolioState={activePortfolioState}

@@ -64,17 +64,34 @@ describe("IntentComposer", () => {
     expect(within(screen.getByTestId("intent-goal-highlight")).getByText("@XLayer")).toBeVisible();
   });
 
-  it("offers a bounded Tesla xStock intent on X Layer", () => {
+  it("keeps every pre-V4 example on the currently public lane", () => {
     render(<IntentComposer />);
 
-    fireEvent.click(screen.getByRole("button", {
+    expect(within(screen.getByLabelText("Example intents"))
+      .queryByRole("button", { name: /@TSLAx/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name:
+      "Use example: Turn 0.1 @USDG into @OKB using at least 2 wallet steps on @XLayer" }));
+
+    expect(screen.getByLabelText("What should happen?")).toHaveValue(
+      "Turn 0.1 @USDG into @OKB using at least 2 wallet steps on @XLayer",
+    );
+  });
+
+  it("offers the xStocks showcase only after V4 is publicly live", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string) => url === "/api/network/status"
+      ? Promise.resolve(Response.json({ state: "live", activationAt: 0,
+        v4: { state: "live", activationAt: 0 } }))
+      : Promise.resolve(Response.json({}))));
+    render(<IntentComposer />);
+
+    const example = await screen.findByRole("button", {
       name: "Use example: Acquire at least 0.01 @TSLAx with at most 10 @USDG on @XLayer for an eligible DE holder",
-    }));
+    });
+    fireEvent.click(example);
 
     expect(screen.getByLabelText("What should happen?")).toHaveValue(
       "Acquire at least 0.01 @TSLAx with at most 10 @USDG on @XLayer for an eligible DE holder",
     );
-    expect(screen.queryByLabelText("Attached entities")).not.toBeInTheDocument();
     expect(within(screen.getByTestId("intent-goal-highlight")).getByText("@TSLAx")).toBeVisible();
   });
 

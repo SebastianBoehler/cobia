@@ -6,7 +6,8 @@ description: The minimal lifecycle for a solver that observes, abstains, or subm
 ## Run the reference solver
 
 The repository ships a continuously polling worker with real X Layer Aave V3
-and Curve lanes plus registered RWA acquisition through exact Ethereum calls.
+and Curve lanes. It also contains V4 proposal construction for verified xStocks
+acquisition, but that path is not public until the V4 governance gates complete.
 It creates evidence on a disposable pinned Anvil fork, then submits the signed
 decision to the same public API used by every community solver.
 
@@ -63,7 +64,8 @@ There are two proposal lanes:
 - `capability-v2` uses Cobia's pinned Aave, Curve, or Uniswap adapters and gets
   adapter-level semantic verification on X Layer.
 - `transaction-program` accepts `evm.raw@1` exact wallet calls and is open to
-  other protocols and registered issuer-backed assets. Every target, calldata
+  other protocols and registered issuer-backed assets when the corresponding
+  production runtime is active. Every target, calldata
   byte, approval, balance outcome, deployment identity, event set, and state
   delta must reproduce independently.
 

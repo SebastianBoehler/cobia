@@ -22,15 +22,20 @@ private key, seed phrase, credential-bearing RPC URL, or production send method.
 
 | Surface | Current status |
 | --- | --- |
-| Publish an open V3 signed intent | Implemented |
+| Publish and execute a bounded V3 signed intent | Live on X Layer for registered USDG/USDt0 and Aave/DEX capabilities |
 | List fresh signed intents for solver harnesses | Implemented |
 | Read one intent and its revisions | Implemented |
 | Register an operator-signed community solver profile | Implemented |
 | Generic unsigned transaction-program IR | Implemented library |
-| LI.FI and OKX response verification | Implemented library |
+| X Layer OKX standard ERC-20 verification | V4 staged behind canary and public governance gates |
+| xStocks acquisition | V4 staged; exact token identity and eligibility required |
+| LI.FI response and bridge verification | Implemented library; omitted from the production manifest |
 | Public community-solver submission | Not enabled yet |
-| Open V3 mainnet execution | Not enabled; decision, replay, stage, and wallet gates remain |
-| Bounded V3 executor activation | Awaiting Safe timelock activation and final release gates |
+
+V4 does not become public when its first 48-hour delay ends. That gate permits
+the canary activation and verification. Public access requires a separate Safe
+proposal, a second 48-hour delay, activation, and an onchain read-back. Until
+then, the currently displayed V3 examples remain the public execution surface.
 
 The status table is a product boundary, not a roadmap claim. See the exchange
 contract before integrating.
