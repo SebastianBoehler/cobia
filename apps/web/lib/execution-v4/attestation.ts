@@ -120,9 +120,9 @@ function assertMatchesVerifiedStage(
     execution.nonce === generalAssetStageNonceV4(verdict.policy.nonce, stage) &&
     execution.pinnedBlockNumber === BigInt(replay.blockNumber) &&
     execution.pinnedBlockHash === replay.blockHash &&
-    execution.inputIdentityEvidenceHash === stage.input.identityEvidenceHash &&
-    execution.outputIdentityEvidenceHash === stage.outputs[0]!.identityEvidenceHash &&
-    execution.valuationEvidenceHash === stage.input.valuationEvidenceHash;
+    execution.inputIdentityEvidenceHash === verdict.stageInputIdentityEvidenceHashes[stageIndex] &&
+    execution.outputIdentityEvidenceHash === verdict.stageOutputIdentityEvidenceHashes[stageIndex] &&
+    execution.valuationEvidenceHash === verdict.stageValuationEvidenceHashes[stageIndex];
   if (!fixedFieldsMatch || !sameAddressArray(execution.refundTokens, compiled.refundTokens) ||
       !sameCalls(execution.calls, [expectedCall]) || !sameConstraints(execution.constraints, expectedConstraints)) {
     throw new Error("Execution V4 does not match the independently verified stage");

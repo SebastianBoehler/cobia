@@ -157,6 +157,50 @@ describe("general asset program verifier", () => {
     expect(result.stageInputExposuresUsdE8).toEqual(["100000000"]);
   });
 
+  it("binds verifier-owned fresh evidence while preserving program baseline commitments", async () => {
+    const input = fixture();
+    const baseline = { ...(input.valuationEvidence[0] as Record<string, unknown>),
+      expiresAtSec: nowSec - 1 };
+    const baselineHash = commitment(baseline);
+    input.valuationEvidence = [baseline];
+    input.policy = { ...input.policy, inputValuationHash: baselineHash };
+    input.program.policyHash = commitment(input.policy);
+    input.program.valuationEvidenceHashes = [baselineHash];
+    input.program.stages[0]!.input.valuationEvidenceHash = baselineHash;
+    input.program.canonicalProgramHash = canonicalGeneralAssetProgramHash(input.program);
+    const currentIdentityHash = hash("1");
+    const currentValuation = { ...baseline, assetIdentityHash: currentIdentityHash,
+      conservativeValueUsdE8: "90000000", capturedAtSec: nowSec, expiresAtSec: nowSec + 30,
+      quotes: (baseline.quotes as Record<string, unknown>[]).map((quote) => ({ ...quote,
+        fetchedAtSec: nowSec, expiresAtSec: nowSec + 30 })) };
+    input.currentEvidence = { identities: [
+      { programHash: hash("4"), currentHash: currentIdentityHash },
+      { programHash: hash("6"), currentHash: hash("2") },
+    ], valuations: [{ programHash: input.program.stages[0]!.input.valuationEvidenceHash,
+      identityProgramHash: hash("4"), evidence: currentValuation }] };
+
+    const result = await verifyGeneralAssetProgramV1(input);
+
+    expect(result).toMatchObject({ accepted: true, stageObservedInputExposuresUsdE8: ["90000000"],
+      stageInputExposuresUsdE8: ["100000000"], stageInputIdentityEvidenceHashes: [currentIdentityHash],
+      stageValuationEvidenceHashes: [commitment(currentValuation)] });
+  });
+
+  it("rejects fresh exposure above the signed input cap", async () => {
+    const input = fixture();
+    const baseline = input.valuationEvidence[0] as Record<string, unknown>;
+    const currentIdentityHash = hash("1");
+    const currentValuation = { ...baseline, assetIdentityHash: currentIdentityHash,
+      conservativeValueUsdE8: "100000001", capturedAtSec: nowSec, expiresAtSec: nowSec + 30 };
+    input.currentEvidence = { identities: [
+      { programHash: hash("4"), currentHash: currentIdentityHash },
+      { programHash: hash("6"), currentHash: hash("2") },
+    ], valuations: [{ programHash: input.program.stages[0]!.input.valuationEvidenceHash,
+      identityProgramHash: hash("4"), evidence: currentValuation }] };
+
+    expect(await errors(input)).toContain("VALUATION_EVIDENCE_MISMATCH");
+  });
+
   it("rejects unregistered providers, targets, selectors, and code drift", async () => {
     const unregistered = fixture();
     unregistered.manifest.entries = [];

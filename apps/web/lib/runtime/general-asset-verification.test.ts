@@ -1,6 +1,7 @@
 import { AssetIdentityEvidenceV1Schema, commitment } from "@cobia/domain";
 import { canonicalGeneralAssetProgramHash } from "@cobia/solvers";
 import { privateKeyToAccount } from "viem/accounts";
+import type { Address } from "viem";
 import { describe, expect, it, vi } from "vitest";
 import { verifyRawGeneralAssetIdentityV1,
   verifyRuntimeGeneralAssetProposalV1 } from "./general-asset-verification";
@@ -65,9 +66,22 @@ function fixture() {
     gasLimit: 300_000, approval: { spender, maximumAtomic: "100", data: "0x095ea7b3" as const },
     quoteHash: hash("c"), fetchedAtSec: nowSec, expiresAtSec: nowSec + 30,
     source: { approveRequest: "/approve", approval: {}, swapRequest: "/swap", swap: {} } }));
+  const refreshAsset = vi.fn(async ({ token, inputAtomic }: { token: Address; inputAtomic?: string }) => {
+    const baseline = identities.find((value) => value.token === token)!;
+    const identityEvidence = { ...baseline, blockNumber: "124", blockHash: hash("e"),
+      capturedAtSec: nowSec, expiresAtSec: nowSec + 30 };
+    if (!inputAtomic) return { status: "eligible" as const,
+      identityHash: commitment(identityEvidence), identityEvidence };
+    const valuationEvidence = { ...valuation, assetIdentityHash: commitment(identityEvidence),
+      capturedAtSec: nowSec, expiresAtSec: nowSec + 30,
+      quotes: valuation.quotes.map((quote) => ({ ...quote, fetchedAtSec: nowSec,
+        expiresAtSec: nowSec + 30 })) };
+    return { status: "eligible" as const, identityHash: commitment(identityEvidence), identityEvidence,
+      valuationHash: commitment(valuationEvidence), valuationEvidence };
+  });
   return { input: { policy, program, manifest, identityEvidence: identities,
     valuationEvidence: [valuation], anchors: [{ chainId: 196 as const, blockNumber: "123",
-      blockHash: hash("d") }], nowSec }, stage, compileSwap };
+      blockHash: hash("d") }], nowSec }, stage, compileSwap, refreshAsset };
 }
 
 describe("production general asset proposal verification", () => {
@@ -76,7 +90,7 @@ describe("production general asset proposal verification", () => {
     const account = privateKeyToAccount(`0x${"77".repeat(32)}`);
     const assertReady = vi.fn(async () => undefined);
     const result = await verifyRuntimeGeneralAssetProposalV1(value.input, {
-      executor, executorCodeHash: hash("e"), verifyIdentity: async () => true,
+      executor, executorCodeHash: hash("e"), refreshAsset: value.refreshAsset,
       getCodeHash: async (_chainId, address) => address === executor ? hash("e")
         : address === target ? hash("a") : hash("b"), compileSwap: value.compileSwap,
       replayStage: async (_stage, compiled, anchor) => ({ stageId: value.stage.stageId,
@@ -96,6 +110,7 @@ describe("production general asset proposal verification", () => {
     expect(value.compileSwap).toHaveBeenCalledWith(expect.objectContaining({ executor, owner,
       inputToken, outputToken, inputAtomic: "100", minimumOutputAtomic: "99" }));
     expect(assertReady).toHaveBeenCalledOnce();
+    expect(result.accepted && result.freshEvidence.identities[0]).toMatchObject({ blockNumber: "124" });
   });
 
   it("independently rereads every baseline identity field at its pinned block", async () => {
@@ -110,17 +125,55 @@ describe("production general asset proposal verification", () => {
     await expect(verifyRawGeneralAssetIdentityV1(evidence, reader, nowSec)).resolves.toBe(false);
   });
 
+  it("rejects semantic identity drift before compilation", async () => {
+    const value = fixture();
+    const refreshAsset = async (request: { token: Address; inputAtomic?: string }) => {
+      const result = await value.refreshAsset(request);
+      if (request.token !== inputToken || !result.identityEvidence) return result;
+      const identityEvidence = { ...result.identityEvidence, decimals: 6 };
+      return { ...result, identityHash: commitment(identityEvidence), identityEvidence };
+    };
+
+    const result = await verifyRuntimeGeneralAssetProposalV1(value.input, {
+      executor, executorCodeHash: hash("e"), refreshAsset,
+      getCodeHash: vi.fn(), compileSwap: value.compileSwap,
+      replayStage: vi.fn(), signTypedData: vi.fn(),
+    });
+
+    expect(result).toEqual({ accepted: false, errorCodes: ["ASSET_EVIDENCE_MISMATCH"] });
+    expect(value.compileSwap).not.toHaveBeenCalled();
+  });
+
   it("fails closed before compilation for bridge or multi-stage programs", async () => {
     const value = fixture();
     const input = { ...value.input, program: { ...value.input.program,
       stages: [value.stage, { ...value.stage, index: 1,
         predecessorStageId: value.stage.stageId }] } } as never;
     const result = await verifyRuntimeGeneralAssetProposalV1(input, {
-      executor, executorCodeHash: hash("e"), verifyIdentity: async () => true,
+      executor, executorCodeHash: hash("e"), refreshAsset: value.refreshAsset,
       getCodeHash: async () => hash("e"), compileSwap: value.compileSwap,
       replayStage: vi.fn(), signTypedData: vi.fn(),
     });
     expect(result).toEqual({ accepted: false, errorCodes: ["ROUTE_UNSUPPORTED"] });
     expect(value.compileSwap).not.toHaveBeenCalled();
+  });
+
+  it("rejects opaque calldata whose pinned replay decreases an undeclared owner asset", async () => {
+    const value = fixture();
+    const hidden = "0x8888888888888888888888888888888888888888" as const;
+    const result = await verifyRuntimeGeneralAssetProposalV1(value.input, {
+      executor, executorCodeHash: hash("e"), refreshAsset: value.refreshAsset,
+      getCodeHash: async (_chainId, address) => address === executor ? hash("e")
+        : address === target ? hash("a") : hash("b"), compileSwap: value.compileSwap,
+      replayStage: async (_stage, compiled, anchor) => ({ stageId: value.stage.stageId,
+        chainId: 196, blockNumber: anchor.blockNumber, blockHash: anchor.blockHash,
+        compiledCallHash: commitment(compiled), matchesCompiledCalls: true, success: true,
+        gasUsed: "200000", ownerAssetDeltas: [{ token: inputToken, deltaAtomic: "-100" },
+          { token: outputToken, deltaAtomic: "99" }, { token: hidden, deltaAtomic: "-1" }],
+        endingAllowances: [{ token: inputToken, spender, atomic: "0" }],
+        traceHash: hash("9"), stateDiffHash: hash("8") }), signTypedData: vi.fn(),
+    });
+    expect(result).toMatchObject({ accepted: false,
+      errorCodes: expect.arrayContaining(["UNDECLARED_ASSET_DECREASE"]) });
   });
 });

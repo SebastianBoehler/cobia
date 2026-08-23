@@ -55,10 +55,9 @@ import { GeneralAssetManifestMismatchError, GeneralAssetOwnerBalanceRequiredErro
 import { GeneralAssetRefreshRequiredError,
   parseGeneralAssetCompilationReceiptV1 } from "./general-asset-compilation-receipt";
 import { createOkxGeneralAssetSwapCompilerV1 } from "../okx/general-asset-swap";
-import { verifyRawGeneralAssetIdentityV1,
-  verifyRuntimeGeneralAssetProposalV1 } from "./general-asset-verification";
-import { createPinnedAssetReaderV1 } from "../assets/general-asset-chain-reader";
+import { verifyRuntimeGeneralAssetProposalV1 } from "./general-asset-verification";
 import { assertGeneralAssetV4Ready } from "./general-asset-v4-readiness";
+import { createProductionGeneralAssetEligibilityV2 } from "../assets/production-general-asset-eligibility";
 
 let activityRepository: ReturnType<typeof createActivityRepository> | undefined;
 let database: ReturnType<typeof createDatabase> | undefined;
@@ -338,9 +337,8 @@ export function submitOpenSolverDecision(value: {
         const executionConfig = readGeneralAssetV4Config().entries.find((entry) => entry.chainId === chainId);
         if (!executionConfig || !chainId) throw new Error("General asset V4 execution chain is not configured");
         const rawClient = chainId === 1 ? ethereumClient : client;
-        const reader = createPinnedAssetReaderV1(rawClient as never);
         const swapCompiler = createOkxGeneralAssetSwapCompilerV1({ credentials: readOkxCredentials() });
-        const anchor = input.anchors?.find((value) => value.chainId === chainId);
+        const eligibility = createProductionGeneralAssetEligibilityV2();
         const stage = program.stages[0];
         const entry = stage && manifest.entries.find((value) => value.chainId === chainId &&
           value.adapter.id === stage.adapter.id && value.adapter.version === stage.adapter.version &&
@@ -350,7 +348,7 @@ export function submitOpenSolverDecision(value: {
           anchors: (input.anchors ?? []) as { chainId: 1 | 196; blockNumber: string; blockHash: Hash }[],
           nowSec: input.nowSec }, {
           executor: executionConfig.executor, executorCodeHash: executionConfig.executorCodeHash,
-          verifyIdentity: (evidence) => verifyRawGeneralAssetIdentityV1(evidence, reader, input.nowSec),
+          refreshAsset: (value) => eligibility.eligibility(value),
           async getCodeHash(_exactChainId, address, blockNumber) {
             const code = await rawClient.getCode({ address, blockNumber: BigInt(blockNumber) });
             return !code || code === "0x" ? undefined : keccak256(code);
@@ -362,11 +360,12 @@ export function submitOpenSolverDecision(value: {
             stage: exactStage, compiled,
           }),
           signTypedData: (typedData) => verifier.signTypedData(typedData),
-          async assertReady() {
-            if (!anchor || !entry || !stage) throw new Error("General asset V4 anchor or adapter is unavailable");
+          async assertReady(freshAnchor) {
+            if (!entry || !stage) throw new Error("General asset V4 adapter is unavailable");
             await assertGeneralAssetV4Ready({ client: rawClient as never, config: executionConfig,
               verifier: verifier.address, target: entry.target,
-              selector: stage.calldata.slice(0, 10) as `0x${string}`, blockNumber: anchor.blockNumber });
+              selector: stage.calldata.slice(0, 10) as `0x${string}`,
+              blockNumber: freshAnchor.blockNumber });
           },
         });
       }

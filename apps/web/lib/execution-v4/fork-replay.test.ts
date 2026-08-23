@@ -80,7 +80,10 @@ function accepted(
     finalOutput: { chainId: 196 as const, token: outputToken, minimumAtomic: "99" } };
   return { accepted: true, errorCodes: [], policy, program, manifest,
     compiledStages: [compiled], replays: [replay], replayHash: commitment([replay]),
-    stageInputExposuresUsdE8: ["100000000"] };
+    stageInputExposuresUsdE8: ["100000000"], stageObservedInputExposuresUsdE8: ["100000000"],
+    stageInputIdentityEvidenceHashes: [stage.input.identityEvidenceHash],
+    stageOutputIdentityEvidenceHashes: [stage.outputs[0]!.identityEvidenceHash],
+    stageValuationEvidenceHashes: [stage.input.valuationEvidenceHash] };
 }
 
 function execution(
@@ -93,9 +96,9 @@ function execution(
   return {
     policyHash: verdict.program.policyHash, manifestHash: verdict.program.manifestHash,
     canonicalProgramHash: verdict.program.canonicalProgramHash,
-    inputIdentityEvidenceHash: exactStage.input.identityEvidenceHash,
-    outputIdentityEvidenceHash: exactStage.outputs[0]!.identityEvidenceHash,
-    valuationEvidenceHash: exactStage.input.valuationEvidenceHash,
+    inputIdentityEvidenceHash: verdict.stageInputIdentityEvidenceHashes[stageIndex]!,
+    outputIdentityEvidenceHash: verdict.stageOutputIdentityEvidenceHashes[stageIndex]!,
+    valuationEvidenceHash: verdict.stageValuationEvidenceHashes[stageIndex]!,
     stageHash: commitment(exactStage), simulationHash: commitment(exactReplay),
     pinnedBlockNumber: BigInt(exactReplay.blockNumber), pinnedBlockHash: exactReplay.blockHash,
     sourceChainId: BigInt(exactStage.chainId), owner,
@@ -183,7 +186,11 @@ describe("general asset V4 fork replay and attestation", () => {
         valuationEvidenceHashes: [hash("5"), hash("8")], stages: [stage, destinationStage] },
       compiledStages: [compiled, destinationCompiled], replays: [replay, destinationReplay],
       replayHash: commitment([replay, destinationReplay]),
-      stageInputExposuresUsdE8: ["100000000", "99000000"] };
+      stageInputExposuresUsdE8: ["100000000", "99000000"],
+      stageObservedInputExposuresUsdE8: ["100000000", "99000000"],
+      stageInputIdentityEvidenceHashes: [hash("4"), hash("6")],
+      stageOutputIdentityEvidenceHashes: [hash("6"), hash("9")],
+      stageValuationEvidenceHashes: [hash("5"), hash("8")] };
     const signer = privateKeyToAccount(hash("1"));
     await expect(attestExecutionProgramV4({ verdict: destinationVerdict, stageIndex: 1,
       execution: execution(destinationVerdict, 1), executor,

@@ -38,7 +38,7 @@ describe("general asset composer policy", () => {
       input: { chainId: 196, token: inputToken, maximumAtomic: "100", maximumUsdE8: "50000000000" },
       outputs: [{ chainId: 1, token: outputToken, minimumAtomic: "90", identityHash: hash("4") }],
       inputIdentityHash: hash("2"), inputValuationHash: hash("3"),
-      competition: { closesAt: 2_000_000_030 }, deadline: 2_000_001_800,
+      competition: { closesAt: 2_000_000_300 }, deadline: 2_000_001_800,
       forbiddenTargets: [expect.objectContaining({ chainId: 196 })],
     });
     expect(intentComposerExecutionChainIds(values)).toEqual([1, 196]);

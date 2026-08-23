@@ -51,7 +51,7 @@ export async function publishGeneralAssetIntentV1(input: {
   }
   const evidenceExpiry = Math.min(...evidence.identities.map(({ expiresAtSec }) => expiresAtSec),
     ...evidence.valuations.map(({ expiresAtSec }) => expiresAtSec));
-  if (deps.nowSec() >= evidenceExpiry || input.policy.competition.closesAt > evidenceExpiry) {
+  if (deps.nowSec() >= evidenceExpiry) {
     throw new GeneralAssetRefreshRequiredError(
       "General asset compilation evidence expired; refresh before signing",
     );

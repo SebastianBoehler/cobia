@@ -164,6 +164,18 @@ describe("general asset stage API", () => {
     expect(mocks.armStage).not.toHaveBeenCalled();
   });
 
+  it("never arms a stage after the attested quote deadline", async () => {
+    const execution = { ...bundle(), deadline: 1 };
+    mocks.getExecutionContext.mockResolvedValue({ owner, state: "attested",
+      policy: { kind: "general-asset" }, program: {}, artifacts: [{ kind: "execution",
+        payload: execution, artifactHash: commitment(execution) }] });
+
+    const response = await POST(request({ action: "arm" }), context);
+
+    expect(response.status).toBe(409);
+    expect(mocks.armStage).not.toHaveBeenCalled();
+  });
+
   it("does not expose a stage outside the attested artifact", async () => {
     const response = await POST(request({ action: "arm" }), {
       params: Promise.resolve({ submissionId, stageId: hash("8") }),

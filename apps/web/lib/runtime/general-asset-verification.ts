@@ -25,13 +25,19 @@ interface Input {
 interface Dependencies {
   executor: Address;
   executorCodeHash: Hash;
-  verifyIdentity(evidence: ReturnType<typeof AssetIdentityEvidenceV1Schema.parse>): Promise<boolean>;
+  refreshAsset(input: { chainId: 1 | 196; token: Address; inputAtomic?: string }): Promise<{
+    status: "eligible" | "verification_pending" | "unsupported";
+    identityHash?: Hash;
+    identityEvidence?: ReturnType<typeof AssetIdentityEvidenceV1Schema.parse>;
+    valuationHash?: Hash;
+    valuationEvidence?: unknown;
+  }>;
   getCodeHash(chainId: 1 | 196, address: Address, blockNumber: string): Promise<Hash | undefined>;
   compileSwap: ReturnType<typeof createOkxGeneralAssetSwapCompilerV1>["compile"];
   replayStage(stage: GeneralAssetStageV1, compiled: CompiledGeneralAssetStageV1,
     anchor: Anchor): Promise<GeneralAssetStageReplayV1 | undefined>;
   signTypedData(typedData: ReturnType<typeof authorizationTypedDataV4>): Promise<Hex>;
-  assertReady?(): Promise<void>;
+  assertReady?(anchor: Anchor, stage: GeneralAssetStageV1): Promise<void>;
 }
 
 const ADAPTER_KEY = keccak256(stringToHex("okx.swap@1"));
@@ -55,6 +61,12 @@ export async function verifyRawGeneralAssetIdentityV1(
 
 function rejected(code: string) {
   return { accepted: false as const, errorCodes: [code] };
+}
+
+function stableIdentity(evidence: ReturnType<typeof AssetIdentityEvidenceV1Schema.parse>) {
+  return commitment({ chainId: evidence.chainId, token: evidence.token,
+    runtimeCodeHash: evidence.runtimeCodeHash, proxy: evidence.proxy, decimals: evidence.decimals,
+    behaviorModule: evidence.behaviorModule });
 }
 
 function supportedRoute(input: Input): boolean {
@@ -94,9 +106,9 @@ function execution(verdict: Extract<Awaited<ReturnType<typeof verifyGeneralAsset
   const replay = verdict.replays[0]!;
   return { policyHash: verdict.program.policyHash, manifestHash: verdict.program.manifestHash,
     canonicalProgramHash: verdict.program.canonicalProgramHash,
-    inputIdentityEvidenceHash: stage.input.identityEvidenceHash,
-    outputIdentityEvidenceHash: stage.outputs[0]!.identityEvidenceHash,
-    valuationEvidenceHash: stage.input.valuationEvidenceHash, stageHash: commitment(stage),
+    inputIdentityEvidenceHash: verdict.stageInputIdentityEvidenceHashes[0]!,
+    outputIdentityEvidenceHash: verdict.stageOutputIdentityEvidenceHashes[0]!,
+    valuationEvidenceHash: verdict.stageValuationEvidenceHashes[0]!, stageHash: commitment(stage),
     simulationHash: commitment(replay), pinnedBlockNumber: BigInt(replay.blockNumber),
     pinnedBlockHash: replay.blockHash, sourceChainId: BigInt(stage.chainId), owner: verdict.program.owner,
     inputToken: stage.input.token, outputToken: stage.outputs[0]!.token,
@@ -114,23 +126,41 @@ function execution(verdict: Extract<Awaited<ReturnType<typeof verifyGeneralAsset
 
 export async function verifyRuntimeGeneralAssetProposalV1(input: Input, deps: Dependencies) {
   if (!supportedRoute(input)) return rejected("ROUTE_UNSUPPORTED");
-  await deps.assertReady?.();
   const identities = input.identityEvidence.map((value) => AssetIdentityEvidenceV1Schema.safeParse(value));
   if (identities.some(({ success }) => !success)) return rejected("ASSET_EVIDENCE_MISMATCH");
-  const verified = await Promise.all(identities.map(async (result) => {
-    const evidence = result.success ? result.data : undefined;
-    return evidence && await deps.verifyIdentity(evidence) ? commitment(evidence) as Hash : undefined;
-  }));
-  if (verified.some((value) => !value)) return rejected("ASSET_EVIDENCE_MISMATCH");
   const stage = input.program.stages[0];
-  const anchor = input.anchors.find(({ chainId }) => chainId === stage.chainId);
-  if (!anchor) return rejected("ANCHOR_MISSING");
+  const inputBaseline = identities.find((result) => result.success &&
+    commitment(result.data) === stage.input.identityEvidenceHash);
+  const outputBaseline = identities.find((result) => result.success &&
+    commitment(result.data) === stage.outputs[0]!.identityEvidenceHash);
+  if (!inputBaseline?.success || !outputBaseline?.success) return rejected("ASSET_EVIDENCE_MISMATCH");
+  const [freshInput, freshOutput] = await Promise.all([
+    deps.refreshAsset({ chainId: stage.chainId, token: stage.input.token,
+      inputAtomic: stage.input.maximumAtomic }),
+    deps.refreshAsset({ chainId: stage.chainId, token: stage.outputs[0]!.token }),
+  ]);
+  if (freshInput.status !== "eligible" || freshOutput.status !== "eligible" ||
+      !freshInput.identityHash || !freshOutput.identityHash || !freshInput.identityEvidence ||
+      !freshOutput.identityEvidence || !freshInput.valuationHash || !freshInput.valuationEvidence ||
+      stableIdentity(freshInput.identityEvidence) !== stableIdentity(inputBaseline.data) ||
+      stableIdentity(freshOutput.identityEvidence) !== stableIdentity(outputBaseline.data)) {
+    return rejected("ASSET_EVIDENCE_MISMATCH");
+  }
+  const anchor = { chainId: stage.chainId, blockNumber: freshInput.identityEvidence.blockNumber,
+    blockHash: freshInput.identityEvidence.blockHash };
+  await deps.assertReady?.(anchor, stage);
   if (await deps.getCodeHash(stage.chainId, deps.executor, anchor.blockNumber) !== deps.executorCodeHash) {
     return rejected("EXECUTOR_CODE_DRIFT");
   }
   const verdict = await verifyGeneralAssetProgramV1({ policy: input.policy, program: input.program,
     manifest: input.manifest, valuationEvidence: input.valuationEvidence,
-    verifiedIdentityEvidenceHashes: verified as Hash[], anchors: input.anchors, nowSec: input.nowSec,
+    verifiedIdentityEvidenceHashes: input.program.identityEvidenceHashes,
+    currentEvidence: { identities: [
+      { programHash: stage.input.identityEvidenceHash, currentHash: freshInput.identityHash },
+      { programHash: stage.outputs[0]!.identityEvidenceHash, currentHash: freshOutput.identityHash },
+    ], valuations: [{ programHash: stage.input.valuationEvidenceHash,
+      identityProgramHash: stage.input.identityEvidenceHash, evidence: freshInput.valuationEvidence }] },
+    anchors: [anchor], nowSec: input.nowSec,
     getCodeHash: deps.getCodeHash,
     compileStage: (exactStage, entry) => compileStage({ chainId: exactStage.chainId,
       executor: deps.executor, owner: input.program.owner, inputToken: exactStage.input.token,
@@ -147,7 +177,9 @@ export async function verifyRuntimeGeneralAssetProposalV1(input: Input, deps: De
     executionCommitment: attestation.authorization.executionCommitment,
     evidenceHash: attestation.evidenceHash, signature: attestation.signature,
   }]);
+  const freshEvidence = { identities: [freshInput.identityEvidence, freshOutput.identityEvidence],
+    valuations: [freshInput.valuationEvidence], anchors: [anchor] };
   return { accepted: true as const, errorCodes: [] as const, replay: verdict.replays,
     execution: buildGeneralAssetExecutionBundleV4({ verdict, attestations: [attestation] }),
-    authorization };
+    authorization, freshEvidence: { ...freshEvidence, hash: commitment(freshEvidence) as Hash } };
 }

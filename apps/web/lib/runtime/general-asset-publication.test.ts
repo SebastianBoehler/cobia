@@ -60,6 +60,15 @@ describe("general asset publication", () => {
     }));
   });
 
+  it("keeps the normal competition window after a fresh baseline was signed", async () => {
+    const dependencies = deps();
+    const normalWindow = GeneralAssetPolicyV1Schema.parse({ ...policy,
+      competition: { ...policy.competition, closesAt: 2_000_000_400 } });
+    await expect(publishGeneralAssetIntentV1({ policy: normalWindow,
+      ownerSignature: `0x${"44".repeat(65)}`, generalAssetEvidence: evidence }, dependencies))
+      .resolves.toEqual({ id: policy.requestId });
+  });
+
   it("rejects current valuation above the signed USD cap", async () => {
     const dependencies = deps();
     const excessiveValuation = { ...valuation, conservativeValueUsdE8: "251" };

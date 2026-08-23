@@ -4,7 +4,7 @@ import { parseGeneralAssetExecutionBundleV4 } from "./stage-artifact";
 
 export interface AttestedGeneralAssetStageV4 {
   stageIndex: number;
-  authorization: { chainId: bigint; owner: Address; canonicalProgramHash: Hash };
+  authorization: { chainId: bigint; owner: Address; canonicalProgramHash: Hash; deadline: bigint };
   call: { to: Address; data: Hex; value: bigint };
   evidenceHash: Hash;
 }
@@ -49,6 +49,9 @@ export function buildGeneralAssetExecutionBundleV4(input: {
   });
   return parseGeneralAssetExecutionBundleV4({
     version: 4, kind: "general-asset-execution", programId: program.canonicalProgramHash,
-    owner: program.owner, deadline: program.deadline, finalOutput: program.finalOutput, stages,
+    owner: program.owner,
+    deadline: Math.min(program.deadline,
+      ...input.attestations.map(({ authorization }) => Number(authorization.deadline))),
+    finalOutput: program.finalOutput, stages,
   });
 }

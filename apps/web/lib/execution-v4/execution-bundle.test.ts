@@ -25,7 +25,11 @@ function verdict() {
       identityEvidenceHashes: [hash("2")], valuationEvidenceHashes: [hash("3")],
       stages: [first, second], finalOutput: { chainId: 196 as const, token: address("5"), minimumAtomic: "80" } },
     manifest: {} as never, compiledStages: [], replays: [], replayHash: hash("b"),
-    stageInputExposuresUsdE8: ["100000000", "90000000"] } satisfies GeneralAssetProgramVerdictV1;
+    stageInputExposuresUsdE8: ["100000000", "90000000"],
+    stageObservedInputExposuresUsdE8: ["100000000", "90000000"],
+    stageInputIdentityEvidenceHashes: [hash("4"), hash("6")],
+    stageOutputIdentityEvidenceHashes: [hash("6"), hash("8")],
+    stageValuationEvidenceHashes: [hash("5"), hash("7")] } satisfies GeneralAssetProgramVerdictV1;
 }
 
 describe("general asset execution bundle", () => {
@@ -33,11 +37,13 @@ describe("general asset execution bundle", () => {
     const accepted = verdict();
     const attestations = accepted.program.stages.map((stage, stageIndex) => ({ stageIndex,
       authorization: { chainId: BigInt(stage.chainId), owner: accepted.program.owner,
-        canonicalProgramHash: accepted.program.canonicalProgramHash },
+        canonicalProgramHash: accepted.program.canonicalProgramHash,
+        deadline: BigInt(accepted.program.deadline - stageIndex - 1) },
       call: { to: address("9"), data: "0x12345678" as const, value: 0n }, evidenceHash: hash("c") }));
     const bundle = buildGeneralAssetExecutionBundleV4({ verdict: accepted, attestations });
     expect(bundle.stages[0]).toMatchObject({ transaction: { chainId: 1 },
       delivery: { token: address("3"), minimumAtomic: "90" } });
     expect(bundle.stages[0]!.transaction).not.toHaveProperty("nonce");
+    expect(bundle.deadline).toBe(accepted.program.deadline - 2);
   });
 });

@@ -188,10 +188,6 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
         const sourceIdentity = required(decision.evidence.identities.find((identity) =>
           commitment(identity) === policy.inputIdentityHash && identity.chainId === policy.input.chainId &&
           identity.token === policy.input.token), "General asset input evidence is unavailable");
-        if (sourceIdentity.expiresAtSec <= nowSec ||
-            nowSec - sourceIdentity.capturedAtSec > policy.maxEvidenceAgeSec) {
-          throw new InvalidSolverDecisionError("General asset input evidence is stale");
-        }
         anchor = { blockNumber: sourceIdentity.blockNumber, blockHash: sourceIdentity.blockHash };
       } else {
         const storedSnapshot = required(

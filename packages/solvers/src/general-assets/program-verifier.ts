@@ -39,6 +39,10 @@ export interface GeneralAssetProgramVerificationInputV1 {
   manifest: RegisteredAdapterManifestV1;
   valuationEvidence: unknown[];
   verifiedIdentityEvidenceHashes: Hash[];
+  currentEvidence?: {
+    identities: Array<{ programHash: Hash; currentHash: Hash }>;
+    valuations: Array<{ programHash: Hash; identityProgramHash: Hash; evidence: unknown }>;
+  };
   anchors: StageAnchorV1[];
   nowSec: number;
   getCodeHash(chainId: 1 | 196, address: Address, blockNumber: string): Promise<Hash | undefined>;
@@ -66,6 +70,10 @@ export type GeneralAssetProgramVerdictV1 = {
   replays: GeneralAssetStageReplayV1[];
   replayHash: Hash;
   stageInputExposuresUsdE8: string[];
+  stageObservedInputExposuresUsdE8: string[];
+  stageInputIdentityEvidenceHashes: Hash[];
+  stageOutputIdentityEvidenceHashes: Hash[];
+  stageValuationEvidenceHashes: Hash[];
 };
 
 export function canonicalGeneralAssetProgramHash(input: GeneralAssetProgramV1): Hash {
@@ -166,10 +174,23 @@ export async function verifyGeneralAssetProgramV1(
       program.identityEvidenceHashes.some((hash) => !input.verifiedIdentityEvidenceHashes.includes(hash))) {
     errors.add("ASSET_EVIDENCE_MISMATCH");
   }
-  const valuations = new Map(valuationEvidence.map((evidence) => [commitment(evidence), evidence]));
-  const stageInputExposuresUsdE8 = program.stages.map((stage) => {
-    const evidence = valuations.get(stage.input.valuationEvidenceHash);
-    if (!evidence || evidence.assetIdentityHash !== stage.input.identityEvidenceHash ||
+  const identityBindings = new Map(input.currentEvidence?.identities.map((binding) =>
+    [binding.programHash, binding.currentHash]) ?? input.verifiedIdentityEvidenceHashes.map((hash) => [hash, hash]));
+  const currentValuations = input.currentEvidence?.valuations.map((binding) => ({ ...binding,
+    evidence: AssetValuationEvidenceV1Schema.parse(binding.evidence) })) ?? valuationEvidence.map((evidence) => ({
+    programHash: commitment(evidence) as Hash, identityProgramHash: evidence.assetIdentityHash, evidence }));
+  const valuations = new Map(currentValuations.map((binding) => [binding.programHash, binding]));
+  const stageInputIdentityEvidenceHashes: Hash[] = [];
+  const stageOutputIdentityEvidenceHashes: Hash[] = [];
+  const stageValuationEvidenceHashes: Hash[] = [];
+  const stageObservedInputExposuresUsdE8 = program.stages.map((stage) => {
+    const binding = valuations.get(stage.input.valuationEvidenceHash);
+    const evidence = binding?.evidence;
+    const currentInputHash = identityBindings.get(stage.input.identityEvidenceHash);
+    const currentOutputHash = identityBindings.get(stage.outputs[0]!.identityEvidenceHash);
+    if (!binding || !evidence || !currentInputHash || !currentOutputHash ||
+        binding.identityProgramHash !== stage.input.identityEvidenceHash ||
+        evidence.assetIdentityHash !== currentInputHash ||
         evidence.expiresAtSec <= input.nowSec ||
         BigInt(evidence.inputAtomic) < BigInt(stage.input.maximumAtomic) ||
         BigInt(evidence.conservativeValueUsdE8) > BigInt(stage.input.maximumUsdE8) ||
@@ -177,6 +198,9 @@ export async function verifyGeneralAssetProgramV1(
       errors.add("VALUATION_EVIDENCE_MISMATCH");
       return "0";
     }
+    stageInputIdentityEvidenceHashes.push(currentInputHash);
+    stageOutputIdentityEvidenceHashes.push(currentOutputHash);
+    stageValuationEvidenceHashes.push(commitment(evidence) as Hash);
     return evidence.conservativeValueUsdE8;
   });
   const first = program.stages[0]!;
@@ -247,6 +271,7 @@ export async function verifyGeneralAssetProgramV1(
     errors.add("STAGE_REPLAY_MISSING");
   }
   if (errors.size > 0) return rejection(errors);
+  const stageInputExposuresUsdE8 = program.stages.map((stage) => stage.input.maximumUsdE8);
   return {
     accepted: true,
     errorCodes: [],
@@ -257,5 +282,9 @@ export async function verifyGeneralAssetProgramV1(
     replays,
     replayHash: commitment(replays) as Hash,
     stageInputExposuresUsdE8,
+    stageObservedInputExposuresUsdE8,
+    stageInputIdentityEvidenceHashes,
+    stageOutputIdentityEvidenceHashes,
+    stageValuationEvidenceHashes,
   };
 }
