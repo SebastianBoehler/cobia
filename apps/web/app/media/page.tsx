@@ -69,13 +69,28 @@ export default function MediaKitPage() {
           <h2 id="product-proof">Product proof</h2>
           <p>One intent, competing solvers, exact verification, wallet-authorized execution, and a public X Layer receipt.</p>
         </header>
-        <video controls playsInline poster="/media/cobia-intent-proof-poster.jpg" preload="metadata">
-          <source src="/media/cobia-live-intent-flow-x-layer.mp4" type="video/mp4" />
-        </video>
-        <div className={styles.proofActions}>
-          <a className="button button--quiet" download href="/media/cobia-live-intent-flow-x-layer.mp4"><Download aria-hidden="true" size={17} />Download live demo</a>
-          <a className="button button--quiet" download href="/media/cobia-intent-proof-x-layer.mp4"><Download aria-hidden="true" size={17} />Download motion cut</a>
-          <a className="button button--quiet" download href="/media/cobia-mainnet-outcome.jpg"><Download aria-hidden="true" size={17} />Download outcome image</a>
+        <div className={styles.proofGallery}>
+          <article className={styles.proofFeature}>
+            <div className={styles.proofLabel}><span>01</span><h3>Live demo</h3></div>
+            <video controls playsInline poster="/media/cobia-intent-proof-poster.jpg" preload="metadata">
+              <source src="/media/cobia-live-intent-flow-x-layer.mp4" type="video/mp4" />
+            </video>
+            <a className="button button--quiet" download href="/media/cobia-live-intent-flow-x-layer.mp4"><Download aria-hidden="true" size={17} />Download live demo</a>
+          </article>
+          <div className={styles.proofCompanions}>
+            <article>
+              <div className={styles.proofLabel}><span>02</span><h3>Motion cut</h3></div>
+              <video controls playsInline poster="/media/cobia-intent-proof-poster.jpg" preload="metadata">
+                <source src="/media/cobia-intent-proof-x-layer.mp4" type="video/mp4" />
+              </video>
+              <a className="button button--quiet" download href="/media/cobia-intent-proof-x-layer.mp4"><Download aria-hidden="true" size={17} />Download motion cut</a>
+            </article>
+            <article>
+              <div className={styles.proofLabel}><span>03</span><h3>Outcome image</h3></div>
+              <Image alt="Cobia mainnet outcome" height={899} src="/media/cobia-mainnet-outcome.jpg" width={1905} />
+              <a className="button button--quiet" download href="/media/cobia-mainnet-outcome.jpg"><Download aria-hidden="true" size={17} />Download outcome image</a>
+            </article>
+          </div>
         </div>
       </section>
 

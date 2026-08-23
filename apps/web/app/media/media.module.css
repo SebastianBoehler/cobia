@@ -41,8 +41,15 @@
 .downloadList strong { font-size: 15px; }
 .downloadList small { color: var(--muted); font-family: var(--font-geist-mono), monospace; font-size: 11px; }
 
-.proof video { background: #11141a; border: 1px solid var(--line); border-radius: 24px; box-shadow: var(--shadow); display: block; margin-top: 58px; width: 100%; }
-.proofActions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+.proofGallery { display: grid; gap: 42px; margin-top: 58px; }
+.proofFeature { display: grid; gap: 20px; }
+.proofLabel { align-items: baseline; display: flex; gap: 12px; }
+.proofLabel span { color: var(--cobalt-dark); font-family: var(--font-geist-mono), monospace; font-size: 11px; }
+.proofLabel h3 { font-size: 15px; font-weight: 640; margin: 0; }
+.proofFeature video, .proofCompanions video, .proofCompanions img { background: #11141a; border: 1px solid var(--line); border-radius: 24px; box-shadow: var(--shadow); display: block; width: 100%; }
+.proofCompanions { display: grid; gap: 28px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.proofCompanions article { display: grid; gap: 20px; }
+.proofCompanions img { aspect-ratio: 1905 / 899; height: auto; object-fit: cover; }
 .company { display: grid; gap: 50px; grid-template-columns: minmax(300px, .85fr) minmax(360px, 1.15fr); }
 .company .sectionHeader { grid-column: 1 / -1; }
 .company blockquote { color: var(--cobalt-dark); font-size: clamp(38px, 4vw, 58px); font-weight: 610; letter-spacing: -.055em; line-height: 1.05; margin: 0; }
@@ -73,8 +80,10 @@
   .routeVisual img { height: 88px; width: 88px; }
   .logoPreview { grid-template-columns: 1fr; }
   .logoPreview > div { height: 210px; padding: 42px; }
-  .proof video { border-radius: 16px; margin-top: 40px; }
-  .proofActions { align-items: stretch; flex-direction: column; }
+  .proofGallery { margin-top: 40px; }
+  .proofFeature video, .proofCompanions video, .proofCompanions img { border-radius: 16px; }
+  .proofFeature :global(.button), .proofCompanions :global(.button) { justify-content: center; width: 100%; }
+  .proofCompanions { grid-template-columns: 1fr; }
   .officialLinks { grid-template-columns: 1fr; margin: 0 20px 72px; }
   .officialLinks a + a { border-inline-start: 0; border-top: 1px solid var(--line); }
 }

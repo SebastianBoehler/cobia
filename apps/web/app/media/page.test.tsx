@@ -16,6 +16,11 @@ describe("Media kit page", () => {
     expect(html).toContain('href="/media/cobia-mark-cobalt.svg"');
     expect(html).toContain('href="/media/cobia-wordmark-dark.svg"');
     expect(html).toContain('src="/media/cobia-live-intent-flow-x-layer.mp4"');
+    expect(html).toContain('src="/media/cobia-intent-proof-x-layer.mp4"');
+    expect(html).toContain('alt="Cobia mainnet outcome"');
+    expect(html).toContain("Live demo");
+    expect(html).toContain("Motion cut");
+    expect(html).toContain("Outcome image");
     expect(html).toContain('href="/media/cobia-intent-proof-x-layer.mp4"');
     expect(html).toContain("download");
     expect(html).not.toContain("marketing/remotion/output");
