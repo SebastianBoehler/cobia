@@ -1,4 +1,4 @@
-import type { Address, Hash } from "viem";
+import type { Address, Hash, Hex } from "viem";
 
 interface TokenEvidence {
   token: Address;
@@ -61,6 +61,20 @@ export interface ProgramView {
     }>;
     execution?: PublicArtifact<{
       program?: { actions?: { approvals?: Approval[] }[] };
+      version?: number;
+      kind?: string;
+      programId?: Hash;
+      owner?: Address;
+      deadline?: number;
+      finalOutput?: { chainId: 1 | 196; token: Address; minimumAtomic: string };
+      stages?: Array<{
+        stageId: Hash; ordinal: number; chainId: 1 | 196;
+        predecessorStageId: Hash | null; inputToken: Address; requiredConfirmations: number;
+        transaction: { chainId: 1 | 196; from: Address; to: Address; nonce: string; value: Hex; data: Hex };
+        delivery: { kind: "none" } | { kind: "bridge"; destinationChainId: 1 | 196;
+          recipient: Address; token: Address; minimumAtomic: string };
+        evidenceHash: Hash;
+      }>;
     }>;
     verdict?: PublicArtifact<{ accepted: boolean; errorCodes: string[] }>;
     provenance?: PublicArtifact<{

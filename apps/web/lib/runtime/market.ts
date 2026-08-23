@@ -21,6 +21,7 @@ import { createOpenIntentSnapshotRepository } from "../db/open-intent-snapshots"
 import { createSolverDecisionClaimRepository } from "../db/solver-decision-claims";
 import { createSolverSuccessFeeRepository } from "../db/solver-success-fees";
 import { createWalletAuthRepository } from "../db/wallet-auth";
+import { createGeneralAssetExecutionRepository } from "../db/general-asset-executions";
 import { readCodingAgentV3RuntimeConfig, readDatabaseUrl, readOkxCredentials } from "../env";
 import { openGeneralCodingAgentCompetition } from "./general-coding-agent";
 import { cobiaCodingAgentProfile } from "./solver-catalog";
@@ -59,6 +60,7 @@ let openIntentSnapshotRepository: ReturnType<typeof createOpenIntentSnapshotRepo
 let solverDecisionClaimRepository: ReturnType<typeof createSolverDecisionClaimRepository> | undefined;
 let solverSuccessFeeRepository: ReturnType<typeof createSolverSuccessFeeRepository> | undefined;
 let walletAuthRepository: ReturnType<typeof createWalletAuthRepository> | undefined;
+let generalAssetExecutionRepository: ReturnType<typeof createGeneralAssetExecutionRepository> | undefined;
 
 export { IntentSnapshotUnavailableError, OwnerBalanceRequiredError };
 
@@ -130,6 +132,11 @@ export function getSolverSuccessFeeRepository() {
 export function getWalletAuthRepository() {
   walletAuthRepository ??= createWalletAuthRepository(getDatabase());
   return walletAuthRepository;
+}
+
+export function getGeneralAssetExecutionRepository() {
+  generalAssetExecutionRepository ??= createGeneralAssetExecutionRepository(getDatabase());
+  return generalAssetExecutionRepository;
 }
 
 export function openGeneralIntentMarket(input: {

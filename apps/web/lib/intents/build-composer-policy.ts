@@ -1,3 +1,4 @@
+import { GeneralAssetPolicyV1Schema } from "@cobia/domain";
 import type { Address, Hash } from "viem";
 import { buildCapabilityCompositionPolicyV1 } from "./composition-policy";
 import type { ComposedIntentDraft } from "./composition-draft";
@@ -13,9 +14,10 @@ import {
 } from "./intent-controls";
 import { instrumentCommitmentV1 } from "../instruments/production-registry";
 import type { StagedConversionDraft } from "./staged-conversion-draft";
+import type { GeneralAssetDraftV1 } from "./general-asset-draft";
 
 interface Input {
-  values: IntentReceiptValues | ComposedIntentDraft | StagedConversionDraft;
+  values: IntentReceiptValues | ComposedIntentDraft | StagedConversionDraft | GeneralAssetDraftV1;
   requestId: string;
   owner: Address;
   inputAtomic: string | null;
@@ -36,7 +38,14 @@ function isStaged(values: Input["values"]): values is StagedConversionDraft {
   return "kind" in values && values.kind === "staged-conversion";
 }
 
+function isGeneralAsset(values: Input["values"]): values is GeneralAssetDraftV1 {
+  return "kind" in values && values.kind === "general-asset-draft";
+}
+
 export function intentComposerExecutionChainIds(values: Input["values"]): Array<1 | 196> {
+  if (isGeneralAsset(values)) {
+    return [...new Set([values.sourceChainId, values.destinationChainId])].sort((a, b) => a - b);
+  }
   if (!isComposed(values) && !isStaged(values) && values.templateId === "rwa-acquisition") {
     const instrument = RWA_INTENT_ASSETS.find(({ address }) => address === values.outputToken)?.instrument;
     if (instrument?.chainId === 1) return [1, 196];
@@ -45,6 +54,45 @@ export function intentComposerExecutionChainIds(values: Input["values"]): Array<
 }
 
 export function buildIntentComposerPolicy(input: Input) {
+  if (isGeneralAsset(input.values)) {
+    if (BigInt(input.values.input.maximumUsdE8) > 100_000_000_000n) {
+      throw new Error("Maximum input cannot exceed $1,000 per route.");
+    }
+    const forbiddenTargets = protocolForbiddenTargets(input.excludedProtocols)
+      .map((target) => ({ chainId: 196 as const, target }));
+    return GeneralAssetPolicyV1Schema.parse({
+      version: 1,
+      kind: "general-asset",
+      requestId: input.requestId,
+      displayGoal: input.displayGoal,
+      owner: input.owner.toLowerCase(),
+      sourceChainId: input.values.sourceChainId,
+      destinationChainId: input.values.destinationChainId,
+      nonce: input.nonce.toLowerCase(),
+      createdAt: input.nowSec,
+      deadline: input.nowSec + 1_800,
+      competition: { closesAt: input.nowSec + 300, maxRevisionsPerSolver: 5 },
+      maxEvidenceAgeSec: 300,
+      manifestHash: input.values.manifestHash,
+      inputIdentityHash: input.values.input.identityHash,
+      inputValuationHash: input.values.input.valuationHash,
+      input: {
+        chainId: input.values.sourceChainId,
+        token: input.values.input.token,
+        maximumAtomic: input.values.input.maximumAtomic,
+        maximumUsdE8: input.values.input.maximumUsdE8,
+      },
+      outputs: [{
+        chainId: input.values.destinationChainId,
+        token: input.values.output.token,
+        minimumAtomic: input.values.output.minimumAtomic,
+      }],
+      allowedAdapters: input.values.allowedAdapters,
+      limits: input.values.limits,
+      forbiddenTargets,
+      forbiddenAssets: [],
+    });
+  }
   if (isStaged(input.values)) {
     const minimumOutputAtomic = decimalToAtomic(
       input.values.minimum, input.values.outputDecimals,

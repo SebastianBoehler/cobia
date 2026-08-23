@@ -28,8 +28,10 @@ import {
 import { deriveCapabilityAuthorityV2 } from "../../../../../lib/open-exchange/capability-authority";
 import { deriveCompositionAuthorityV1 } from "../../../../../lib/open-exchange/composition-authority";
 import {
-  getSolverProfileRepository, getSolverSubmissionRepository, getSolverSuccessFeeRepository,
+  getGeneralAssetExecutionRepository, getSolverProfileRepository, getSolverSubmissionRepository,
+  getSolverSuccessFeeRepository,
 } from "../../../../../lib/runtime/market";
+import { prepareGeneralAssetExecutionReviewV4 } from "../../../../../lib/execution-v4/prepare-review";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -86,6 +88,17 @@ export async function POST(
       return NextResponse.json({
         code: "EXECUTION_EXPIRED", message: "The verified execution window has closed. Create a fresh intent.",
       }, { status: 409 });
+    }
+    if (executionValue.version === 4 && executionValue.kind === "general-asset-execution") {
+      const execution = await prepareGeneralAssetExecutionReviewV4({
+        artifact: executionArtifact.payload,
+        owner: proof.owner,
+        submissionState: stored.state,
+        repository: getGeneralAssetExecutionRepository(),
+      });
+      return NextResponse.json({ ...execution, successFee: WAIVED_SOLVER_SUCCESS_FEE }, {
+        headers: { "Cache-Control": "no-store" },
+      });
     }
     const policy = stored.policy.kind === "capability-composition"
       ? CapabilityCompositionPolicyV1Schema.parse(stored.policy)

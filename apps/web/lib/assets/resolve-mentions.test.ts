@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SolverToolV1 } from "../solver-tools/types";
 import type { XStocksToolValueV1 } from "../solver-tools/xstocks";
-import { resolveAssetMentionsV1 } from "./resolve-mentions";
+import { resolveAssetMentionsV1, resolveAssetSelectorsV2 } from "./resolve-mentions";
 
 const aapl = {
   id: "03e9a31f-f889-4fdd-b45a-f2b30a3f824e",
@@ -105,5 +105,63 @@ describe("asset mention resolver", () => {
       address: token, status: "research-only", priceUsd: "2.50",
       liquidityUsd: "100000", holderCount: "1200" }]);
     expect(result.unresolved).toEqual([]);
+  });
+});
+
+describe("general asset selector resolution", () => {
+  const token = "0x2222222222222222222222222222222222222222" as const;
+  const identityHash = `0x${"44".repeat(32)}` as const;
+  const valuationHash = `0x${"55".repeat(32)}` as const;
+
+  it("selects a random token by exact chain and address and exposes verifier status", async () => {
+    const lookup = { searchToken: vi.fn(async () => ({ chainId: 1 as const, token,
+      name: "Random Dollar", symbol: "USD", decimals: 18, priceUsd: "1.01",
+      liquidityUsd: "200000", holderCount: "900" })) };
+    const verifier = { eligibility: vi.fn(async () => ({ status: "eligible" as const,
+      identityHash, valuationHash })) };
+
+    const result = await resolveAssetSelectorsV2(
+      [{ chainId: 1, address: token }], tool({ assets: [] }), lookup, verifier,
+    );
+
+    expect(lookup.searchToken).toHaveBeenCalledWith(1, token);
+    expect(result.assets).toEqual([expect.objectContaining({
+      chainId: 1, address: token, symbol: "USD", status: "eligible",
+      identityHash, valuationHash,
+    })]);
+  });
+
+  it("does not pick one of two same-symbol contracts", async () => {
+    const ambiguous = Object.assign(new Error("ambiguous"), { code: "AMBIGUOUS_TOKEN" });
+    const lookup = { searchToken: vi.fn().mockRejectedValue(ambiguous) };
+
+    const result = await resolveAssetSelectorsV2(
+      [{ chainId: 196, symbol: "USD" }], tool({ assets: [] }), lookup,
+    );
+
+    expect(result).toMatchObject({
+      assets: [], unresolved: [], ambiguities: [{ chainId: 196, symbol: "USD" }],
+    });
+  });
+
+  it("keeps metadata-only tokens pending and preserves unsupported reasons", async () => {
+    const lookup = { searchToken: vi.fn(async () => ({ chainId: 196 as const, token,
+      name: "Fee Token", symbol: "FEE", decimals: 9, priceUsd: "0.4",
+      liquidityUsd: "1000" })) };
+    const pending = await resolveAssetSelectorsV2(
+      [{ chainId: 196, address: token }], tool({ assets: [] }), lookup,
+    );
+    expect(pending.assets[0]).toMatchObject({
+      status: "verification_pending", reason: "Independent asset verification has not completed.",
+    });
+
+    const verifier = { eligibility: vi.fn(async () => ({ status: "unsupported" as const,
+      reason: "Fee-on-transfer behavior is unsupported." })) };
+    const unsupported = await resolveAssetSelectorsV2(
+      [{ chainId: 196, address: token }], tool({ assets: [] }), lookup, verifier,
+    );
+    expect(unsupported.assets[0]).toMatchObject({
+      status: "unsupported", reason: "Fee-on-transfer behavior is unsupported.",
+    });
   });
 });

@@ -647,4 +647,59 @@ describe("IntentComposer", () => {
       method: "personal_sign", params: [commitment(body.policy), owner],
     });
   });
+
+  it("reviews and signs exact general-asset chain/address authority", async () => {
+    const hash = (byte: string) => `0x${byte.repeat(64)}` as `0x${string}`;
+    const inputToken = "0x2222222222222222222222222222222222222222" as const;
+    const outputToken = "0x3333333333333333333333333333333333333333" as const;
+    const values = {
+      kind: "general-asset-draft" as const, templateId: "general-asset" as const,
+      displayGoal: "Swap random assets", sourceChainId: 196 as const,
+      destinationChainId: 1 as const, manifestHash: hash("1"),
+      input: { token: inputToken, symbol: "IN", decimals: 18, maximumAtomic: "100",
+        maximumUsdE8: "50000000000", identityHash: hash("2"), valuationHash: hash("3") },
+      output: { token: outputToken, symbol: "OUT", decimals: 6,
+        minimumAtomic: "90", identityHash: hash("4") },
+      allowedAdapters: [{ id: "lifi.route", version: 1 }],
+      limits: { maxStages: 4, maxCallsPerStage: 4, maxApprovals: 8, maxCalldataBytes: 4096,
+        maxGasPerStage: "2000000", maxNativeValueUsdE8: "1000000000",
+        maxBridgeFeeUsdE8: "5000000000", maxSolverFeeUsdE8: "0",
+        maxConversionLossBps: 400, maxSlippageBps: 200 },
+    };
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url === "/api/intents/compile") return Promise.resolve(Response.json({ status: "review", values }));
+      if (url === "/api/intents/readiness") {
+        return Promise.resolve(Response.json({ missingNativeBalanceChainIds: [] }));
+      }
+      if (url === "/api/intents") {
+        return Promise.resolve(Response.json({ links: { intent: "/intents/general" } }, { status: 202 }));
+      }
+      if (url === "/api/assets/resolve") return Promise.resolve(Response.json({ assets: [], unresolved: [] }));
+      return Promise.resolve(Response.json({ balances: [], native: {
+        symbol: "OKB", amountAtomic: "1", formatted: "0.000000000000000001",
+      } }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<IntentComposer />);
+    fireEvent.change(screen.getByLabelText("What should happen?"), {
+      target: { value: "Swap my exact random token into an Ethereum token" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Review policy" }));
+
+    expect(await screen.findByRole("heading", { name: "Review exact asset authority" })).toBeVisible();
+    expect(screen.getByText("X Layer → Ethereum")).toBeVisible();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sign and publish intent" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Sign and publish intent" }));
+
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => url === "/api/intents")).toBe(true));
+    const publish = fetchMock.mock.calls.find(([url]) => url === "/api/intents")!;
+    const body = JSON.parse(String(publish[1].body));
+    expect(body.policy).toMatchObject({
+      kind: "general-asset", sourceChainId: 196, destinationChainId: 1,
+      input: { token: inputToken, maximumAtomic: "100", maximumUsdE8: "50000000000" },
+      outputs: [{ chainId: 1, token: outputToken, minimumAtomic: "90" }],
+    });
+    expect(state.switchChain).toHaveBeenCalledWith(196);
+    expect(state.switchToXLayer).not.toHaveBeenCalled();
+  });
 });

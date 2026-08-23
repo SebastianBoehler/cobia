@@ -48,6 +48,8 @@ export function AgentProgramSummary({ program, action }: {
   const constraints = artifacts.program?.payload?.balanceConstraints ?? [];
   const balanceChanges = receipt?.balanceChanges ?? artifacts.evidence?.payload?.balanceDeltas ?? [];
   const completed = Boolean(receipt?.transactionHash);
+  const generalAsset = artifacts.execution?.payload?.version === 4 &&
+    artifacts.execution.payload.kind === "general-asset-execution";
 
   return <div className={styles.shell}>
     <header className={styles.hero}>
@@ -97,7 +99,9 @@ export function AgentProgramSummary({ program, action }: {
       </div> : <div className={styles.actionPanel}>
         <div><strong>{submission.executable ? "No solver fee during launch" : "Need a current route?"}</strong>
           <p>{submission.executable
-            ? "Cobia currently waives the solver fee. A bounded token approval appears only if needed; execution still needs one final confirmation."
+            ? generalAsset
+              ? "Cobia waives the solver fee. Review the exact ordered stages; every wallet transaction remains separately confirmed and reconciled."
+              : "Cobia currently waives the solver fee. A bounded token approval appears only if needed; execution still needs one final confirmation."
             : "Create a fresh intent to capture current state and verify it again."}</p></div>
         {action ?? <Link className="button button--primary" href="/intents/new">Create fresh intent <ArrowRight aria-hidden="true" size={16} /></Link>}
       </div>}

@@ -12,8 +12,10 @@ import { randomBytes32 } from "../../lib/payments/random";
 import { formatTokenAmount } from "../../lib/token-amount";
 import { shortAddress } from "../../lib/wallet/eip1193";
 import { useWallet } from "../wallet/WalletProvider";
+import { GeneralAssetExecutionView } from "../intents/GeneralAssetExecutionView";
 import { AgentProgramSummary } from "./AgentProgramSummary";
 import type { ProgramView } from "./agent-program-types";
+import { runWalletSequence } from "./run-wallet-sequence";
 import styles from "./AgentProgramView.module.css";
 
 interface TransactionCall { to: Address; data: Hex; value: "0x0" }
@@ -139,8 +141,26 @@ export function AgentProgramView({ programId }: { programId: string }) {
         await wallet.switchChain(body.chainId);
       }
       setPrepared(body);
+      const completed = await runWalletSequence({
+        initial: body,
+        refresh: () => requestExecution(access),
+        switchChain: wallet.switchChain,
+        send,
+        onApproval: setApprovalIndex,
+        onTransaction: (index, hashes) => {
+          setTransactionIndex(index);
+          setTransactionHashes(hashes);
+        },
+      });
+      setPrepared(completed.ready);
+      await attributeReceipt(completed.ready, access, completed.hashes, completed.transactionHash);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Execution preflight failed.");
+      const failure = cause instanceof Error ? cause.message : "Execution preflight failed.";
+      try {
+        const refreshed = await load(programId);
+        setProgram(refreshed);
+        setError(refreshed.submission.executable ? failure : undefined);
+      } catch { setError(failure); }
     } finally { setPending(false); }
   }
 
@@ -180,6 +200,31 @@ export function AgentProgramView({ programId }: { programId: string }) {
     finally { setPending(false); }
   }
 
+  async function attributeReceipt(
+    ready: Prepared,
+    access: ExecutionAccess,
+    hashes: Hash[],
+    transactionHash: Hash,
+  ) {
+    const response = await fetch(`/api/programs/${programId}/execution/receipt`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        proof: access.value,
+        ownerSignature: access.signature,
+        ...(ready.execution ? { transactionHash } : { transactionHashes: hashes }),
+      }),
+    });
+    const body = await response.json();
+    if (!response.ok) throw new Error(message(body, "Receipt attribution failed."));
+    setConfirmed(transactionHash);
+    setProgram((current) => current ? {
+      ...current,
+      submission: { ...current.submission, state: "executed", executable: false },
+      artifacts: { ...current.artifacts, receipt: { payload: body.receipt } },
+    } : current);
+    load(programId).then(setProgram).catch(() => undefined);
+  }
+
   async function execute() {
     if (!prepared) return;
     setPending(true); setError(undefined);
@@ -199,24 +244,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
         setTransactionIndex((value) => value + 1);
         return;
       }
-      const receiptAccess = access;
-      const response = await fetch(`/api/programs/${programId}/execution/receipt`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          proof: receiptAccess.value,
-          ownerSignature: receiptAccess.signature,
-          ...(prepared.execution ? { transactionHash } : { transactionHashes: hashes }),
-        }),
-      });
-      const body = await response.json();
-      if (!response.ok) throw new Error(message(body, "Receipt attribution failed."));
-      setConfirmed(transactionHash);
-      setProgram((current) => current ? {
-        ...current,
-        submission: { ...current.submission, state: "executed", executable: false },
-        artifacts: { ...current.artifacts, receipt: { payload: body.receipt } },
-      } : current);
-      load(programId).then(setProgram).catch(() => undefined);
+      await attributeReceipt(ready, access, hashes, transactionHash);
     } catch (cause) {
       const failure = cause instanceof Error ? cause.message : "Execution failed.";
       setPrepared(undefined);
@@ -237,6 +265,10 @@ export function AgentProgramView({ programId }: { programId: string }) {
 
   if (!program && !error) return <section className={styles.loading}><LoaderCircle className="spin" /> Loading program evidence…</section>;
   if (!program) return <p role="alert" className="form-alert">{error}</p>;
+  if (program.artifacts.execution?.payload?.version === 4 &&
+      program.artifacts.execution.payload.kind === "general-asset-execution") {
+    return <GeneralAssetExecutionView program={program} />;
+  }
   const { submission } = program;
   const approvalsDone = approvalIndex >= (prepared?.approvals.length ?? 0);
   const action = <>

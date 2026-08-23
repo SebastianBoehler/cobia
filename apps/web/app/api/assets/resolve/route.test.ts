@@ -64,4 +64,41 @@ describe("POST /api/assets/resolve", () => {
 
     expect(okx.searchXLayerToken).toHaveBeenCalledTimes(1);
   });
+
+  it("resolves an exact Ethereum contract without substituting by symbol", async () => {
+    const token = "0x2222222222222222222222222222222222222222" as const;
+    const identityHash = `0x${"33".repeat(32)}` as const;
+    const valuationHash = `0x${"44".repeat(32)}` as const;
+    const okx = {
+      searchToken: vi.fn(async () => ({ chainId: 1 as const, token,
+        name: "Random Token", symbol: "RND", decimals: 18,
+        priceUsd: "2", liquidityUsd: "200000" })),
+      searchXLayerToken: vi.fn(),
+    };
+    const verifier = { eligibility: vi.fn(async () => ({ status: "eligible" as const,
+      identityHash, valuationHash })) };
+    const response = await resolveAssetMentionRequest(new Request(
+      "https://getcobia.com/api/assets/resolve",
+      { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ assets: [{ chainId: 1, address: token }] }) },
+    ), xstocks, okx, undefined, verifier);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ assets: [{
+      chainId: 1, address: token, status: "eligible", identityHash, valuationHash,
+    }] });
+    expect(okx.searchToken).toHaveBeenCalledWith(1, token);
+    expect(okx.searchXLayerToken).not.toHaveBeenCalled();
+  });
+
+  it("rejects selectors that omit an exact chain or identity", async () => {
+    const response = await resolveAssetMentionRequest(new Request(
+      "https://getcobia.com/api/assets/resolve",
+      { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ assets: [{ symbol: "RND" }] }) },
+    ), xstocks);
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ code: "ASSET_RESOLUTION_INVALID" });
+  });
 });

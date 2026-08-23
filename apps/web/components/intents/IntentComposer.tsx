@@ -29,8 +29,10 @@ import {
 import type { StagedConversionDraft } from "../../lib/intents/staged-conversion-draft";
 import { StagedConversionPolicyEditor } from "./StagedConversionPolicyEditor";
 import type { AvailableIntentAsset } from "./IntentAvailableAssets";
+import type { GeneralAssetDraftV1 } from "../../lib/intents/general-asset-draft";
+import { GeneralAssetPolicyEditor } from "./GeneralAssetPolicyEditor";
 
-type ComposerValues = ReceiptValues | ComposedIntentDraft | StagedConversionDraft;
+type ComposerValues = ReceiptValues | ComposedIntentDraft | StagedConversionDraft | GeneralAssetDraftV1;
 type NativeBalanceReadiness =
   | { key: string; status: "ready"; missingChainIds: number[] }
   | { key: string; status: "unavailable" };
@@ -41,6 +43,10 @@ function isComposed(values: ComposerValues): values is ComposedIntentDraft {
 
 function isStaged(values: ComposerValues): values is StagedConversionDraft {
   return "kind" in values && values.kind === "staged-conversion";
+}
+
+function isGeneralAsset(values: ComposerValues): values is GeneralAssetDraftV1 {
+  return "kind" in values && values.kind === "general-asset-draft";
 }
 
 function errorMessage(cause: unknown): string {
@@ -79,23 +85,34 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
     ? portfolioState.status : "idle";
   const composed = isComposed(values);
   const staged = isStaged(values);
-  const rwa = !composed && !staged && values.templateId === "rwa-acquisition";
-  const inputAsset = !staged ? [NATIVE_INTENT_ASSET, ...INTENT_ASSETS]
+  const generalAsset = isGeneralAsset(values);
+  const rwa = !composed && !staged && !generalAsset && values.templateId === "rwa-acquisition";
+  const inputAsset = !staged && !generalAsset ? [NATIVE_INTENT_ASSET, ...INTENT_ASSETS]
     .find(({ address }) => address === values.inputToken) ?? INTENT_ASSETS[0]
       : INTENT_ASSETS[0];
-  const outputAsset = rwa && !composed
+  const outputAsset = generalAsset ? INTENT_ASSETS[0] : rwa && !composed
     ? RWA_INTENT_ASSETS.find(({ address }) => address === (values as ReceiptValues).outputToken) ?? RWA_INTENT_ASSETS[0]
     : staged ? CONVERSION_INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? INTENT_ASSETS[0]
     : !composed ? INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? INTENT_ASSETS[1]
       : INTENT_ASSETS[1];
-  const amount = staged ? "" : values.amount;
-  const inputAtomic = useMemo(() => decimalToAtomic(amount, inputAsset.decimals), [inputAsset.decimals, amount]);
-  const minimum = composed ? "" : values.minimum;
-  const minimumAtomic = useMemo(() => decimalToAtomic(minimum, outputAsset.decimals), [minimum, outputAsset.decimals]);
+  const amount = staged || generalAsset ? "" : values.amount;
+  const inputAtomic = useMemo(() => generalAsset
+    ? values.input.maximumAtomic
+    : decimalToAtomic(amount, inputAsset.decimals), [amount, generalAsset, inputAsset.decimals, values]);
+  const minimum = composed || generalAsset ? "" : values.minimum;
+  const minimumAtomic = useMemo(() => generalAsset
+    ? values.output.minimumAtomic
+    : decimalToAtomic(minimum, outputAsset.decimals), [generalAsset, minimum, outputAsset.decimals, values]);
   const stagedInputsValid = staged && values.inputs.every((item) =>
     decimalToAtomic(item.amount, item.decimals));
   const valid = Boolean(wallet.account && goal.trim() && (
-    staged ? stagedInputsValid && minimumAtomic : inputAtomic && (
+    generalAsset ? /^(?:[1-9][0-9]*)$/.test(values.input.maximumAtomic) &&
+      /^(?:[1-9][0-9]*)$/.test(values.input.maximumUsdE8) &&
+      BigInt(values.input.maximumUsdE8) <= 100_000_000_000n &&
+      /^(?:[1-9][0-9]*)$/.test(values.output.minimumAtomic) &&
+      values.limits.maxConversionLossBps >= 0 && values.limits.maxConversionLossBps <= 10_000 &&
+      values.limits.maxSlippageBps >= 0 && values.limits.maxSlippageBps <= 10_000
+      : staged ? stagedInputsValid && minimumAtomic : inputAtomic && (
       composed
         ? values.maxConversionLossBps >= 0 && values.maxConversionLossBps <= 500 &&
           values.minimumReceiptValueBps >= 9_500 && values.minimumReceiptValueBps <= 10_000 &&
@@ -292,7 +309,8 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
     setPending(true);
     setError(undefined);
     try {
-      await wallet.switchToXLayer();
+      if (generalAsset) await wallet.switchChain(values.sourceChainId);
+      else await wallet.switchToXLayer();
       const requestId = crypto.randomUUID();
       const nowSec = Math.floor(Date.now() / 1_000);
       const nonce = keccak256(stringToHex(`${requestId}:${wallet.account}:${nowSec}:${crypto.randomUUID()}`));
@@ -342,7 +360,9 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
           onClick={() => { setStep("goal"); setError(undefined); }} type="button">
           <ArrowLeft aria-hidden="true" size={16} /> Edit goal
         </button></div>
-        {composed
+        {generalAsset
+          ? <GeneralAssetPolicyEditor owner={wallet.account} values={values} onChange={setValues} />
+          : composed
           ? <CompositionPolicyEditor owner={wallet.account} values={values} onChange={setValues} />
           : staged
             ? <StagedConversionPolicyEditor values={values} onChange={setValues} />

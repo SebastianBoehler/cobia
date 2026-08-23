@@ -202,7 +202,6 @@ describe("AgentProgramView", () => {
     expect(await screen.findByText("No solver fee during launch")).toBeVisible();
     expect(screen.queryByText(/fee authorization/i)).not.toBeInTheDocument();
     fireEvent.click(await screen.findByRole("button", { name: "Prepare execution" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Swap now" }));
 
     expect(await screen.findByText("Verified history")).toBeVisible();
     expect(screen.getByRole("link", { name: /create fresh intent/i })).toBeVisible();
@@ -271,12 +270,13 @@ describe("AgentProgramView", () => {
 
     render(<AgentProgramView programId="550e8400-e29b-41d4-a716-446655440000" />);
     fireEvent.click(await screen.findByRole("button", { name: "Prepare execution" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Allow 1 USDG" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Swap now" }));
 
     expect(await screen.findByText("Swap complete")).toBeVisible();
     await waitFor(() => expect(wallet.request.mock.calls.filter(
       ([request]) => request.method === "personal_sign",
     )).toHaveLength(1));
+    expect(wallet.request.mock.calls.filter(
+      ([request]) => request.method === "eth_sendTransaction",
+    )).toHaveLength(2);
   });
 });

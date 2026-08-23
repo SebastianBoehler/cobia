@@ -1,4 +1,4 @@
-import { isAddressEqual, type Address } from "viem";
+import { getAddress, isAddressEqual, type Address, type Hash } from "viem";
 import { SUPPORTED_ASSETS } from "../chain/supported-assets";
 import { INTENT_ASSETS, RWA_INTENT_ASSETS } from "../intents/capability-templates";
 import type { SolverToolV1 } from "../solver-tools/types";
@@ -20,6 +20,51 @@ interface OkxTokenLookup {
     liquidityUsd: string;
     holderCount?: string;
   } | undefined>;
+}
+
+export type GeneralAssetEligibilityV2 =
+  | { status: "eligible"; identityHash: Hash; valuationHash?: Hash }
+  | { status: "verification_pending"; reason: string }
+  | { status: "unsupported"; reason: string };
+
+interface GeneralTokenLookupV2 {
+  searchToken(chainId: 1 | 196, search: string): Promise<{
+    chainId: 1 | 196;
+    token: Address;
+    name: string;
+    symbol: string;
+    decimals: number;
+    priceUsd: string;
+    liquidityUsd: string;
+    holderCount?: string;
+  } | undefined>;
+}
+
+interface GeneralAssetEligibilityResolverV2 {
+  eligibility(asset: { chainId: 1 | 196; token: Address }): Promise<GeneralAssetEligibilityV2>;
+}
+
+export type GeneralAssetSelectorV2 = {
+  chainId: 1 | 196;
+  address: Address;
+} | {
+  chainId: 1 | 196;
+  symbol: string;
+};
+
+export interface ResolvedGeneralAssetV2 {
+  chainId: 1 | 196;
+  address: Address;
+  symbol: string;
+  name: string;
+  decimals: number;
+  status: GeneralAssetEligibilityV2["status"];
+  reason?: string;
+  identityHash?: Hash;
+  valuationHash?: Hash;
+  priceUsd?: string;
+  liquidityUsd?: string;
+  holderCount?: string;
 }
 
 export interface ResolvedAssetMentionV1 {
@@ -115,4 +160,76 @@ export async function resolveAssetMentionsV1(
     (order.get(b.symbol.toLowerCase()) ?? 99));
   unresolved.sort((a, b) => (order.get(a.toLowerCase()) ?? 99) - (order.get(b.toLowerCase()) ?? 99));
   return { assets, unresolved };
+}
+
+function pendingEligibility(): GeneralAssetEligibilityV2 {
+  return {
+    status: "verification_pending",
+    reason: "Independent asset verification has not completed.",
+  };
+}
+
+function ambiguousToken(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "AMBIGUOUS_TOKEN";
+}
+
+export async function resolveAssetSelectorsV2(
+  selectors: readonly GeneralAssetSelectorV2[],
+  _xstocks: Tool,
+  lookup: GeneralTokenLookupV2,
+  verifier?: GeneralAssetEligibilityResolverV2,
+): Promise<{
+  assets: ResolvedGeneralAssetV2[];
+  unresolved: GeneralAssetSelectorV2[];
+  ambiguities: Array<{ chainId: 1 | 196; symbol: string }>;
+}> {
+  const unique = [...new Map(selectors.slice(0, 16).map((selector) => {
+    const key = "address" in selector
+      ? `${selector.chainId}:address:${selector.address.toLowerCase()}`
+      : `${selector.chainId}:symbol:${selector.symbol.toLowerCase()}`;
+    return [key, selector];
+  })).values()];
+  const assets: ResolvedGeneralAssetV2[] = [];
+  const unresolved: GeneralAssetSelectorV2[] = [];
+  const ambiguities: Array<{ chainId: 1 | 196; symbol: string }> = [];
+
+  await Promise.all(unique.map(async (selector) => {
+    const search = "address" in selector ? selector.address : selector.symbol;
+    let token: Awaited<ReturnType<GeneralTokenLookupV2["searchToken"]>>;
+    try {
+      token = await lookup.searchToken(selector.chainId, search);
+    } catch (error) {
+      if ("symbol" in selector && ambiguousToken(error)) {
+        ambiguities.push({ chainId: selector.chainId, symbol: selector.symbol });
+        return;
+      }
+      throw error;
+    }
+    if (!token || token.chainId !== selector.chainId ||
+        ("address" in selector && !isAddressEqual(token.token, selector.address))) {
+      unresolved.push(selector);
+      return;
+    }
+    const address = getAddress(token.token).toLowerCase() as Address;
+    const eligibility = verifier
+      ? await verifier.eligibility({ chainId: selector.chainId, token: address })
+      : pendingEligibility();
+    assets.push({
+      chainId: selector.chainId,
+      address,
+      symbol: token.symbol,
+      name: token.name,
+      decimals: token.decimals,
+      priceUsd: token.priceUsd,
+      liquidityUsd: token.liquidityUsd,
+      holderCount: token.holderCount,
+      ...eligibility,
+    });
+  }));
+  const key = (value: { chainId: number; address?: string; symbol?: string }) =>
+    `${value.chainId}:${value.address?.toLowerCase() ?? value.symbol?.toLowerCase()}`;
+  assets.sort((left, right) => key(left).localeCompare(key(right)));
+  unresolved.sort((left, right) => key(left).localeCompare(key(right)));
+  ambiguities.sort((left, right) => key(left).localeCompare(key(right)));
+  return { assets, unresolved, ambiguities };
 }

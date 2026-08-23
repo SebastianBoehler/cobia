@@ -1,29 +1,65 @@
 import { z } from "zod";
-import { resolveAssetMentionsV1 } from "../../../../lib/assets/resolve-mentions";
+import {
+  resolveAssetMentionsV1,
+  resolveAssetSelectorsV2,
+  type GeneralAssetEligibilityV2,
+} from "../../../../lib/assets/resolve-mentions";
 import { readOkxCredentials } from "../../../../lib/env";
 import { createOkxClient } from "../../../../lib/okx/client";
 import { createXStocksInstrumentToolV1 } from "../../../../lib/solver-tools/xstocks";
 import { createTtlAsyncCache, type AsyncCache } from "../../../../lib/cache/ttl-async-cache";
 
-const RequestSchema = z.object({
+const SymbolRequestSchema = z.object({
   symbols: z.array(z.string().trim().min(1).max(32)).min(1).max(8),
 }).strict();
+const ChainSchema = z.union([z.literal(1), z.literal(196)]);
+const AddressSchema = z.string().regex(/^0x[0-9a-fA-F]{40}$/)
+  .transform((value) => value.toLowerCase() as `0x${string}`);
+const SelectorSchema = z.union([
+  z.object({ chainId: ChainSchema, address: AddressSchema }).strict(),
+  z.object({ chainId: ChainSchema, symbol: z.string().trim().min(1).max(64) }).strict(),
+]);
+const AssetRequestSchema = z.object({ assets: z.array(SelectorSchema).min(1).max(16) }).strict();
+const RequestSchema = z.union([SymbolRequestSchema, AssetRequestSchema]);
 
-export type AssetResolution = Awaited<ReturnType<typeof resolveAssetMentionsV1>>;
+export type AssetResolution = Awaited<ReturnType<typeof resolveAssetMentionsV1>> |
+  Awaited<ReturnType<typeof resolveAssetSelectorsV2>>;
 const resolutionCache = createTtlAsyncCache<AssetResolution>({ ttlMs: 60_000, maxEntries: 256 });
+
+interface AssetLookupClient {
+  searchToken?(chainId: 1 | 196, search: string): Promise<{
+    chainId: 1 | 196; token: `0x${string}`; name: string; symbol: string; decimals: number;
+    priceUsd: string; liquidityUsd: string; holderCount?: string;
+  } | undefined>;
+  searchXLayerToken?(search: string): Promise<{
+    chainId: 196; token: `0x${string}`; name: string; symbol: string; decimals: number;
+    priceUsd: string; liquidityUsd: string; holderCount?: string;
+  } | undefined>;
+}
 
 export async function resolveAssetMentionRequest(
   request: Request,
   xstocks = createXStocksInstrumentToolV1(),
-  okx?: Pick<ReturnType<typeof createOkxClient>, "searchXLayerToken">,
+  okx?: AssetLookupClient,
   cache?: AsyncCache<AssetResolution>,
+  verifier?: { eligibility(asset: { chainId: 1 | 196; token: `0x${string}` }):
+    Promise<GeneralAssetEligibilityV2> },
 ): Promise<Response> {
   try {
-    const { symbols } = RequestSchema.parse(await request.json());
-    const key = symbols.map((symbol) => symbol.toLowerCase()).join("\0");
-    const result = cache
-      ? await cache.get(key, () => resolveAssetMentionsV1(symbols, xstocks, okx))
-      : await resolveAssetMentionsV1(symbols, xstocks, okx);
+    const parsed = RequestSchema.parse(await request.json());
+    const load = () => {
+      if ("symbols" in parsed) {
+        return resolveAssetMentionsV1(parsed.symbols, xstocks,
+          okx?.searchXLayerToken ? { searchXLayerToken: okx.searchXLayerToken } : undefined);
+      }
+      if (!okx?.searchToken) throw new Error("General token lookup is unavailable");
+      return resolveAssetSelectorsV2(parsed.assets, xstocks, { searchToken: okx.searchToken }, verifier);
+    };
+    const key = "symbols" in parsed
+      ? `symbols:${parsed.symbols.map((symbol) => symbol.toLowerCase()).join("\0")}`
+      : `assets:${parsed.assets.map((asset) => "address" in asset
+        ? `${asset.chainId}:${asset.address}` : `${asset.chainId}:${asset.symbol.toLowerCase()}`).join("\0")}`;
+    const result = cache ? await cache.get(key, load) : await load();
     return Response.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (!(error instanceof z.ZodError)) {
@@ -37,6 +73,9 @@ export async function resolveAssetMentionRequest(
 
 export async function POST(request: Request): Promise<Response> {
   return resolveAssetMentionRequest(request, createXStocksInstrumentToolV1(), {
+    searchToken(chainId, search) {
+      return createOkxClient({ credentials: readOkxCredentials() }).searchToken(chainId, search);
+    },
     searchXLayerToken(search) {
       return createOkxClient({ credentials: readOkxCredentials() }).searchXLayerToken(search);
     },
