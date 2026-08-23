@@ -33,6 +33,7 @@ export function buildNativeOkbStage(input: {
   amountAtomic: string;
   fetchedAt: number;
   expiresAt: number;
+  dependsOn?: string[];
 }) {
   if (input.expiresAt <= input.fetchedAt) throw new Error("Native OKB quote expiry is invalid");
   const wrapping = isNativeAssetAddress(input.inputToken) &&
@@ -50,7 +51,8 @@ export function buildNativeOkbStage(input: {
     amountAtomic: input.amountAtomic };
   const response = { target: XLAYER_WOKB.address, dataHash: keccak256(data), valueAtomic };
   const stage = TransactionStageV1Schema.parse({
-    id: input.stageId, kind: "wallet-transaction", chainId: 196, dependsOn: [],
+    id: input.stageId, kind: "wallet-transaction", chainId: 196,
+    dependsOn: input.dependsOn ?? [],
     provider: "evm.raw@1", quoteHash: commitment(request), responseHash: commitment(response),
     fetchedAt: input.fetchedAt, expiresAt: input.expiresAt,
     sender: input.owner, recipient: input.owner,

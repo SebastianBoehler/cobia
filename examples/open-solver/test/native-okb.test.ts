@@ -40,14 +40,15 @@ describe("native OKB transaction stages", () => {
     const result = buildNativeOkbStage({
       stageId: "01-unwrap-okb", owner, inputToken: XLAYER_WOKB.address,
       outputToken: NATIVE_ASSET_ADDRESS, amountAtomic: "77", fetchedAt: 100,
-      expiresAt: 130,
+      expiresAt: 130, dependsOn: ["01-okx-swap"],
     });
     const decoded = decodeFunctionData({ abi: WOKB_ABI,
       data: result.payload.transaction.data });
 
     expect(decoded).toEqual({ functionName: "withdraw", args: [77n] });
     expect(result.stage).toMatchObject({
-      recipient: owner, output: { token: NATIVE_ASSET_ADDRESS, minimumAtomic: "77" },
+      recipient: owner, dependsOn: ["01-okx-swap"],
+      output: { token: NATIVE_ASSET_ADDRESS, minimumAtomic: "77" },
       transaction: { target: XLAYER_WOKB.address, selector: "0x2e1a7d4d", valueAtomic: "0" },
     });
     expect(result.stage).not.toHaveProperty("approval");

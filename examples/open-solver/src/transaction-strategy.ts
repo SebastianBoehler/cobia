@@ -130,8 +130,28 @@ export async function solveTransactionIntent(
         runner: "cobia-reference-aave-okx@1" });
     }
     if ((policy.limits.minimumStages ?? 1) === 2) {
-      if (policy.limits.maxStages < 2 || policy.limits.maxTransactions < 2 ||
-          policy.limits.maxApprovals < 2) return;
+      if (policy.limits.maxStages < 2 || policy.limits.maxTransactions < 2) return;
+      if (isNativeAssetAddress(outcome.token)) {
+        if (policy.limits.maxApprovals < 1 ||
+            policy.forbiddenAssets.includes(XLAYER_WOKB.address) ||
+            policy.forbiddenTargets.includes(XLAYER_WOKB.address)) return;
+        const swapArtifact = await dependencies.fetchOkxArtifact({ owner: policy.owner,
+          inputToken: input.token, outputToken: XLAYER_WOKB.address,
+          inputAtomic: input.maximumAtomic, slippagePercent: "0.5", stageId: "01-okx-swap" });
+        const wrappedAtomic = okxMinimumOutputAtomic(swapArtifact);
+        const swap = buildOkxRouteStage({ artifact: swapArtifact, owner: policy.owner,
+          inputToken: input.token, outputToken: XLAYER_WOKB.address,
+          inputAtomic: input.maximumAtomic, minimumOutputAtomic: outcome.atomic });
+        const unwrap = buildNativeOkbStage({ stageId: "02-unwrap-okb", owner: policy.owner,
+          inputToken: XLAYER_WOKB.address, outputToken: outcome.token,
+          amountAtomic: wrappedAtomic, fetchedAt: nowSec,
+          expiresAt: referenceTransactionExpiry(nowSec, policy.deadline),
+          dependsOn: [swap.stage.id] });
+        return finalize({ stages: [swap.stage, unwrap.stage],
+          artifacts: [swap.providerArtifact, unwrap.artifact],
+          runner: "cobia-reference-okx-unwrap@1" });
+      }
+      if (policy.limits.maxApprovals < 2) return;
       const intermediate = Object.values(PROTOCOL_REGISTRY.aaveV3.assets)
         .map(({ underlying }) => underlying.address.toLowerCase() as Address)
         .find((token) => !isAddressEqual(token, input.token) &&
