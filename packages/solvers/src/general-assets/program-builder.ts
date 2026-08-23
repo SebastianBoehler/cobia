@@ -131,7 +131,6 @@ export async function buildGeneralAssetDecisionV1(input: {
   const programDeadline = Math.min(
     policy.deadline,
     policy.competition.closesAt,
-    evidenceExpiry(evidence),
     compiled.expiresAtSec,
   );
   if (programDeadline <= observedAtSec) throw new Error("General asset program has no fresh execution window");

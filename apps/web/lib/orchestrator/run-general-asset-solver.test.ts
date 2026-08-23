@@ -2,11 +2,17 @@ import {
   AssetIdentityEvidenceV1Schema,
   AssetValuationEvidenceV1Schema,
   GeneralAssetPolicyV1Schema,
+  GeneralAssetProgramV1Schema,
   commitment,
 } from "@cobia/domain";
 import { buildGeneralAssetDecisionV1 } from "@cobia/solvers";
+import { encodeFunctionData, keccak256, stringToHex } from "viem";
 import { describe, expect, it, vi } from "vitest";
+import { COBIA_EXECUTOR_V4_ABI } from "../execution-v4/abi";
+import { generalAssetStageNonceV4 } from "../execution-v4/attestation";
+import { buildAuthorizationV4, type ExecutionProgramV4 } from "../execution-v4/commitment";
 import { publishAndRunGeneralAssetSolverV1 } from "./run-general-asset-solver";
+import type { GeneralAssetSolutionVerdictV1 } from "./validate-general-asset-solution";
 
 const hash = (byte: string) => `0x${byte.repeat(64)}` as `0x${string}`;
 const address = (byte: string) => `0x${byte.repeat(40)}` as `0x${string}`;
@@ -56,6 +62,61 @@ const policy = GeneralAssetPolicyV1Schema.parse({
   forbiddenTargets: [], forbiddenAssets: [],
 });
 
+function verifiedArtifacts(value: unknown) {
+  const program = GeneralAssetProgramV1Schema.parse(value);
+  const stage = program.stages[0]!;
+  const freshInput = AssetIdentityEvidenceV1Schema.parse({ ...inputIdentity,
+    blockNumber: "124", blockHash: hash("b"), expiresAtSec: 2_000_000_031 });
+  const freshOutput = AssetIdentityEvidenceV1Schema.parse({ ...outputIdentity,
+    blockNumber: "124", blockHash: hash("b"), expiresAtSec: 2_000_000_031 });
+  const freshValuation = AssetValuationEvidenceV1Schema.parse({ ...valuation,
+    assetIdentityHash: commitment(freshInput), expiresAtSec: 2_000_000_031,
+    quotes: valuation.quotes.map((quote) => ({ ...quote, expiresAtSec: 2_000_000_031 })) });
+  const freshEvidenceBody = { identities: [freshInput, freshOutput],
+    valuations: [freshValuation],
+    anchors: [{ chainId: 196 as const, blockNumber: "124", blockHash: hash("b") }] };
+  const replay = [{ stageId: stage.stageId, chainId: 196 as const, blockNumber: "124",
+    blockHash: hash("b"), compiledCallHash: hash("c"), matchesCompiledCalls: true,
+    success: true, gasUsed: "200000",
+    ownerAssetDeltas: [{ token: inputToken, deltaAtomic: "-100" },
+      { token: outputToken, deltaAtomic: "90" }],
+    endingAllowances: [{ token: inputToken, spender, atomic: "0" }],
+    traceHash: hash("d"), stateDiffHash: hash("e") }];
+  const executionProgram: ExecutionProgramV4 = {
+    policyHash: program.policyHash, manifestHash: program.manifestHash,
+    canonicalProgramHash: program.canonicalProgramHash,
+    inputIdentityEvidenceHash: commitment(freshInput),
+    outputIdentityEvidenceHash: commitment(freshOutput),
+    valuationEvidenceHash: commitment(freshValuation),
+    stageHash: commitment(stage), simulationHash: commitment(replay[0]!),
+    pinnedBlockNumber: 124n, pinnedBlockHash: hash("b"), sourceChainId: 196n,
+    owner, inputToken, outputToken, inputAmount: 100n, inputUsdE8: 250n,
+    deadline: 2_000_000_031n, nonce: generalAssetStageNonceV4(policy.nonce, stage),
+    refundTokens: [inputToken, outputToken], calls: [{
+      adapterKey: keccak256(stringToHex("okx.swap@1")), target,
+      value: 0n, gasLimit: 300_000,
+      approvals: [{ token: inputToken, spender, amount: 100n }], data: "0x12345678" }],
+    constraints: [{ token: outputToken, kind: 1, minimum: 90n }],
+  };
+  const verifierAuthorization = buildAuthorizationV4(executionProgram, executor);
+  const signature = `0x${"12".repeat(65)}` as const;
+  const evidenceHash = hash("a");
+  return { accepted: true as const, errorCodes: [], replay,
+    execution: { version: 4 as const, kind: "general-asset-execution" as const,
+      programId: program.canonicalProgramHash, owner, deadline: 2_000_000_031,
+      finalOutput: program.finalOutput, stages: [{ stageId: stage.stageId, ordinal: 0,
+        chainId: 196 as const, predecessorStageId: null, inputToken, requiredConfirmations: 12,
+        transaction: { chainId: 196 as const, from: owner, to: executor, value: "0x0" as const,
+          data: encodeFunctionData({ abi: COBIA_EXECUTOR_V4_ABI, functionName: "execute",
+            args: [executionProgram, verifierAuthorization, signature] }) },
+        expectedLogs: [], delivery: { kind: "none" as const }, evidenceHash }] },
+    authorization: [{ version: 4 as const, stageIndex: 0, chainId: 196 as const, executor,
+      executionCommitment: verifierAuthorization.executionCommitment, evidenceHash, signature }],
+    verificationValidUntilSec: 2_000_000_031,
+    verificationAnchor: { chainId: 196 as const, blockNumber: "124", blockHash: hash("b") },
+    freshEvidence: { ...freshEvidenceBody, hash: commitment(freshEvidenceBody) } };
+}
+
 function dependencies() {
   const artifacts: Array<[string, unknown]> = [];
   return {
@@ -73,9 +134,9 @@ function dependencies() {
       nowSec: 2_000_000_001, compile: async () => ({ target, data: "0x12345678", valueAtomic: "0",
         gasLimit: 300_000, approval: { spender, maximumAtomic: "100", data: "0x095ea7b3" },
         quoteHash: hash("8"), fetchedAtSec: 2_000_000_001, expiresAtSec: 2_000_000_031 }) }),
-    verify: vi.fn(async () => ({ accepted: true as const, errorCodes: [],
-      replay: { matches: true }, execution: { kind: "general-asset-execution" },
-      authorization: [{ signature: hash("9") }], verificationValidUntilSec: 2_000_000_031 })),
+    verify: vi.fn(async ({ program }: { program: unknown }): Promise<GeneralAssetSolutionVerdictV1> =>
+      verifiedArtifacts(program)),
+    executor,
     nowSec: () => 2_000_000_001,
   };
 }
@@ -89,6 +150,7 @@ describe("production general asset solver orchestration", () => {
     expect(result).toMatchObject({ intent: { id: policy.requestId },
       solution: { state: "attested", submissionId: "submission-v4" } });
     expect(deps.assertReady).toHaveBeenCalledBefore(deps.publish);
+    expect(deps.verify).toHaveBeenCalledBefore(deps.publish);
     expect(deps.profiles.register).toHaveBeenCalledWith(expect.objectContaining({
       id: "cobia-coding-agent", operatorKind: "internal",
       declaredCapabilities: expect.arrayContaining(["general-asset@1"]),
@@ -96,6 +158,51 @@ describe("production general asset solver orchestration", () => {
     expect(deps.artifacts.map(([kind]) => kind)).toEqual([
       "program", "evidence", "provenance", "verdict", "replay", "execution", "authorization",
     ]);
+  });
+
+  it("does not publish when strict verification rejects the solution", async () => {
+    const deps = dependencies();
+    deps.verify.mockResolvedValue({ accepted: false, errorCodes: ["REPLAY_DIVERGED"] });
+
+    await expect(publishAndRunGeneralAssetSolverV1({ policy,
+      ownerSignature: `0x${"aa".repeat(65)}`, evidence, revision: 1,
+      nowSec: 2_000_000_001 }, deps)).rejects.toThrow(/REPLAY_DIVERGED/);
+
+    expect(deps.publish).not.toHaveBeenCalled();
+    expect(deps.profiles.register).not.toHaveBeenCalled();
+    expect(deps.runs.create).not.toHaveBeenCalled();
+    expect(deps.submissions.append).not.toHaveBeenCalled();
+  });
+
+  it("does not publish an execution artifact for a different executor", async () => {
+    const deps = dependencies();
+    deps.verify.mockImplementation(async ({ program }: { program: unknown }) => {
+      const result = verifiedArtifacts(program);
+      return { ...result, authorization: [{ ...result.authorization[0]!, executor: target }] };
+    });
+
+    await expect(publishAndRunGeneralAssetSolverV1({ policy,
+      ownerSignature: `0x${"aa".repeat(65)}`, evidence, revision: 1,
+      nowSec: 2_000_000_001 }, deps)).rejects.toThrow(/artifact|authorization|executor/i);
+
+    expect(deps.publish).not.toHaveBeenCalled();
+    expect(deps.submissions.append).not.toHaveBeenCalled();
+  });
+
+  it("does not publish when the encoded execution uses a different fresh anchor", async () => {
+    const deps = dependencies();
+    deps.verify.mockImplementation(async ({ program }: { program: unknown }) => {
+      const result = verifiedArtifacts(program);
+      return { ...result, verificationAnchor: { ...result.verificationAnchor,
+        blockHash: hash("f") } };
+    });
+
+    await expect(publishAndRunGeneralAssetSolverV1({ policy,
+      ownerSignature: `0x${"aa".repeat(65)}`, evidence, revision: 1,
+      nowSec: 2_000_000_001 }, deps)).rejects.toThrow(/authorization|anchor|commitment/i);
+
+    expect(deps.publish).not.toHaveBeenCalled();
+    expect(deps.submissions.append).not.toHaveBeenCalled();
   });
 
   it("does not publish or advertise the lane while V4 is not public-ready", async () => {
@@ -108,23 +215,15 @@ describe("production general asset solver orchestration", () => {
     expect(deps.profiles.register).not.toHaveBeenCalled();
   });
 
-  it("does not attest when verifier-owned time crosses the authorization deadline", async () => {
+  it("does not publish when verifier-owned time crosses the authorization deadline", async () => {
     const deps = dependencies();
-    deps.nowSec = vi.fn()
-      .mockReturnValueOnce(2_000_000_001)
-      .mockReturnValueOnce(2_000_000_001)
-      .mockReturnValueOnce(2_000_000_031);
+    deps.nowSec = vi.fn().mockReturnValue(2_000_000_031);
 
-    const result = await publishAndRunGeneralAssetSolverV1({ policy,
+    await expect(publishAndRunGeneralAssetSolverV1({ policy,
       ownerSignature: `0x${"aa".repeat(65)}`, evidence, revision: 1,
-      nowSec: 2_000_000_001 }, deps);
+      nowSec: 2_000_000_001 }, deps)).rejects.toThrow(/expired/i);
 
-    expect(result.solution).toMatchObject({ state: "failed",
-      errorCodes: ["VERIFICATION_EXPIRED"] });
-    expect(deps.submissions.resolve).toHaveBeenCalledWith("submission-v4", "verified", []);
-    expect(deps.submissions.resolve).toHaveBeenCalledWith(
-      "submission-v4", "failed", ["VERIFICATION_EXPIRED"],
-    );
-    expect(deps.submissions.resolve).not.toHaveBeenCalledWith("submission-v4", "attested", []);
+    expect(deps.publish).not.toHaveBeenCalled();
+    expect(deps.submissions.append).not.toHaveBeenCalled();
   });
 });

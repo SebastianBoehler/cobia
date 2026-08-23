@@ -57,6 +57,7 @@ export async function runProductionGeneralAssetSolverV1(input: {
       assertReady: assertProductionGeneralAssetPublicReadyV1,
       publish: input.publish,
       ...repositories,
+      executor: execution.executor,
       nowSec: () => Math.floor(Date.now() / 1_000),
       build: ({ policy, evidence }) => buildGeneralAssetDecisionV1({
         policy, evidence, executor: execution.executor,

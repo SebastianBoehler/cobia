@@ -85,6 +85,32 @@ describe("general asset program builder", () => {
     });
   });
 
+  it("does not make baseline evidence expiry the execution deadline", async () => {
+    const identities = evidence.identities.map((value) => ({
+      ...value, expiresAtSec: 2_000_000_010,
+    }));
+    const shortBaseline = {
+      ...evidence,
+      identities,
+      valuations: evidence.valuations.map((value) => ({ ...value,
+        assetIdentityHash: commitment(identities[0]!), expiresAtSec: 2_000_000_010 })),
+    };
+    const shortPolicy = GeneralAssetPolicyV1Schema.parse({
+      ...policy,
+      manifestHash: commitment(shortBaseline.manifest),
+      inputIdentityHash: commitment(shortBaseline.identities[0]!),
+      inputValuationHash: commitment(shortBaseline.valuations[0]!),
+      outputs: [{ ...policy.outputs[0]!, identityHash: commitment(shortBaseline.identities[1]!) }],
+    });
+
+    const decision = await buildGeneralAssetDecisionV1({
+      policy: shortPolicy, evidence: shortBaseline, executor, nowSec: 2_000_000_001, compile,
+    });
+
+    if (decision.decision !== "submit") throw new Error("Expected a submitted program");
+    expect(decision.program.deadline).toBe(2_000_000_031);
+  });
+
   it("fails closed when OKX compiles an unregistered target or approval spender", async () => {
     await expect(buildGeneralAssetDecisionV1({ policy, evidence, executor,
       nowSec: 2_000_000_001, compile: async () => ({ ...(await compile()), target: owner }) }))
