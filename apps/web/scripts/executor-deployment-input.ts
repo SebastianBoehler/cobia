@@ -49,3 +49,10 @@ export function executorArtifactsV3() {
     executor: artifact("CobiaExecutorV3"),
   };
 }
+
+export function executorArtifactsV4() {
+  return {
+    riskManager: artifact("CobiaRiskManagerV2"),
+    executor: artifact("CobiaExecutorV4"),
+  };
+}
