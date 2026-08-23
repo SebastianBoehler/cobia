@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   verifyProof: vi.fn(),
   getExecutionContext: vi.fn(),
   prepareStage: vi.fn(),
+  revalidate: vi.fn(),
 }));
 
 vi.mock("../../../../../lib/coding-agent-sandbox/execution-access", () => ({
@@ -15,6 +16,9 @@ vi.mock("../../../../../lib/runtime/market", () => ({
   getGeneralAssetExecutionRepository: () => ({ prepareStage: mocks.prepareStage }),
   getSolverProfileRepository: vi.fn(),
   getSolverSuccessFeeRepository: vi.fn(),
+}));
+vi.mock("../../../../../lib/execution-v4/production-stage-revalidation", () => ({
+  revalidateProductionStageEvidenceV4: mocks.revalidate,
 }));
 
 import { POST } from "./route";
@@ -47,9 +51,11 @@ describe("general asset program execution review", () => {
   it("prepares only the first exact stage and returns ordered attested review data", async () => {
     const execution = bundle();
     mocks.verifyProof.mockResolvedValue({ programId: submissionId, owner, realm: "getcobia.com" });
-    mocks.getExecutionContext.mockResolvedValue({ owner, state: "attested", artifacts: [{
+    mocks.getExecutionContext.mockResolvedValue({ owner, state: "attested",
+      policy: { kind: "general-asset" }, program: {}, artifacts: [{
       kind: "execution", payload: execution, artifactHash: commitment(execution),
     }] });
+    mocks.revalidate.mockResolvedValue({});
     mocks.prepareStage.mockResolvedValue({ state: "prepared" });
 
     const response = await POST(new Request(
@@ -65,5 +71,27 @@ describe("general asset program execution review", () => {
         transaction: { to: executor, data: "0x12345678", value: "0x0" } }],
     });
     expect(mocks.prepareStage).toHaveBeenCalledTimes(1);
+    expect(mocks.revalidate).toHaveBeenCalledWith(expect.objectContaining({
+      stageId: execution.stages[0].stageId,
+    }));
+  });
+
+  it("does not prepare or expose a wallet transaction when fresh evidence fails", async () => {
+    const execution = bundle();
+    mocks.verifyProof.mockResolvedValue({ programId: submissionId, owner, realm: "getcobia.com" });
+    mocks.getExecutionContext.mockResolvedValue({ owner, state: "attested",
+      policy: { kind: "general-asset" }, program: {}, artifacts: [{
+        kind: "execution", payload: execution, artifactHash: commitment(execution),
+      }] });
+    mocks.revalidate.mockRejectedValue(new Error("Asset identity drift"));
+
+    const response = await POST(new Request(
+      `https://getcobia.com/api/programs/${submissionId}/execution`,
+      { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ proof: {}, ownerSignature: `0x${"11".repeat(65)}` }) },
+    ), context);
+
+    expect(response.status).toBe(409);
+    expect(mocks.prepareStage).not.toHaveBeenCalled();
   });
 });

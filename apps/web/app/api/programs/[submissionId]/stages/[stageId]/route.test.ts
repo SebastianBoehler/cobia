@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   recordSubmission: vi.fn(),
   getProgram: vi.fn(),
   reconcileLive: vi.fn(),
+  revalidate: vi.fn(),
 }));
 
 vi.mock("../../../../../../lib/coding-agent-sandbox/execution-access", () => ({
@@ -28,6 +29,11 @@ vi.mock("../../../../../../lib/execution-v4/live-stage-reconciliation", () => ({
   createGeneralAssetStageChainReaderV4: vi.fn(() => ({})),
   reconcileGeneralAssetStageLiveV4: mocks.reconcileLive,
 }));
+vi.mock("../../../../../../lib/execution-v4/production-stage-revalidation", () => ({
+  revalidateProductionStageEvidenceV4: (...args: unknown[]) => {
+    calls.push("revalidate"); return mocks.revalidate(...args);
+  },
+}));
 
 import { POST } from "./route";
 
@@ -38,6 +44,7 @@ const outputToken = "0x3333333333333333333333333333333333333333" as const;
 const executor = "0x4444444444444444444444444444444444444444" as const;
 const hash = (byte: string) => `0x${byte.repeat(64)}` as `0x${string}`;
 const stageId = hash("2");
+const destinationStageId = hash("5");
 const context = { params: Promise.resolve({ submissionId, stageId }) };
 
 function bundle() {
@@ -61,14 +68,33 @@ function request(body: Record<string, unknown>) {
   });
 }
 
+function crossChainBundle() {
+  const execution = bundle();
+  const destinationInput = "0x5555555555555555555555555555555555555555" as const;
+  return { ...execution, finalOutput: { chainId: 1 as const, token: outputToken, minimumAtomic: "80" },
+    stages: [
+      { ...execution.stages[0], delivery: { kind: "bridge" as const,
+        destinationChainId: 1 as const, recipient: owner, token: destinationInput,
+        minimumAtomic: "85" } },
+      { stageId: destinationStageId, ordinal: 1, chainId: 1 as const,
+        predecessorStageId: stageId, inputToken: destinationInput, requiredConfirmations: 12,
+        transaction: { chainId: 1 as const, from: owner, to: executor, nonce: "8",
+          value: "0x0" as const, data: "0x87654321" as const },
+        expectedLogs: [{ address: executor, topics: [hash("6")], data: "0x" as const }],
+        delivery: { kind: "none" as const }, evidenceHash: hash("7") },
+    ] };
+}
+
 describe("general asset stage API", () => {
   beforeEach(() => {
     vi.clearAllMocks(); calls.length = 0;
     const execution = bundle();
     mocks.verifyProof.mockResolvedValue({ programId: submissionId, owner, realm: "getcobia.com" });
-    mocks.getExecutionContext.mockResolvedValue({ owner, state: "attested", artifacts: [{
+    mocks.getExecutionContext.mockResolvedValue({ owner, state: "attested",
+      policy: { kind: "general-asset" }, program: {}, artifacts: [{
       kind: "execution", payload: execution, artifactHash: commitment(execution),
     }] });
+    mocks.revalidate.mockResolvedValue({});
   });
 
   it("durably arms the canonical stage before returning its exact wallet transaction", async () => {
@@ -78,7 +104,7 @@ describe("general asset stage API", () => {
     const response = await POST(request({ action: "arm" }), context);
 
     expect(response.status).toBe(200);
-    expect(calls).toEqual(["prepare", "arm"]);
+    expect(calls).toEqual(["prepare", "revalidate", "arm"]);
     await expect(response.json()).resolves.toMatchObject({
       state: "broadcasting", stageId, transaction: bundle().stages[0].transaction,
     });
@@ -92,6 +118,41 @@ describe("general asset stage API", () => {
     expect(response.status).toBe(200);
     expect(mocks.recordSubmission).toHaveBeenCalledWith(bundle().programId, stageId, hash("9"));
     await expect(response.json()).resolves.toMatchObject({ state: "submitted", stageId });
+  });
+
+  it("revalidates the exact destination stage after predecessor checks and before arming", async () => {
+    const execution = crossChainBundle();
+    const program = { marker: "destination-program" };
+    mocks.getExecutionContext.mockResolvedValue({ owner, state: "attested",
+      policy: { kind: "general-asset" }, program, artifacts: [{
+        kind: "execution", payload: execution, artifactHash: commitment(execution),
+      }] });
+    mocks.prepareStage.mockResolvedValue({ state: "prepared" });
+    mocks.armStage.mockResolvedValue({ state: "broadcasting" });
+
+    const response = await POST(new Request(
+      `https://getcobia.com/api/programs/${submissionId}/stages/${destinationStageId}`,
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        proof: {}, ownerSignature: `0x${"11".repeat(65)}`, action: "arm",
+      }) },
+    ), { params: Promise.resolve({ submissionId, stageId: destinationStageId }) });
+
+    expect(response.status).toBe(200);
+    expect(calls).toEqual(["prepare", "revalidate", "arm"]);
+    expect(mocks.revalidate).toHaveBeenCalledWith(expect.objectContaining({
+      stageId: destinationStageId, program,
+    }));
+  });
+
+  it("never arms a prepared stage when fresh evidence fails", async () => {
+    mocks.prepareStage.mockResolvedValue({ state: "prepared" });
+    mocks.revalidate.mockRejectedValue(new Error("Target runtime drift"));
+
+    const response = await POST(request({ action: "arm" }), context);
+
+    expect(response.status).toBe(409);
+    expect(calls).toEqual(["prepare", "revalidate"]);
+    expect(mocks.armStage).not.toHaveBeenCalled();
   });
 
   it("does not expose a stage outside the attested artifact", async () => {

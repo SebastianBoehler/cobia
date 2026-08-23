@@ -106,12 +106,12 @@
 - Consumes: committed identity and valuation evidence, the exact stage, canonical source/destination readers, OKX authority, and current time.
 - Produces: `revalidateStageEvidenceV4(input): Promise<{ pinnedBlockNumber; pinnedBlockHash; identityHash; valuationHash }>` or a stable fail-closed error.
 
-- [ ] **Step 1: Write failing tests** for token runtime/proxy drift, target runtime drift, OKX price/expiry drift, input above recomputed USD cap, changed chain block hash, and destination-stage revalidation.
-- [ ] **Step 2: Run RED:** run the focused revalidation and route tests; expect preparation to return the stored artifact without fresh reads.
-- [ ] **Step 3: Implement the revalidator** using the same evidence primitives as Task 1. Require a canonical pinned block, recompute commitments, and reject any mismatch before returning transaction data.
-- [ ] **Step 4: Call the gate from initial review and every `arm` action** after predecessor/finality checks but before persisting `broadcasting`. Never silently refresh a signed commitment; drift requires a new policy/program.
-- [ ] **Step 5: Run GREEN:** focused tests, web typecheck, and focused ESLint.
-- [ ] **Step 6: Commit:** stage only Task 3 files and commit `fix(execution): revalidate v4 evidence before signing`.
+- [x] **Step 1: Write failing tests** for token runtime/proxy drift, target runtime drift, OKX price/expiry drift, input above recomputed USD cap, changed chain block hash, and destination-stage revalidation.
+- [x] **Step 2: Run RED:** run the focused revalidation and route tests; expect preparation to return the stored artifact without fresh reads.
+- [x] **Step 3: Implement the revalidator** using the same evidence primitives as Task 1. Require a canonical pinned block, recompute commitments, and reject any mismatch before returning transaction data.
+- [x] **Step 4: Call the gate from initial review and every `arm` action** after predecessor/finality checks but before persisting `broadcasting`. Never silently refresh a signed commitment; drift requires a new policy/program.
+- [x] **Step 5: Run GREEN:** focused tests, web typecheck, and focused ESLint.
+- [x] **Step 6: Commit:** stage only Task 3 files and commit `fix(execution): revalidate v4 evidence before signing`.
 
 ### Task 4: Verified bridge delivery progression
 

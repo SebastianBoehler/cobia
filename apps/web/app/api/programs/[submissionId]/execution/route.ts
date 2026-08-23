@@ -32,6 +32,9 @@ import {
   getSolverSuccessFeeRepository,
 } from "../../../../../lib/runtime/market";
 import { prepareGeneralAssetExecutionReviewV4 } from "../../../../../lib/execution-v4/prepare-review";
+import {
+  revalidateProductionStageEvidenceV4,
+} from "../../../../../lib/execution-v4/production-stage-revalidation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -90,18 +93,21 @@ export async function POST(
       }, { status: 409 });
     }
     if (executionValue.version === 4 && executionValue.kind === "general-asset-execution") {
+      if (stored.policy.kind !== "general-asset" || !stored.program) {
+        throw new Error("General asset policy and program are unavailable");
+      }
       const execution = await prepareGeneralAssetExecutionReviewV4({
         artifact: executionArtifact.payload,
         owner: proof.owner,
         submissionState: stored.state,
         repository: getGeneralAssetExecutionRepository(),
+        revalidate: (stageId) => revalidateProductionStageEvidenceV4({
+          nowSec, stageId, policy: stored.policy, program: stored.program, artifacts: stored.artifacts,
+        }),
       });
       return NextResponse.json({ ...execution, successFee: WAIVED_SOLVER_SUCCESS_FEE }, {
         headers: { "Cache-Control": "no-store" },
       });
-    }
-    if (!stored.snapshot) {
-      throw new Error("General asset execution requires a V4 execution artifact");
     }
     const policy = stored.policy.kind === "capability-composition"
       ? CapabilityCompositionPolicyV1Schema.parse(stored.policy)
@@ -128,6 +134,9 @@ export async function POST(
           ({ ...call, stageId: stage.stageId }))),
       };
     } else {
+      if (!stored.snapshot) {
+        throw new Error("Verified execution snapshot is unavailable");
+      }
       const config = readCodingAgentV3ExecutionConfig();
       const authority = policy.kind === "capability-composition"
         ? (() => {

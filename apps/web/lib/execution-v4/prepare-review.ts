@@ -10,12 +10,14 @@ export async function prepareGeneralAssetExecutionReviewV4(input: {
   owner: Address;
   submissionState: string;
   repository: Pick<Repository, "prepareStage">;
+  revalidate(stageId: `0x${string}`): Promise<unknown>;
 }) {
   const bundle = parseGeneralAssetExecutionBundleV4(input.artifact);
   if (input.submissionState !== "attested" || !isAddressEqual(bundle.owner, input.owner)) {
     throw new Error("General asset execution is not attested for this owner");
   }
   const first = bundle.stages[0]!;
+  await input.revalidate(first.stageId);
   const prepared = await input.repository.prepareStage({
     program: generalAssetProgramRecordV4(bundle),
     stage: generalAssetStageRecordV4(bundle, first),

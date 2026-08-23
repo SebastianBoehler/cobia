@@ -15,6 +15,9 @@ import {
   generalAssetStageRecordV4,
 } from "../../../../../../lib/execution-v4/stage-record";
 import {
+  revalidateProductionStageEvidenceV4,
+} from "../../../../../../lib/execution-v4/production-stage-revalidation";
+import {
   getGeneralAssetExecutionRepository,
   getSolverSubmissionRepository,
 } from "../../../../../../lib/runtime/market";
@@ -57,6 +60,9 @@ export async function POST(
     if (!artifact || commitment(artifact.payload) !== artifact.artifactHash || stored.state !== "attested") {
       throw new Error("Attested execution artifact is unavailable");
     }
+    if (stored.policy.kind !== "general-asset" || !stored.program) {
+      throw new Error("General asset policy and program are unavailable");
+    }
     const bundle = parseGeneralAssetExecutionBundleV4(artifact.payload);
     if (!isAddressEqual(bundle.owner, proof.owner) || bundle.deadline <= nowSec) {
       throw new Error("General asset execution is no longer available");
@@ -81,6 +87,10 @@ export async function POST(
     await repository.prepareStage({
       program: generalAssetProgramRecordV4(bundle),
       stage: generalAssetStageRecordV4(bundle, stage),
+    });
+    await revalidateProductionStageEvidenceV4({
+      nowSec, stageId: stage.stageId, policy: stored.policy, program: stored.program,
+      artifacts: stored.artifacts,
     });
     const armed = await repository.armStage(bundle.programId, stage.stageId);
     return NextResponse.json({
