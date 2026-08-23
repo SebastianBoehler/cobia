@@ -202,7 +202,8 @@ export function createOpenAiIntentCompiler(options: Options) {
     const response = await fetcher("https://openrouter.ai/api/v1/responses", {
       method: "POST", headers: { Authorization: `Bearer ${options.apiKey}`,
         "Content-Type": "application/json" },
-      body: JSON.stringify({ model: options.model, store: false, max_output_tokens: 500,
+      body: JSON.stringify({ model: options.model, provider: { require_parameters: true },
+        store: false, max_output_tokens: 500,
         reasoning: { effort: "none" },
         instructions: INTENT_COMPILER_INSTRUCTIONS,
         input: JSON.stringify({ goal: normalizedGoal, templates,
