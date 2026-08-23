@@ -6,7 +6,6 @@ import {
   createPublicClient,
   getAddress,
   http,
-  isAddress,
   type Address,
   type Hex,
 } from "viem";
