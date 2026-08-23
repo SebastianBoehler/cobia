@@ -314,6 +314,12 @@ Rules:
 
 ## Cadence
 
+Cobia is not frequency constrained. Its launch-week account already publishes
+more aggressively than most nearby competitors; the limiting system is
+distribution, hook clarity, and external amplification. Treat one
+self-contained post as an **anchor object**, then distribute that object rather
+than fragmenting its explanation across several posts.
+
 Use a sustainable weekly rhythm after the hackathon:
 
 - 1 confirmed outcome or evidence post.
@@ -329,37 +335,41 @@ of manufactured vibes.
 
 ### Post-submission sprint
 
-For the active judging window, increase visibility without turning the timeline
-into an hourly feed. Target two distinct main-timeline posts per day and prepare
-up to three approval-ready slots:
+For the active judging window, make one strong anchor object the default daily
+output. A second main-timeline post is justified only by a fresh confirmed
+outcome, measured solver improvement, distinct audience, or genuinely timely
+community moment:
 
-1. One material proof, product, builder, or ecosystem update when there is new
-   evidence.
-2. One distinct product mechanism, builder invitation, or useful short demo.
-3. One conditional community-pulse or ecosystem post when there is a genuine
-   conversation to join.
+1. Lead with an immediately understandable result: exact value moved, an unsafe
+   program rejected, or a solver improvement measured.
+2. Make the video or image self-contained and attach the receipt or program
+   evidence beneath the result.
+3. Use the founder account and relevant ecosystem conversations to amplify the
+   anchor instead of restating its mechanism from @Cobia_Web3.
+4. Follow with another main post only when the result changes.
 
-Space actual posts roughly 3-4 hours apart within the daytime window. Use
-staggered, non-round times rather than a visibly mechanical top-of-the-hour
-schedule, and vary the content lane rather than repeating a format. If there is
-no evidence or real moment, post less. Never place two prompt clips, two wallet
-clips, or two solver-recruitment clips in adjacent windows. This sprint is
-temporary; return to the sustainable weekly rhythm when the judging window has
-passed.
+When a second post earns a slot, space it at least four hours from the anchor.
+Use staggered, non-round times rather than a visibly mechanical top-of-the-hour
+schedule. If there is no evidence or real moment, leave the timeline quiet and
+work distribution. This sprint is temporary; return to the sustainable weekly
+rhythm when the judging window has passed.
 
 The exact launch-week media map and copy bank live in
 `cobia-x-launch-week-2026-08-22.md`. A scheduled row is an approval candidate,
 not permission to publish. Recheck the feed, factual claims, links, and media
 repetition at the action window.
 
-#### Interaction loop
+#### Distribution loop
 
-Treat the launch as a conversation, not a broadcast queue. On active campaign
-windows, prepare a compact engagement slate alongside the main-post candidate:
+Treat the launch as a conversation around one object, not a broadcast queue.
+For every approved anchor, prepare this approval-gated distribution sequence:
 
-- One useful, specific reply to a relevant X Layer, chain, protocol, AI-agent,
-  RWA, or builder conversation. Answer the post before mentioning Cobia; link a
-  receipt only when it genuinely advances the discussion.
+- A founder quote-post 15-90 minutes after publication. It should add a personal
+  build insight, why the result matters, or what was difficult—not repeat the
+  brand copy. Confirm the exact founder account before proposing it.
+- One useful, specific reply or quote-post in a relevant X Layer, BuildX, chain,
+  protocol, AI-agent, RWA, or builder conversation. Address that conversation
+  first; link the anchor or receipt only when it genuinely advances the thread.
 - Up to two likes on posts Cobia can sincerely stand behind. A like is an
   endorsement signal, so never use it mechanically or around unverified token,
   security, or partnership claims.
@@ -367,9 +377,17 @@ windows, prepare a compact engagement slate alongside the main-post candidate:
   Verify each account and give a concrete reason it belongs in Cobia's feed.
   Following is relationship building, not a recurring daily quota.
 
+Between anchor windows, use at most one meme reply per day. Its grammar is
+`post-specific setup -> Cobia-native twist -> stop`: one line, original Cobia
+media when useful, no CTA, and no forced mention of the product. A second daily
+community reply should contribute information, encouragement, or a specific
+observation rather than another joke.
+
+Complete the loop when the public anchor, founder amplification, and contextual
+ecosystem contribution are verified—or explicitly record why one was skipped.
 Do not interact merely to appear active. No generic `LFG` replies, auto-likes,
 mass follows, engagement circles, or attempts to hijack a serious loss or
-security conversation. Every reply, like, repost, and follow remains an
+security conversation. Every post, reply, like, repost, and follow remains an
 approval-required action; present the exact account and action first.
 
 #### Campaign proof loop
@@ -379,6 +397,9 @@ keys.** Repeat the product boundary, not the same copy.
 
 - A new confirmed execution deserves a receipt post with the explorer or
   program link.
+- The first line must carry the result without architectural context. Prefer an
+  exact outcome, a verified rejection, or a measured solver delta over a feature
+  label.
 - Reuse a strongest existing receipt as supporting evidence when relevant, but
   label it as prior proof rather than suggesting it is a new execution.
 - Pair proof with a short principle: outcome rather than keys, creative search
