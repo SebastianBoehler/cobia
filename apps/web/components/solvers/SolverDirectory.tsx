@@ -16,7 +16,6 @@ const capabilityPresentation: Record<string, { label: string; protocol?: string 
   "curve-stableswap-ng.exact-input": { label: "Curve · Exact input", protocol: "Curve" },
   "curve-stableswap-ng.liquidity": { label: "Curve · Liquidity", protocol: "Curve" },
   "uniswap-v3.exact-input": { label: "Uniswap V3 · Exact input", protocol: "Uniswap V3" },
-  "uniswap-v3.positions": { label: "Uniswap V3 · Positions", protocol: "Uniswap V3" },
   "uniswap-v3.swaps": { label: "Uniswap V3 · Swaps", protocol: "Uniswap V3" },
   "okx.dex-routing": { label: "OKX · DEX routing", protocol: "OKX" },
   "xlayer.native-okb": { label: "X Layer · Native OKB", protocol: "X Layer" },

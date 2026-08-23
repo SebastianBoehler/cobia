@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { XLAYER_WOKB } from "../src/native-okb";
 import { solveTransactionIntent } from "../src/transaction-strategy";
 import { PROTOCOL_REGISTRY } from "../../../apps/web/lib/adapters/registry";
+import { XLAYER_CURVE_LP_TOKEN } from "../src/curve-liquidity-strategy";
 
 const owner = "0x1111111111111111111111111111111111111111" as const;
 const usdg = "0x4ae46a509f6b1d9056937ba4500cb143933d2dc8" as const;
@@ -85,6 +86,29 @@ describe("common X Layer transaction strategy", () => {
       expect.objectContaining({ id: "02-okx-swap", provider: "okx.dex@1",
         dependsOn: ["01-aave-withdraw"], input: { token: usdg, atomic: "100" } }),
     ] }));
+  });
+
+  it.each([
+    [usdg, XLAYER_CURVE_LP_TOKEN, "add-liquidity"],
+    [XLAYER_CURVE_LP_TOKEN, PROTOCOL_REGISTRY.aaveV3.assets.USDt0.underlying.address,
+      "remove-one-coin"],
+  ] as const)("constructs a bounded Curve liquidity action", async (
+    inputToken, outputToken, tool,
+  ) => {
+    const finalize = vi.fn(async () => ({ version: 1, decision: "abstain",
+      reasonCode: "CAPTURED" }) as const);
+    const fetchOkxArtifact = vi.fn();
+
+    await solveTransactionIntent(intent(inputToken, outputToken, "90"), {
+      nowSec: () => 100, fetchOkxArtifact, finalize,
+    });
+
+    expect(fetchOkxArtifact).not.toHaveBeenCalled();
+    expect(finalize).toHaveBeenCalledWith(expect.objectContaining({
+      stages: [expect.objectContaining({ provider: "evm.raw@1",
+        tools: [`curve-stableswap-ng.${tool}`] })],
+      runner: "cobia-reference-curve-liquidity@1",
+    }));
   });
 
   it("does not claim an OKX route when the signed shape is not a single X Layer conversion", async () => {

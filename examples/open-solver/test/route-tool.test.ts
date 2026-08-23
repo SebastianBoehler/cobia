@@ -16,7 +16,6 @@ describe("reference route tool", () => {
       "okx.dex-routing@1",
       "policy.capability-composition@1",
       "uniswap-v3.exact-input@1",
-      "uniswap-v3.positions@1",
       "uniswap-v3.swaps@1",
       "xlayer.native-okb@1",
     ]);

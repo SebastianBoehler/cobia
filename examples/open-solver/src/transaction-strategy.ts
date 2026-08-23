@@ -1,11 +1,16 @@
 import { isNativeAssetAddress } from "@cobia/domain";
 import type { SolverDecisionV1, SolverIntentV1 } from "@cobia/solver-sdk";
 import type { ProviderArtifactV1 } from "@cobia/solvers";
-import type { Address } from "viem";
+import { isAddressEqual, type Address } from "viem";
 import { XLAYER_WOKB, buildNativeOkbStage } from "./native-okb";
 import { buildOkxRouteStage, fetchOkxRouteArtifact } from "./okx-route";
 import { finalizeXLayerTransaction } from "./transaction-decision";
 import { aaveAssetForReceipt, buildAaveWithdrawStage } from "./aave-position-actions";
+import {
+  XLAYER_CURVE_LP_TOKEN,
+  buildCurveAddLiquidityStage,
+  buildCurveRemoveOneCoinStage,
+} from "./curve-liquidity-strategy";
 
 interface FinalizeInput {
   intent: SolverIntentV1;
@@ -71,6 +76,22 @@ export async function solveTransactionIntent(
         runner: "cobia-reference-native-okb@1", nowSec });
     }
     if (isNativeAssetAddress(input.token)) return;
+    if (isAddressEqual(outcome.token, XLAYER_CURVE_LP_TOKEN)) {
+      const built = buildCurveAddLiquidityStage({ stageId: "01-curve-add",
+        owner: intent.policy.owner, inputToken: input.token, inputAtomic: input.maximumAtomic,
+        minimumLpAtomic: outcome.atomic, fetchedAt: nowSec,
+        expiresAt: Math.min(intent.policy.deadline, nowSec + 30) });
+      return dependencies.finalize({ intent, stages: [built.stage], artifacts: [built.artifact],
+        runner: "cobia-reference-curve-liquidity@1", nowSec });
+    }
+    if (isAddressEqual(input.token, XLAYER_CURVE_LP_TOKEN)) {
+      const built = buildCurveRemoveOneCoinStage({ stageId: "01-curve-remove",
+        owner: intent.policy.owner, outputToken: outcome.token, lpAtomic: input.maximumAtomic,
+        minimumOutputAtomic: outcome.atomic, fetchedAt: nowSec,
+        expiresAt: Math.min(intent.policy.deadline, nowSec + 30) });
+      return dependencies.finalize({ intent, stages: [built.stage], artifacts: [built.artifact],
+        runner: "cobia-reference-curve-liquidity@1", nowSec });
+    }
     const receipt = aaveAssetForReceipt(input.token);
     if (receipt) {
       const withdraw = buildAaveWithdrawStage({ stageId: "01-aave-withdraw",

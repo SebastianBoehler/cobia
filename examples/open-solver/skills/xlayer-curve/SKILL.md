@@ -1,8 +1,20 @@
 ---
 name: xlayer-curve
-description: Quote and construct Curve StableSwap NG exact-input candidates on X Layer.
+description: Construct Curve StableSwap NG swaps and bounded single-coin liquidity actions on X Layer.
 ---
 
 # X Layer Curve
 
-Run the route tool `solve` command so it quotes the exact signed input at the pinned snapshot and compares the conservative output with the signed floor. Inspect the compiled Curve candidate. Do not copy pool or token addresses into generated files.
+Use the pinned Cobia registry and route tool. Installed support is an
+operator-declared construction capability, not execution authority.
+
+Deterministic actions:
+
+- exact-input swaps between the two registered pool coins;
+- single-coin add liquidity with an exact spend and LP-token mint floor;
+- single-coin remove liquidity with an exact LP burn and output-token floor.
+
+Always bind the canonical pool, exact coin index/order, owner receiver, exact
+spend or burn, and minimum output. Do not hand-author alternate pools. Balanced
+multi-coin actions remain open-lane research until the signed program can bind
+every input independently. The verifier must replay every candidate.

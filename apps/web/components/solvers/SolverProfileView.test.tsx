@@ -9,7 +9,7 @@ describe("SolverProfileView", () => {
       operatorKind: "community",
       attestationAddress: "0x1111111111111111111111111111111111111111",
       declaredCapabilities: ["aave-v3.positions@1", "curve-stableswap-ng.liquidity@1",
-        "uniswap-v3.positions@1", "okx.dex-routing@1", "xlayer.native-okb@1",
+        "uniswap-v3.swaps@1", "okx.dex-routing@1", "xlayer.native-okb@1",
         "general.evm-program@1"],
       stats: { accepted: 2, rejected: 1, wins: 1, current: 0 },
       submissions: [],
