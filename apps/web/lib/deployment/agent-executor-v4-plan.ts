@@ -101,9 +101,7 @@ export function buildAgentExecutorDeploymentPlanV4(input: {
       call("activate-canary-wallet", riskManager, RISK_ABI, "activateWallet", [canaryWallet]),
       call("activate-unpause", riskManager, RISK_ABI, "activateUnpause"),
     ],
-    openTransactions: [
-      call("propose-open-access", riskManager, RISK_ABI, "proposeOpenAccess"),
-      call("activate-open-access", riskManager, RISK_ABI, "activateOpenAccess"),
-    ],
+    openProposalTransaction: call("propose-open-access", riskManager, RISK_ABI, "proposeOpenAccess"),
+    openActivationTransaction: call("activate-open-access", riskManager, RISK_ABI, "activateOpenAccess"),
   };
 }

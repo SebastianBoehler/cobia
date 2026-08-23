@@ -20,6 +20,19 @@ const AUTHORIZATION_TYPES = {
   VerifierAuthorizationV4: [{ name: "payloadHash", type: "bytes32" }],
 } as const;
 
+export function generalAssetStageNonceV4(
+  policyNonce: Hash,
+  stage: { stageId: Hash; index: number; chainId: 1 | 196 },
+): Hash {
+  return commitment({
+    domain: "cobia.general-asset-stage-nonce.v1",
+    policyNonce,
+    stageId: stage.stageId,
+    stageIndex: stage.index,
+    chainId: stage.chainId,
+  }) as Hash;
+}
+
 export function authorizationTypedDataV4(authorization: VerifierAuthorizationV4) {
   return {
     domain: {
@@ -98,7 +111,8 @@ function assertMatchesVerifiedStage(
     execution.inputUsdE8 === BigInt(verdict.inputExposureUsdE8) &&
     execution.inputUsdE8 <= BigInt(verdict.policy.input.maximumUsdE8) &&
     execution.outputToken === stage.outputs[0]!.token && execution.deadline <= BigInt(verdict.program.deadline) &&
-    execution.nonce === verdict.policy.nonce && execution.pinnedBlockNumber === BigInt(replay.blockNumber) &&
+    execution.nonce === generalAssetStageNonceV4(verdict.policy.nonce, stage) &&
+    execution.pinnedBlockNumber === BigInt(replay.blockNumber) &&
     execution.pinnedBlockHash === replay.blockHash &&
     execution.inputIdentityEvidenceHash === verdict.policy.inputIdentityHash &&
     verdict.program.identityEvidenceHashes.includes(execution.outputIdentityEvidenceHash) &&

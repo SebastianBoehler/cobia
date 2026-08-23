@@ -6,7 +6,7 @@ import type {
 } from "@cobia/solvers";
 import { privateKeyToAccount } from "viem/accounts";
 import { describe, expect, it } from "vitest";
-import { attestExecutionProgramV4 } from "./attestation";
+import { attestExecutionProgramV4, generalAssetStageNonceV4 } from "./attestation";
 import type { ExecutionProgramV4 } from "./commitment";
 import { replayGeneralAssetStageV1 } from "./fork-replay";
 
@@ -88,7 +88,9 @@ function execution(verdict: Extract<GeneralAssetProgramVerdictV1, { accepted: tr
     valuationEvidenceHash: hash("5"), stageHash: commitment(stage), simulationHash: commitment(verdict.replays[0]),
     pinnedBlockNumber: 123n, pinnedBlockHash: blockHash, sourceChainId: 196n, owner,
     inputToken, outputToken, inputAmount: 100n, inputUsdE8: 100_000_000n,
-    deadline: 2_000_000_200n, nonce: verdict.policy.nonce, refundTokens: [inputToken, outputToken],
+    deadline: 2_000_000_200n,
+    nonce: generalAssetStageNonceV4(verdict.policy.nonce, stage),
+    refundTokens: [inputToken, outputToken],
     calls: [{ adapterKey: compiled.adapterKey, target, value: 0n, gasLimit: compiled.gasLimit,
       approvals: [{ token: inputToken, amount: 100n }], data: compiled.data }],
     constraints: [{ token: outputToken, kind: 1, minimum: 99n }],
@@ -96,6 +98,12 @@ function execution(verdict: Extract<GeneralAssetProgramVerdictV1, { accepted: tr
 }
 
 describe("general asset V4 fork replay and attestation", () => {
+  it("derives a distinct executor nonce for each stage", () => {
+    expect(generalAssetStageNonceV4(hash("1"), stage)).not.toBe(
+      generalAssetStageNonceV4(hash("1"), { ...stage, stageId: hash("8"), index: 1 }),
+    );
+  });
+
   it("replays only the exact call against the pinned chain, block, and code", async () => {
     const replay = await replayGeneralAssetStageV1({
       stage, compiled, anchor: { chainId: 196, blockNumber: "123", blockHash }, fork: fork(),

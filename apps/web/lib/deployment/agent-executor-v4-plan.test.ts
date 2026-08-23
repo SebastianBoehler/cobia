@@ -31,9 +31,8 @@ describe("agent executor V4 deployment plan", () => {
     expect(plan.activationTransactions.map(({ label }) => label)).toEqual([
       "activate-adapter-0", "activate-canary-wallet", "activate-unpause",
     ]);
-    expect(plan.openTransactions.map(({ label }) => label)).toEqual([
-      "propose-open-access", "activate-open-access",
-    ]);
+    expect(plan.openProposalTransaction.label).toBe("propose-open-access");
+    expect(plan.openActivationTransaction.label).toBe("activate-open-access");
     expect(JSON.stringify(plan)).not.toContain("privateKey");
   });
 

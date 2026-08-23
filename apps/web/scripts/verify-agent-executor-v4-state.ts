@@ -30,8 +30,10 @@ async function main() {
   const releaseMode = mode(process.argv[2]);
   const expected = spec(argument("spec"));
   const rpcUrl = optionalArgument("rpc") ?? (expected.chainId === 1
-    ? process.env.ETHEREUM_RPC_URL ?? mainnet.rpcUrls.default.http[0]
-    : process.env.XLAYER_RPC_URL ?? xLayer.rpcUrls.default.http[0]);
+    ? process.env.ETHEREUM_RPC_URL : process.env.XLAYER_RPC_URL);
+  if (!rpcUrl) throw new Error(
+    expected.chainId === 1 ? "ETHEREUM_RPC_URL or --rpc is required" : "XLAYER_RPC_URL or --rpc is required",
+  );
   const client = createPublicClient({ chain: expected.chainId === 1 ? mainnet : xLayer,
     transport: http(rpcUrl, { timeout: 15_000 }), cacheTime: 0 });
   const evidence = await verifyMainnetV4State({ spec: expected,

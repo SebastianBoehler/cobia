@@ -8,6 +8,7 @@ import {
 import {
   assertExactStageTransaction, type WalletStageTransactionV4,
 } from "../../lib/execution-v4/stage-artifact";
+import type { StageStateV4 } from "../../lib/execution-v4/stage-machine";
 import { randomBytes32 } from "../../lib/payments/random";
 import { currentUnixSeconds } from "../../lib/time";
 import { shortAddress } from "../../lib/wallet/eip1193";
@@ -18,7 +19,7 @@ import { useWallet } from "../wallet/WalletProvider";
 
 interface ExecutionAccess { value: AgentExecutionAccessProof; signature: Hex }
 interface ReviewStage {
-  stageId: Hash; ordinal: number; chainId: 1 | 196; state: string;
+  stageId: Hash; ordinal: number; chainId: 1 | 196; state: StageStateV4;
   transaction: WalletStageTransactionV4;
   delivery: { kind: "none" } | { kind: "bridge"; destinationChainId: 1 | 196 };
 }
@@ -76,7 +77,7 @@ export function GeneralAssetExecutionView({ program }: { program: ProgramView })
     finally { setPending(false); }
   }
 
-  function updateStage(stageId: Hash, state: string) {
+  function updateStage(stageId: Hash, state: StageStateV4) {
     setReview((current) => current ? { ...current,
       stages: current.stages.map((stage) => stage.stageId === stageId ? { ...stage, state } : stage),
     } : current);
@@ -84,7 +85,7 @@ export function GeneralAssetExecutionView({ program }: { program: ProgramView })
 
   async function reconcile(stage: ReviewStage, executionAccess: ExecutionAccess) {
     const result = await post(`/api/programs/${programId}/stages/${stage.stageId}`, executionAccess,
-      { action: "reconcile" }) as { state: string };
+      { action: "reconcile" }) as { state: StageStateV4 };
     updateStage(stage.stageId, result.state);
   }
 
