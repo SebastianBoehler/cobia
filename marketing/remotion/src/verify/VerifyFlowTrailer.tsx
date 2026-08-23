@@ -1,5 +1,6 @@
 import { Easing, Interactive, interpolate, useCurrentFrame } from "remotion";
 import { CobiaBrand } from "../brand/CobiaBrand";
+import { CobiaSoundDesign } from "../shared/CobiaSoundDesign";
 import { Stage } from "../shared/Stage";
 
 const steps = [
@@ -16,8 +17,7 @@ export const VerifyFlowTrailer = () => {
       <div style={{ display: "flex", flexDirection: "column", inset: "68px", justifyContent: "space-between", position: "absolute" }}>
         <CobiaBrand compact />
         <div>
-          <p style={{ color: "#3753ff", fontSize: 24, fontWeight: 720, letterSpacing: ".08em", margin: "0 0 18px", textTransform: "uppercase" }}>Open generation. Verified authorization.</p>
-          <h1 style={{ fontSize: 86, fontWeight: 660, letterSpacing: "-.065em", lineHeight: .96, margin: 0 }}>AI proposes.<br />You approve.</h1>
+          <h1 style={{ fontSize: 98, fontWeight: 700, letterSpacing: "-.072em", lineHeight: .92, margin: 0 }}>AI proposes.<br />You approve.</h1>
         </div>
         <div style={{ display: "grid", gap: 14 }}>
           {steps.map(([number, title, detail], index) => (
@@ -39,7 +39,7 @@ export const VerifyFlowTrailer = () => {
               }}
             >
               <span style={{ color: index === 3 ? "#8ea0ff" : "#3753ff", fontFamily: "monospace", fontSize: 21 }}>{number}</span>
-              <div><strong style={{ display: "block", fontSize: 33, marginBottom: 5 }}>{title}</strong><small style={{ color: index === 3 ? "#b8c0d4" : "#69707d", fontSize: 21 }}>{detail}</small></div>
+              <div><strong style={{ display: "block", fontSize: 38, marginBottom: 7 }}>{title}</strong><small style={{ color: index === 3 ? "#b8c0d4" : "#69707d", fontSize: 24 }}>{detail}</small></div>
             </Interactive.Div>
           ))}
         </div>
@@ -55,6 +55,7 @@ export const VerifyFlowTrailer = () => {
         >
           State the outcome. Keep the keys.
         </Interactive.Div>
+        <CobiaSoundDesign cues={[{ file: "orbit.wav", frame: 34 }, { file: "lift.wav", frame: 102 }, { file: "resolve.wav", frame: 146, volume: .68 }]} />
       </div>
     </Stage>
   );

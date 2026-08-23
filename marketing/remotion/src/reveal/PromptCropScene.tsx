@@ -11,7 +11,7 @@ export const PromptCropScene = () => {
       <div style={{ display: "flex", flexDirection: "column", inset: "56px 100px", justifyContent: "space-between", position: "absolute" }}>
         <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between" }}>
           <CobiaBrand compact />
-          <p style={{ color: "#3753ff", fontSize: 24, fontWeight: 720, letterSpacing: ".08em", margin: 0, textTransform: "uppercase" }}>Goal + entities + route controls</p>
+          <strong style={{ color: "#101936", fontSize: 42, fontWeight: 700, letterSpacing: "-.045em" }}>The intent stays explicit.</strong>
         </div>
         <Interactive.Div
           name="Real intent prompt bar"
@@ -29,7 +29,7 @@ export const PromptCropScene = () => {
           <Img src={staticFile("ui/cobia-intent-prompt-bar.png")} style={{ borderRadius: 24, display: "block", height: 558, objectFit: "cover", width: 1600 }} />
         </Interactive.Div>
         <div style={{ alignItems: "center", display: "flex", gap: 16 }}>
-          <strong style={{ fontSize: 34, marginRight: 12 }}>Tags stay explicit:</strong>
+          <strong style={{ fontSize: 40, marginRight: 12 }}>Parsed as UI objects:</strong>
           {tags.map((tag, index) => (
             <Interactive.Div
               key={tag}

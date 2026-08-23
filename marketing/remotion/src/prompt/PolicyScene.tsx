@@ -18,8 +18,7 @@ export const PolicyScene = () => {
       <div style={{ display: "flex", flexDirection: "column", inset: vertical ? "90px 72px" : "64px 100px", justifyContent: "space-between", position: "absolute" }}>
         <CobiaBrand compact={vertical} />
         <div>
-          <p style={{ color: "#3753ff", fontSize: vertical ? 28 : 25, fontWeight: 720, letterSpacing: ".08em", margin: "0 0 20px", textTransform: "uppercase" }}>The verifier reads the limits</p>
-          <h1 style={{ fontSize: vertical ? 102 : 100, fontWeight: 660, letterSpacing: "-.065em", lineHeight: .96, margin: 0 }}>Prose becomes policy.</h1>
+          <h1 style={{ fontSize: vertical ? 112 : 110, fontWeight: 700, letterSpacing: "-.072em", lineHeight: .92, margin: 0 }}>Prose becomes policy.</h1>
         </div>
         <div style={{ display: "grid", gap: vertical ? 22 : 18, gridTemplateColumns: vertical ? "1fr" : "1fr 1fr" }}>
           {limits.map(([label, value], index) => (
@@ -36,8 +35,8 @@ export const PolicyScene = () => {
                 translate: interpolate(frame, [index * 10, index * 10 + 22], ["0px 34px", "0px 0px"], { easing: Easing.spring({ damping: 200 }), extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
               }}
             >
-              <small style={{ color: index === 3 ? "#aeb8d4" : "#707684", display: "block", fontSize: vertical ? 26 : 20, marginBottom: 12 }}>{label}</small>
-              <strong style={{ color: index === 3 ? "white" : "#3049e8", fontSize: vertical ? 52 : 43, fontWeight: 670 }}>{value}</strong>
+              <small style={{ color: index === 3 ? "#aeb8d4" : "#707684", display: "block", fontSize: vertical ? 30 : 24, marginBottom: 12 }}>{label}</small>
+              <strong style={{ color: index === 3 ? "white" : "#3049e8", fontSize: vertical ? 58 : 50, fontWeight: 700 }}>{value}</strong>
             </Interactive.Div>
           ))}
         </div>

@@ -15,8 +15,7 @@ export const UiScreenshotScene = () => {
           }}
         >
           <CobiaBrand />
-          <p style={{ color: "#3753ff", fontSize: 25, fontWeight: 720, letterSpacing: ".08em", margin: "100px 0 22px", textTransform: "uppercase" }}>New intent experience</p>
-          <h1 style={{ fontSize: 104, fontWeight: 660, letterSpacing: "-.07em", lineHeight: .94, margin: 0 }}>Start with what should happen.</h1>
+          <h1 style={{ fontSize: 112, fontWeight: 700, letterSpacing: "-.075em", lineHeight: .92, margin: "104px 0 0" }}>Start with what should happen.</h1>
         </Interactive.Div>
         <Interactive.Div
           name="Intent page screenshot"
@@ -32,7 +31,7 @@ export const UiScreenshotScene = () => {
             width: 1050,
           }}
         >
-          <Img src={staticFile("ui/cobia-intent-desktop.png")} style={{ height: 730, objectFit: "cover", objectPosition: "top left", width: 1050 }} />
+          <Img src={staticFile("ui/cobia-new-ui-desktop.png")} style={{ height: 730, objectFit: "cover", objectPosition: "top left", width: 1050 }} />
         </Interactive.Div>
       </div>
     </Stage>

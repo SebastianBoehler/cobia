@@ -4,7 +4,8 @@ import { linearTiming, TransitionSeries } from "@remotion/transitions";
 import { wipe } from "@remotion/transitions/wipe";
 import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import { CobiaBrand, CobiaMark } from "../brand/CobiaBrand";
-import { landedProgram } from "../proof-cut/evidence";
+import { CobiaSoundDesign } from "../shared/CobiaSoundDesign";
+import { WalletPreview } from "./WalletReviewMaterials";
 
 const navy = "#101936";
 const cobalt = "#3753ff";
@@ -97,15 +98,9 @@ const Receipt = () => {
   return <Scene>
     <div style={{ left: 118, position: "absolute", right: 118, top: 213, ...rise(frame, 4) }}>
       <div style={{ fontSize: 117, fontWeight: 700, letterSpacing: "-.075em", lineHeight: .88 }}>The wallet sees<br />exact calls.</div>
-      <div style={{ alignItems: "stretch", display: "grid", gridTemplateColumns: "1.06fr .94fr", marginTop: 56, width: 1580, ...rise(frame, 28) }}>
-        <div style={{ background: navy, color: "white", padding: "31px 38px" }}>
-          <div style={{ color: "#c7cee7", fontSize: 27, fontWeight: 600 }}>Prior program receipt · X Layer 196</div>
-          <div style={{ fontSize: 70, fontWeight: 700, letterSpacing: "-.07em", marginTop: 29 }}>{landedProgram.outcome}</div>
-        </div>
-        <div style={{ background: "white", border: `2px solid ${navy}`, padding: "31px 38px" }}>
-          <div style={{ color: cobalt, fontSize: 31, fontWeight: 700 }}>Independent verification</div>
-          <div style={{ fontSize: 42, fontWeight: 650, letterSpacing: "-.05em", lineHeight: 1.04, marginTop: 23 }}>Checks the program against the signed limits before review.</div>
-        </div>
+      <div style={{ alignItems: "center", display: "flex", gap: 80, marginTop: 40, width: 1580, ...rise(frame, 28) }}>
+        <div style={{ color: navy, fontSize: 38, fontWeight: 580, letterSpacing: "-.04em", lineHeight: 1.12, width: 590 }}>The verifier checks the program against the signed limits. Only then does the wallet review it.</div>
+        <WalletPreview compact />
       </div>
     </div>
   </Scene>;
@@ -122,7 +117,7 @@ const EndCard = () => {
   </Scene>;
 };
 
-export const AnalyticsLaunchTrailer = () => (
+export const AnalyticsLaunchTrailer = () => (<>
   <TransitionSeries>
     <TransitionSeries.Sequence durationInFrames={150}><Intro /></TransitionSeries.Sequence>
     <TransitionSeries.Transition presentation={wipe({ direction: "from-left" })} timing={linearTiming({ durationInFrames: 18 })} />
@@ -134,4 +129,5 @@ export const AnalyticsLaunchTrailer = () => (
     <TransitionSeries.Transition presentation={wipe({ direction: "from-top-right" })} timing={linearTiming({ durationInFrames: 22 })} />
     <TransitionSeries.Sequence durationInFrames={160}><EndCard /></TransitionSeries.Sequence>
   </TransitionSeries>
-);
+  <CobiaSoundDesign cues={[{ file: "slide.wav", frame: 128 }, { file: "orbit.wav", frame: 254 }, { file: "lift.wav", frame: 414 }, { file: "slide.wav", frame: 550 }, { file: "resolve.wav", frame: 584, volume: .72 }]} />
+</>);

@@ -1,13 +1,14 @@
 import { AbsoluteFill, Easing, Interactive, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { CobiaBrand } from "../brand/CobiaBrand";
+import { Stage, cobiaColors } from "./Stage";
 
 export const EndCard = () => {
   const frame = useCurrentFrame();
   const { width } = useVideoConfig();
   const vertical = width < 1200;
   return (
-    <AbsoluteFill style={{ alignItems: "center", backgroundColor: "#10131a", color: "white", display: "flex", justifyContent: "center" }}>
-      <div style={{ background: "radial-gradient(circle, rgba(55,83,255,.55), transparent 64%)", height: vertical ? 900 : 1100, position: "absolute", width: vertical ? 900 : 1100 }} />
+    <Stage>
+      <AbsoluteFill style={{ alignItems: "center", display: "flex", justifyContent: "center" }}>
       <Interactive.Div
         name="End card"
         style={{
@@ -21,11 +22,12 @@ export const EndCard = () => {
           width: vertical ? 900 : 1500,
         }}
       >
-        <div style={{ background: "white", borderRadius: 999, padding: vertical ? "18px 26px" : "14px 22px" }}><CobiaBrand compact /></div>
-        <h1 style={{ fontSize: vertical ? 104 : 108, fontWeight: 660, letterSpacing: "-.065em", lineHeight: .96, margin: 0 }}>Describe the outcome.</h1>
-        <p style={{ color: "#b8c0d4", fontSize: vertical ? 50 : 44, lineHeight: 1.25, margin: 0 }}>Keep the keys. Verify before signing.</p>
-        <p style={{ color: "#8ea0ff", fontSize: vertical ? 34 : 30, fontWeight: 680, letterSpacing: ".02em", margin: vertical ? "30px 0 0" : "18px 0 0" }}>getcobia.com</p>
+        <CobiaBrand compact />
+        <h1 style={{ fontSize: vertical ? 112 : 126, fontWeight: 700, letterSpacing: "-.075em", lineHeight: .9, margin: 0 }}>Describe the outcome.</h1>
+        <p style={{ color: cobiaColors.muted, fontSize: vertical ? 52 : 46, lineHeight: 1.2, margin: 0 }}>Keep the keys. Verify before signing.</p>
+        <p style={{ background: cobiaColors.ink, color: "white", fontSize: vertical ? 36 : 32, fontWeight: 700, margin: vertical ? "28px 0 0" : "18px 0 0", padding: "18px 28px" }}>getcobia.com</p>
       </Interactive.Div>
-    </AbsoluteFill>
+      </AbsoluteFill>
+    </Stage>
   );
 };

@@ -12,7 +12,7 @@ export const ProofStage = ({ children, dark = false }: {
 
   return (
     <AbsoluteFill style={{ backgroundColor: dark ? colors.dark : colors.paper, color: foreground, fontFamily: geistSans, letterSpacing: ".008em", overflow: "hidden" }}>
-      <div style={{ backgroundImage: `radial-gradient(${grid} 1px, transparent 1px)`, backgroundSize: "34px 34px", inset: 0, opacity: .48, position: "absolute" }} />
+      <div style={{ backgroundImage: `linear-gradient(${grid} 1px, transparent 1px), linear-gradient(90deg, ${grid} 1px, transparent 1px)`, backgroundSize: "72px 72px", inset: 0, opacity: .34, position: "absolute" }} />
       <Interactive.Div name="Cobalt route glow" style={{
         background: "radial-gradient(circle, rgba(55,83,255,.24), transparent 68%)",
         height: 1040,

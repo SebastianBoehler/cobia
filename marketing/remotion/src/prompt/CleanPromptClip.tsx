@@ -1,5 +1,7 @@
 import { AbsoluteFill, Easing, Interactive, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
-import { ArrowUpIcon } from "../shared/Stage";
+import { CobiaBrand } from "../brand/CobiaBrand";
+import { CobiaSoundDesign } from "../shared/CobiaSoundDesign";
+import { ArrowUpIcon, Stage } from "../shared/Stage";
 
 const intent = "Swap 10 @USDG into at least 9.95 @USDt0 on @XLayer";
 
@@ -34,6 +36,7 @@ export const CleanPromptClip = () => {
   const frame = useCurrentFrame();
   const { height, width } = useVideoConfig();
   const socialLandscape = height / width > 0.5;
+  const banner = height / width < .45;
   const count = Math.floor(interpolate(frame, [24, 126], [0, intent.length], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
@@ -41,7 +44,9 @@ export const CleanPromptClip = () => {
   const sent = frame >= 166;
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "#f7f8fa", color: "#11141a", overflow: "hidden", padding: socialLandscape ? 52 : 28 }}>
+    <Stage>
+    <AbsoluteFill style={{ color: "#11141a", overflow: "hidden", padding: socialLandscape ? 52 : 28 }}>
+      <header style={{ left: socialLandscape ? 84 : 34, position: "absolute", top: socialLandscape ? 38 : 18, zIndex: 3 }}><CobiaBrand compact /></header>
       <Interactive.Div
         name="Intent prompt field"
         style={{
@@ -51,7 +56,7 @@ export const CleanPromptClip = () => {
           boxShadow: "0 22px 60px rgba(17, 20, 26, 0.12)",
           display: "flex",
           flexDirection: "column",
-          inset: socialLandscape ? 52 : 28,
+          inset: socialLandscape ? "118px 52px 52px" : banner ? "76px 28px 28px" : 28,
           justifyContent: "space-between",
           opacity: interpolate(frame, [0, 12, 204, 218], [0, 1, 1, 0], {
             easing: [Easing.bezier(0.16, 1, 0.3, 1), Easing.linear, Easing.bezier(0.7, 0, 0.84, 0)],
@@ -71,7 +76,7 @@ export const CleanPromptClip = () => {
         <Interactive.Div
           name="Animated intent"
           style={{
-            fontSize: socialLandscape ? 76 : 58,
+            fontSize: socialLandscape ? 82 : 62,
             fontWeight: count ? 560 : 430,
             letterSpacing: "-0.025em",
             lineHeight: 1.3,
@@ -133,6 +138,8 @@ export const CleanPromptClip = () => {
           </Interactive.Div>
         </div>
       </Interactive.Div>
+      <CobiaSoundDesign cues={[{ file: "orbit.wav", frame: 70 }, { file: "lift.wav", frame: 126 }, { file: "resolve.wav", frame: 164, volume: .66 }]} />
     </AbsoluteFill>
+    </Stage>
   );
 };

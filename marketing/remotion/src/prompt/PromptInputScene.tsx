@@ -55,8 +55,7 @@ export const PromptInputScene = () => {
             translate: interpolate(frame, [0, 18], ["0px 26px", "0px 0px"], { easing: Easing.spring({ damping: 200 }), extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
           }}
         >
-          <p style={{ color: "#3753ff", fontSize: vertical ? 28 : 25, fontWeight: 720, letterSpacing: ".08em", margin: "0 0 20px", textTransform: "uppercase" }}>Start with the goal</p>
-          <h1 style={{ fontSize: vertical ? 102 : 96, fontWeight: 660, letterSpacing: "-.065em", lineHeight: .96, margin: 0 }}>Describe the outcome.</h1>
+          <h1 style={{ fontSize: vertical ? 112 : 106, fontWeight: 700, letterSpacing: "-.072em", lineHeight: .92, margin: 0 }}>Describe the outcome.</h1>
         </Interactive.Div>
 
         <Interactive.Div
@@ -72,15 +71,15 @@ export const PromptInputScene = () => {
             scale: interpolate(frame, [10, 34], [.94, 1], { easing: Easing.spring({ damping: 200 }), extrapolateLeft: "clamp", extrapolateRight: "clamp", output: "perceptual-scale" }),
           }}
         >
-          <div style={{ color: count ? "#11141a" : "#69707d", fontSize: vertical ? 52 : 38, fontWeight: count ? 570 : 430, lineHeight: 1.35, minHeight: vertical ? 220 : 150 }}>
+          <div style={{ color: count ? "#11141a" : "#69707d", fontSize: vertical ? 58 : 48, fontWeight: count ? 570 : 430, lineHeight: 1.3, minHeight: vertical ? 220 : 150 }}>
             {count ? <TaggedText text={goal.slice(0, count)} /> : "Ask Cobia to do something onchain…"}
             {frame >= 48 && frame < 130 ? <span style={{ color: "#3753ff", opacity: frame % 16 < 8 ? 1 : 0 }}>|</span> : null}
           </div>
 
           <div style={{ display: "grid", gap: 12, gridTemplateColumns: vertical ? "1fr" : "1fr 1fr 1fr", marginTop: 16 }}>
-            <Example delay={18}>Swap 10 <strong style={{ color: "#3753ff" }}>@USDG</strong> into 9.95 <strong style={{ color: "#3753ff" }}>@USDt0</strong></Example>
+            <Example delay={18}>Swap 10 <strong style={{ color: "#3753ff" }}>@USDG</strong> into at least 9.95 <strong style={{ color: "#3753ff" }}>@USDt0</strong></Example>
             <Example delay={22}>Supply <strong style={{ color: "#3753ff" }}>@USDG</strong> to <strong style={{ color: "#3753ff" }}>@Aave</strong></Example>
-            {!vertical ? <Example delay={26}>Acquire <strong style={{ color: "#3753ff" }}>@PAXG</strong> on <strong style={{ color: "#3753ff" }}>@Ethereum</strong></Example> : null}
+            {!vertical ? <Example delay={26}>Review a route on <strong style={{ color: "#3753ff" }}>@XLayer</strong> before signing</Example> : null}
           </div>
 
           <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between", marginTop: vertical ? 30 : 22 }}>

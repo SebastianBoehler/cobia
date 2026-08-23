@@ -1,9 +1,10 @@
-import { Audio } from "@remotion/media";
 import {
-  AbsoluteFill, Easing, Interactive, interpolate, Sequence, staticFile,
+  AbsoluteFill, Easing, Interactive, interpolate,
   useCurrentFrame,
 } from "remotion";
-import { ArrowUpIcon } from "../shared/Stage";
+import { CobiaBrand } from "../brand/CobiaBrand";
+import { CobiaSoundDesign } from "../shared/CobiaSoundDesign";
+import { ArrowUpIcon, Stage } from "../shared/Stage";
 
 const intent = "Swap 10 @USDG into at least 9.95 @USDt0 on @XLayer";
 const tagFrames: Record<string, number> = { "@USDG": 58, "@USDt0": 117, "@XLayer": 142 };
@@ -58,13 +59,9 @@ export const BouncyPromptClip = () => {
   const sent = frame >= 178;
 
   return (
-    <AbsoluteFill style={{ alignItems: "center", backgroundColor: "#f5f7fb", color: "#11141a", display: "flex", justifyContent: "center", overflow: "hidden" }}>
-      <Interactive.Div name="Ambient cobalt glow" style={{
-        background: "radial-gradient(circle, rgba(55,83,255,.2) 0%, rgba(55,83,255,0) 68%)",
-        borderRadius: "50%", height: 980, opacity: interpolate(frame, [0, 30], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
-        position: "absolute", right: -180, top: -420, width: 980,
-      }} />
-      <div style={{ backgroundImage: "radial-gradient(#cfd5e4 1.5px, transparent 1.5px)", backgroundSize: "34px 34px", inset: 0, opacity: 0.28, position: "absolute" }} />
+    <Stage>
+      <header style={{ left: 84, position: "absolute", top: 54 }}><CobiaBrand compact /></header>
+      <AbsoluteFill style={{ alignItems: "center", display: "flex", justifyContent: "center" }}>
 
       <Interactive.Div name="Bouncy intent prompt" style={{
         backgroundColor: "white",
@@ -79,9 +76,9 @@ export const BouncyPromptClip = () => {
         padding: "42px 44px 34px",
         scale: interpolate(frame, [0, 15, 28], [0.84, 1.045, 1], { easing: [Easing.spring({ damping: 105 }), Easing.spring({ damping: 150 })], extrapolateLeft: "clamp", extrapolateRight: "clamp", output: "perceptual-scale" }),
         translate: interpolate(frame, [0, 15, 28, 164, 173, 184], ["0px 70px", "0px -13px", "0px 0px", "0px 0px", "0px -11px", "0px 0px"], { easing: [Easing.spring({ damping: 110 }), Easing.spring({ damping: 160 }), Easing.linear, Easing.spring({ damping: 120 }), Easing.spring({ damping: 170 })], extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
-        width: 1320,
+        width: 1480,
       }}>
-        <Interactive.Div name="Typed intent" style={{ fontSize: 46, fontWeight: count ? 580 : 430, letterSpacing: "-.025em", lineHeight: 1.35, minHeight: 190 }}>
+        <Interactive.Div name="Typed intent" style={{ fontSize: 56, fontWeight: count ? 600 : 430, letterSpacing: "-.04em", lineHeight: 1.3, minHeight: 190 }}>
           {count ? <AnimatedIntent text={intent.slice(0, count)} /> : <span style={{ color: "#747b89" }}>Ask Cobia to do something onchain…</span>}
           {frame >= 24 && frame < 160 ? <span style={{ color: "#3753ff", opacity: frame % 16 < 8 ? 1 : 0 }}>│</span> : null}
         </Interactive.Div>
@@ -109,14 +106,8 @@ export const BouncyPromptClip = () => {
         </div>
       </Interactive.Div>
 
-      {[58, 117, 142].map((from, index) => (
-        <Sequence from={from} key={from} layout="none">
-          <Audio src={staticFile(`sfx/tag-chime-${index + 1}.wav`)} volume={0.86} />
-        </Sequence>
-      ))}
-      <Sequence from={170} layout="none">
-        <Audio src={staticFile("sfx/send-chord.wav")} volume={0.72} />
-      </Sequence>
-    </AbsoluteFill>
+      </AbsoluteFill>
+      <CobiaSoundDesign cues={[{ file: "orbit.wav", frame: 54 }, { file: "slide.wav", frame: 138 }, { file: "resolve.wav", frame: 174, volume: .68 }]} />
+    </Stage>
   );
 };
