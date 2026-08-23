@@ -44,6 +44,18 @@ describe("Build X project page", () => {
     expect(html).toContain("Why Cobia matters to X Layer.");
   });
 
+  it("connects Cobia to X Layer's every-asset endgame without implying unfinished deployment", () => {
+    const html = renderToStaticMarkup(<BuildXEvidencePage />);
+
+    expect(html).toContain("Every asset, everywhere—without giving AI the keys.");
+    expect(html).toContain("Live on X Layer mainnet today");
+    expect(html).toContain("expanding toward general-asset execution");
+    expect(html).toContain('title="X Layer post: every asset, everywhere, accessible on X Layer"');
+    expect(html).toContain("platform.twitter.com/embed/Tweet.html?id=2091166000142012900");
+    expect(html).toContain('href="https://x.com/XLayerOfficial/status/2091166000142012900"');
+    expect(html).not.toContain("almost fully deployed");
+  });
+
   it("links the live product, source, social post, and both X Layer deployments", () => {
     const html = renderToStaticMarkup(<BuildXEvidencePage />);
 

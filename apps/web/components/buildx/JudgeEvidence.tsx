@@ -15,6 +15,7 @@ const MAINNET_DEPLOYMENT_TX = "0x2278a9241529becaf1baac9a3de7777fd5ab6051e0e65b3
 const TESTNET_DEPLOYMENT_TX = "0x68cff1d6bbba6b436d0be39cd91e772a811027519487a7fefe91d5bef81521a6";
 const BUILDER_REGISTRATION_TX = "0xf9ee439cbc68a652f92c8d7522d8c76a54e6c3888ffde7468eb7ed32c6318ffa";
 const FIRST_VERIFIED_INTENT_TX = "0x83500273bbdaf6f2ad5e27f3d6807b7555383599ea537eca0206f9c18ab0d210";
+const XLAYER_ENDGAME_POST = "https://x.com/XLayerOfficial/status/2091166000142012900";
 
 const boundary = [
   ["01", "Signed outcome", "The wallet commits the goal, assets, hard limits and deadline."],
@@ -164,8 +165,23 @@ export function JudgeEvidence() {
       </li>)}</ul>
     </section>
 
-    <section className={styles.foundations}>
-      <header className={styles.sectionHeader}><div><h2>Why Cobia matters to X Layer.</h2></div></header>
+    <section className={styles.foundations} aria-labelledby="foundations-title">
+      <header className={styles.sectionHeader}><div><h2 id="foundations-title">Why Cobia matters to X Layer.</h2></div></header>
+      <div className={styles.vision}>
+        <div className={styles.visionCopy}>
+          <h3>Every asset, everywhere—without giving AI the keys.</h3>
+          <p>X Layer is making every asset accessible. Cobia answers the next question: who decides what AI may execute? Solvers can search broadly; signed limits, independent replay, and wallet approval decide exactly what moves.</p>
+          <strong>Live on X Layer mainnet today, with the same verification boundary expanding toward general-asset execution.</strong>
+        </div>
+        <div className={styles.visionPost}>
+          <iframe
+            loading="lazy"
+            src="https://platform.twitter.com/embed/Tweet.html?id=2091166000142012900&dnt=true&theme=light"
+            title="X Layer post: every asset, everywhere, accessible on X Layer"
+          />
+          <a href={XLAYER_ENDGAME_POST} rel="noreferrer" target="_blank">View the post on X <ArrowUpRight aria-hidden="true" size={14} /></a>
+        </div>
+      </div>
       <dl>{foundations.map(([term, detail]) => <div key={term}><dt>{term}</dt><dd>{detail}</dd></div>)}</dl>
     </section>
 
