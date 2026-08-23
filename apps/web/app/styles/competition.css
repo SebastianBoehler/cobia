@@ -257,6 +257,6 @@
   .composition-authority__body { padding: 16px; }
   .composition-authority__bounds { grid-template-columns: 1fr; }
   .token-evidence-card summary { grid-template-columns: auto minmax(0, 1fr) 16px; }
-  .token-evidence-card__price, .token-evidence-card__recognized { grid-column: 2; justify-self: start; }
-  .token-evidence-card__chevron { grid-column: 3; grid-row: 1 / span 3; }
+  .token-evidence-card__price { grid-column: 2; justify-self: start; }
+  .token-evidence-card__chevron { grid-column: 3; grid-row: 1 / span 2; }
 }

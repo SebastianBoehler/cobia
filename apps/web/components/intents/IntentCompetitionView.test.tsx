@@ -118,7 +118,8 @@ describe("IntentCompetitionView", () => {
 
     expect(html).toContain("Frozen token evidence");
     expect(html).toContain("<details");
-    expect(html).toContain("Recognized");
+    expect(html).toContain('aria-label="Recognized token"');
+    expect(html).not.toContain(">Recognized<");
     expect(html).toContain("web3icons");
     expect(html).toContain(token);
     expect(html).toContain("$1.01");

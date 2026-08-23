@@ -157,9 +157,12 @@ function TokenEvidence({ items }: { items: TokenMarketEvidenceV1[] }) {
     <div className="token-evidence-grid">{items.map((item) => <details className="token-evidence-card" key={item.token}>
       <summary>
         <TokenEvidenceMark symbol={item.symbol} />
-        <span className="token-evidence-card__identity"><strong>{item.symbol}</strong><small>{item.name}</small></span>
+        <span className="token-evidence-card__identity"><strong>{item.symbol}
+          {"communityRecognized" in item && item.communityRecognized ? <span
+            aria-label="Recognized token" className="token-evidence-card__recognized" role="img"
+          ><CircleCheck aria-hidden="true" size={14} /></span> : null}
+        </strong><small>{item.name}</small></span>
         <span className="token-evidence-card__price"><small>Price</small><strong>{usd(item.priceUsd)}</strong></span>
-        {"communityRecognized" in item && item.communityRecognized ? <span className="token-evidence-card__recognized"><CircleCheck aria-hidden="true" size={14} />Recognized</span> : null}
         <ChevronDown aria-hidden="true" className="token-evidence-card__chevron" size={16} />
       </summary>
       <div className="token-evidence-card__details">
