@@ -11,6 +11,7 @@ explain the interaction without representing a fabricated transaction.
 - `Cobia-Intent-UI-Reveal` — live UI screenshot and prompt-bar detail
 - `Cobia-Verify-Flow-Square` — compact trust-boundary explainer
 - `Cobia-Landed-Program-Proof-X` — real intent and receipt around an explicitly labeled solver-selection mechanism
+- `Cobia-Launch-Analytics-X` — 22-second launch cut: intent, competition, independent verification, and an explicitly labeled prior receipt
 
 ## Commands
 
