@@ -31,6 +31,25 @@ describe("OKX request authentication", () => {
 });
 
 describe("OKX DeFi client", () => {
+  it("returns exact native OKB identity and observed market data", async () => {
+    const native = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValueOnce(Response.json({
+      code: "0", msg: "", data: [{
+        chainIndex: "196", tokenContractAddress: native, tokenName: "OKB",
+        tokenSymbol: "OKB", decimal: "18", tagList: {}, price: "110.25",
+        liquidity: "15000000", holders: "",
+      }],
+    }));
+    const client = createOkxClient({ credentials, fetchImpl,
+      now: () => new Date("2026-08-23T08:00:00.000Z") });
+
+    await expect(client.getXLayerNativeTokenEvidence()).resolves.toEqual({
+      assetType: "native", chainId: 196, token: native, name: "OKB", symbol: "OKB",
+      decimals: 18, priceUsd: "110.25", liquidityUsd: "15000000",
+      marketDataAt: "2026-08-23T08:00:00.000Z",
+    });
+  });
+
   it("sends the same body it signs and parses product search", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(

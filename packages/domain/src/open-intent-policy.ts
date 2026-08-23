@@ -1,4 +1,5 @@
 import { canonicalJson } from "./canonical";
+import { NATIVE_ASSET_ADDRESS } from "./native-asset";
 import { StaticPredicateV1Schema } from "./onchain-read";
 import { isAddress, type Address, type Hash } from "viem";
 import { z } from "zod";
@@ -142,7 +143,7 @@ export const OpenIntentPolicyV3Schema = z.object({
 
 export type OpenIntentPolicyV3 = z.infer<typeof OpenIntentPolicyV3Schema>;
 
-const TokenMarketEvidenceV1Schema = z.object({
+const ContractTokenMarketEvidenceV1Schema = z.object({
   provider: z.literal("okx-market-v6"),
   chainId: z.literal(196),
   token: AddressSchema,
@@ -158,7 +159,27 @@ const TokenMarketEvidenceV1Schema = z.object({
   communityRecognized: z.boolean(),
 }).strict();
 
+const NativeTokenMarketEvidenceV1Schema = z.object({
+  provider: z.literal("okx-market-v6"),
+  assetType: z.literal("native"),
+  chainId: z.literal(196),
+  token: z.literal(NATIVE_ASSET_ADDRESS),
+  name: z.string().min(1).max(128),
+  symbol: z.literal("OKB"),
+  decimals: z.literal(18),
+  priceUsd: z.string().regex(/^\d+(?:\.\d+)?$/),
+  liquidityUsd: z.string().regex(/^\d+(?:\.\d+)?$/),
+  marketDataAt: z.string().datetime({ offset: true }),
+}).strict();
+
+const TokenMarketEvidenceV1Schema = z.union([
+  ContractTokenMarketEvidenceV1Schema,
+  NativeTokenMarketEvidenceV1Schema,
+]);
+
 export type TokenMarketEvidenceV1 = z.infer<typeof TokenMarketEvidenceV1Schema>;
+export type NativeTokenMarketEvidenceV1 = Extract<TokenMarketEvidenceV1, { assetType: "native" }>;
+export type ContractTokenMarketEvidenceV1 = Exclude<TokenMarketEvidenceV1, { assetType: "native" }>;
 
 export const OpenIntentSnapshotV1Schema = z.object({
   version: z.literal(1),

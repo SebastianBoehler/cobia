@@ -144,6 +144,24 @@ describe("IntentCompetitionView", () => {
     expect(html).toContain("brand-mark--usdg");
   });
 
+  it("renders native OKB evidence without contract-holder fields", () => {
+    const native = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" as const;
+    const html = renderToStaticMarkup(<IntentCompetitionView
+      goal="Turn USDG into OKB"
+      closesAt={closesAt}
+      observedAtSec={2_000_000_000}
+      current={[]}
+      history={[]}
+      tokenEvidence={[{ provider: "okx-market-v6", assetType: "native", chainId: 196,
+        token: native, name: "OKB", symbol: "OKB", decimals: 18, priceUsd: "110.25",
+        liquidityUsd: "15000000", marketDataAt: "2033-05-18T03:33:29.000Z" }]}
+    />);
+
+    expect(html).toContain("Native asset");
+    expect(html).toContain("$110.25");
+    expect(html).not.toContain("Holders");
+  });
+
   it("compares the simulated outcome and wallet steps beside each current program", () => {
     const html = renderToStaticMarkup(<IntentCompetitionView
       goal="Swap the input token"

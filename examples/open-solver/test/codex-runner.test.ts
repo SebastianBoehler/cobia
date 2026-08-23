@@ -162,7 +162,7 @@ describe("Codex solver runner", () => {
       usage: { turns: 2, totalTokens: 220, stopReason: "turn-limit" } });
   });
 
-  it("shares one timeout across continuation turns", async () => {
+  it("returns the last canonical abstention when a continuation times out", async () => {
     vi.useFakeTimers();
     try {
       let turn = 0;
@@ -194,11 +194,42 @@ describe("Codex solver runner", () => {
         codex: { startThread: () => ({ runStreamed }) },
         emit: vi.fn(),
       });
-      const rejection = expect(result).rejects.toThrow("aborted");
+      await vi.advanceTimersByTimeAsync(1_000);
+      await expect(result).resolves.toMatchObject({
+        decision: { decision: "abstain", reasonCode: "NO_VERIFIED_SWAP_ROUTE" },
+        usage: { turns: 1, stopReason: "timeout" },
+      });
+      expect(runStreamed).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("returns a terminal abstention when the first turn times out", async () => {
+    vi.useFakeTimers();
+    try {
+      const result = runCodexSolver({
+        job: { cwd: "/tmp", intentPath: "/tmp/intent.json",
+          decisionPath: "/tmp/decision.json", prompt: "solve" },
+        timeoutMs: 1_000,
+        exploration: { riskLevel: "balanced", maxTurns: 1, maxTotalTokens: 1_000 },
+        codex: { startThread: () => ({ runStreamed: async (_prompt, options) => ({
+          events: (async function* () {
+            yield { type: "thread.started", thread_id: "thread-first-timeout" } as const;
+            await new Promise<void>((_resolve, reject) => {
+              options.signal.addEventListener("abort", () => reject(new Error("aborted")),
+                { once: true });
+            });
+          })(),
+        }) }) },
+        emit: vi.fn(),
+      });
 
       await vi.advanceTimersByTimeAsync(1_000);
-      await rejection;
-      expect(runStreamed).toHaveBeenCalledTimes(2);
+      await expect(result).resolves.toMatchObject({
+        decision: { decision: "abstain", reasonCode: "SOLVER_TIMEOUT" },
+        usage: { turns: 0, stopReason: "timeout" },
+      });
     } finally {
       vi.useRealTimers();
     }

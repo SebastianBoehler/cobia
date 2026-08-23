@@ -135,7 +135,7 @@ export async function runCodexSolver(input: {
 }): Promise<{ decision: SolverDecisionV1; threadId: string; usage: {
   turns: number; inputTokens: number; cachedInputTokens: number; outputTokens: number;
   reasoningOutputTokens: number; totalTokens: number; stopReason: "submitted" | "turn-limit" |
-  "token-limit";
+  "token-limit" | "timeout";
 } }> {
   if (!Number.isSafeInteger(input.timeoutMs) || input.timeoutMs <= 0) {
     throw new Error("Codex solver timeout must be a positive integer");
@@ -162,6 +162,7 @@ export async function runCodexSolver(input: {
     outputTokens: 0, reasoningOutputTokens: 0, totalTokens: 0 };
   let prompt = input.job.prompt;
   const deadlineMs = Date.now() + input.timeoutMs;
+  let stoppedForTimeout = false;
   for (let turnIndex = 0; turnIndex < input.exploration.maxTurns; turnIndex += 1) {
     const remainingMs = deadlineMs - Date.now();
     if (remainingMs <= 0) throw new Error("Codex solver exploration timed out");
@@ -184,6 +185,11 @@ export async function runCodexSolver(input: {
         }
         if (event.type === "error") throw new Error(`Codex solver stream failed: ${event.message}`);
       }
+    } catch (error) {
+      if (!controller.signal.aborted) throw error;
+      decision ??= { version: 1, decision: "abstain", reasonCode: "SOLVER_TIMEOUT" };
+      stoppedForTimeout = true;
+      break;
     } finally {
       clearTimeout(timer);
     }
@@ -207,7 +213,7 @@ export async function runCodexSolver(input: {
   if (!threadId) throw new Error("Codex did not start a solver thread");
   if (!decision) throw new Error("Codex did not return a solver decision");
   await writeFile(input.job.decisionPath, `${JSON.stringify(decision, null, 2)}\n`, { mode: 0o600 });
-  const stopReason = decision.decision === "submit" ? "submitted"
+  const stopReason = stoppedForTimeout ? "timeout" : decision.decision === "submit" ? "submitted"
     : usage.totalTokens >= input.exploration.maxTotalTokens ? "token-limit" : "turn-limit";
   return { decision, threadId, usage: { ...usage, stopReason } };
 }

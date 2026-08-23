@@ -159,14 +159,16 @@ function TokenEvidence({ items }: { items: TokenMarketEvidenceV1[] }) {
         <TokenEvidenceMark symbol={item.symbol} />
         <span className="token-evidence-card__identity"><strong>{item.symbol}</strong><small>{item.name}</small></span>
         <span className="token-evidence-card__price"><small>Price</small><strong>{usd(item.priceUsd)}</strong></span>
-        {item.communityRecognized ? <span className="token-evidence-card__recognized"><CircleCheck aria-hidden="true" size={14} />Recognized</span> : null}
+        {"communityRecognized" in item && item.communityRecognized ? <span className="token-evidence-card__recognized"><CircleCheck aria-hidden="true" size={14} />Recognized</span> : null}
         <ChevronDown aria-hidden="true" className="token-evidence-card__chevron" size={16} />
       </summary>
       <div className="token-evidence-card__details">
         <dl>
           <div><dt>Liquidity</dt><dd>{usd(item.liquidityUsd)}</dd></div>
-          <div><dt>Holders</dt><dd>{Number(item.holderCount).toLocaleString("en-US")}</dd></div>
-          <div><dt>Top 10</dt><dd>{item.top10HolderPercent}%</dd></div>
+          {"holderCount" in item ? <>
+            <div><dt>Holders</dt><dd>{Number(item.holderCount).toLocaleString("en-US")}</dd></div>
+            <div><dt>Top 10</dt><dd>{item.top10HolderPercent}%</dd></div>
+          </> : <div><dt>Asset type</dt><dd>Native asset</dd></div>}
         </dl>
         <code>{item.token}</code>
         <footer>OKX Market API v6 · observed {new Date(item.marketDataAt).toLocaleString("en-US", {

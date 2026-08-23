@@ -60,7 +60,7 @@ describe("open intent snapshot capture", () => {
     ]);
   });
 
-  it("does not request ERC-20 market evidence for native OKB inputs", async () => {
+  it("freezes native OKB market evidence without requesting ERC-20 holder data", async () => {
     const staged = {
       ...policy,
       inputs: [...policy.inputs, {
@@ -73,14 +73,23 @@ describe("open intent snapshot capture", () => {
       holderCount: "1", top10HolderPercent: "1", marketDataAt: "2033-05-18T03:33:29.000Z",
       communityRecognized: true,
     }));
+    const getXLayerNativeTokenEvidence = vi.fn(async () => ({
+      assetType: "native" as const, chainId: 196 as const, token: NATIVE_ASSET_ADDRESS,
+      name: "OKB", symbol: "OKB" as const, decimals: 18 as const, priceUsd: "110.25",
+      liquidityUsd: "15000000", marketDataAt: "2033-05-18T03:33:29.000Z",
+    }));
 
     const snapshot = await captureOpenIntentSnapshotV1(staged, {
       getChainId: async () => 196,
       getBlock: async () => ({ number: 68_461_706n, hash: hash("2"), timestamp: 2_000_000_010n }),
-    }, { getXLayerTokenEvidence });
+    }, { getXLayerTokenEvidence, getXLayerNativeTokenEvidence });
 
     expect(getXLayerTokenEvidence).not.toHaveBeenCalledWith(NATIVE_ASSET_ADDRESS);
-    expect(snapshot.tokenEvidence).toHaveLength(2);
+    expect(getXLayerNativeTokenEvidence).toHaveBeenCalledOnce();
+    expect(snapshot.tokenEvidence).toContainEqual(expect.objectContaining({
+      assetType: "native", token: NATIVE_ASSET_ADDRESS, symbol: "OKB", priceUsd: "110.25",
+    }));
+    expect(snapshot.tokenEvidence).toHaveLength(3);
   });
 
   it("rejects stale OKX token evidence before publishing the snapshot", async () => {

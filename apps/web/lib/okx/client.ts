@@ -1,5 +1,6 @@
 import { z } from "zod";
-import type { Address } from "viem";
+import { isAddressEqual, type Address } from "viem";
+import { NATIVE_ASSET_ADDRESS } from "@cobia/domain";
 import { signOkxRequest, type OkxCredentials } from "./auth";
 
 const OKX_ORIGIN = "https://web3.okx.com";
@@ -188,6 +189,21 @@ export function createOkxClient(options: OkxClientOptions) {
 
   return {
     searchToken,
+    async getXLayerNativeTokenEvidence() {
+      const token = await searchToken(196, "OKB");
+      if (!token || !isAddressEqual(token.token, NATIVE_ASSET_ADDRESS) ||
+          token.symbol !== "OKB" || token.decimals !== 18) {
+        throw new OkxApiError("NATIVE_IDENTITY_MISMATCH",
+          "Exact X Layer OKB market identity is unavailable");
+      }
+      return {
+        assetType: "native" as const, chainId: 196 as const, token: NATIVE_ASSET_ADDRESS,
+        name: token.name,
+        symbol: "OKB" as const, decimals: 18 as const,
+        priceUsd: token.priceUsd, liquidityUsd: token.liquidityUsd,
+        marketDataAt: now().toISOString(),
+      };
+    },
     async listXLayerTokenBalances(addressInput: string) {
       const address = EvmAddressSchema.parse(addressInput);
       const path = `${TOKEN_BALANCES_PATH}?address=${address}&chains=196`;
