@@ -22,8 +22,9 @@ const stage = {
   stageId: hash("7"), index: 0, chainId: 196 as const, predecessorStageId: null,
   adapter: { id: "lifi.route", version: 1 }, target, targetRuntimeCodeHash: hash("a"),
   calldata: "0x12345678" as const, nativeValueAtomic: "0",
-  input: { token: inputToken, maximumAtomic: "100" },
-  outputs: [{ token: outputToken, minimumIncreaseAtomic: "99" }],
+  input: { token: inputToken, maximumAtomic: "100", maximumUsdE8: "100000000",
+    identityEvidenceHash: hash("4"), valuationEvidenceHash: hash("5") },
+  outputs: [{ token: outputToken, minimumIncreaseAtomic: "99", identityEvidenceHash: hash("6") }],
   approvals: [{ token: inputToken, spender: target, maximumAtomic: "100" }],
   refundTokens: [inputToken, outputToken], finality: { confirmations: 12 },
   delivery: { kind: "none" as const },
@@ -77,23 +78,37 @@ function accepted(
     finalOutput: { chainId: 196 as const, token: outputToken, minimumAtomic: "99" } };
   return { accepted: true, errorCodes: [], policy, program, manifest,
     compiledStages: [compiled], replays: [replay], replayHash: commitment([replay]),
-    inputExposureUsdE8: "100000000" };
+    stageInputExposuresUsdE8: ["100000000"] };
 }
 
-function execution(verdict: Extract<GeneralAssetProgramVerdictV1, { accepted: true }>): ExecutionProgramV4 {
+function execution(
+  verdict: Extract<GeneralAssetProgramVerdictV1, { accepted: true }>,
+  stageIndex = 0,
+): ExecutionProgramV4 {
+  const exactStage = verdict.program.stages[stageIndex]!;
+  const exactCompiled = verdict.compiledStages[stageIndex]!;
+  const exactReplay = verdict.replays[stageIndex]!;
   return {
     policyHash: verdict.program.policyHash, manifestHash: verdict.program.manifestHash,
     canonicalProgramHash: verdict.program.canonicalProgramHash,
-    inputIdentityEvidenceHash: hash("4"), outputIdentityEvidenceHash: hash("6"),
-    valuationEvidenceHash: hash("5"), stageHash: commitment(stage), simulationHash: commitment(verdict.replays[0]),
-    pinnedBlockNumber: 123n, pinnedBlockHash: blockHash, sourceChainId: 196n, owner,
-    inputToken, outputToken, inputAmount: 100n, inputUsdE8: 100_000_000n,
+    inputIdentityEvidenceHash: exactStage.input.identityEvidenceHash,
+    outputIdentityEvidenceHash: exactStage.outputs[0]!.identityEvidenceHash,
+    valuationEvidenceHash: exactStage.input.valuationEvidenceHash,
+    stageHash: commitment(exactStage), simulationHash: commitment(exactReplay),
+    pinnedBlockNumber: BigInt(exactReplay.blockNumber), pinnedBlockHash: exactReplay.blockHash,
+    sourceChainId: BigInt(exactStage.chainId), owner,
+    inputToken: exactStage.input.token, outputToken: exactStage.outputs[0]!.token,
+    inputAmount: BigInt(exactStage.input.maximumAtomic),
+    inputUsdE8: BigInt(verdict.stageInputExposuresUsdE8[stageIndex]!),
     deadline: 2_000_000_200n,
-    nonce: generalAssetStageNonceV4(verdict.policy.nonce, stage),
-    refundTokens: [inputToken, outputToken],
-    calls: [{ adapterKey: compiled.adapterKey, target, value: 0n, gasLimit: compiled.gasLimit,
-      approvals: [{ token: inputToken, amount: 100n }], data: compiled.data }],
-    constraints: [{ token: outputToken, kind: 1, minimum: 99n }],
+    nonce: generalAssetStageNonceV4(verdict.policy.nonce, exactStage),
+    refundTokens: exactCompiled.refundTokens,
+    calls: [{ adapterKey: exactCompiled.adapterKey, target: exactCompiled.target,
+      value: BigInt(exactCompiled.valueAtomic), gasLimit: exactCompiled.gasLimit,
+      approvals: exactCompiled.approvals.map(({ token, maximumAtomic }) =>
+        ({ token, amount: BigInt(maximumAtomic) })), data: exactCompiled.data }],
+    constraints: exactStage.outputs.map(({ token, minimumIncreaseAtomic }) =>
+      ({ token, kind: 1 as const, minimum: BigInt(minimumIncreaseAtomic) })),
   };
 }
 
@@ -129,6 +144,38 @@ describe("general asset V4 fork replay and attestation", () => {
     expect(attestation.authorization.executionCommitment).toBeTruthy();
     expect(attestation.call).toMatchObject({ to: executor, value: 0n });
     expect(attestation.signature).toMatch(/^0x[0-9a-f]{130}$/);
+  });
+
+  it("attests a destination stage against its own token evidence and USD exposure", async () => {
+    const replay = await replayGeneralAssetStageV1({
+      stage, compiled, anchor: { chainId: 196, blockNumber: "123", blockHash }, fork: fork(),
+    });
+    const verdict = accepted(replay);
+    const destinationToken = "0x6666666666666666666666666666666666666666" as const;
+    const destinationStage = { ...stage, stageId: hash("8"), index: 1,
+      predecessorStageId: stage.stageId, input: { token: outputToken, maximumAtomic: "99",
+        maximumUsdE8: "99000000", identityEvidenceHash: hash("6"), valuationEvidenceHash: hash("8") },
+      outputs: [{ token: destinationToken, minimumIncreaseAtomic: "95", identityEvidenceHash: hash("9") }],
+      approvals: [{ token: outputToken, spender: target, maximumAtomic: "99" }],
+      refundTokens: [outputToken, destinationToken].sort() as typeof stage.refundTokens };
+    const destinationCompiled = { ...compiled, stageId: destinationStage.stageId,
+      approvals: destinationStage.approvals, refundTokens: destinationStage.refundTokens };
+    const destinationReplay = { ...replay, stageId: destinationStage.stageId,
+      compiledCallHash: commitment(destinationCompiled), ownerAssetDeltas: [
+        { token: outputToken, deltaAtomic: "-99" },
+        { token: destinationToken, deltaAtomic: "95" },
+      ], endingAllowances: [{ token: outputToken, spender: target, atomic: "0" }] };
+    const destinationVerdict = { ...verdict,
+      program: { ...verdict.program, identityEvidenceHashes: [hash("4"), hash("6"), hash("9")],
+        valuationEvidenceHashes: [hash("5"), hash("8")], stages: [stage, destinationStage] },
+      compiledStages: [compiled, destinationCompiled], replays: [replay, destinationReplay],
+      replayHash: commitment([replay, destinationReplay]),
+      stageInputExposuresUsdE8: ["100000000", "99000000"] };
+    const signer = privateKeyToAccount(hash("1"));
+    await expect(attestExecutionProgramV4({ verdict: destinationVerdict, stageIndex: 1,
+      execution: execution(destinationVerdict, 1), executor,
+      signTypedData: (typedData) => signer.signTypedData(typedData),
+    })).resolves.toMatchObject({ stageIndex: 1 });
   });
 
   it("never attests a rejected verdict or a changed stage commitment", async () => {

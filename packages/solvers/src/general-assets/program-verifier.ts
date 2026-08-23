@@ -37,7 +37,7 @@ export interface GeneralAssetProgramVerificationInputV1 {
   policy: unknown;
   program: GeneralAssetProgramV1;
   manifest: RegisteredAdapterManifestV1;
-  inputValuationEvidence: unknown;
+  valuationEvidence: unknown[];
   verifiedIdentityEvidenceHashes: Hash[];
   anchors: StageAnchorV1[];
   nowSec: number;
@@ -65,7 +65,7 @@ export type GeneralAssetProgramVerdictV1 = {
   compiledStages: CompiledGeneralAssetStageV1[];
   replays: GeneralAssetStageReplayV1[];
   replayHash: Hash;
-  inputExposureUsdE8: string;
+  stageInputExposuresUsdE8: string[];
 };
 
 export function canonicalGeneralAssetProgramHash(input: GeneralAssetProgramV1): Hash {
@@ -111,6 +111,7 @@ function assessPolicyProgram(
   for (const expected of policy.outputs) {
     const actual = final.outputs.find(({ token }) => token === expected.token);
     if (expected.chainId !== final.chainId || !actual ||
+        actual.identityEvidenceHash !== expected.identityHash ||
         BigInt(actual.minimumIncreaseAtomic) < BigInt(expected.minimumAtomic)) {
       errors.add("POLICY_ASSET_MISMATCH");
     }
@@ -139,12 +140,12 @@ export async function verifyGeneralAssetProgramV1(
   let policy: GeneralAssetPolicyV1;
   let program: GeneralAssetProgramV1;
   let manifest: RegisteredAdapterManifestV1;
-  let inputValuationEvidence: AssetValuationEvidenceV1;
+  let valuationEvidence: AssetValuationEvidenceV1[];
   try {
     policy = GeneralAssetPolicyV1Schema.parse(input.policy);
     program = GeneralAssetProgramV1Schema.parse(input.program);
     manifest = RegisteredAdapterManifestV1Schema.parse(input.manifest);
-    inputValuationEvidence = AssetValuationEvidenceV1Schema.parse(input.inputValuationEvidence);
+    valuationEvidence = input.valuationEvidence.map((value) => AssetValuationEvidenceV1Schema.parse(value));
   } catch {
     return rejection(new Set(["PROGRAM_INVALID"]));
   }
@@ -165,10 +166,23 @@ export async function verifyGeneralAssetProgramV1(
       program.identityEvidenceHashes.some((hash) => !input.verifiedIdentityEvidenceHashes.includes(hash))) {
     errors.add("ASSET_EVIDENCE_MISMATCH");
   }
-  if (commitment(inputValuationEvidence) !== policy.inputValuationHash ||
-      inputValuationEvidence.assetIdentityHash !== policy.inputIdentityHash ||
-      inputValuationEvidence.expiresAtSec <= input.nowSec ||
-      BigInt(inputValuationEvidence.inputAtomic) < BigInt(program.stages[0]!.input.maximumAtomic)) {
+  const valuations = new Map(valuationEvidence.map((evidence) => [commitment(evidence), evidence]));
+  const stageInputExposuresUsdE8 = program.stages.map((stage) => {
+    const evidence = valuations.get(stage.input.valuationEvidenceHash);
+    if (!evidence || evidence.assetIdentityHash !== stage.input.identityEvidenceHash ||
+        evidence.expiresAtSec <= input.nowSec ||
+        BigInt(evidence.inputAtomic) < BigInt(stage.input.maximumAtomic) ||
+        BigInt(evidence.conservativeValueUsdE8) > BigInt(stage.input.maximumUsdE8) ||
+        BigInt(stage.input.maximumUsdE8) > BigInt(policy.input.maximumUsdE8)) {
+      errors.add("VALUATION_EVIDENCE_MISMATCH");
+      return "0";
+    }
+    return evidence.conservativeValueUsdE8;
+  });
+  const first = program.stages[0]!;
+  if (first.input.identityEvidenceHash !== policy.inputIdentityHash ||
+      first.input.valuationEvidenceHash !== policy.inputValuationHash ||
+      first.input.maximumUsdE8 !== policy.input.maximumUsdE8) {
     errors.add("VALUATION_EVIDENCE_MISMATCH");
   }
   if (program.stages.length > policy.limits.maxStages) errors.add("LIMIT_EXCEEDED");
@@ -234,6 +248,6 @@ export async function verifyGeneralAssetProgramV1(
     compiledStages,
     replays,
     replayHash: commitment(replays) as Hash,
-    inputExposureUsdE8: inputValuationEvidence.conservativeValueUsdE8,
+    stageInputExposuresUsdE8,
   };
 }

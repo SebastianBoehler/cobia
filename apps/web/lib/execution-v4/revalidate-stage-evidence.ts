@@ -44,8 +44,9 @@ interface RevalidationInput {
     chainId: ChainId;
     target: Address;
     targetRuntimeCodeHash: Hash;
-    input: { token: Address; maximumAtomic: string };
-    outputs: readonly { token: Address }[];
+    input: { token: Address; maximumAtomic: string; maximumUsdE8: string;
+      identityEvidenceHash: Hash; valuationEvidenceHash: Hash };
+    outputs: readonly { token: Address; identityEvidenceHash: Hash }[];
   };
   evidence: { identities: readonly AssetIdentityEvidenceV1[];
     valuations: readonly AssetValuationEvidenceV1[] };
@@ -124,6 +125,10 @@ export async function revalidateStageEvidenceV4(input: RevalidationInput): Promi
 }> {
   const baselineInput = baselineIdentity(input, input.stage.chainId, input.stage.input.token);
   const baselineValue = baselineValuation(input, baselineInput.hash);
+  if (baselineInput.hash !== input.stage.input.identityEvidenceHash ||
+      baselineValue.hash !== input.stage.input.valuationEvidenceHash) {
+    throw new Error("Stage input evidence does not match the committed program");
+  }
   if (input.stage.index === 0 && (baselineInput.hash !== input.policy.inputIdentityHash ||
       baselineValue.hash !== input.policy.inputValuationHash)) {
     throw new Error("First-stage evidence does not match the signed policy");
@@ -143,12 +148,16 @@ export async function revalidateStageEvidenceV4(input: RevalidationInput): Promi
       valuation.inputAtomic !== input.stage.input.maximumAtomic) {
     throw new Error("Fresh input valuation evidence is stale or invalid");
   }
-  if (BigInt(valuation.conservativeValueUsdE8) > BigInt(input.policy.maximumInputUsdE8)) {
+  if (BigInt(valuation.conservativeValueUsdE8) > BigInt(input.stage.input.maximumUsdE8) ||
+      BigInt(input.stage.input.maximumUsdE8) > BigInt(input.policy.maximumInputUsdE8)) {
     throw new Error("Fresh input valuation exceeds the signed USD cap");
   }
 
   for (const output of input.stage.outputs) {
     const baseline = baselineIdentity(input, input.stage.chainId, output.token);
+    if (baseline.hash !== output.identityEvidenceHash) {
+      throw new Error("Stage output evidence does not match the committed program");
+    }
     const policyOutput = input.policy.outputs.find((candidate) =>
       candidate.chainId === input.stage.chainId && candidate.token === output.token);
     if (policyOutput && policyOutput.identityHash !== baseline.hash) {

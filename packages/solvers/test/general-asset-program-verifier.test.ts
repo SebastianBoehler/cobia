@@ -75,8 +75,9 @@ function fixture(): GeneralAssetProgramVerificationInputV1 {
     targetRuntimeCodeHash: hash("a"),
     calldata: "0x12345678" as const,
     nativeValueAtomic: "0",
-    input: { token: inputToken, maximumAtomic: "100" },
-    outputs: [{ token: outputToken, minimumIncreaseAtomic: "99" }],
+    input: { token: inputToken, maximumAtomic: "100", maximumUsdE8: "100000000",
+      identityEvidenceHash: hash("4"), valuationEvidenceHash: commitment(valuationEvidence) },
+    outputs: [{ token: outputToken, minimumIncreaseAtomic: "99", identityEvidenceHash: hash("6") }],
     approvals: [{ token: inputToken, spender: target, maximumAtomic: "100" }],
     refundTokens: [inputToken, outputToken],
     finality: { confirmations: 12 },
@@ -131,7 +132,7 @@ function fixture(): GeneralAssetProgramVerificationInputV1 {
     policy,
     program,
     manifest,
-    inputValuationEvidence: valuationEvidence,
+    valuationEvidence: [valuationEvidence],
     verifiedIdentityEvidenceHashes: [hash("4"), hash("6")],
     anchors: [{ chainId: 196, blockNumber: "123", blockHash: hash("d") }],
     nowSec,
@@ -152,7 +153,7 @@ describe("general asset program verifier", () => {
     if (!result.accepted) throw new Error("Expected accepted program");
     expect(result.compiledStages).toHaveLength(1);
     expect(result.replayHash).toBe(commitment(result.replays));
-    expect(result.inputExposureUsdE8).toBe("100000000");
+    expect(result.stageInputExposuresUsdE8).toEqual(["100000000"]);
   });
 
   it("rejects unregistered providers, targets, selectors, and code drift", async () => {
@@ -189,9 +190,9 @@ describe("general asset program verifier", () => {
 
   it("rejects valuation evidence that does not match the signed USD commitment", async () => {
     const input = fixture();
-    input.inputValuationEvidence = {
-      ...(input.inputValuationEvidence as Record<string, unknown>), inputAtomic: "1", conservativeValueUsdE8: "1",
-    };
+    input.valuationEvidence = [{
+      ...(input.valuationEvidence[0] as Record<string, unknown>), inputAtomic: "1", conservativeValueUsdE8: "1",
+    }];
     expect(await errors(input)).toContain("VALUATION_EVIDENCE_MISMATCH");
   });
 

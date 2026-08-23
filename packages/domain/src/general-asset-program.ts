@@ -39,8 +39,13 @@ const GeneralAssetStageV1Schema = z.object({
   input: z.object({
     token: CanonicalAddressSchema,
     maximumAtomic: PositiveAtomicAmountSchema,
+    maximumUsdE8: PositiveAtomicAmountSchema,
+    identityEvidenceHash: NonZeroHashSchema,
+    valuationEvidenceHash: NonZeroHashSchema,
   }).strict(),
-  outputs: z.array(StageOutputSchema).min(1).max(8),
+  outputs: z.array(StageOutputSchema.extend({
+    identityEvidenceHash: NonZeroHashSchema,
+  }).strict()).min(1).max(8),
   approvals: z.array(z.object({
     token: CanonicalAddressSchema,
     spender: CanonicalAddressSchema,
@@ -88,6 +93,13 @@ export const GeneralAssetProgramV1Schema = z.object({
         !sortedUnique(stage.refundTokens) ||
         !sortedUnique(stage.approvals.map(({ token, spender }) => `${token}:${spender}`))) {
       context.addIssue({ code: "custom", path: ["stages", index], message: "Stage assets must be sorted and unique" });
+    }
+    if (!program.identityEvidenceHashes.includes(stage.input.identityEvidenceHash) ||
+        !program.valuationEvidenceHashes.includes(stage.input.valuationEvidenceHash) ||
+        stage.outputs.some(({ identityEvidenceHash }) =>
+          !program.identityEvidenceHashes.includes(identityEvidenceHash))) {
+      context.addIssue({ code: "custom", path: ["stages", index],
+        message: "Stage evidence must be committed by the program" });
     }
     if (index < program.stages.length - 1) {
       const next = program.stages[index + 1]!;

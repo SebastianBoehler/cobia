@@ -107,16 +107,15 @@ function assertMatchesVerifiedStage(
     execution.stageHash === commitment(stage) && execution.simulationHash === commitment(replay) &&
     execution.sourceChainId === BigInt(stage.chainId) && execution.owner === verdict.program.owner &&
     execution.inputToken === stage.input.token && execution.inputAmount <= BigInt(stage.input.maximumAtomic) &&
-    execution.inputAmount <= BigInt(verdict.policy.input.maximumAtomic) &&
-    execution.inputUsdE8 === BigInt(verdict.inputExposureUsdE8) &&
-    execution.inputUsdE8 <= BigInt(verdict.policy.input.maximumUsdE8) &&
+    execution.inputUsdE8 === BigInt(verdict.stageInputExposuresUsdE8[stageIndex]!) &&
+    execution.inputUsdE8 <= BigInt(stage.input.maximumUsdE8) &&
     execution.outputToken === stage.outputs[0]!.token && execution.deadline <= BigInt(verdict.program.deadline) &&
     execution.nonce === generalAssetStageNonceV4(verdict.policy.nonce, stage) &&
     execution.pinnedBlockNumber === BigInt(replay.blockNumber) &&
     execution.pinnedBlockHash === replay.blockHash &&
-    execution.inputIdentityEvidenceHash === verdict.policy.inputIdentityHash &&
-    verdict.program.identityEvidenceHashes.includes(execution.outputIdentityEvidenceHash) &&
-    execution.valuationEvidenceHash === verdict.policy.inputValuationHash;
+    execution.inputIdentityEvidenceHash === stage.input.identityEvidenceHash &&
+    execution.outputIdentityEvidenceHash === stage.outputs[0]!.identityEvidenceHash &&
+    execution.valuationEvidenceHash === stage.input.valuationEvidenceHash;
   if (!fixedFieldsMatch || !sameAddressArray(execution.refundTokens, compiled.refundTokens) ||
       !sameCalls(execution.calls, [expectedCall]) || !sameConstraints(execution.constraints, expectedConstraints)) {
     throw new Error("Execution V4 does not match the independently verified stage");
