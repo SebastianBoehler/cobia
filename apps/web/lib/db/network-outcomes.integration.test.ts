@@ -12,7 +12,7 @@ import { createSolverSubmissionRepository } from "./solver-submissions";
 
 type Database = Awaited<ReturnType<typeof startIntegrationDatabase>>;
 let database: Database | undefined;
-const nowSec = Number(block.timestamp) - 60;
+const nowSec = Math.floor(Date.now() / 1_000);
 const owner = "0x1111111111111111111111111111111111111111";
 const transactionHash = `0x${"ab".repeat(32)}`;
 
