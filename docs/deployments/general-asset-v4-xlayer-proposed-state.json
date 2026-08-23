@@ -1,0 +1,44 @@
+{
+  "chainId": 196,
+  "owner": "0x08eea990F0b165A20d723e59517044a519C83351",
+  "verifier": "0x1667d3e9a37655600eb4ee56BD2F5BAddC49fed4",
+  "registry": "0xEf955cC592346e3b4cb8c7a67f3FE6B2c4688877",
+  "riskManager": "0xE399a72B7d0fEF974e868582671D4c7a23d37637",
+  "executor": "0xa3370D2719e670B46682bcC8f7Fae2f36797b66D",
+  "canary": "0x9Afbf85e52612A9922617aDdA9569e13f565de31",
+  "activationAtSec": 1787678169,
+  "openAccessAfterSec": 0,
+  "codeHashes": {
+    "riskManager": "0xa685c6ac18227951b0449d05a16921a560d39fd0b90cd210c2a10cc2bf83dc5a",
+    "executor": "0xa844f5635fc7206cb9231d15a92f4d2519ffcb5c0f35c2cedd7ed7d2ae291a3f"
+  },
+  "permissions": [
+    {
+      "key": "0x6514dc133b99e50bd5659cbdc5c1756e92127d5cc89d8a01bbfee28b35235c97",
+      "target": "0x722db4f285F8bD91ef7AF6DA397e83f7fA4E80a7",
+      "runtimeCodeHash": "0x38e02cc6683c3fff0758aefa8b75189fd541ce1623cc9e6139de3119185f2a7f"
+    }
+  ],
+  "migration": {
+    "chainId": 196,
+    "combinedProtocolBudgetUsdE8": "5000000000000",
+    "v4ProtocolCapUsdE8": "4800000000000",
+    "v3RiskManager": "0xc69A1Fb1DD8AeECfbc557e4fc6a03E5a95201ded",
+    "v3Assets": [
+      {
+        "chainId": 196,
+        "token": "0x4ae46a509f6b1d9056937ba4500cb143933d2dc8",
+        "decimals": 6,
+        "fixedUsdE8PerToken": "100000000",
+        "maximumRemainingAtomic": "988018352"
+      },
+      {
+        "chainId": 196,
+        "token": "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+        "decimals": 6,
+        "fixedUsdE8PerToken": "100000000",
+        "maximumRemainingAtomic": "989090337"
+      }
+    ]
+  }
+}

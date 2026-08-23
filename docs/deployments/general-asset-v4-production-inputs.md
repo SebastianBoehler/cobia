@@ -1,8 +1,8 @@
 # General Asset V4 production inputs
 
-Frozen on 23 August 2026. These files are signer-free inputs and checksummed
-Transaction Builder batches. They do not record a deployment, Safe proposal, signature,
-activation, migration, or public opening.
+Frozen on 23 August 2026. The input files are signer-free plans and checksummed
+Transaction Builder batches. The executed X Layer proposal is recorded separately below;
+no activation, migration, or public opening has occurred.
 
 ## Reviewed adapter manifest
 
@@ -59,6 +59,25 @@ proposal:
 
 The first delay starts when the initial Safe proposal batch executes onchain, not when
 these files are generated, committed, or uploaded.
+
+## Executed initial X Layer stage
+
+The reviewed deployments executed successfully:
+
+- RiskManager V2: transaction
+  `0xa0dec0a4593b008e054e09f0c5c4d29724bd7f611d143b259904e9831b496893`,
+  block `68735734`, contract `0xE399a72B7d0fEF974e868582671D4c7a23d37637`;
+- Executor V4: transaction
+  `0x6caa5b6fd6c7dc52d854e41c4b65be0716000946a9113af556dded318295a7ac`,
+  block `68735742`, contract `0xa3370D2719e670B46682bcC8f7Fae2f36797b66D`.
+
+The initial four-call Safe batch executed in transaction
+`0x127a2fc911cbc590cba13d425386692fc494e2eac7114cc8aa951bc626cffb9d`
+at block `68736333` (`2026-08-23T17:16:09Z`). Adapter, canary-wallet, and unpause
+activation become eligible at `2026-08-25T17:16:09Z`. The pinned proposed-state
+spec is [`general-asset-v4-xlayer-proposed-state.json`](./general-asset-v4-xlayer-proposed-state.json).
+At this stage V4 remains paused, the adapter and canary wallet remain inactive, open
+access remains unproposed, and V3 remains unchanged.
 
 ## Ethereum snapshot and sequencing blocker
 
