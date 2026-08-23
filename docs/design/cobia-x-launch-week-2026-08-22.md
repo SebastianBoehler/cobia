@@ -141,6 +141,12 @@ candidate they replace:
 | `marketing/remotion/output/cobia-wallet-review-hero-x-16x9.mp4` | Replace a weak Tuesday evening slot when exact-call review is the active conversation. |
 | `marketing/remotion/output/cobia-clean-prompt-x-16x9.mp4` | Replace a weak product-UI slot; do not pair with the prompt-tags clip in adjacent windows. |
 
+### Publication ledger
+
+| Published (Europe/Berlin) | Lane | Hook | Media | Tags | Permalink | Initial state | Repetition guard |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-08-23 20:51 | Product object model | `Three tags. Three reviewable objects.` | `marketing/remotion/output/cobia-token-evidence-x-16x9.mp4` | `$USDG`, `$USDt0`, `@XLayerOfficial` | `https://x.com/Cobia_Web3/status/2091599245006495818` | 0 replies, 0 reposts, 0 likes at verification | Consumed; do not reuse this edit or hook during launch week. |
+
 ## Higher-frequency guardrails
 
 - Target two main posts per day. Publish three only when the third changes the
