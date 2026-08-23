@@ -100,6 +100,9 @@ export async function POST(
         headers: { "Cache-Control": "no-store" },
       });
     }
+    if (!stored.snapshot) {
+      throw new Error("General asset execution requires a V4 execution artifact");
+    }
     const policy = stored.policy.kind === "capability-composition"
       ? CapabilityCompositionPolicyV1Schema.parse(stored.policy)
       : OpenIntentPolicyV3Schema.parse(stored.policy);

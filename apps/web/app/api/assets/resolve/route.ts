@@ -4,11 +4,10 @@ import {
   resolveAssetSelectorsV2,
   type GeneralAssetEligibilityV2,
 } from "../../../../lib/assets/resolve-mentions";
-import { readGeneralAssetRpcConfig, readOkxCredentials } from "../../../../lib/env";
+import { readOkxCredentials } from "../../../../lib/env";
 import { createOkxClient } from "../../../../lib/okx/client";
-import { createGeneralAssetIdentityCaptureV1 } from "../../../../lib/assets/general-asset-chain-reader";
-import { createOkxGeneralAssetEligibilityV2 } from "../../../../lib/assets/okx-general-asset-eligibility";
-import { replayAssetEvidenceRemotely } from "../../../../lib/replay/remote-client";
+import { createProductionGeneralAssetEligibilityV2 } from
+  "../../../../lib/assets/production-general-asset-eligibility";
 import { createXStocksInstrumentToolV1 } from "../../../../lib/solver-tools/xstocks";
 import { createTtlAsyncCache, type AsyncCache } from "../../../../lib/cache/ttl-async-cache";
 
@@ -89,11 +88,6 @@ export async function POST(request: Request): Promise<Response> {
       return getOkx().searchXLayerToken(search);
     },
   }, resolutionCache, { eligibility(asset) {
-    return createOkxGeneralAssetEligibilityV2({
-      nowSec: () => Math.floor(Date.now() / 1_000),
-      market: getOkx(),
-      captureIdentity: createGeneralAssetIdentityCaptureV1(readGeneralAssetRpcConfig()),
-      replayProbe: replayAssetEvidenceRemotely,
-    }).eligibility(asset);
+    return createProductionGeneralAssetEligibilityV2().eligibility(asset);
   } });
 }

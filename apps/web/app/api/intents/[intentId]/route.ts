@@ -50,7 +50,8 @@ export async function GET(
     return NextResponse.json({
       intent: {
         id: intent.id, owner: intent.owner, displayGoal: intent.displayGoal,
-        policyHash: intent.policyHash, state: resolution.state,
+        policyHash: intent.policyHash, policy: intent.policy, ownerSignature: intent.ownerSignature,
+        state: resolution.state,
         competitionClosesAt: intent.competitionClosesAt.toISOString(),
         selectedSubmissionId: resolution.selectedSubmissionId,
       },

@@ -1,4 +1,4 @@
-import { commitment, OpenIntentPolicyV3Schema } from "@cobia/domain";
+import { commitment, GeneralAssetPolicyV1Schema, OpenIntentPolicyV3Schema } from "@cobia/domain";
 import { buildCapabilityCompositionPolicyV1 } from "../../../lib/intents/composition-policy";
 import { PROTOCOL_REGISTRY } from "../../../lib/adapters/registry";
 import { privateKeyToAccount } from "viem/accounts";
@@ -8,11 +8,13 @@ const mocks = vi.hoisted(() => ({
   listDiscoverWithSnapshots: vi.fn(),
   publish: vi.fn(async () => undefined),
   publishComposition: vi.fn(async () => undefined),
+  publishGeneralAsset: vi.fn(async () => undefined),
 }));
 vi.mock("../../../lib/runtime/market", () => ({
   getIntentRepository: () => ({ listDiscoverWithSnapshots: mocks.listDiscoverWithSnapshots }),
   publishOpenIntent: mocks.publish,
   publishCapabilityCompositionIntent: mocks.publishComposition,
+  publishGeneralAssetIntent: mocks.publishGeneralAsset,
   OwnerBalanceRequiredError: class OwnerBalanceRequiredError extends Error {},
   IntentSnapshotUnavailableError: class IntentSnapshotUnavailableError extends Error {},
   ActiveManifestMismatchError: class ActiveManifestMismatchError extends Error {},
@@ -51,6 +53,24 @@ const compositionPolicy = buildCapabilityCompositionPolicyV1({
   deadlineDurationSec: 600, maxConversionLossBps: 100,
   minimumReceiptValueBps: 9_900, horizonDays: 30, forbiddenTargets: [],
 });
+const generalAssetPolicy = GeneralAssetPolicyV1Schema.parse({
+  version: 1, kind: "general-asset", requestId: "550e8400-e29b-41d4-a716-446655440088",
+  displayGoal: "Swap an exact arbitrary token", owner: account.address.toLowerCase(),
+  sourceChainId: 1, destinationChainId: 196, nonce: `0x${"88".repeat(32)}`,
+  createdAt: nowSec - 100, deadline: nowSec + 1_800,
+  competition: { closesAt: nowSec + 300, maxRevisionsPerSolver: 5 }, maxEvidenceAgeSec: 300,
+  manifestHash: `0x${"91".repeat(32)}`, inputIdentityHash: `0x${"92".repeat(32)}`,
+  inputValuationHash: `0x${"93".repeat(32)}`,
+  input: { chainId: 1, token: "0x2222222222222222222222222222222222222222",
+    maximumAtomic: "1000", maximumUsdE8: "100000000" },
+  outputs: [{ chainId: 196, token: "0x3333333333333333333333333333333333333333",
+    minimumAtomic: "1", identityHash: `0x${"94".repeat(32)}` }],
+  allowedAdapters: [{ id: "lifi.route", version: 1 }],
+  limits: { maxStages: 2, maxCallsPerStage: 2, maxApprovals: 4, maxCalldataBytes: 1024,
+    maxGasPerStage: "1000000", maxNativeValueUsdE8: "1000000", maxBridgeFeeUsdE8: "1000000",
+    maxSolverFeeUsdE8: "0", maxConversionLossBps: 200, maxSlippageBps: 100 },
+  forbiddenTargets: [], forbiddenAssets: [],
+});
 
 async function signedRequest(signature?: `0x${string}`) {
   const ownerSignature = signature ?? await account.signMessage({ message: { raw: commitment(policy) } });
@@ -68,6 +88,13 @@ async function signedCompositionRequest() {
   });
 }
 
+async function signedGeneralAssetRequest(value = generalAssetPolicy) {
+  const ownerSignature = await account.signMessage({ message: { raw: commitment(value) } });
+  return new Request("https://cobia.example/api/intents", { method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ policy: value, ownerSignature }) });
+}
+
 describe("general intent competition API", () => {
   beforeEach(() => {
     vi.spyOn(Date, "now").mockReturnValue(nowSec * 1_000);
@@ -75,6 +102,7 @@ describe("general intent competition API", () => {
     mocks.listDiscoverWithSnapshots.mockResolvedValue([]);
     mocks.publish.mockResolvedValue(undefined);
     mocks.publishComposition.mockResolvedValue(undefined);
+    mocks.publishGeneralAsset.mockResolvedValue(undefined);
   });
 
   it("lists fresh signed intents for independent solver harnesses", async () => {
@@ -148,6 +176,27 @@ describe("general intent competition API", () => {
       policy: compositionPolicy,
     }));
     expect(mocks.publish).not.toHaveBeenCalled();
+  });
+
+  it("publishes a signed exact-address general asset policy", async () => {
+    const response = await POST(await signedGeneralAssetRequest());
+
+    expect(response.status).toBe(202);
+    expect(mocks.publishGeneralAsset).toHaveBeenCalledWith(expect.objectContaining({
+      policy: generalAssetPolicy,
+    }));
+  });
+
+  it("rejects a general asset policy without output identity evidence", async () => {
+    const output = generalAssetPolicy.outputs[0]!;
+    const unbound = { chainId: output.chainId, token: output.token,
+      minimumAtomic: output.minimumAtomic };
+    const response = await POST(await signedGeneralAssetRequest({
+      ...generalAssetPolicy, outputs: [unbound],
+    } as typeof generalAssetPolicy));
+
+    expect(response.status).toBe(400);
+    expect(mocks.publishGeneralAsset).not.toHaveBeenCalled();
   });
 
   it("rejects the wrong owner signature before persistence or sandbox scheduling", async () => {

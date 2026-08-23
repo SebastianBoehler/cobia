@@ -160,6 +160,7 @@ export async function verifyGeneralAssetProgramV1(
     errors.add("PROGRAM_COMMITMENT_MISMATCH");
   }
   if (!program.identityEvidenceHashes.includes(policy.inputIdentityHash) ||
+      policy.outputs.some(({ identityHash }) => !program.identityEvidenceHashes.includes(identityHash)) ||
       !program.valuationEvidenceHashes.includes(policy.inputValuationHash) ||
       program.identityEvidenceHashes.some((hash) => !input.verifiedIdentityEvidenceHashes.includes(hash))) {
     errors.add("ASSET_EVIDENCE_MISMATCH");

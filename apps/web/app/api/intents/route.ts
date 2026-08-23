@@ -1,8 +1,10 @@
 import {
   CapabilityCompositionPolicyV1Schema,
+  GeneralAssetPolicyV1Schema,
   OpenIntentPolicyV3Schema,
   commitment,
   parseCapabilityCompositionPolicyV1,
+  parseGeneralAssetPolicyV1,
   parseOpenIntentPolicyV3,
 } from "@cobia/domain";
 import { NextResponse } from "next/server";
@@ -15,6 +17,7 @@ import {
   IntentSnapshotUnavailableError,
   OwnerBalanceRequiredError,
   publishCapabilityCompositionIntent,
+  publishGeneralAssetIntent,
   publishOpenIntent,
 } from "../../../lib/runtime/market";
 
@@ -26,6 +29,7 @@ const RequestBodySchema = z.object({
   policy: z.discriminatedUnion("kind", [
     OpenIntentPolicyV3Schema,
     CapabilityCompositionPolicyV1Schema,
+    GeneralAssetPolicyV1Schema,
   ]),
   ownerSignature: z.string().regex(/^0x[0-9a-fA-F]{130}$/),
 }).strict();
@@ -73,7 +77,9 @@ export async function POST(request: Request): Promise<Response> {
     const observedAtSec = Math.floor(Date.now() / 1_000);
     const policy = body.policy.kind === "capability-composition"
       ? parseCapabilityCompositionPolicyV1(body.policy, observedAtSec)
-      : parseOpenIntentPolicyV3(body.policy, observedAtSec);
+      : body.policy.kind === "general-asset"
+        ? parseGeneralAssetPolicyV1(body.policy, observedAtSec)
+        : parseOpenIntentPolicyV3(body.policy, observedAtSec);
     try {
       await verifyPolicyOwnerSignature(policy, body.ownerSignature as Hex);
     } catch {
@@ -82,6 +88,8 @@ export async function POST(request: Request): Promise<Response> {
     const ownerSignature = body.ownerSignature as Hex;
     if (policy.kind === "capability-composition") {
       await publishCapabilityCompositionIntent({ policy, ownerSignature });
+    } else if (policy.kind === "general-asset") {
+      await publishGeneralAssetIntent({ policy, ownerSignature });
     } else {
       await publishOpenIntent({ policy, ownerSignature });
     }

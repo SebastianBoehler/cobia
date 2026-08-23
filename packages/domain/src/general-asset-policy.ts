@@ -12,6 +12,7 @@ const AdapterSchema = z.object({
 }).strict();
 const OutputSchema = ChainAssetIdentityV1Schema.extend({
   minimumAtomic: PositiveAtomicAmountSchema,
+  identityHash: NonZeroHashSchema,
 }).strict();
 const TargetSchema = z.object({
   chainId: GeneralAssetChainIdSchema,

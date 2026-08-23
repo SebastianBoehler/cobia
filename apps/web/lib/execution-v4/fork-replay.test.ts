@@ -65,7 +65,7 @@ function accepted(
     competition: { closesAt: 2_000_000_100, maxRevisionsPerSolver: 5 }, maxEvidenceAgeSec: 300,
     manifestHash: commitment(manifest), inputIdentityHash: hash("4"), inputValuationHash: hash("5"),
     input: { chainId: 196 as const, token: inputToken, maximumAtomic: "100", maximumUsdE8: "100000000" },
-    outputs: [{ chainId: 196 as const, token: outputToken, minimumAtomic: "99" }],
+    outputs: [{ chainId: 196 as const, token: outputToken, minimumAtomic: "99", identityHash: hash("6") }],
     allowedAdapters: [stage.adapter], limits: { maxStages: 2, maxCallsPerStage: 2, maxApprovals: 4,
       maxCalldataBytes: 1024, maxGasPerStage: "1000000", maxNativeValueUsdE8: "1000000",
       maxBridgeFeeUsdE8: "1000000", maxSolverFeeUsdE8: "100000", maxConversionLossBps: 200,

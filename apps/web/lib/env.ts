@@ -119,6 +119,15 @@ export function readGeneralAssetRpcConfig(
   return parsed.data;
 }
 
+export function readGeneralAssetManifestHash(
+  source: Record<string, string | undefined> = process.env,
+): Hex {
+  const parsed = z.string().regex(/^0x[0-9a-f]{64}$/).refine((value) => !/^0x0{64}$/.test(value))
+    .safeParse(source.GENERAL_ASSET_MANIFEST_HASH);
+  if (!parsed.success) throw new Error("Missing or invalid general asset manifest configuration");
+  return parsed.data as Hex;
+}
+
 export function readAgenticSolverConfig(
   source: Record<string, string | undefined> = process.env,
 ) {

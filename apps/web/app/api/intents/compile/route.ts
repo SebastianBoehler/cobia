@@ -13,6 +13,7 @@ import { currentUnixSeconds } from "../../../../lib/time";
 import { readPortfolio } from "../../../../lib/portfolio/read-portfolio";
 import { readIntentAssetPrices } from "../../../../lib/intents/intent-asset-prices";
 import { RWA_INTENT_ASSETS } from "../../../../lib/intents/capability-templates";
+import { compileGeneralAssetRequestV1 } from "../../../../lib/intents/compile-general-asset-request";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,6 +24,16 @@ const RequestSchema = z.object({
     .transform((value) => getAddress(value).toLowerCase() as Address),
   goal: z.string().trim().min(3).max(500),
   actionPreference: z.enum(ACTION_PREFERENCES.map(({ id }) => id)),
+  generalAsset: z.object({
+    input: z.object({ chainId: z.union([z.literal(1), z.literal(196)]),
+      address: z.string().regex(/^0x[0-9a-fA-F]{40}$/)
+        .transform((value) => getAddress(value).toLowerCase() as Address),
+      maximumAtomic: z.string().regex(/^[1-9][0-9]*$/).max(78) }).strict(),
+    output: z.object({ chainId: z.union([z.literal(1), z.literal(196)]),
+      address: z.string().regex(/^0x[0-9a-fA-F]{40}$/)
+        .transform((value) => getAddress(value).toLowerCase() as Address),
+      minimumAtomic: z.string().regex(/^[1-9][0-9]*$/).max(78) }).strict(),
+  }).strict().optional(),
 }).strict();
 
 export async function POST(request: Request): Promise<Response> {
@@ -43,7 +54,7 @@ export async function POST(request: Request): Promise<Response> {
   }
   let leaseId: string | undefined;
   try {
-    const { owner, goal, actionPreference } = parsedRequest;
+    const { owner, goal, actionPreference, generalAsset } = parsedRequest;
     let session;
     try {
       session = await auth.readSession(token);
@@ -60,7 +71,7 @@ export async function POST(request: Request): Promise<Response> {
     let walletAssets: Array<{ address: Address; symbol: string; decimals: number }> | undefined;
     let walletPortfolio: Awaited<ReturnType<typeof readPortfolio>> | undefined;
     let admissionGoal = goal;
-    if (actionPreference === "any") {
+    if (actionPreference === "any" && !generalAsset) {
       walletPortfolio = await readPortfolio(session.owner, 196).catch(() => undefined);
       if (!walletPortfolio) {
         return NextResponse.json({ code: "WALLET_BALANCE_UNAVAILABLE",
@@ -75,6 +86,11 @@ export async function POST(request: Request): Promise<Response> {
         .map(({ symbol, amountAtomic, ...asset }) => `${symbol}:${amountAtomic}:${"priceUsd" in asset ? asset.priceUsd ?? "" : ""}`)
         .sort().join(",");
       admissionGoal = `${goal}\n[wallet-balances:${balanceFingerprint}]`;
+    }
+    if (generalAsset) {
+      admissionGoal = `${goal}\n[general-asset:${generalAsset.input.chainId}:${generalAsset.input.address}:` +
+        `${generalAsset.input.maximumAtomic}:${generalAsset.output.chainId}:${generalAsset.output.address}:` +
+        `${generalAsset.output.minimumAtomic}]`;
     }
     let assetPricesUsd: Readonly<Record<string, string>> | undefined;
     if (actionPreference === "any") {
@@ -109,6 +125,11 @@ export async function POST(request: Request): Promise<Response> {
       });
     }
     leaseId = admission.id;
+    if (generalAsset) {
+      const result = await compileGeneralAssetRequestV1({ owner, goal, ...generalAsset });
+      await auth.completeCompilation(leaseId, result);
+      return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
+    }
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) throw new Error("Intent compiler OpenRouter API key is unavailable");
     const model = process.env.COBIA_MODEL;

@@ -1,6 +1,7 @@
 import {
   commitment,
   type CapabilityCompositionPolicyV1,
+  type GeneralAssetPolicyV1,
   type OpenIntentPolicyV3,
   type PersistedIntentPolicy,
 } from "@cobia/domain";
@@ -10,7 +11,7 @@ import { quoteSelectionCommitment, routeAccessCommitment } from "./commitments";
 export { quoteSelectionCommitment, routeAccessCommitment } from "./commitments";
 
 export async function verifyPolicyOwnerSignature(
-  policy: PersistedIntentPolicy | OpenIntentPolicyV3 | CapabilityCompositionPolicyV1,
+  policy: PersistedIntentPolicy | OpenIntentPolicyV3 | CapabilityCompositionPolicyV1 | GeneralAssetPolicyV1,
   signature: Hex,
 ): Promise<void> {
   const signer = await recoverMessageAddress({

@@ -76,7 +76,8 @@ function policy() {
       maximumAtomic: "1000000000000000000",
       maximumUsdE8: "300000000000",
     },
-    outputs: [{ chainId: 196 as const, token: usdt0, minimumAtomic: "250000000" }],
+    outputs: [{ chainId: 196 as const, token: usdt0, minimumAtomic: "250000000",
+      identityHash: hash("8") }],
     allowedAdapters: [
       { id: "lifi.bridge", version: 1 },
       { id: "okx.swap", version: 1 },
@@ -121,7 +122,7 @@ describe("GeneralAssetPolicyV1", () => {
       sourceChainId: 1,
       destinationChainId: 196,
       input: { token: weth, maximumAtomic: "1000000000000000000", maximumUsdE8: "300000000000" },
-      outputs: [{ chainId: 196, token: usdt0, minimumAtomic: "250000000" }],
+      outputs: [{ chainId: 196, token: usdt0, minimumAtomic: "250000000", identityHash: hash("8") }],
     });
   });
 
@@ -134,6 +135,10 @@ describe("GeneralAssetPolicyV1", () => {
     expect(GeneralAssetPolicyV1Schema.safeParse({
       ...policy(), outputs: [{ ...policy().outputs[0], chainId: 1 }],
     }).success).toBe(false);
+    const output = policy().outputs[0]!;
+    const unboundOutput = { chainId: output.chainId, token: output.token,
+      minimumAtomic: output.minimumAtomic };
+    expect(GeneralAssetPolicyV1Schema.safeParse({ ...policy(), outputs: [unboundOutput] }).success).toBe(false);
   });
 
   it("rejects noncanonical adapter and output ordering", () => {
@@ -143,8 +148,8 @@ describe("GeneralAssetPolicyV1", () => {
     expect(() => GeneralAssetPolicyV1Schema.parse({
       ...policy(),
       outputs: [
-        { chainId: 196, token: usdt0, minimumAtomic: "1" },
-        { chainId: 1, token: weth, minimumAtomic: "1" },
+        { chainId: 196, token: usdt0, minimumAtomic: "1", identityHash: hash("8") },
+        { chainId: 1, token: weth, minimumAtomic: "1", identityHash: hash("9") },
       ],
     })).toThrow(/sorted/i);
   });

@@ -68,21 +68,29 @@
 - Modify: `apps/web/app/api/intents/route.ts`
 - Test: `apps/web/app/api/intents/route.test.ts`
 - Modify: `apps/web/lib/runtime/market.ts`
+- Create: `apps/web/lib/runtime/general-asset-publication.ts`
+- Test: `apps/web/lib/runtime/general-asset-publication.test.ts`
+- Create: `apps/web/lib/intents/compile-general-asset-request.ts`
+- Test: `apps/web/lib/intents/compile-general-asset-request.test.ts`
+- Modify: `apps/web/lib/db/intents.ts`
 - Modify: `apps/web/lib/db/solver-submissions.ts`
-- Test: `apps/web/lib/db/solver-submissions.integration.test.ts`
+- Create: `apps/web/lib/db/general-asset-intents.integration.test.ts`
+- Modify: `packages/domain/src/general-asset-policy.ts`
+- Modify: `packages/solvers/src/general-assets/program-verifier.ts`
+- Create: `apps/web/drizzle/0023_general_asset_intents.sql`
 
 **Interfaces:**
 - Consumes: `GeneralAssetPolicyV1Schema`, exact eligible selector results, wallet session owner, and committed identity/valuation hashes from Task 1.
 - Produces: `publishGeneralAssetIntent({ policy, ownerSignature })` and a V4 execution context parsed as `GeneralAssetPolicyV1` plus `GeneralAssetProgramV1`.
 
-- [ ] **Step 1: Write failing API tests** that compile and publish an exact-address general-asset policy and reject symbol substitution, missing valuation evidence, a changed owner signature, or an unsupported token.
-- [ ] **Step 2: Run RED:** run the two focused route tests; expect schema rejection because public publication accepts only open-intent and capability-composition policies.
-- [ ] **Step 3: Extend compilation and publication** with a discriminated general-asset branch. Server code supplies exact assets, evidence hashes, manifest hash, nonce, limits, and timestamps; the model supplies no executable address or hash.
-- [ ] **Step 4: Write a failing repository integration test** that persists a V4 policy/program/artifact set and reads it back through `getExecutionContext()` without legacy-schema parsing.
-- [ ] **Step 5: Run RED:** `pnpm --filter @cobia/web test:integration -- lib/db/solver-submissions.integration.test.ts`; expect legacy policy parsing to reject `general-asset`.
-- [ ] **Step 6: Add the V4 repository/runtime branch** while preserving V3 encodings and list behavior. Public discovery may omit V4 until a safe V4 snapshot projection exists, but direct intent/program APIs must remain complete.
-- [ ] **Step 7: Run GREEN:** focused API/unit/integration tests, web typecheck, and focused ESLint.
-- [ ] **Step 8: Commit:** stage only Task 2 files and commit `feat(intents): publish general asset policies`.
+- [x] **Step 1: Write failing API tests** that compile and publish an exact-address general-asset policy and reject symbol substitution, missing valuation evidence, a changed owner signature, or an unsupported token.
+- [x] **Step 2: Run RED:** run the two focused route tests; expect schema rejection because public publication accepts only open-intent and capability-composition policies.
+- [x] **Step 3: Extend compilation and publication** with a discriminated general-asset branch. Server code supplies exact assets, evidence hashes, manifest hash, nonce, limits, and timestamps; the model supplies no executable address or hash.
+- [x] **Step 4: Write a failing repository integration test** that persists a V4 policy/program/artifact set and reads it back through `getExecutionContext()` without legacy-schema parsing.
+- [x] **Step 5: Run RED:** run the focused general-asset persistence integration test; expect legacy snapshot parsing to reject `general-asset`.
+- [x] **Step 6: Add the V4 repository/runtime branch** while preserving V3 encodings and list behavior. Public discovery may omit V4 until a safe V4 snapshot projection exists, but direct intent/program APIs must remain complete.
+- [x] **Step 7: Run GREEN:** focused API/unit/integration tests, web typecheck, and focused ESLint.
+- [x] **Step 8: Commit:** stage only Task 2 files and commit `feat(intents): publish general asset policies`.
 
 ### Task 3: Fresh evidence gate before every wallet interaction
 

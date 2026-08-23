@@ -1,5 +1,6 @@
 import type {
   CapabilityCompositionPolicyV1,
+  GeneralAssetPolicyV1,
   GeneralIntentPolicyV2,
   OpenIntentPolicyV3,
 } from "@cobia/domain";
@@ -20,7 +21,7 @@ export const cobiaIntents = pgTable("cobia_intents", {
   displayGoal: text("display_goal").notNull(),
   policyHash: text("policy_hash").$type<Hash>().notNull(),
   policy: jsonb("policy").$type<
-    GeneralIntentPolicyV2 | OpenIntentPolicyV3 | CapabilityCompositionPolicyV1
+    GeneralIntentPolicyV2 | OpenIntentPolicyV3 | CapabilityCompositionPolicyV1 | GeneralAssetPolicyV1
   >().notNull(),
   ownerSignature: text("owner_signature").$type<Hex>().notNull(),
   state: intentState("state").notNull().default("signed"),
@@ -33,7 +34,7 @@ export const cobiaIntents = pgTable("cobia_intents", {
   index("cobia_intents_owner_idx").on(table.owner, table.createdAt),
   index("cobia_intents_state_idx").on(table.state, table.competitionClosesAt),
   check("cobia_intents_policy_check", sql`
-    ${table.chainId} = 196
+    ${table.chainId} IN (1, 196)
     AND ${table.owner} ~ '^0x[0-9a-f]{40}$'
     AND ${table.policyHash} ~ '^0x[0-9a-f]{64}$'
     AND ${table.ownerSignature} ~ '^0x[0-9a-fA-F]{130}$'
@@ -41,11 +42,19 @@ export const cobiaIntents = pgTable("cobia_intents", {
     AND (
       ((${table.policy}->>'version')::integer = 3
         AND ${table.policy}->>'kind' = 'open-onchain'
+        AND ${table.chainId} = 196
         AND ${table.policy}->'executionChainIds' @> '[196]'::jsonb)
       OR
       ((${table.policy}->>'version')::integer = 1
         AND ${table.policy}->>'kind' = 'capability-composition'
+        AND ${table.chainId} = 196
         AND (${table.policy}->>'executionChainId')::integer = 196)
+      OR
+      ((${table.policy}->>'version')::integer = 1
+        AND ${table.policy}->>'kind' = 'general-asset'
+        AND (${table.policy}->>'sourceChainId')::integer = ${table.chainId}
+        AND (${table.policy}->>'destinationChainId')::integer IN (1, 196)
+        AND (${table.policy}->'input'->>'chainId')::integer = ${table.chainId})
     )
     AND ${table.policy}->>'requestId' = ${table.id}::text
     AND lower(${table.policy}->>'owner') = ${table.owner}

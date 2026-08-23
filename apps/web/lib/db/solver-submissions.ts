@@ -1,6 +1,7 @@
 import {
   CapabilityCompositionPolicyV1Schema, CapabilityCompositionSnapshotV1Schema,
-  commitment, OpenIntentPolicyV3Schema, OpenIntentSnapshotV1Schema,
+  commitment, GeneralAssetPolicyV1Schema, GeneralAssetProgramV1Schema,
+  OpenIntentPolicyV3Schema, OpenIntentSnapshotV1Schema,
 } from "@cobia/domain";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
@@ -231,6 +232,28 @@ export function createSolverSubmissionRepository(db: CobiaDatabase) {
         where: eq(cobiaProgramArtifactsV2.submissionId, submissionId),
         orderBy: [asc(cobiaProgramArtifactsV2.id)],
       });
+      if (intent.policy.kind === "general-asset") {
+        const programArtifact = artifacts.find(({ kind }) => kind === "program");
+        if (!programArtifact) throw new Error("General asset program artifact is unavailable");
+        const program = GeneralAssetProgramV1Schema.parse(programArtifact.payload);
+        const programHash = commitment(program);
+        if (programArtifact.artifactHash !== programHash || submission.programHash !== programHash) {
+          throw new Error("General asset program commitment is invalid");
+        }
+        return {
+          state: submission.state,
+          solverId: submission.solverId,
+          owner: intent.owner,
+          policyHash: intent.policyHash,
+          snapshotHash: null,
+          blockNumber: submission.blockNumber,
+          blockHash: submission.blockHash,
+          policy: GeneralAssetPolicyV1Schema.parse(intent.policy),
+          snapshot: null,
+          program,
+          artifacts,
+        };
+      }
       const snapshotArtifact = artifacts.find(({ kind }) => kind === "snapshot");
       if (!snapshotArtifact) throw new Error("Program snapshot artifact is unavailable");
       const composed = intent.policy.kind === "capability-composition";
@@ -250,6 +273,7 @@ export function createSolverSubmissionRepository(db: CobiaDatabase) {
         blockHash: submission.blockHash,
         policy,
         snapshot,
+        program: null,
         artifacts,
       };
     },

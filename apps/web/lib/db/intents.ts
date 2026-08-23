@@ -1,6 +1,7 @@
 import {
   CapabilityCompositionPolicyV1Schema,
   GeneralIntentPolicyV2Schema,
+  GeneralAssetPolicyV1Schema,
   OpenIntentPolicyV3Schema,
   commitment,
 } from "@cobia/domain";
@@ -15,6 +16,7 @@ const CreateSchema = z.object({
     GeneralIntentPolicyV2Schema,
     OpenIntentPolicyV3Schema,
     CapabilityCompositionPolicyV1Schema,
+    GeneralAssetPolicyV1Schema,
   ]),
   ownerSignature: SignatureSchema,
 }).strict();
@@ -35,7 +37,8 @@ export function createIntentRepository(db: CobiaDatabase) {
           return stored;
         }
         const rows = await tx.insert(cobiaIntents).values({
-          id: policy.requestId, owner: policy.owner, chainId: 196,
+          id: policy.requestId, owner: policy.owner,
+          chainId: policy.kind === "general-asset" ? policy.sourceChainId : 196,
           displayGoal: policy.displayGoal,
           policyHash: policyHash as `0x${string}`,
           policy,

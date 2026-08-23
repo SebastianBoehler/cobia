@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   failCompilation: vi.fn(), compile: vi.fn(), clientKey: vi.fn(() => "client-key"),
   supportsCapability: vi.fn(), compilerOptions: vi.fn(), readPortfolio: vi.fn(),
   readIntentAssetPrices: vi.fn(),
+  compileGeneralAsset: vi.fn(),
 }));
 vi.mock("../../../../lib/runtime/wallet-auth", () => ({
   getWalletAuthService: () => mocks,
@@ -26,6 +27,9 @@ vi.mock("../../../../lib/portfolio/read-portfolio", () => ({
 vi.mock("../../../../lib/intents/intent-asset-prices", () => ({
   readIntentAssetPrices: mocks.readIntentAssetPrices,
 }));
+vi.mock("../../../../lib/intents/compile-general-asset-request", () => ({
+  compileGeneralAssetRequestV1: mocks.compileGeneralAsset,
+}));
 
 import { POST } from "./route";
 
@@ -37,6 +41,20 @@ function request(cookie?: string, origin = "https://getcobia.com", goal = "Suppl
       ...(cookie ? { cookie: `cobia_wallet_session=${cookie}` } : {}) },
     body: JSON.stringify({ owner: "0x1111111111111111111111111111111111111111",
       goal, actionPreference }),
+  });
+}
+
+function generalAssetRequest(cookie = "token") {
+  return new Request("https://getcobia.com/api/intents/compile", { method: "POST",
+    headers: { "content-type": "application/json", origin: "https://getcobia.com",
+      cookie: `cobia_wallet_session=${cookie}` },
+    body: JSON.stringify({ owner: "0x1111111111111111111111111111111111111111",
+      goal: "Swap my exact token", actionPreference: "any", generalAsset: {
+        input: { chainId: 1, address: "0x2222222222222222222222222222222222222222",
+          maximumAtomic: "1000" },
+        output: { chainId: 196, address: "0x3333333333333333333333333333333333333333",
+          minimumAtomic: "1" },
+      } }),
   });
 }
 
@@ -59,6 +77,9 @@ describe("authenticated intent compiler API", () => {
       ],
     });
     mocks.readIntentAssetPrices.mockResolvedValue({ OKB: "107.41", USDt0: "1", USDG: "1" });
+    mocks.compileGeneralAsset.mockResolvedValue({ status: "review", values: {
+      kind: "general-asset-draft", templateId: "general-asset",
+    } });
   });
 
   it("rejects missing sessions and cross-origin requests before invoking the model", async () => {
@@ -160,6 +181,19 @@ describe("authenticated intent compiler API", () => {
     expect(mocks.compilerOptions).toHaveBeenCalledWith(expect.objectContaining({
       assetPricesUsd: { OKB: "107.41", USDt0: "1", USDG: "1" },
     }));
+  });
+
+  it("compiles exact general assets from server-verified addresses without model authority", async () => {
+    const response = await POST(generalAssetRequest());
+
+    expect(response.status).toBe(200);
+    expect(mocks.compileGeneralAsset).toHaveBeenCalledWith(expect.objectContaining({
+      owner: "0x1111111111111111111111111111111111111111",
+      input: expect.objectContaining({ chainId: 1, maximumAtomic: "1000" }),
+      output: expect.objectContaining({ chainId: 196, minimumAtomic: "1" }),
+    }));
+    expect(mocks.compile).not.toHaveBeenCalled();
+    expect(mocks.readPortfolio).not.toHaveBeenCalled();
   });
 
   it("reports wallet and concurrency limits without invoking the model", async () => {

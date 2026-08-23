@@ -86,6 +86,7 @@ export function buildIntentComposerPolicy(input: Input) {
         chainId: input.values.destinationChainId,
         token: input.values.output.token,
         minimumAtomic: input.values.output.minimumAtomic,
+        identityHash: input.values.output.identityHash,
       }],
       allowedAdapters: input.values.allowedAdapters,
       limits: input.values.limits,

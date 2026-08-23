@@ -1,5 +1,6 @@
 import {
   OpenIntentPolicyV3Schema,
+  type GeneralAssetPolicyV1,
   TransactionProgramV1Schema,
   type GeneralIntentPolicyV2,
   type OpenIntentPolicyV3,
@@ -22,7 +23,8 @@ import { createSolverDecisionClaimRepository } from "../db/solver-decision-claim
 import { createSolverSuccessFeeRepository } from "../db/solver-success-fees";
 import { createWalletAuthRepository } from "../db/wallet-auth";
 import { createGeneralAssetExecutionRepository } from "../db/general-asset-executions";
-import { readCodingAgentV3RuntimeConfig, readDatabaseUrl, readOkxCredentials } from "../env";
+import { readCodingAgentV3RuntimeConfig, readDatabaseUrl, readGeneralAssetManifestHash,
+  readOkxCredentials } from "../env";
 import { openGeneralCodingAgentCompetition } from "./general-coding-agent";
 import { cobiaCodingAgentProfile } from "./solver-catalog";
 import { productionCapabilityManifestV1 } from "../capabilities/manifest";
@@ -45,6 +47,9 @@ import { replayCapabilityRemotely, replayTransactionRemotely } from "../replay/r
 import { createOkxClient } from "../okx/client";
 import { publishCapabilityComposition } from "./composition-market";
 import { IntentSnapshotUnavailableError, OwnerBalanceRequiredError } from "./market-errors";
+import { createProductionGeneralAssetEligibilityV2 } from "../assets/production-general-asset-eligibility";
+import { GeneralAssetManifestMismatchError, GeneralAssetOwnerBalanceRequiredError,
+  publishGeneralAssetIntentV1 } from "./general-asset-publication";
 
 let activityRepository: ReturnType<typeof createActivityRepository> | undefined;
 let database: ReturnType<typeof createDatabase> | undefined;
@@ -227,6 +232,24 @@ export async function publishCapabilityCompositionIntent(input: {
   return publishCapabilityComposition(input, {
     intents: getIntentRepository(), snapshots: getOpenIntentSnapshotRepository(),
   });
+}
+
+export async function publishGeneralAssetIntent(input: {
+  policy: GeneralAssetPolicyV1;
+  ownerSignature: `0x${string}`;
+}) {
+  try {
+    return await publishGeneralAssetIntentV1(input, {
+      activeManifestHash: readGeneralAssetManifestHash(),
+      missingOwnerBalanceChains: missingOwnerNativeBalanceChains,
+      verifier: createProductionGeneralAssetEligibilityV2(),
+      persist: (value) => getIntentRepository().create(value),
+    });
+  } catch (error) {
+    if (error instanceof GeneralAssetManifestMismatchError) throw new ActiveManifestMismatchError(error.message);
+    if (error instanceof GeneralAssetOwnerBalanceRequiredError) throw new OwnerBalanceRequiredError();
+    throw error;
+  }
 }
 
 export function startOpenSolverRun(value: { claim: unknown; signature: string }) {

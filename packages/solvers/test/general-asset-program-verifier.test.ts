@@ -57,7 +57,7 @@ function fixture(): GeneralAssetProgramVerificationInputV1 {
     inputIdentityHash: hash("4"),
     inputValuationHash: commitment(valuationEvidence),
     input: { chainId: 196 as const, token: inputToken, maximumAtomic: "100", maximumUsdE8: "100000000" },
-    outputs: [{ chainId: 196 as const, token: outputToken, minimumAtomic: "99" }],
+    outputs: [{ chainId: 196 as const, token: outputToken, minimumAtomic: "99", identityHash: hash("6") }],
     allowedAdapters: [{ id: "lifi.route", version: 1 }],
     limits: { maxStages: 2, maxCallsPerStage: 2, maxApprovals: 4, maxCalldataBytes: 1024,
       maxGasPerStage: "1000000", maxNativeValueUsdE8: "1000000", maxBridgeFeeUsdE8: "1000000",
