@@ -6,8 +6,10 @@ import {
 import type { createSolverProfileRepository } from "../db/solver-profiles";
 import type { createSolverRunRepository } from "../db/solver-runs";
 import type { createSolverSubmissionRepository } from "../db/solver-submissions";
-import { readGeneralAssetV4Config, readOkxCredentials } from "../env";
+import { readCodingAgentV3ExecutionConfig, readGeneralAssetV4Config, readOkxCredentials } from
+  "../env";
 import { createOkxGeneralAssetSwapCompilerV1 } from "../okx/general-asset-swap";
+import { privateKeyToAccount } from "viem/accounts";
 import { publishAndRunGeneralAssetSolverV1 } from "../orchestrator/run-general-asset-solver";
 import {
   assertProductionGeneralAssetPublicReadyV1,
@@ -33,6 +35,9 @@ export async function runProductionGeneralAssetSolverV1(input: {
   if (!execution) throw new GeneralAssetPublicUnavailableError(
     "General asset V4 is not configured for this chain",
   );
+  const verifierSigner = privateKeyToAccount(
+    readCodingAgentV3ExecutionConfig().COBIA_VERIFIER_PRIVATE_KEY,
+  ).address;
   const compiler = createOkxGeneralAssetSwapCompilerV1({ credentials: readOkxCredentials() });
   let compilation: Awaited<ReturnType<typeof compiler.compile>> | undefined;
   let compilationRequestHash: string | undefined;
@@ -58,6 +63,7 @@ export async function runProductionGeneralAssetSolverV1(input: {
       publish: input.publish,
       ...repositories,
       executor: execution.executor,
+      verifierSigner,
       nowSec: () => Math.floor(Date.now() / 1_000),
       build: ({ policy, evidence }) => buildGeneralAssetDecisionV1({
         policy, evidence, executor: execution.executor,

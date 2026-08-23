@@ -1,11 +1,12 @@
 import { AssetIdentityEvidenceV1Schema, AssetValuationEvidenceV1Schema, commitment,
   type GeneralAssetPolicyV1, type GeneralAssetProgramV1 } from "@cobia/domain";
-import type { GeneralAssetEvidenceArtifactV1 } from "@cobia/solvers";
-import { decodeFunctionData, isAddressEqual, keccak256, stringToHex,
-  type Address, type Hash } from "viem";
+import { assessGeneralAssetStageFlowV1, type GeneralAssetEvidenceArtifactV1 } from "@cobia/solvers";
+import { decodeFunctionData, isAddressEqual, keccak256, recoverTypedDataAddress, stringToHex,
+  type Address, type Hash, type Hex } from "viem";
 import { z } from "zod";
 import { COBIA_EXECUTOR_V4_ABI } from "../execution-v4/abi";
-import { generalAssetStageNonceV4 } from "../execution-v4/attestation";
+import { authorizationTypedDataV4, generalAssetStageNonceV4 } from
+  "../execution-v4/attestation";
 import { GeneralAssetAuthorizationArtifactsV4Schema } from "../execution-v4/authorization-artifact";
 import { assertGeneralAssetArtifactIntegrityV4 } from "../execution-v4/artifact-integrity";
 import { authorizationPayloadHashV4, buildAuthorizationV4,
@@ -56,7 +57,7 @@ function assertExecutionProgram(input: {
   policy: GeneralAssetPolicyV1;
   program: GeneralAssetProgramV1;
   replay: z.infer<typeof ReplaySchema>;
-  evidenceHashes: { input: Hash; output: Hash; valuation: Hash; inputUsdE8: bigint };
+  evidenceHashes: { input: Hash; output: Hash; valuation: Hash };
   validUntilSec: number;
 }): void {
   const { execution, policy, program, replay, evidenceHashes, validUntilSec } = input;
@@ -76,8 +77,7 @@ function assertExecutionProgram(input: {
     isAddressEqual(execution.owner, program.owner) && isAddressEqual(execution.inputToken, stage.input.token) &&
     isAddressEqual(execution.outputToken, output.token) &&
     execution.inputAmount === BigInt(stage.input.maximumAtomic) &&
-    execution.inputUsdE8 === evidenceHashes.inputUsdE8 &&
-    execution.inputUsdE8 <= BigInt(stage.input.maximumUsdE8) &&
+    execution.inputUsdE8 === BigInt(stage.input.maximumUsdE8) &&
     execution.deadline === BigInt(validUntilSec) &&
     execution.nonce === generalAssetStageNonceV4(policy.nonce, stage);
   const callMatches = execution.calls.length === 1 && call?.adapterKey === expectedAdapterKey &&
@@ -136,24 +136,25 @@ function validateFreshEvidence(input: { verdict: GeneralAssetSolutionVerdictV1;
       freshValuation.capturedAtSec > input.nowSec ||
       validUntilSec > freshInput.expiresAtSec || validUntilSec > freshOutput.expiresAtSec ||
       validUntilSec > freshValuation.expiresAtSec ||
+      BigInt(freshValuation.conservativeValueUsdE8) > BigInt(stage.input.maximumUsdE8) ||
       freshValuation.quotes.some(({ fetchedAtSec, expiresAtSec }) =>
         fetchedAtSec > input.nowSec || validUntilSec > expiresAtSec)) {
     throw new Error("Fresh evidence does not authorize the exact execution window");
   }
   return { input: commitment(freshInput) as Hash, output: commitment(freshOutput) as Hash,
-    valuation: commitment(freshValuation) as Hash,
-    inputUsdE8: BigInt(freshValuation.conservativeValueUsdE8) };
+    valuation: commitment(freshValuation) as Hash };
 }
 
-export function validateGeneralAssetSolutionV1(input: {
+export async function validateGeneralAssetSolutionV1(input: {
   verdict: GeneralAssetSolutionVerdictV1;
   policy: GeneralAssetPolicyV1;
   program: GeneralAssetProgramV1;
   baselineEvidence: GeneralAssetEvidenceArtifactV1;
   executor: Address;
+  verifierSigner: Address;
   nowSec: number;
 }) {
-  const { verdict, policy, program, baselineEvidence, executor, nowSec } = input;
+  const { verdict, policy, program, baselineEvidence, executor, verifierSigner, nowSec } = input;
   if (!verdict.accepted || verdict.errorCodes.length > 0) {
     throw new Error(`General asset solution preflight failed: ${verdict.errorCodes.join(",") || "REJECTED"}`);
   }
@@ -175,7 +176,7 @@ export function validateGeneralAssetSolutionV1(input: {
       execution.stages.length !== program.stages.length || authorization.length !== program.stages.length) {
     throw new Error("General asset execution artifact does not match the proposal");
   }
-  execution.stages.forEach((stageArtifact, index) => {
+  for (const [index, stageArtifact] of execution.stages.entries()) {
     const stage = program.stages[index]!;
     const stageReplay = replay[index]!;
     const artifact = authorization[index]!;
@@ -189,6 +190,10 @@ export function validateGeneralAssetSolutionV1(input: {
         !isAddressEqual(stageArtifact.transaction.to, executor)) {
       throw new Error("General asset authorization, replay, and stage artifact do not match");
     }
+    const flowErrors = assessGeneralAssetStageFlowV1(stage, stageReplay);
+    if (flowErrors.length > 0) {
+      throw new Error(`General asset replay violates signed flow: ${flowErrors.join(",")}`);
+    }
     const decoded = decodeFunctionData({ abi: COBIA_EXECUTOR_V4_ABI,
       data: stageArtifact.transaction.data });
     if (decoded.functionName !== "execute") throw new Error("Execution call is not Executor V4");
@@ -201,6 +206,16 @@ export function validateGeneralAssetSolutionV1(input: {
         authorizationPayloadHashV4(expectedAuthorization)) {
       throw new Error("Encoded authorization does not bind the exact execution program");
     }
-  });
+    let recovered: Address;
+    try {
+      recovered = await recoverTypedDataAddress({ ...authorizationTypedDataV4(expectedAuthorization),
+        signature: artifact.signature as Hex });
+    } catch {
+      throw new Error("Verifier authorization signature is invalid");
+    }
+    if (!isAddressEqual(recovered, verifierSigner)) {
+      throw new Error("Verifier authorization signature has an unexpected signer");
+    }
+  }
   return { replay, execution, authorization, anchor, validUntilSec };
 }

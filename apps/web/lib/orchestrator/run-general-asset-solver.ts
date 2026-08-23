@@ -11,6 +11,7 @@ type ArtifactKind = "program" | "evidence" | "provenance" | "verdict" |
 
 interface Dependencies {
   executor: Address;
+  verifierSigner: Address;
   assertReady(input: { policy: GeneralAssetPolicyV1;
     evidence: GeneralAssetEvidenceArtifactV1 }): Promise<void>;
   publish(input: { policy: GeneralAssetPolicyV1; ownerSignature: `0x${string}`;
@@ -70,8 +71,9 @@ export async function publishAndRunGeneralAssetSolverV1(input: {
   const decision = assertDecision(policy, evidence, await deps.build({ policy, evidence }));
   const verdict = await deps.verify({ runId: policy.requestId, policy,
     program: decision.program, evidence: decision.evidence, nowSec: input.nowSec });
-  const preflight = validateGeneralAssetSolutionV1({ verdict, policy, program: decision.program,
-    baselineEvidence: decision.evidence, executor: deps.executor, nowSec: deps.nowSec() });
+  const preflight = await validateGeneralAssetSolutionV1({ verdict, policy,
+    program: decision.program, baselineEvidence: decision.evidence,
+    executor: deps.executor, verifierSigner: deps.verifierSigner, nowSec: deps.nowSec() });
 
   const intent = await deps.publish({ policy, ownerSignature: input.ownerSignature,
     generalAssetEvidence: evidence });
