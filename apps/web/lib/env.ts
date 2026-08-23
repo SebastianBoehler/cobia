@@ -32,6 +32,11 @@ const MarketEnvSchema = z.object({
   BASE_RPC_URL: z.string().url().default("https://mainnet.base.org"),
 });
 
+const GeneralAssetRpcEnvSchema = z.object({
+  XLAYER_RPC_URL: z.string().url().default("https://rpc.xlayer.tech"),
+  ETHEREUM_RPC_URL: z.string().url().default("https://ethereum-rpc.publicnode.com"),
+});
+
 const AgenticSolverEnvSchema = z.object({
   OPENAI_API_KEY: z.string().min(1),
   OPENAI_SOLVER_MODEL: z.string().min(1),
@@ -99,6 +104,17 @@ export function readMarketConfig(
   if (!parsed.success) {
     const invalid = parsed.error.issues.map((issue) => issue.path.join(".")).join(", ");
     throw new Error(`Missing or invalid market configuration: ${invalid}`);
+  }
+  return parsed.data;
+}
+
+export function readGeneralAssetRpcConfig(
+  source: Record<string, string | undefined> = process.env,
+) {
+  const parsed = GeneralAssetRpcEnvSchema.safeParse(source);
+  if (!parsed.success) {
+    const invalid = parsed.error.issues.map((issue) => issue.path.join(".")).join(", ");
+    throw new Error(`Missing or invalid general asset RPC configuration: ${invalid}`);
   }
   return parsed.data;
 }

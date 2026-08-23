@@ -121,7 +121,7 @@ describe("general asset selector resolution", () => {
       identityHash, valuationHash })) };
 
     const result = await resolveAssetSelectorsV2(
-      [{ chainId: 1, address: token }], tool({ assets: [] }), lookup, verifier,
+      [{ chainId: 1, address: token, maximumAtomic: "1000" }], tool({ assets: [] }), lookup, verifier,
     );
 
     expect(lookup.searchToken).toHaveBeenCalledWith(1, token);
@@ -129,6 +129,7 @@ describe("general asset selector resolution", () => {
       chainId: 1, address: token, symbol: "USD", status: "eligible",
       identityHash, valuationHash,
     })]);
+    expect(verifier.eligibility).toHaveBeenCalledWith({ chainId: 1, token, inputAtomic: "1000" });
   });
 
   it("does not pick one of two same-symbol contracts", async () => {

@@ -80,7 +80,7 @@ describe("POST /api/assets/resolve", () => {
     const response = await resolveAssetMentionRequest(new Request(
       "https://getcobia.com/api/assets/resolve",
       { method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ assets: [{ chainId: 1, address: token }] }) },
+        body: JSON.stringify({ assets: [{ chainId: 1, address: token, maximumAtomic: "1000" }] }) },
     ), xstocks, okx, undefined, verifier);
 
     expect(response.status).toBe(200);
@@ -88,6 +88,7 @@ describe("POST /api/assets/resolve", () => {
       chainId: 1, address: token, status: "eligible", identityHash, valuationHash,
     }] });
     expect(okx.searchToken).toHaveBeenCalledWith(1, token);
+    expect(verifier.eligibility).toHaveBeenCalledWith({ chainId: 1, token, inputAtomic: "1000" });
     expect(okx.searchXLayerToken).not.toHaveBeenCalled();
   });
 

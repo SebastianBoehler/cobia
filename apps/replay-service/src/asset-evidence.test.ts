@@ -1,4 +1,5 @@
-import { decodeFunctionData, encodeAbiParameters, erc20Abi, type Address, type Hex } from "viem";
+import { decodeFunctionData, encodeAbiParameters, erc20Abi, toFunctionSelector,
+  type Address, type Hex } from "viem";
 import { describe, expect, it, vi } from "vitest";
 import { probePlainErc20OnFork } from "./asset-evidence";
 import { replayAssetEvidence, replayAtPath } from "./replay";
@@ -6,7 +7,7 @@ import { replayAssetEvidence, replayAtPath } from "./replay";
 const token = "0x1111111111111111111111111111111111111111" as const;
 const source = "0x2222222222222222222222222222222222222222" as const;
 
-function successfulTokenRpc() {
+function successfulTokenRpc(implementationCode?: Hex) {
   const balances = new Map<string, bigint>([[source, 10_000n]]);
   const allowances = new Map<string, bigint>();
   const receipts = new Map<string, unknown>();
@@ -27,7 +28,11 @@ function successfulTokenRpc() {
   const rpc = async (method: string, params: readonly unknown[] = []) => {
     methods.push(method);
     if (method === "eth_chainId") return "0xc4";
-    if (method === "eth_getCode") return "0x60006000";
+    if (method === "eth_getStorageAt") return implementationCode
+      ? encodeAbiParameters([{ type: "address" }], ["0x3333333333333333333333333333333333333333"])
+      : `0x${"00".repeat(32)}`;
+    if (method === "eth_getCode") return String(params[0]).toLowerCase() ===
+      "0x3333333333333333333333333333333333333333" ? implementationCode : "0x60006000";
     if (method === "eth_call") return callResult((params[0] as { data: Hex }).data);
     if (["anvil_setBalance", "anvil_impersonateAccount", "anvil_stopImpersonatingAccount"].includes(method)) return true;
     if (method === "debug_traceTransaction") return { type: "CALL", from: source, to: token, calls: [] };
@@ -70,6 +75,16 @@ describe("general asset behavior replay", () => {
     });
     expect(fork.methods).toContain("anvil_impersonateAccount");
     expect(fork.methods).toContain("anvil_stopImpersonatingAccount");
+  });
+
+  it("detects privileged controls in an EIP-1967 implementation", async () => {
+    const selector = toFunctionSelector("blacklist(address)");
+    const fork = successfulTokenRpc(`0x6000${selector.slice(2)}6000`);
+
+    const result = await probePlainErc20OnFork({ chainId: 196, blockNumber: "123",
+      token, source, probeAtomic: "1000" }, fork.rpc);
+
+    expect(result.blacklistOrPauseSurface).toBe(true);
   });
 
   it("pins the requested chain and always stops the disposable fork", async () => {

@@ -77,6 +77,17 @@ const BLACKLIST_SELECTORS = ["pause()", "blacklist(address)", "setBlacklist(addr
   "freeze(address)", "setBlocked(address,bool)"].map(toFunctionSelector);
 const ADMIN_BALANCE_SELECTORS = ["mint(address,uint256)", "wipeBlacklistedAddress(address)",
   "destroyBlackFunds(address)"].map(toFunctionSelector);
+const EIP1967_IMPLEMENTATION_SLOT =
+  "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
+
+async function controlSurfaceRuntime(rpc: Rpc, token: Address): Promise<string> {
+  const runtime = String(await rpc("eth_getCode", [token, "latest"])).toLowerCase();
+  const word = String(await rpc("eth_getStorageAt", [token, EIP1967_IMPLEMENTATION_SLOT, "latest"]));
+  if (!/^0x[0-9a-fA-F]{64}$/.test(word) || /^0x0{64}$/.test(word)) return runtime;
+  const implementation = `0x${word.slice(-40)}` as Address;
+  const implementationRuntime = String(await rpc("eth_getCode", [implementation, "latest"])).toLowerCase();
+  return `${runtime}${implementationRuntime.slice(2)}`;
+}
 
 export async function probePlainErc20OnFork(
   raw: z.input<typeof AssetEvidenceReplaySchema>,
@@ -120,7 +131,7 @@ export async function probePlainErc20OnFork(
     const stableB = await uint256(rpc, input.token, "balanceOf", [input.source]);
     const traces = await Promise.all(hashes.map((hash) => rpc("debug_traceTransaction", [hash,
       { tracer: "callTracer" }]).catch(() => ({ calls: [{}] }))));
-    const runtime = String(await rpc("eth_getCode", [input.token, "latest"])).toLowerCase();
+    const runtime = await controlSurfaceRuntime(rpc, input.token);
     return {
       transferReturn, transferFromReturn, approveReturn,
       transferAtomic: amount.toString(),

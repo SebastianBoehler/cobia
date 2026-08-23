@@ -33,25 +33,32 @@
 - Test: `apps/web/lib/replay/remote-client.test.ts`
 - Create: `apps/web/lib/assets/okx-general-asset-eligibility.ts`
 - Test: `apps/web/lib/assets/okx-general-asset-eligibility.test.ts`
+- Create: `apps/web/lib/assets/general-asset-chain-reader.ts`
+- Test: `apps/web/lib/assets/general-asset-chain-reader.test.ts`
+- Modify: `apps/web/lib/assets/resolve-mentions.ts`
+- Test: `apps/web/lib/assets/resolve-mentions.test.ts`
+- Modify: `apps/web/lib/okx/client.ts`
+- Test: `apps/web/lib/okx/client.test.ts`
+- Modify: `apps/web/lib/env.ts`
 - Modify: `packages/solvers/src/general-assets/valuation.ts`
 - Test: `packages/solvers/test/general-asset-evidence.test.ts`
 - Modify: `apps/web/app/api/assets/resolve/route.ts`
 - Test: `apps/web/app/api/assets/resolve/route.test.ts`
 
 **Interfaces:**
-- Consumes: authenticated `OkxClient.searchToken(chainId, address)`, canonical RPC reads, and the authenticated Anvil replay service for plain-ERC20 behavior replay.
+- Consumes: authenticated OKX token evidence and exact-in DEX quotes, canonical RPC reads, and the authenticated Anvil replay service for plain-ERC20 behavior replay.
 - Produces: `createOkxGeneralAssetEligibilityV2(deps)` with `eligibility(asset): Promise<GeneralAssetEligibilityV2>` and normalized evidence whose USD value is computed server-side.
 
-- [ ] **Step 1: Write a failing valuation test** proving a provider/solver-supplied `referenceValueUsdE8` cannot understate `ceil(inputAtomic * priceUsdE8 / 10^decimals)` and that zero or stale price/liquidity fails closed.
-- [ ] **Step 2: Run RED:** `pnpm --filter @cobia/solvers exec vitest run test/general-asset-evidence.test.ts`; expect the understated fixture to be accepted by the current implementation.
-- [ ] **Step 3: Change the normalized quote boundary** to carry canonical `priceUsdE8`, asset decimals, provider request/response commitment, and executable liquidity. Recompute `referenceValueUsdE8` internally with round-up arithmetic; never read that value from the caller.
-- [ ] **Step 4: Run GREEN:** rerun the focused solver test and `pnpm --filter @cobia/solvers typecheck`.
-- [ ] **Step 5: Write failing eligibility tests** proving exact chain/address identity, proxy/runtime drift, unsupported token behavior, stale OKX evidence, and insufficient liquidity return explicit non-eligible states.
-- [ ] **Step 6: Run RED:** `pnpm --filter @cobia/web exec vitest run lib/assets/okx-general-asset-eligibility.test.ts app/api/assets/resolve/route.test.ts`; expect the production route to return `verification_pending` because it supplies no verifier.
-- [ ] **Step 7: Add `/v1/replays/asset-evidence`** to the existing authenticated replay service and `replayAssetEvidenceRemotely()` to the web client. The service owns the disposable pinned Anvil process; Vercel receives only bounded evidence and never an RPC handle.
-- [ ] **Step 8: Implement `createOkxGeneralAssetEligibilityV2`** and inject it from the production route using canonical RPC configuration, authenticated OKX credentials, and the remote replay client. Cache only complete evidence until its committed expiry.
-- [ ] **Step 9: Run GREEN:** rerun replay-service and web tests, both typechecks, and focused ESLint.
-- [ ] **Step 10: Commit:** stage only Task 1 files and commit `feat(assets): verify arbitrary tokens with okx evidence`.
+- [x] **Step 1: Write a failing valuation test** proving a provider/solver-supplied `referenceValueUsdE8` cannot understate `ceil(inputAtomic * priceUsdE8 / 10^decimals)` and that zero or stale price/liquidity fails closed.
+- [x] **Step 2: Run RED:** `pnpm --filter @cobia/solvers exec vitest run test/general-asset-evidence.test.ts`; expect the understated fixture to be accepted by the current implementation.
+- [x] **Step 3: Change the normalized quote boundary** to carry canonical `priceUsdE8`, asset decimals, provider request/response commitment, and executable liquidity. Recompute `referenceValueUsdE8` internally with round-up arithmetic; never read that value from the caller.
+- [x] **Step 4: Run GREEN:** rerun the focused solver test and `pnpm --filter @cobia/solvers typecheck`.
+- [x] **Step 5: Write failing eligibility tests** proving exact chain/address identity, proxy/runtime drift, unsupported token behavior, stale OKX evidence, and insufficient liquidity return explicit non-eligible states.
+- [x] **Step 6: Run RED:** `pnpm --filter @cobia/web exec vitest run lib/assets/okx-general-asset-eligibility.test.ts app/api/assets/resolve/route.test.ts`; expect the production route to return `verification_pending` because it supplies no verifier.
+- [x] **Step 7: Add `/v1/replays/asset-evidence`** to the existing authenticated replay service and `replayAssetEvidenceRemotely()` to the web client. The service owns the disposable pinned Anvil process; Vercel receives only bounded evidence and never an RPC handle.
+- [x] **Step 8: Implement `createOkxGeneralAssetEligibilityV2`** and inject it from the production route using canonical RPC configuration, authenticated OKX credentials, and the remote replay client. Cache only complete evidence until its committed expiry.
+- [x] **Step 9: Run GREEN:** rerun replay-service and web tests, both typechecks, and focused ESLint.
+- [x] **Step 10: Commit:** stage only Task 1 files and commit `feat(assets): verify arbitrary tokens with okx evidence`.
 
 ### Task 2: Public GeneralAssetPolicy publication and execution context
 

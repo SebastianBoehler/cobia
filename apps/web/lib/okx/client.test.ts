@@ -290,6 +290,60 @@ describe("OKX Market client", () => {
     ]);
   });
 
+  it("returns authenticated token evidence for Ethereum with exact holder addresses", async () => {
+    const token = "0x1111111111111111111111111111111111111111";
+    const holder = "0x2222222222222222222222222222222222222222";
+    const fetchImpl = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json({ code: "0", msg: "", data: [{
+        chainIndex: "1", tokenContractAddress: token, tokenName: "Example",
+        tokenSymbol: "EX", decimal: "18", tagList: {},
+      }] }))
+      .mockResolvedValueOnce(Response.json({ code: "0", msg: "", data: [{
+        chainIndex: "1", tokenContractAddress: token, time: "1787299200000",
+        price: "2.5", liquidity: "1000000", holders: "50",
+      }] }))
+      .mockResolvedValueOnce(Response.json({ code: "0", msg: "", data: [
+        { holderWalletAddress: holder, holdPercent: "42" },
+      ] }));
+    const client = createOkxClient({ credentials, fetchImpl });
+
+    await expect(client.getTokenEvidence(1, token)).resolves.toMatchObject({
+      chainId: 1, token, topHolderAddresses: [holder], top10HolderPercent: "42",
+    });
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
+      "https://web3.okx.com/api/v6/dex/market/token/basic-info",
+      "https://web3.okx.com/api/v6/dex/market/price-info",
+      `https://web3.okx.com/api/v6/dex/market/token/holder?chainIndex=1&tokenContractAddress=${token}&limit=10`,
+    ]);
+    expect(fetchImpl.mock.calls[0]![1]?.body).toBe(
+      JSON.stringify([{ chainIndex: "1", tokenContractAddress: token }]),
+    );
+  });
+
+  it("returns an exact executable quote into the chain reference asset", async () => {
+    const token = "0x1111111111111111111111111111111111111111";
+    const reference = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(Response.json({
+      code: "0", msg: "", data: [{ chainIndex: "1", swapMode: "exactIn",
+        fromTokenAmount: "1000000000000000000", toTokenAmount: "2490000",
+        priceImpactPercent: "0.4", dexRouterList: [{ dexProtocol: { dexName: "Uni", percent: "100" } }],
+        fromToken: { tokenContractAddress: token, decimal: "18", isHoneyPot: false, taxRate: "0" },
+        toToken: { tokenContractAddress: reference, decimal: "6", isHoneyPot: false, taxRate: "0" },
+      }],
+    }));
+    const client = createOkxClient({ credentials, fetchImpl,
+      now: () => new Date("2026-08-21T10:00:00.000Z") });
+
+    await expect(client.getExecutableQuote(1, token, "1000000000000000000")).resolves.toEqual({
+      chainId: 1, fromToken: token, toToken: reference,
+      inputAtomic: "1000000000000000000", outputAtomic: "2490000",
+      outputDecimals: 6, priceImpactBps: 40, fetchedAt: "2026-08-21T10:00:00.000Z",
+      route: [{ dexProtocol: { dexName: "Uni", percent: "100" } }],
+    });
+    expect(String(fetchImpl.mock.calls[0]![0])).toContain("/api/v6/dex/aggregator/quote?");
+    expect(String(fetchImpl.mock.calls[0]![0])).toContain("priceImpactProtectionPercent=5");
+  });
+
   it("rejects market data for a different contract", async () => {
     const token = "0x1111111111111111111111111111111111111111";
     const other = "0x9999999999999999999999999999999999999999";

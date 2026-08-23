@@ -41,15 +41,17 @@ interface GeneralTokenLookupV2 {
 }
 
 interface GeneralAssetEligibilityResolverV2 {
-  eligibility(asset: { chainId: 1 | 196; token: Address }): Promise<GeneralAssetEligibilityV2>;
+  eligibility(asset: { chainId: 1 | 196; token: Address; inputAtomic?: string }): Promise<GeneralAssetEligibilityV2>;
 }
 
 export type GeneralAssetSelectorV2 = {
   chainId: 1 | 196;
   address: Address;
+  maximumAtomic?: string;
 } | {
   chainId: 1 | 196;
   symbol: string;
+  maximumAtomic?: string;
 };
 
 export interface ResolvedGeneralAssetV2 {
@@ -185,8 +187,8 @@ export async function resolveAssetSelectorsV2(
 }> {
   const unique = [...new Map(selectors.slice(0, 16).map((selector) => {
     const key = "address" in selector
-      ? `${selector.chainId}:address:${selector.address.toLowerCase()}`
-      : `${selector.chainId}:symbol:${selector.symbol.toLowerCase()}`;
+      ? `${selector.chainId}:address:${selector.address.toLowerCase()}:${selector.maximumAtomic ?? "output"}`
+      : `${selector.chainId}:symbol:${selector.symbol.toLowerCase()}:${selector.maximumAtomic ?? "output"}`;
     return [key, selector];
   })).values()];
   const assets: ResolvedGeneralAssetV2[] = [];
@@ -212,7 +214,8 @@ export async function resolveAssetSelectorsV2(
     }
     const address = getAddress(token.token).toLowerCase() as Address;
     const eligibility = verifier
-      ? await verifier.eligibility({ chainId: selector.chainId, token: address })
+      ? await verifier.eligibility({ chainId: selector.chainId, token: address,
+        ...(selector.maximumAtomic ? { inputAtomic: selector.maximumAtomic } : {}) })
       : pendingEligibility();
     assets.push({
       chainId: selector.chainId,

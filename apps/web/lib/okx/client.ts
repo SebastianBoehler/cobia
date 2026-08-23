@@ -11,6 +11,11 @@ const TOKEN_PRICE_PATH = "/api/v6/dex/market/price-info";
 const TOKEN_HOLDER_PATH = "/api/v6/dex/market/token/holder";
 const TOKEN_SEARCH_PATH = "/api/v6/dex/market/token/search";
 const TOKEN_BALANCES_PATH = "/api/v6/dex/balance/all-token-balances-by-address";
+const DEX_QUOTE_PATH = "/api/v6/dex/aggregator/quote";
+export const OKX_REFERENCE_ASSETS = {
+  1: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+  196: "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+} as const satisfies Record<1 | 196, Address>;
 
 const NumericStringSchema = z.union([z.string(), z.number()]).transform(String);
 
@@ -94,6 +99,15 @@ const TokenSearchSchema = TokenBasicSchema.extend({
   holders: z.union([z.string().regex(/^\d+$/), z.literal("")])
     .transform((value) => value || undefined),
 }).passthrough();
+const QuoteTokenSchema = z.object({ tokenContractAddress: EvmAddressSchema,
+  decimal: z.string().regex(/^\d+$/).transform(Number), isHoneyPot: z.literal(false),
+  taxRate: z.literal("0") }).passthrough();
+const ExecutableQuoteSchema = z.object({ chainIndex: NumericStringSchema,
+  swapMode: z.literal("exactIn"), fromTokenAmount: z.string().regex(/^[1-9][0-9]*$/),
+  toTokenAmount: z.string().regex(/^[1-9][0-9]*$/),
+  priceImpactPercent: z.string().regex(/^-?\d+(?:\.\d+)?$/),
+  dexRouterList: z.array(z.unknown()).min(1), fromToken: QuoteTokenSchema,
+  toToken: QuoteTokenSchema }).passthrough();
 const WalletTokenBalanceSchema = z.object({
   chainIndex: z.literal("196"), tokenContractAddress: z.union([EvmAddressSchema, z.literal("")]),
   symbol: z.string().min(1).max(64), balance: DecimalStringSchema,
@@ -120,6 +134,15 @@ function sumDecimalStrings(values: readonly string[]): string {
   const text = total.toString().padStart(scale + 1, "0");
   const fraction = text.slice(-scale).replace(/0+$/, "");
   return fraction ? `${text.slice(0, -scale)}.${fraction}` : text.slice(0, -scale);
+}
+
+function percentToBps(value: string): number {
+  const unsigned = value.startsWith("-") ? value.slice(1) : value;
+  const [whole, fraction = ""] = unsigned.split(".");
+  const bps = BigInt(whole!) * 100n + BigInt(fraction.slice(0, 2).padEnd(2, "0")) +
+    (/[1-9]/.test(fraction.slice(2)) ? 1n : 0n);
+  if (bps > 10_000n) throw new OkxApiError("QUOTE_PRICE_IMPACT_INVALID", "OKX price impact is invalid");
+  return Number(bps);
 }
 
 export type RawProduct = z.infer<typeof RawProductSchema>;
@@ -187,8 +210,92 @@ export function createOkxClient(options: OkxClientOptions) {
       priceUsd: item.price, liquidityUsd: item.liquidity, holderCount: item.holders } : undefined;
   };
 
+  const getTokenEvidence = async (chainId: 1 | 196, tokenInput: string) => {
+    const token = EvmAddressSchema.parse(tokenInput);
+    const chainIndex = String(chainId);
+    const body = JSON.stringify([{ chainIndex, tokenContractAddress: token }]);
+    const holderPath = `${TOKEN_HOLDER_PATH}?chainIndex=${chainIndex}&tokenContractAddress=${token}&limit=10`;
+    const signedFetch = async (path: string, method: "GET" | "POST", requestBody?: string) => {
+      const timestamp = now().toISOString();
+      const response = await fetchImpl(`${OKX_ORIGIN}${path}`, {
+        method, headers: signOkxRequest({ ...options.credentials, timestamp, method, path,
+          body: requestBody }), body: requestBody, cache: "no-store",
+      });
+      if (!response.ok) throw new OkxApiError(`HTTP_${response.status}`,
+        `OKX request failed with HTTP ${response.status}`);
+      const envelope = readEnvelope(await response.json());
+      if (envelope.code !== "0") throw new OkxApiError(envelope.code,
+        envelope.msg || "OKX request failed");
+      return envelope.data;
+    };
+    const [basicValue, priceValue, holderValue] = await Promise.all([
+      signedFetch(TOKEN_BASIC_PATH, "POST", body),
+      signedFetch(TOKEN_PRICE_PATH, "POST", body),
+      signedFetch(holderPath, "GET"),
+    ]);
+    const basic = z.array(TokenBasicSchema).length(1).safeParse(basicValue);
+    const price = z.array(TokenPriceSchema).length(1).safeParse(priceValue);
+    const holders = z.array(TokenHolderSchema).max(10).safeParse(holderValue);
+    if (!basic.success || !price.success || !holders.success) {
+      throw new OkxApiError("INVALID_MARKET_DATA", "Invalid OKX token market response");
+    }
+    const identity = basic.data[0]!;
+    const market = price.data[0]!;
+    if (identity.chainIndex !== chainIndex || market.chainIndex !== chainIndex ||
+        identity.tokenContractAddress !== token || market.tokenContractAddress !== token) {
+      throw new OkxApiError("TOKEN_IDENTITY_MISMATCH", "OKX token identity mismatch");
+    }
+    const marketTime = Number(market.time);
+    if (!Number.isSafeInteger(marketTime)) {
+      throw new OkxApiError("INVALID_MARKET_TIME", "Invalid OKX token market timestamp");
+    }
+    return {
+      chainId, token, name: identity.tokenName, symbol: identity.tokenSymbol,
+      decimals: identity.decimal, priceUsd: market.price, liquidityUsd: market.liquidity,
+      holderCount: market.holders,
+      top10HolderPercent: sumDecimalStrings(holders.data.map(({ holdPercent }) => holdPercent)),
+      topHolderAddresses: holders.data.map(({ holderWalletAddress }) => holderWalletAddress),
+      marketDataAt: new Date(marketTime).toISOString(),
+      communityRecognized: identity.tagList.communityRecognized ?? false,
+    };
+  };
+
   return {
     searchToken,
+    getTokenEvidence,
+    async getExecutableQuote(chainId: 1 | 196, tokenInput: string, inputAtomic: string) {
+      const fromToken = EvmAddressSchema.parse(tokenInput);
+      if (!/^[1-9][0-9]*$/.test(inputAtomic)) {
+        throw new OkxApiError("QUOTE_AMOUNT_INVALID", "OKX quote amount is invalid");
+      }
+      const toToken = OKX_REFERENCE_ASSETS[chainId];
+      const query = new URLSearchParams({ amount: inputAtomic, chainIndex: String(chainId),
+        fromTokenAddress: fromToken, toTokenAddress: toToken, swapMode: "exactIn",
+        priceImpactProtectionPercent: "5" });
+      const path = `${DEX_QUOTE_PATH}?${query.toString()}`;
+      const timestamp = now().toISOString();
+      const response = await fetchImpl(`${OKX_ORIGIN}${path}`, { method: "GET",
+        headers: signOkxRequest({ ...options.credentials, timestamp, method: "GET", path }),
+        cache: "no-store" });
+      if (!response.ok) throw new OkxApiError(`HTTP_${response.status}`,
+        `OKX request failed with HTTP ${response.status}`);
+      const envelope = readEnvelope(await response.json());
+      if (envelope.code !== "0") throw new OkxApiError(envelope.code, envelope.msg || "OKX request failed");
+      const parsed = z.array(ExecutableQuoteSchema).length(1).safeParse(envelope.data);
+      if (!parsed.success) throw new OkxApiError("INVALID_EXECUTABLE_QUOTE", "Invalid OKX quote response");
+      const quote = parsed.data[0]!;
+      if (quote.chainIndex !== String(chainId) || quote.fromTokenAmount !== inputAtomic ||
+          quote.fromToken.tokenContractAddress !== fromToken || quote.toToken.tokenContractAddress !== toToken) {
+        throw new OkxApiError("QUOTE_IDENTITY_MISMATCH", "OKX quote identity mismatch");
+      }
+      const priceImpactBps = percentToBps(quote.priceImpactPercent);
+      if (priceImpactBps > 500) {
+        throw new OkxApiError("QUOTE_PRICE_IMPACT_EXCEEDED", "OKX quote price impact exceeds 5%");
+      }
+      return { chainId, fromToken, toToken, inputAtomic, outputAtomic: quote.toTokenAmount,
+        outputDecimals: quote.toToken.decimal, priceImpactBps,
+        fetchedAt: timestamp, route: quote.dexRouterList };
+    },
     async getXLayerNativeTokenEvidence() {
       const token = await searchToken(196, "OKB");
       if (!token || !isAddressEqual(token.token, NATIVE_ASSET_ADDRESS) ||
@@ -232,49 +339,12 @@ export function createOkxClient(options: OkxClientOptions) {
     },
 
     async getXLayerTokenEvidence(tokenInput: string) {
-      const token = EvmAddressSchema.parse(tokenInput);
-      const body = JSON.stringify([{ chainIndex: "196", tokenContractAddress: token }]);
-      const holderPath = `${TOKEN_HOLDER_PATH}?chainIndex=196&tokenContractAddress=${token}&limit=10`;
-      const signedFetch = async (path: string, method: "GET" | "POST", requestBody?: string) => {
-        const timestamp = now().toISOString();
-        const response = await fetchImpl(`${OKX_ORIGIN}${path}`, {
-          method, headers: signOkxRequest({ ...options.credentials, timestamp, method, path,
-            body: requestBody }), body: requestBody, cache: "no-store",
-        });
-        if (!response.ok) throw new OkxApiError(`HTTP_${response.status}`,
-          `OKX request failed with HTTP ${response.status}`);
-        const envelope = readEnvelope(await response.json());
-        if (envelope.code !== "0") throw new OkxApiError(envelope.code,
-          envelope.msg || "OKX request failed");
-        return envelope.data;
-      };
-      const [basicValue, priceValue, holderValue] = await Promise.all([
-        signedFetch(TOKEN_BASIC_PATH, "POST", body),
-        signedFetch(TOKEN_PRICE_PATH, "POST", body),
-        signedFetch(holderPath, "GET"),
-      ]);
-      const basic = z.array(TokenBasicSchema).length(1).safeParse(basicValue);
-      const price = z.array(TokenPriceSchema).length(1).safeParse(priceValue);
-      const holders = z.array(TokenHolderSchema).max(10).safeParse(holderValue);
-      if (!basic.success || !price.success || !holders.success) {
-        throw new OkxApiError("INVALID_MARKET_DATA", "Invalid OKX token market response");
-      }
-      if (basic.data[0]!.tokenContractAddress !== token || price.data[0]!.tokenContractAddress !== token) {
-        throw new OkxApiError("TOKEN_IDENTITY_MISMATCH", "OKX token identity mismatch");
-      }
-      const marketTime = Number(price.data[0]!.time);
-      if (!Number.isSafeInteger(marketTime)) {
-        throw new OkxApiError("INVALID_MARKET_TIME", "Invalid OKX token market timestamp");
-      }
-      return {
-        chainId: 196 as const, token, name: basic.data[0]!.tokenName,
-        symbol: basic.data[0]!.tokenSymbol, decimals: basic.data[0]!.decimal,
-        priceUsd: price.data[0]!.price, liquidityUsd: price.data[0]!.liquidity,
-        holderCount: price.data[0]!.holders,
-        top10HolderPercent: sumDecimalStrings(holders.data.map(({ holdPercent }) => holdPercent)),
-        marketDataAt: new Date(marketTime).toISOString(),
-        communityRecognized: basic.data[0]!.tagList.communityRecognized ?? false,
-      };
+      const evidence = await getTokenEvidence(196, tokenInput);
+      return { chainId: 196 as const, token: evidence.token, name: evidence.name,
+        symbol: evidence.symbol, decimals: evidence.decimals, priceUsd: evidence.priceUsd,
+        liquidityUsd: evidence.liquidityUsd, holderCount: evidence.holderCount,
+        top10HolderPercent: evidence.top10HolderPercent, marketDataAt: evidence.marketDataAt,
+        communityRecognized: evidence.communityRecognized };
     },
 
     async searchProducts(query: ProductSearchQuery): Promise<RawProduct[]> {
