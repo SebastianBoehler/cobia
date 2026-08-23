@@ -6,7 +6,6 @@ import {
 } from "@cobia/domain";
 import { buildGeneralAssetDecisionV1 } from "@cobia/solvers";
 import { describe, expect, it, vi } from "vitest";
-import { cobiaCodingAgentProfile } from "../runtime/solver-catalog";
 import { publishAndRunGeneralAssetSolverV1 } from "./run-general-asset-solver";
 
 const hash = (byte: string) => `0x${byte.repeat(64)}` as `0x${string}`;
