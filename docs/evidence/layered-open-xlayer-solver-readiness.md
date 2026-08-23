@@ -15,8 +15,10 @@ or broadcast during deployment verification.
 
 ## Confirmed causes
 
-- Hetzner stored the required OKX credentials, but Compose did not pass them to
-  the solver container. Deterministic OKX routes therefore abstained.
+- The local web/builder runtime held the valid OKX credentials, while the
+  Vercel production project and Hetzner deployment still held 11-character
+  placeholder values. Compose also did not previously pass those fields to the
+  solver. Deterministic OKX routes therefore abstained.
 - One global limiter wrapped the complete intent lifecycle. A long Codex search
   blocked later deterministic intents until their competition windows expired.
 - An interrupted worker could leave a run revision unresolved. The worker now
@@ -58,8 +60,12 @@ credential names to the solver service
   `sha256:25bef870eb8eebeb924174ccb1776ba66abde2af90859f56b3e13aba7ada0562`.
 - Solver container reported `healthy`, Node `v24.19.0`, and successful
   registration for `cobia-reference`.
-- Runtime presence checks returned true for `OKX_API_KEY`, `OKX_SECRET_KEY`,
-  `OKX_PASSPHRASE`, `XLAYER_RPC_URL`, and `COBIA_MODEL`; values were not printed.
+- The valid web/builder OKX credentials were copied into the Hetzner secret
+  scope without printing or committing them. Length-only checks changed from
+  `11/11/11` placeholders to `36/32/12`, and the solver was recreated.
+- A live signed X Layer USDG-to-native-OKB request from the solver container
+  returned HTTP 200, OKX code `0`, and one route. The quote was read-only; no
+  wallet transaction was signed or broadcast.
 - `https://api.getcobia.com/healthz` returned `ok: true` with zero active replay
   jobs.
 - `https://getcobia.com/api/network/status` returned X Layer chain 196 in
@@ -68,7 +74,7 @@ credential names to the solver service
   including `okx.dex-routing@1`, `xlayer.native-okb@1`, and
   `general.evm-program@1`.
 
-## Remaining live check
+## Remaining wallet-signed check
 
 Create a fresh low-value intent after the web deployment reaches production.
 The expected result is either a verified proposal or an explicit bounded
