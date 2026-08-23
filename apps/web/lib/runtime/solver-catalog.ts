@@ -14,5 +14,6 @@ export const cobiaCodingAgentProfile: {
     "curve-stableswap-ng.exact-input",
     "uniswap-v3.exact-input",
     "pendle.xlayer.market-discovery",
+    "general-asset@1",
   ],
 };

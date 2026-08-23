@@ -18,6 +18,7 @@ vi.mock("../../../lib/runtime/market", () => ({
   OwnerBalanceRequiredError: class OwnerBalanceRequiredError extends Error {},
   IntentSnapshotUnavailableError: class IntentSnapshotUnavailableError extends Error {},
   GeneralAssetRefreshRequiredError: class GeneralAssetRefreshRequiredError extends Error {},
+  GeneralAssetPublicUnavailableError: class GeneralAssetPublicUnavailableError extends Error {},
   ActiveManifestMismatchError: class ActiveManifestMismatchError extends Error {},
 }));
 
@@ -211,6 +212,21 @@ describe("general intent competition API", () => {
     await expect(response.json()).resolves.toMatchObject({
       code: "GENERAL_ASSET_REFRESH_REQUIRED",
       refresh: { method: "POST", href: "/api/intents/compile" },
+    });
+  });
+
+  it("keeps general asset publication closed until V4 is public-ready", async () => {
+    const { GeneralAssetPublicUnavailableError } = await import("../../../lib/runtime/market");
+    mocks.publishGeneralAsset.mockRejectedValueOnce(new GeneralAssetPublicUnavailableError(
+      "General asset V4 is awaiting public on-chain activation",
+    ));
+
+    const response = await POST(await signedGeneralAssetRequest());
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "GENERAL_ASSET_PUBLIC_UNAVAILABLE",
+      message: "General asset V4 is awaiting public on-chain activation",
     });
   });
 

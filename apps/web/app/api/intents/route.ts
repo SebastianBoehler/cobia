@@ -14,6 +14,7 @@ import { verifyPolicyOwnerSignature } from "../../../lib/intents/signature";
 import { PUBLIC_CACHE_10_SECONDS } from "../../../lib/http/cache-policy";
 import {
   getIntentRepository,
+  GeneralAssetPublicUnavailableError,
   GeneralAssetRefreshRequiredError,
   IntentSnapshotUnavailableError,
   OwnerBalanceRequiredError,
@@ -114,19 +115,22 @@ export async function POST(request: Request): Promise<Response> {
     const balanceRequired = error instanceof OwnerBalanceRequiredError;
     const snapshotUnavailable = error instanceof IntentSnapshotUnavailableError;
     const refreshRequired = error instanceof GeneralAssetRefreshRequiredError;
+    const generalAssetUnavailable = error instanceof GeneralAssetPublicUnavailableError;
     return NextResponse.json({
       code: invalid ? "INVALID_INTENT"
         : invalidSignature ? "INVALID_SIGNATURE"
           : balanceRequired ? "OWNER_BALANCE_REQUIRED"
             : snapshotUnavailable ? "INTENT_SNAPSHOT_UNAVAILABLE"
-              : refreshRequired ? "GENERAL_ASSET_REFRESH_REQUIRED" : "INTENT_UNAVAILABLE",
+              : refreshRequired ? "GENERAL_ASSET_REFRESH_REQUIRED"
+                : generalAssetUnavailable ? "GENERAL_ASSET_PUBLIC_UNAVAILABLE" : "INTENT_UNAVAILABLE",
       message: invalid ? "The signed intent is invalid."
         : invalidSignature ? "The owner signature is invalid."
           : balanceRequired
             ? "The owner needs a positive native balance on every execution chain."
             : snapshotUnavailable
               ? "Cobia could not capture a fresh X Layer market snapshot. Nothing was published; try again shortly."
-              : refreshRequired ? error.message : "The intent could not be published.",
+              : refreshRequired || generalAssetUnavailable ? error.message
+                : "The intent could not be published.",
       intentId,
       ...(refreshRequired ? { refresh: { method: "POST", href: "/api/intents/compile" } } : {}),
     }, { status: invalid || invalidSignature ? 400 : balanceRequired || refreshRequired ? 409 : 503 });
