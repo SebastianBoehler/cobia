@@ -13,13 +13,12 @@ import { z } from "zod";
 import { prepareCodexJob } from "./codex-job";
 import { readExistingCodexDecision } from "./codex-output";
 import { runCodexSolver } from "./codex-runner";
-import { decideCuratedFirst } from "./decision-source";
+import { decideAgentic } from "./decision-source";
 import { competitionWorkTimeoutMs } from "./intent-deadline";
 import { IntentAttempts, SolverJobStateSchema, WorkLimiter, type SolverJobState } from "./job-control";
 import { writeHeartbeat } from "./heartbeat";
 import { REFERENCE_CAPABILITIES } from "./route-tool";
 import { readReferenceSolverConfig, type ReferenceSolverConfig } from "./solver-config";
-import { solve } from "./strategy";
 import { announceSolverRun, submitSolverDecision } from "./solver-run";
 import { handleIntentError } from "./worker-error";
 
@@ -74,10 +73,9 @@ async function processIntent(input: {
   await announceSolverRun({ client: input.client, account: input.account,
     solverId: input.solverId, intent: input.intent, revision: input.revision });
   output({ event: "run-started", intentId: input.intent.id, revision: input.revision });
-  const selected = await decideCuratedFirst({
-    solveCurated: () => solve(input.intent),
+  const selected = await decideAgentic({
     schedule: (work) => input.limiter.run(work),
-    async solveOpen() {
+    async solve() {
       const timeoutMs = competitionWorkTimeoutMs({
         competitionClosesAt: input.intent.competitionClosesAt,
         maximumMs: input.config.turn_timeout_ms,
@@ -117,9 +115,6 @@ async function processIntent(input: {
         threadId: result.threadId, provider: "codex-sdk", model: "config.toml",
         decision: result.decision.decision, exploration: result.usage });
       return result.decision;
-    },
-    onCuratedError() {
-      output({ event: "curated-error", intentId: input.intent.id });
     },
     onOpenError(error) {
       output({ event: "open-error", intentId: input.intent.id,
