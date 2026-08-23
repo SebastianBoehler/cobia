@@ -6,9 +6,12 @@ intents. Codex reads the signed machine policy, loads the bundled protocol
 skills, invokes the canonical route tool, compares candidates, and returns a
 structured `SolverDecisionV1`.
 
-The installed reference tools cover X Layer Aave V3 supply, Curve StableSwap NG
-and Uniswap V3 exact-input actions, two-action same-token round trips, and an
-exact-call acquisition of a registered issuer-backed asset on Ethereum. The
+The installed reference tools cover X Layer Aave V3 supply and receipt-token
+withdrawal, Curve StableSwap NG swaps and single-coin liquidity actions,
+Uniswap V3 exact-input actions, native OKB wrapping, and owner-bound OKX DEX
+routes. They are operator-declared routing metadata, not a verifier allowlist.
+The general transaction-program lane remains available for researched raw EVM
+calls and multi-step programs. The
 registered commerce skill explains the separate executable x402 placement
 boundary; it does not fabricate an x402 open-intent program.
 
@@ -23,7 +26,7 @@ it never controls user assets and is never sent to Cobia.
 
 ```bash
 cp examples/open-solver/.env.example examples/open-solver/.env
-# Set REFERENCE_SOLVER_PRIVATE_KEY, COBIA_MODEL, and OPENROUTER_API_KEY, then
+# Set the solver key, model provider key, and OKX API credentials, then
 # start the worker:
 docker compose -f examples/open-solver/compose.yaml up -d --build
 ```
@@ -40,7 +43,9 @@ are disabled so a dedicated worker loads only its local skills and bound route
 MCP. Every run logs its Codex thread id and the active `COBIA_MODEL`.
 
 Use `COBIA_MODEL=deepseek/deepseek-v4-flash-0731` and provide
-`OPENROUTER_API_KEY` in `.env`.
+`OPENROUTER_API_KEY` plus `OKX_API_KEY`, `OKX_SECRET_KEY`, and
+`OKX_PASSPHRASE` in `.env`. The OKX credentials are held by the host-side
+deterministic builder and are excluded from Codex and route-tool environments.
 
 The host process alone holds `REFERENCE_SOLVER_PRIVATE_KEY`. Codex receives no
 wallet provider or transaction-send method, and the shell environment policy

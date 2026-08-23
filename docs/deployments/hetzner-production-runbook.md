@@ -29,8 +29,10 @@ chmod 600 .env
 ```
 
 Fill `.env` with a strong PostgreSQL password, a dedicated replay bearer secret,
-the solver key, RPC URLs, and its model-provider key. Keep Vercel-only application
-secrets out of this file.
+the solver key, RPC URLs, its model-provider key, and the three OKX API values
+used by the deterministic route builder. Keep Vercel-only application secrets
+out of this file. The Compose contract passes OKX credentials only to the host
+solver process; Codex and its route MCP explicitly exclude them.
 
 Point `api.getcobia.com` at the VM and allow ports 80 and 443 before starting
 Caddy so it can obtain the certificate. PostgreSQL reuses that certificate for

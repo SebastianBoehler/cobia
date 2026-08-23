@@ -115,6 +115,9 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       COBIA_MODEL: ${COBIA_MODEL}
       REFERENCE_SOLVER_PRIVATE_KEY: ${REFERENCE_SOLVER_PRIVATE_KEY}
+      OKX_API_KEY: ${OKX_API_KEY}
+      OKX_SECRET_KEY: ${OKX_SECRET_KEY}
+      OKX_PASSPHRASE: ${OKX_PASSPHRASE}
       COBIA_EXECUTOR_V3_ADDRESS: ${COBIA_EXECUTOR_V3_ADDRESS}
       XLAYER_RPC_URL: ${XLAYER_RPC_URL}
       ETHEREUM_RPC_URL: ${ETHEREUM_RPC_URL}
@@ -128,8 +131,8 @@ services:
       timeout: 5s
       retries: 3
       start_period: 60s
-    cpus: 1.0
-    mem_limit: 768m
+    cpus: 1.5
+    mem_limit: 1280m
     pids_limit: 256
 
   caddy:
