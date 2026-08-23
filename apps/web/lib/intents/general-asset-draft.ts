@@ -123,6 +123,10 @@ export function compileGeneralAssetDraftV1(input: {
     findCandidate(input.candidates, input.selection.output), input.selection.output, false,
   );
   if ("question" in outputAsset) return { status: "clarification", question: outputAsset.question };
+  if (inputAsset.chainId !== outputAsset.chainId) {
+    return { status: "clarification",
+      question: "Cross-chain general asset swaps are temporarily unavailable. Choose both tokens on the same chain." };
+  }
 
   return { status: "review", values: {
     kind: "general-asset-draft",
@@ -147,11 +151,7 @@ export function compileGeneralAssetDraftV1(input: {
       minimumAtomic: input.minimumOutputAtomic,
       identityHash: outputAsset.identityHash!,
     },
-    allowedAdapters: [
-      { id: "lifi.route", version: 1 },
-      { id: "okx.dex", version: 1 },
-      { id: "semantic.protocol", version: 1 },
-    ],
+    allowedAdapters: [{ id: "okx.swap", version: 1 }],
     limits: {
       maxStages: 8,
       maxCallsPerStage: 8,

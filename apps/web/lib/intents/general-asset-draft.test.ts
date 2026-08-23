@@ -33,18 +33,28 @@ const base = {
 
 describe("general asset draft compiler", () => {
   it("binds only exact eligible chain/address selections and server commitments", () => {
-    const result = compileGeneralAssetDraftV1(base);
+    const result = compileGeneralAssetDraftV1({
+      ...base,
+      selection: { ...base.selection, output: { chainId: 196 as const, token: outputToken } },
+      candidates: [base.candidates[0]!, { ...base.candidates[1]!, chainId: 196 as const }],
+    });
 
     expect(result).toMatchObject({ status: "review", values: {
       kind: "general-asset-draft",
       sourceChainId: 196,
-      destinationChainId: 1,
+      destinationChainId: 196,
       input: { token: inputToken, maximumAtomic: base.maximumInputAtomic,
         maximumUsdE8: base.maximumInputUsdE8, identityHash: hash("1"), valuationHash: hash("2") },
       output: { token: outputToken, minimumAtomic: "900000", identityHash: hash("4") },
-      allowedAdapters: [{ id: "lifi.route", version: 1 }, { id: "okx.dex", version: 1 },
-        { id: "semantic.protocol", version: 1 }],
+      allowedAdapters: [{ id: "okx.swap", version: 1 }],
     } });
+  });
+
+  it("keeps the first public release on a same-chain route with verified delivery", () => {
+    expect(compileGeneralAssetDraftV1(base)).toEqual({
+      status: "clarification",
+      question: "Cross-chain general asset swaps are temporarily unavailable. Choose both tokens on the same chain.",
+    });
   });
 
   it("requires an exact address when a symbol is ambiguous", () => {
