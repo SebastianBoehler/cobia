@@ -93,7 +93,8 @@ export function createSolverRunRepository(db: CobiaDatabase) {
     },
 
     complete: (id: string) => finish(id, "completed", null),
-    abstain: (id: string) => finish(id, "abstained", null),
+    abstain: (id: string, reasonCode?: string) => finish(id, "abstained",
+      reasonCode === undefined ? null : FailureCodeSchema.parse(reasonCode)),
     fail: (id: string, code: string) => finish(id, "failed", FailureCodeSchema.parse(code)),
 
     async readBrokerAnchor(idValue: string) {

@@ -176,6 +176,13 @@
       "when": 1787503600000,
       "tag": "0024_general_asset_evidence",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1787516171898,
+      "tag": "0025_solver-run-abstention-reasons",
+      "breakpoints": true
     }
   ]
 }

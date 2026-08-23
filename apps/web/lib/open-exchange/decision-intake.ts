@@ -53,7 +53,7 @@ interface IntakeDependencies {
       blockNumber: string; blockHash: string }): Promise<{ id: string }>;
     start(id: string): Promise<unknown>;
     complete(id: string): Promise<unknown>;
-    abstain(id: string): Promise<unknown>;
+    abstain(id: string, reasonCode?: string): Promise<unknown>;
     fail(id: string, code: string): Promise<unknown>;
   };
   submissions: {
@@ -252,7 +252,7 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
       });
       await dependencies.runs.start(run.id);
       if (decision.decision === "abstain") {
-        await dependencies.runs.abstain(run.id);
+        await dependencies.runs.abstain(run.id, decision.reasonCode);
         return { intentId: claim.intentId, solverId: claim.solverId,
           revision: claim.revision, state: "abstained" };
       }

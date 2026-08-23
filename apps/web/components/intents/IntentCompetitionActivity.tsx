@@ -26,6 +26,12 @@ function latestRuns(runs: CompetitionSolverRun[]) {
   return [...latest.values()];
 }
 
+function readableReason(value: string) {
+  const words = value.toLowerCase().split("_").map((word) => word === "okx" ? "OKX" : word);
+  const label = words.join(" ");
+  return `${label.charAt(0).toUpperCase()}${label.slice(1)}`;
+}
+
 function runPresentation(run: CompetitionSolverRun, verified: Set<string>, pending: Set<string>) {
   if (run.state === "queued") return { label: "Waiting to start", kind: "active", Icon: Clock3 };
   if (run.state === "running") return { label: "Building a program", kind: "active", Icon: LoaderCircle };
@@ -108,7 +114,10 @@ export function IntentCompetitionActivity({ currentSolverIds, pendingSolverIds, 
       const Icon = presentation.Icon;
       return <article data-run-state={run.state} data-state={presentation.kind} key={run.solverId}>
         <span className="solver-activity__run-icon"><Icon aria-hidden="true" size={18} /></span>
-        <div><strong>{run.displayName}</strong><small>Revision {run.revision}</small></div>
+        <div><strong>{run.displayName}</strong><small>Revision {run.revision}</small>
+          {run.state === "abstained" && run.failureCode
+            ? <small>{readableReason(run.failureCode)}</small> : null}
+        </div>
         <span className="solver-activity__run-state"><Icon aria-hidden="true" size={14} />{presentation.label}</span>
       </article>;
     })}</div> : <p className="solver-activity__empty">

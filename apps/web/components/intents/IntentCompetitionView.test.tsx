@@ -66,6 +66,24 @@ describe("IntentCompetitionView", () => {
     expect(html).toContain("Waiting to start");
   });
 
+  it("shows the persisted reason when a solver abstains", () => {
+    const html = renderToStaticMarkup(<IntentCompetitionView
+      goal="Swap bounded USDG into OKB"
+      closesAt={closesAt}
+      observedAtSec={2_000_000_000}
+      current={[]}
+      history={[]}
+      solverRuns={[{
+        solverId: "cobia-reference", displayName: "Cobia Reference Solver",
+        revision: 1, state: "abstained", failureCode: "NO_VERIFIED_OKX_ROUTE",
+        updatedAt: "2033-05-18T03:33:20.000Z",
+      }]}
+    />);
+
+    expect(html).toContain("No route submitted");
+    expect(html).toContain("No verified OKX route");
+  });
+
   it("distinguishes verifier work from proposals ready for wallet review", () => {
     const pending = renderToStaticMarkup(<IntentCompetitionView
       goal="Supply bounded USDG" closesAt={closesAt} observedAtSec={2_000_000_000}

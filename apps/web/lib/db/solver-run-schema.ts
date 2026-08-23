@@ -36,8 +36,12 @@ export const cobiaSolverRuns = pgTable("cobia_solver_runs", {
   check("cobia_solver_runs_state_check", sql`
     (${table.state} IN ('queued', 'running')
       AND ${table.completedAt} IS NULL AND ${table.failureCode} IS NULL)
-    OR (${table.state} IN ('completed', 'abstained')
+    OR (${table.state} = 'completed'
       AND ${table.completedAt} IS NOT NULL AND ${table.failureCode} IS NULL)
+    OR (${table.state} = 'abstained'
+      AND ${table.completedAt} IS NOT NULL
+      AND (${table.failureCode} IS NULL
+        OR ${table.failureCode} ~ '^[A-Z][A-Z0-9_]{2,63}$'))
     OR (${table.state} = 'failed'
       AND ${table.completedAt} IS NOT NULL
       AND ${table.failureCode} ~ '^[A-Z][A-Z0-9_]{2,63}$')

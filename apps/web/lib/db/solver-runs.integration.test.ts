@@ -34,14 +34,14 @@ describe("solver run repository", () => {
       blockNumber: "123", blockHash: hash("3"),
     });
     await runs.start(run.id);
-    const abstained = await runs.abstain(run.id);
+    const abstained = await runs.abstain(run.id, "NO_ROUTE");
 
-    expect(abstained).toMatchObject({ state: "abstained", failureCode: null });
+    expect(abstained).toMatchObject({ state: "abstained", failureCode: "NO_ROUTE" });
     expect(await runs.readBrokerAnchor(run.id)).toMatchObject({ state: "abstained" });
     expect(await runs.listForIntent(policy.requestId)).toEqual(expect.arrayContaining([
       expect.objectContaining({
         solverId: "cobia-coding-agent", displayName: "Cobia Coding Agent",
-        revision: 1, state: "abstained",
+        revision: 1, state: "abstained", failureCode: "NO_ROUTE",
       }),
     ]));
   });

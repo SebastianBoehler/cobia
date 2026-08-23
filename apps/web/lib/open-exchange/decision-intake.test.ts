@@ -120,7 +120,9 @@ describe("open solver decision intake", () => {
     await expect(intake().submit(await signed(abstentionClaim, abstention)))
       .resolves.toMatchObject({ state: "abstained" });
     expect(mocks.consume).toHaveBeenCalledOnce();
-    expect(mocks.abstainRun).toHaveBeenCalledOnce();
+    expect(mocks.abstainRun).toHaveBeenCalledWith(
+      "550e8400-e29b-41d4-a716-446655440092", "NO_ROUTE",
+    );
     expect(mocks.append).not.toHaveBeenCalled();
   });
 
