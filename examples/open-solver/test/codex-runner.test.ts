@@ -7,6 +7,17 @@ import { runCodexSolver, solverCodexConfig } from "../src/codex-runner";
 async function* events() {
   yield { type: "thread.started", thread_id: "thread-123" } as const;
   yield { type: "turn.started" } as const;
+  yield { type: "item.started", item: {
+    id: "search-1", type: "web_search", query: "X Layer USDG OKB pools",
+  } } as const;
+  yield { type: "item.started", item: {
+    id: "solve-1", type: "mcp_tool_call", server: "cobia_route", tool: "solve",
+    arguments: {}, status: "in_progress",
+  } } as const;
+  yield { type: "item.started", item: {
+    id: "exact-1", type: "mcp_tool_call", server: "cobia_route", tool: "exact_call",
+    arguments: {}, status: "in_progress",
+  } } as const;
   yield { type: "item.completed", item: {
     id: "message-1", type: "agent_message",
     text: JSON.stringify({ decisionJson: JSON.stringify({
@@ -68,6 +79,9 @@ describe("Codex solver runner", () => {
     expect(observed).toEqual([
       { event: "codex-thread-started", threadId: "thread-123" },
       { event: "codex-turn-started" },
+      { event: "solver-phase", phase: "researching" },
+      { event: "solver-phase", phase: "constructing" },
+      { event: "solver-phase", phase: "validating" },
       { event: "codex-message-completed" },
       { event: "codex-turn-completed", usage: {
         inputTokens: 10, cachedInputTokens: 2, outputTokens: 4, reasoningOutputTokens: 1,

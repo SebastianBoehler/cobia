@@ -21,9 +21,11 @@ Solve only the signed intent in \`intent.json\`.
 - You are running as a non-interactive Codex worker inside Docker.
 - Use the installed Cobia skills when relevant.
 - The Cobia route MCP tools are already attached. Call only \`cobia_route.capabilities\`, \`cobia_route.solve\`, and, for a complete researched candidate, \`cobia_route.exact_call\`. Do not call MCP resource-discovery tools.
-- Explicitly supported protocols have semantic skills and adapters; they are not an allowlist for other solvers. This bounded reference worker uses the exact-call lane only when the immutable job context already contains a complete candidate.
+- Explicitly supported protocols have semantic skills and adapters. These operator-declared capabilities are useful construction hints, not an allowlist and not proof that a transaction is safe.
+- Use live web research when the declared capabilities do not produce a complete route. Research only public protocol contracts, interfaces, and market state needed to construct this intent.
+- The exact-call lane is available for a complete researched candidate. The verifier, not the capability declaration, decides whether a submitted program is admissible.
 - The configured risk level is ${exploration.risk_level}. You may spend up to ${exploration.max_codex_turns_per_intent} Codex turns and ${exploration.max_total_tokens_per_intent} total tokens on this intent.
-- This is a bounded competition worker. If the supported solve abstains, return that canonical abstention immediately. Do not use web or MCP resource discovery during the run.
+- This is a bounded competition worker. If the supported solve abstains, continue within the configured turn and token budget using live web research. Do not call MCP resource-discovery tools.
 - Simulation is optional research. Cobia independently verifies every submitted candidate.
 - Do not request or search for wallet keys, solver keys, or transaction-send methods.
 - Your entire final response must be one structured object whose \`decisionJson\` string contains exactly one schema-valid SolverDecisionV1. Do not add prose or Markdown. Do not write decision.json; the host validates your final response and writes it.
@@ -55,9 +57,10 @@ export async function prepareCodexJob(input: {
       "First call cobia_route.capabilities, then cobia_route.solve for the exact signed intent. Inspect its " +
       "canonical decision against the signed policy. Your entire final response must be " +
       '`{"decisionJson":"<canonical SolverDecisionV1 serialized as a JSON string>"}`. ' +
-      `Risk level is ${input.exploration.risk_level}. If the supported solve abstains, return its ` +
-      "canonical abstention immediately. Do not use web or MCP resource discovery. Only call " +
-      "exact_call if the immutable job context already contains a complete candidate. Never invent evidence. " +
+      `Risk level is ${input.exploration.risk_level}. If the supported solve abstains, do not treat ` +
+      "the declared capabilities as an allowlist. Use live web research within the configured budget to " +
+      "find public protocol contracts, interfaces, and market state for a complete candidate. Do not call " +
+      "MCP resource-discovery tools. Call exact_call only for a complete researched candidate. Never invent evidence. " +
       "Do not write files, add prose, or continue after you have the final decision.",
   };
 }

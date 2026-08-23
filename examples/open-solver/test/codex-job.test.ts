@@ -32,7 +32,10 @@ describe("Codex solver job", () => {
     expect(job.prompt).toContain("Do not call MCP resource-discovery tools");
     expect(guidance).toContain("route MCP tools");
     expect(guidance).toContain("not an allowlist");
-    expect(guidance).toContain("return that canonical abstention immediately");
+    expect(guidance).toContain("Use live web research");
+    expect(guidance).not.toContain("return that canonical abstention immediately");
+    expect(job.prompt).toContain("Use live web research");
+    expect(job.prompt).not.toContain("return its canonical abstention immediately");
     expect(guidance).toContain("opportunistic");
     expect(guidance).not.toContain("PRIVATE_KEY");
     await expect(readFile(join(job.cwd, ".agents", "skills", "cobia-intent", "SKILL.md"), "utf8"))
