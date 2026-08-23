@@ -1,7 +1,7 @@
 # General Asset V4 Design
 
 **Date:** 2026-08-23
-**Status:** Approved in chat, pending written-spec review
+**Status:** Approved in chat; release-hardening decisions approved 2026-08-23
 
 ## Problem
 
@@ -102,7 +102,19 @@ module with its own verifier and adversarial tests.
 
 ## Valuation evidence
 
-`AssetValuationEvidenceV1` expresses input exposure in USD-E8. It binds:
+`AssetValuationEvidenceV1` expresses input exposure in USD-E8. The initial
+production authority is the authenticated OKX Market/DEX API already used by
+the asset resolver. This is a deliberate single-aggregator launch mode. It
+does not allow a solver or browser client to author price or liquidity fields.
+
+The Cobia server normalizes the OKX response and deterministically derives the
+conservative input value by rounding `inputAtomic * priceUsdE8 / 10^decimals`
+up. It commits the exact request, normalized response, route, targets,
+timestamp, expiry, and provider identity. Missing or zero price, missing or
+insufficient liquidity, mismatched chain/token/amount, stale response, or an
+unregistered target fails closed.
+
+The evidence binds:
 
 - the asset identity commitment;
 - executable quotes from registered providers;
@@ -112,9 +124,12 @@ module with its own verifier and adversarial tests.
 - disagreement and liquidity thresholds.
 
 The verifier uses fresh executable depth rather than a ticker symbol or an
-unexecutable headline price. Missing, shallow, expired, or materially
-inconsistent valuation fails closed. The owner signs both an atomic maximum and
-a USD maximum; neither can enlarge the other.
+unexecutable headline price. It independently recomputes the normalized value
+and quote commitment from server-captured OKX evidence. Missing, shallow,
+expired, or inconsistent valuation fails closed. The owner signs both an
+atomic maximum and a USD maximum; neither can enlarge the other. Supporting a
+second authority later requires a new reviewed provider adapter; it is not a
+runtime fallback.
 
 ## Registered route adapters
 
@@ -242,22 +257,29 @@ independent adversarial review is required before deployment.
 
 ## Deployment and migration
 
-1. Deploy V4 and Risk Manager V2 paused on chains `1` and `196`, owned by the
+1. Keep V3 and the current production application live throughout deployment
+   and judging. Deploy V4 and Risk Manager V2 paused on chains `1` and `196`, owned by the
    governance Safe for that chain.
 2. Independently reproduce constructor bindings, runtime and proxy hashes, Safe
    ownership, verifier identity, and adapter permissions.
 3. Propose the approved caps, adapter identities, and one canary wallet.
-4. After the governance delay, activate the canary configuration and unpause.
+4. After the first 48-hour governance delay, activate the canary configuration
+   and unpause only for the named canary wallet.
 5. Run one separately approved retail-size cross-chain canary and reconcile
    both receipts. No live principal transaction is an automated release test.
-6. Open V4 publicly, switch production preparation to V4, and verify public
-   APIs and desktop/mobile wallet review.
-7. Pause V3 only after the V4 public read-back and production smoke pass.
+6. Reduce V3's remaining stablecoin budgets and configure the V4 protocol cap
+   so the sum of maximum remaining V3 consumption and active V4 rolling
+   exposure cannot exceed the documented combined migration budget.
+7. Propose V4 public access only after the canary reconciles. After the second
+   48-hour governance delay, activate public access and verify both chains.
+8. Route only V4-eligible general-asset intents to V4. Existing supported V3
+   intents continue using V3 during the observation period.
+9. Pause V3 only after V4 public read-back, production smoke tests, and stable
+   monitoring. Pausing V3 is not part of the judging-period release.
 
-All new intents then use V4, including USDG and USDt0. Existing signed V3
-policies are not migrated and become non-executable once V3 is paused. Rollback
-means pausing V4 and restoring a reviewed prior mode; it never silently sends a
-program through V3.
+Existing signed policies are never migrated between executor generations.
+Rollback means pausing V4 and leaving the already-live V3 route untouched; it
+never silently sends a signed V4 program through V3.
 
 ## Success criteria
 
