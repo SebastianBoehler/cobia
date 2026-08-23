@@ -23,7 +23,7 @@ import { createSolverDecisionClaimRepository } from "../db/solver-decision-claim
 import { createSolverSuccessFeeRepository } from "../db/solver-success-fees";
 import { createWalletAuthRepository } from "../db/wallet-auth";
 import { createGeneralAssetExecutionRepository } from "../db/general-asset-executions";
-import { readCodingAgentV3RuntimeConfig, readDatabaseUrl, readGeneralAssetManifestHash,
+import { readCodingAgentV3RuntimeConfig, readDatabaseUrl, readGeneralAssetManifest,
   readOkxCredentials } from "../env";
 import { openGeneralCodingAgentCompetition } from "./general-coding-agent";
 import { cobiaCodingAgentProfile } from "./solver-catalog";
@@ -47,9 +47,10 @@ import { replayCapabilityRemotely, replayTransactionRemotely } from "../replay/r
 import { createOkxClient } from "../okx/client";
 import { publishCapabilityComposition } from "./composition-market";
 import { IntentSnapshotUnavailableError, OwnerBalanceRequiredError } from "./market-errors";
-import { createProductionGeneralAssetEligibilityV2 } from "../assets/production-general-asset-eligibility";
 import { GeneralAssetManifestMismatchError, GeneralAssetOwnerBalanceRequiredError,
   publishGeneralAssetIntentV1 } from "./general-asset-publication";
+import { GeneralAssetRefreshRequiredError,
+  parseGeneralAssetCompilationReceiptV1 } from "./general-asset-compilation-receipt";
 
 let activityRepository: ReturnType<typeof createActivityRepository> | undefined;
 let database: ReturnType<typeof createDatabase> | undefined;
@@ -67,7 +68,7 @@ let solverSuccessFeeRepository: ReturnType<typeof createSolverSuccessFeeReposito
 let walletAuthRepository: ReturnType<typeof createWalletAuthRepository> | undefined;
 let generalAssetExecutionRepository: ReturnType<typeof createGeneralAssetExecutionRepository> | undefined;
 
-export { IntentSnapshotUnavailableError, OwnerBalanceRequiredError };
+export { GeneralAssetRefreshRequiredError, IntentSnapshotUnavailableError, OwnerBalanceRequiredError };
 
 function getDatabase() {
   database ??= createDatabase(readDatabaseUrl());
@@ -237,17 +238,25 @@ export async function publishCapabilityCompositionIntent(input: {
 export async function publishGeneralAssetIntent(input: {
   policy: GeneralAssetPolicyV1;
   ownerSignature: `0x${string}`;
+  compilationLeaseId: string;
 }) {
   try {
-    return await publishGeneralAssetIntentV1(input, {
-      activeManifestHash: readGeneralAssetManifestHash(),
+    const receipt = parseGeneralAssetCompilationReceiptV1(
+      await getWalletAuthRepository().readCompletedCompilation({
+      id: input.compilationLeaseId, owner: input.policy.owner as Address,
+      nowSec: Math.floor(Date.now() / 1_000),
+      }), input.compilationLeaseId);
+    return await publishGeneralAssetIntentV1({ ...input,
+      generalAssetEvidence: receipt.evidence }, {
+      activeManifest: readGeneralAssetManifest(),
       missingOwnerBalanceChains: missingOwnerNativeBalanceChains,
-      verifier: createProductionGeneralAssetEligibilityV2(),
       persist: (value) => getIntentRepository().create(value),
+      nowSec: () => Math.floor(Date.now() / 1_000),
     });
   } catch (error) {
     if (error instanceof GeneralAssetManifestMismatchError) throw new ActiveManifestMismatchError(error.message);
     if (error instanceof GeneralAssetOwnerBalanceRequiredError) throw new OwnerBalanceRequiredError();
+    if (error instanceof GeneralAssetRefreshRequiredError) throw error;
     throw error;
   }
 }

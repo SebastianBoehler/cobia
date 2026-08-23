@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { isAddress, type Address, type Hex } from "viem";
 import type { OkxCredentials } from "./okx/auth";
+import { commitment } from "@cobia/domain";
+import { RegisteredAdapterManifestV1Schema } from "@cobia/solvers";
 
 const OkxEnvSchema = z.object({
   OKX_API_KEY: z.string().min(1),
@@ -126,6 +128,19 @@ export function readGeneralAssetManifestHash(
     .safeParse(source.GENERAL_ASSET_MANIFEST_HASH);
   if (!parsed.success) throw new Error("Missing or invalid general asset manifest configuration");
   return parsed.data as Hex;
+}
+
+export function readGeneralAssetManifest(
+  source: Record<string, string | undefined> = process.env,
+) {
+  let value: unknown;
+  try { value = JSON.parse(source.GENERAL_ASSET_MANIFEST_JSON ?? ""); }
+  catch { throw new Error("Missing or invalid general asset manifest JSON configuration"); }
+  const manifest = RegisteredAdapterManifestV1Schema.parse(value);
+  if (commitment(manifest) !== readGeneralAssetManifestHash(source)) {
+    throw new Error("General asset manifest JSON does not match the active manifest hash");
+  }
+  return manifest;
 }
 
 export function readAgenticSolverConfig(

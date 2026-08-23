@@ -5,6 +5,7 @@ import type {
   OpenIntentPolicyV3,
 } from "@cobia/domain";
 import type { Address, Hash, Hex } from "viem";
+import type { GeneralAssetEvidenceArtifactV1 } from "@cobia/solvers";
 import { sql } from "drizzle-orm";
 import {
   check, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid,
@@ -24,6 +25,8 @@ export const cobiaIntents = pgTable("cobia_intents", {
     GeneralIntentPolicyV2 | OpenIntentPolicyV3 | CapabilityCompositionPolicyV1 | GeneralAssetPolicyV1
   >().notNull(),
   ownerSignature: text("owner_signature").$type<Hex>().notNull(),
+  generalAssetEvidenceHash: text("general_asset_evidence_hash").$type<Hash>(),
+  generalAssetEvidence: jsonb("general_asset_evidence").$type<GeneralAssetEvidenceArtifactV1>(),
   state: intentState("state").notNull().default("signed"),
   competitionClosesAt: timestamp("competition_closes_at", { withTimezone: true }).notNull(),
   selectedSubmissionId: uuid("selected_submission_id"),
@@ -59,6 +62,10 @@ export const cobiaIntents = pgTable("cobia_intents", {
     AND ${table.policy}->>'requestId' = ${table.id}::text
     AND lower(${table.policy}->>'owner') = ${table.owner}
     AND ${table.policy}->>'displayGoal' = ${table.displayGoal}
+    AND ((${table.generalAssetEvidenceHash} IS NULL) = (${table.generalAssetEvidence} IS NULL))
+    AND ((${table.policy}->>'kind' = 'general-asset') = (${table.generalAssetEvidence} IS NOT NULL))
+    AND (${table.generalAssetEvidenceHash} IS NULL OR
+      ${table.generalAssetEvidenceHash} ~ '^0x[0-9a-f]{64}$')
     AND to_timestamp((${table.policy}->'competition'->>'closesAt')::bigint)
       = ${table.competitionClosesAt}
   `),

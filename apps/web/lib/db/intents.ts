@@ -5,6 +5,7 @@ import {
   OpenIntentPolicyV3Schema,
   commitment,
 } from "@cobia/domain";
+import { GeneralAssetEvidenceArtifactV1Schema } from "@cobia/solvers";
 import { and, desc, eq, gt, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { CobiaDatabase } from "./client";
@@ -19,13 +20,21 @@ const CreateSchema = z.object({
     GeneralAssetPolicyV1Schema,
   ]),
   ownerSignature: SignatureSchema,
-}).strict();
+  generalAssetEvidence: GeneralAssetEvidenceArtifactV1Schema.optional(),
+}).strict().superRefine((value, context) => {
+  if ((value.policy.kind === "general-asset") !== Boolean(value.generalAssetEvidence)) {
+    context.addIssue({ code: "custom", path: ["generalAssetEvidence"],
+      message: "General asset evidence must match the intent kind" });
+  }
+});
 
 export function createIntentRepository(db: CobiaDatabase) {
   return {
     async create(value: z.input<typeof CreateSchema>) {
-      const { policy, ownerSignature } = CreateSchema.parse(value);
+      const { policy, ownerSignature, generalAssetEvidence } = CreateSchema.parse(value);
       const policyHash = commitment(policy);
+      const generalAssetEvidenceHash = generalAssetEvidence
+        ? commitment(generalAssetEvidence) as `0x${string}` : null;
       return db.transaction(async (tx) => {
         const stored = await tx.query.cobiaIntents.findFirst({
           where: eq(cobiaIntents.id, policy.requestId),
@@ -33,6 +42,9 @@ export function createIntentRepository(db: CobiaDatabase) {
         if (stored) {
           if (stored.policyHash !== policyHash || stored.ownerSignature !== ownerSignature) {
             throw new Error("Signed intent conflicts");
+          }
+          if (stored.generalAssetEvidenceHash !== generalAssetEvidenceHash) {
+            throw new Error("General asset intent evidence conflicts");
           }
           return stored;
         }
@@ -43,6 +55,8 @@ export function createIntentRepository(db: CobiaDatabase) {
           policyHash: policyHash as `0x${string}`,
           policy,
           ownerSignature: ownerSignature as `0x${string}`,
+          generalAssetEvidenceHash,
+          generalAssetEvidence: generalAssetEvidence ?? null,
           state: "collecting", competitionClosesAt: new Date(policy.competition.closesAt * 1_000),
         }).returning();
         if (!rows[0]) throw new Error("Signed intent was not stored");

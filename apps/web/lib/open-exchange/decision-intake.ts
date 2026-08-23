@@ -9,7 +9,7 @@ import {
   SolverDecisionClaimV1Schema,
   solverDecisionClaimCommitmentV1,
 } from "@cobia/domain";
-import { SolverDecisionV1Schema } from "@cobia/solvers";
+import { GeneralAssetEvidenceArtifactV1Schema, SolverDecisionV1Schema } from "@cobia/solvers";
 import { isAddress, isAddressEqual, recoverMessageAddress, type Address, type Hex } from "viem";
 import { z } from "zod";
 
@@ -31,7 +31,8 @@ type Verification =
   | { accepted: false; errorCodes: string[]; replay?: unknown };
 
 interface IntakeDependencies {
-  intents: { get(id: string): Promise<{ policy: unknown; state: string } | undefined> };
+  intents: { get(id: string): Promise<{ policy: unknown; state: string;
+    generalAssetEvidenceHash?: string | null; generalAssetEvidence?: unknown } | undefined> };
   snapshots: { get(id: string): Promise<{ snapshot: unknown; snapshotHash: string } | undefined> };
   profiles: { identity(id: string): Promise<{
     id: string; operatorKind: string; attestationAddress: string | null;
@@ -174,7 +175,11 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
         if (decision.decision !== "submit" || decision.proposalKind !== "general-asset-program") {
           throw new InvalidSolverDecisionError("General asset intents require a program evidence anchor");
         }
-        if (claim.snapshotHash !== commitment(decision.evidence)) {
+        const storedEvidence = GeneralAssetEvidenceArtifactV1Schema.safeParse(intent.generalAssetEvidence);
+        if (!storedEvidence.success || !intent.generalAssetEvidenceHash ||
+            intent.generalAssetEvidenceHash !== commitment(storedEvidence.data) ||
+            commitment(decision.evidence) !== intent.generalAssetEvidenceHash ||
+            claim.snapshotHash !== intent.generalAssetEvidenceHash) {
           throw new InvalidSolverDecisionError("Solver decision evidence commitment mismatch");
         }
         generalAnchors = generalAssetAnchors(decision);
@@ -287,6 +292,14 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
       }
       await dependencies.submissions.appendArtifact(submission.id, "verdict", verdict);
       if (verdict.replay) await dependencies.submissions.appendArtifact(submission.id, "replay", verdict.replay);
+      if (verdict.accepted && decision.proposalKind === "general-asset-program" &&
+          (!verdict.execution || !verdict.authorization)) {
+        const errorCodes = ["EXECUTION_ARTIFACT_MISSING"];
+        await dependencies.submissions.resolve(submission.id, "rejected", errorCodes);
+        await dependencies.runs.fail(run.id, errorCodes[0]!);
+        return { intentId: claim.intentId, solverId: claim.solverId, revision: claim.revision,
+          state: "rejected", submissionId: submission.id, errorCodes };
+      }
       if (!verdict.accepted) {
         const errorCodes = verdict.errorCodes.map((code) => FailureCodeSchema.parse(code));
         await dependencies.submissions.resolve(submission.id, "rejected", errorCodes);

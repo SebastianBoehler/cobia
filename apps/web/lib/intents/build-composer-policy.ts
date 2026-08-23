@@ -55,6 +55,10 @@ export function intentComposerExecutionChainIds(values: Input["values"]): Array<
 
 export function buildIntentComposerPolicy(input: Input) {
   if (isGeneralAsset(input.values)) {
+    if (!Number.isSafeInteger(input.values.evidenceExpiresAtSec) ||
+        input.values.evidenceExpiresAtSec <= input.nowSec) {
+      throw new Error("Compilation evidence expired; refresh before signing.");
+    }
     if (BigInt(input.values.input.maximumUsdE8) > 100_000_000_000n) {
       throw new Error("Maximum input cannot exceed $1,000 per route.");
     }
@@ -71,7 +75,8 @@ export function buildIntentComposerPolicy(input: Input) {
       nonce: input.nonce.toLowerCase(),
       createdAt: input.nowSec,
       deadline: input.nowSec + 1_800,
-      competition: { closesAt: input.nowSec + 300, maxRevisionsPerSolver: 5 },
+      competition: { closesAt: Math.min(input.nowSec + 300, input.values.evidenceExpiresAtSec),
+        maxRevisionsPerSolver: 5 },
       maxEvidenceAgeSec: 300,
       manifestHash: input.values.manifestHash,
       inputIdentityHash: input.values.input.identityHash,

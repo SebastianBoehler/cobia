@@ -656,6 +656,7 @@ describe("IntentComposer", () => {
       kind: "general-asset-draft" as const, templateId: "general-asset" as const,
       displayGoal: "Swap random assets", sourceChainId: 196 as const,
       destinationChainId: 1 as const, manifestHash: hash("1"),
+      evidenceExpiresAtSec: Math.floor(Date.now() / 1_000) + 30,
       input: { token: inputToken, symbol: "IN", decimals: 18, maximumAtomic: "100",
         maximumUsdE8: "50000000000", identityHash: hash("2"), valuationHash: hash("3") },
       output: { token: outputToken, symbol: "OUT", decimals: 6,

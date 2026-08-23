@@ -31,6 +31,7 @@ function repository(): WalletAuthRepository {
       return session && session.expiresAt > observedAt ? session : null;
     }),
     beginCompilation: vi.fn(), completeCompilation: vi.fn(), failCompilation: vi.fn(),
+    readCompletedCompilation: vi.fn(),
   };
 }
 

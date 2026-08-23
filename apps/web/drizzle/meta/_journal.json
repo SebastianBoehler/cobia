@@ -169,6 +169,13 @@
       "when": 1787500000000,
       "tag": "0023_general_asset_intents",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1787503600000,
+      "tag": "0024_general_asset_evidence",
+      "breakpoints": true
     }
   ]
 }

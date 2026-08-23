@@ -14,6 +14,7 @@ import { verifyPolicyOwnerSignature } from "../../../lib/intents/signature";
 import { PUBLIC_CACHE_10_SECONDS } from "../../../lib/http/cache-policy";
 import {
   getIntentRepository,
+  GeneralAssetRefreshRequiredError,
   IntentSnapshotUnavailableError,
   OwnerBalanceRequiredError,
   publishCapabilityCompositionIntent,
@@ -32,7 +33,13 @@ const RequestBodySchema = z.object({
     GeneralAssetPolicyV1Schema,
   ]),
   ownerSignature: z.string().regex(/^0x[0-9a-fA-F]{130}$/),
-}).strict();
+  compilationLeaseId: z.string().uuid().optional(),
+}).strict().superRefine((value, context) => {
+  if (value.policy.kind === "general-asset" && !value.compilationLeaseId) {
+    context.addIssue({ code: "custom", path: ["compilationLeaseId"],
+      message: "General asset publication requires its compilation receipt" });
+  }
+});
 
 class InvalidOwnerSignatureError extends Error {}
 
@@ -89,7 +96,8 @@ export async function POST(request: Request): Promise<Response> {
     if (policy.kind === "capability-composition") {
       await publishCapabilityCompositionIntent({ policy, ownerSignature });
     } else if (policy.kind === "general-asset") {
-      await publishGeneralAssetIntent({ policy, ownerSignature });
+      await publishGeneralAssetIntent({ policy, ownerSignature,
+        compilationLeaseId: body.compilationLeaseId! });
     } else {
       await publishOpenIntent({ policy, ownerSignature });
     }
@@ -105,19 +113,22 @@ export async function POST(request: Request): Promise<Response> {
     const invalidSignature = error instanceof InvalidOwnerSignatureError;
     const balanceRequired = error instanceof OwnerBalanceRequiredError;
     const snapshotUnavailable = error instanceof IntentSnapshotUnavailableError;
+    const refreshRequired = error instanceof GeneralAssetRefreshRequiredError;
     return NextResponse.json({
       code: invalid ? "INVALID_INTENT"
         : invalidSignature ? "INVALID_SIGNATURE"
           : balanceRequired ? "OWNER_BALANCE_REQUIRED"
-            : snapshotUnavailable ? "INTENT_SNAPSHOT_UNAVAILABLE" : "INTENT_UNAVAILABLE",
+            : snapshotUnavailable ? "INTENT_SNAPSHOT_UNAVAILABLE"
+              : refreshRequired ? "GENERAL_ASSET_REFRESH_REQUIRED" : "INTENT_UNAVAILABLE",
       message: invalid ? "The signed intent is invalid."
         : invalidSignature ? "The owner signature is invalid."
           : balanceRequired
             ? "The owner needs a positive native balance on every execution chain."
             : snapshotUnavailable
               ? "Cobia could not capture a fresh X Layer market snapshot. Nothing was published; try again shortly."
-              : "The intent could not be published.",
+              : refreshRequired ? error.message : "The intent could not be published.",
       intentId,
-    }, { status: invalid || invalidSignature ? 400 : balanceRequired ? 409 : 503 });
+      ...(refreshRequired ? { refresh: { method: "POST", href: "/api/intents/compile" } } : {}),
+    }, { status: invalid || invalidSignature ? 400 : balanceRequired || refreshRequired ? 409 : 503 });
   }
 }

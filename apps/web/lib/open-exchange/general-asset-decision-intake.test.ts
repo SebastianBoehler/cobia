@@ -93,7 +93,9 @@ function claim(snapshotHash = commitment(decision.evidence)) {
 
 function intake(declaredCapabilities = ["general-asset@1"]) {
   return createOpenDecisionIntakeV1({
-    intents: { get: async () => ({ policy, state: "collecting" }) },
+    intents: { get: async () => ({ policy, state: "collecting",
+      generalAssetEvidenceHash: commitment(decision.evidence),
+      generalAssetEvidence: decision.evidence }) },
     snapshots: { get: mocks.snapshots },
     profiles: { identity: async () => ({ id: "general-solver", operatorKind: "community",
       attestationAddress: account.address.toLowerCase(), declaredCapabilities }) },
@@ -115,7 +117,8 @@ async function signed(snapshotHash?: `0x${string}`) {
 describe("general asset decision intake", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.verify.mockResolvedValue({ accepted: true, errorCodes: [] });
+    mocks.verify.mockResolvedValue({ accepted: true, errorCodes: [],
+      execution: { version: 4 }, authorization: { version: 4 } });
   });
 
   it("routes committed evidence without requesting a legacy snapshot", async () => {
@@ -132,7 +135,7 @@ describe("general asset decision intake", () => {
         blockHash: inputIdentity.blockHash }],
     }));
     expect(mocks.appendArtifact.mock.calls.map((call) => call[1])).toEqual([
-      "program", "evidence", "provenance", "verdict",
+      "program", "evidence", "provenance", "verdict", "execution", "authorization",
     ]);
   });
 
@@ -141,5 +144,14 @@ describe("general asset decision intake", () => {
     await expect(intake([]).submit(await signed())).rejects.toThrow(/general asset/i);
     expect(mocks.consume).not.toHaveBeenCalled();
     expect(mocks.createRun).not.toHaveBeenCalled();
+  });
+
+  it("never attests an accepted verdict without execution authority", async () => {
+    mocks.verify.mockResolvedValueOnce({ accepted: true, errorCodes: [] });
+    await expect(intake().submit(await signed())).resolves.toMatchObject({
+      state: "rejected", errorCodes: ["EXECUTION_ARTIFACT_MISSING"],
+    });
+    expect(mocks.resolve.mock.calls.map((call) => call[1])).toEqual(["rejected"]);
+    expect(mocks.completeRun).not.toHaveBeenCalled();
   });
 });

@@ -11,6 +11,7 @@ function draft(): GeneralAssetDraftV1 {
   return {
     kind: "general-asset-draft", templateId: "general-asset", displayGoal: "Swap random assets",
     sourceChainId: 196, destinationChainId: 1, manifestHash: hash("1"),
+    evidenceExpiresAtSec: 2_000_000_030,
     input: { token: inputToken, symbol: "IN", decimals: 18, maximumAtomic: "100",
       maximumUsdE8: "50000000000", identityHash: hash("2"), valuationHash: hash("3") },
     output: { token: outputToken, symbol: "OUT", decimals: 6,
@@ -37,7 +38,7 @@ describe("general asset composer policy", () => {
       input: { chainId: 196, token: inputToken, maximumAtomic: "100", maximumUsdE8: "50000000000" },
       outputs: [{ chainId: 1, token: outputToken, minimumAtomic: "90", identityHash: hash("4") }],
       inputIdentityHash: hash("2"), inputValuationHash: hash("3"),
-      competition: { closesAt: 2_000_000_300 }, deadline: 2_000_001_800,
+      competition: { closesAt: 2_000_000_030 }, deadline: 2_000_001_800,
       forbiddenTargets: [expect.objectContaining({ chainId: 196 })],
     });
     expect(intentComposerExecutionChainIds(values)).toEqual([1, 196]);
@@ -51,5 +52,14 @@ describe("general asset composer policy", () => {
       inputAtomic: null, minimumAtomic: null, nonce: hash("5"), nowSec: 2_000_000_000,
       displayGoal: values.displayGoal, excludedProtocols: [],
     })).toThrow("$1,000");
+  });
+
+  it("requires refreshed compilation evidence before signing an expired draft", () => {
+    const values = draft();
+    expect(() => buildIntentComposerPolicy({
+      values, requestId: "550e8400-e29b-41d4-a716-446655440099", owner,
+      inputAtomic: null, minimumAtomic: null, nonce: hash("5"), nowSec: values.evidenceExpiresAtSec,
+      displayGoal: values.displayGoal, excludedProtocols: [],
+    })).toThrow("Compilation evidence expired; refresh before signing.");
   });
 });

@@ -41,6 +41,7 @@ export interface WalletAuthRepository {
     actionPreference: string; nowSec: number }): Promise<CompilationAdmission>;
   completeCompilation(id: string, result: unknown, nowSec: number): Promise<void>;
   failCompilation(id: string, nowSec: number): Promise<void>;
+  readCompletedCompilation(value: { id: string; owner: Address; nowSec: number }): Promise<unknown | null>;
 }
 
 function digest(value: string): string {
@@ -124,5 +125,7 @@ export function createWalletAuthService(repository: WalletAuthRepository, depend
     },
     completeCompilation: (id: string, result: unknown) => repository.completeCompilation(id, result, now()),
     failCompilation: (id: string) => repository.failCompilation(id, now()),
+    readCompletedCompilation: (id: string, owner: Address) =>
+      repository.readCompletedCompilation({ id, owner, nowSec: now() }),
   };
 }

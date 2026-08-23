@@ -51,6 +51,8 @@ export async function GET(
       intent: {
         id: intent.id, owner: intent.owner, displayGoal: intent.displayGoal,
         policyHash: intent.policyHash, policy: intent.policy, ownerSignature: intent.ownerSignature,
+        generalAssetEvidenceHash: intent.generalAssetEvidenceHash,
+        generalAssetEvidence: intent.generalAssetEvidence,
         state: resolution.state,
         competitionClosesAt: intent.competitionClosesAt.toISOString(),
         selectedSubmissionId: resolution.selectedSubmissionId,

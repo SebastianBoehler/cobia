@@ -24,6 +24,7 @@ const base = {
   maximumInputUsdE8: "25000000000",
   minimumOutputAtomic: "900000",
   manifestHash: hash("3"),
+  evidenceExpiresAtSec: 2_000_000_030,
   candidates: [
     candidate({}),
     candidate({ chainId: 1, token: outputToken, symbol: "OUT", decimals: 6,

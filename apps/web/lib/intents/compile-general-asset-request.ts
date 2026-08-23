@@ -1,9 +1,11 @@
 import type { Address } from "viem";
-import { readGeneralAssetManifestHash, readOkxCredentials } from "../env";
+import { readGeneralAssetManifest, readOkxCredentials } from "../env";
 import { createOkxClient } from "../okx/client";
 import { createProductionGeneralAssetEligibilityV2 } from "../assets/production-general-asset-eligibility";
 import { compileGeneralAssetDraftV1, type GeneralAssetCandidateV1 } from "./general-asset-draft";
 import type { Hash } from "viem";
+import { commitment } from "@cobia/domain";
+import { GeneralAssetEvidenceArtifactV1Schema, type RegisteredAdapterManifestV1 } from "@cobia/solvers";
 
 interface Input {
   owner: Address;
@@ -15,13 +17,13 @@ interface Input {
 interface Dependencies {
   lookup: Pick<ReturnType<typeof createOkxClient>, "searchToken">;
   verifier: ReturnType<typeof createProductionGeneralAssetEligibilityV2>;
-  manifestHash: Hash;
+  manifest: RegisteredAdapterManifestV1;
 }
 
 export async function compileGeneralAssetRequestV1(input: Input, dependencies?: Dependencies) {
   const deps = dependencies ?? { lookup: createOkxClient({ credentials: readOkxCredentials() }),
     verifier: createProductionGeneralAssetEligibilityV2(),
-    manifestHash: readGeneralAssetManifestHash() };
+    manifest: readGeneralAssetManifest() };
   const inputToken = await deps.lookup.searchToken(input.input.chainId, input.input.address);
   const outputToken = await deps.lookup.searchToken(input.output.chainId, input.output.address);
   if (!inputToken || inputToken.token !== input.input.address ||
@@ -50,14 +52,25 @@ export async function compileGeneralAssetRequestV1(input: Input, dependencies?: 
     name: token!.name, decimals: token!.decimals, status: "eligible",
     identityHash: evidence.identityHash, valuationHash: evidence.valuationHash,
   });
-  return compileGeneralAssetDraftV1({ goal: input.goal, owner: input.owner,
+  const evidenceExpiresAtSec = Math.min(inputEvidence.identityEvidence.expiresAtSec,
+    outputEvidence.identityEvidence.expiresAtSec, inputEvidence.valuationEvidence.expiresAtSec);
+  const result = compileGeneralAssetDraftV1({ goal: input.goal, owner: input.owner,
     selection: { input: { chainId: input.input.chainId, token: input.input.address },
       output: { chainId: input.output.chainId, token: input.output.address } },
     maximumInputAtomic: input.input.maximumAtomic,
     maximumInputUsdE8: inputEvidence.valuationEvidence.conservativeValueUsdE8,
     minimumOutputAtomic: input.output.minimumAtomic,
-    manifestHash: deps.manifestHash,
+    manifestHash: commitment(deps.manifest) as Hash,
+    evidenceExpiresAtSec,
     candidates: [candidate(inputToken, inputEvidence),
       candidate(outputToken, outputEvidence as typeof inputEvidence)],
   });
+  if (result.status !== "review") return result;
+  const identities = [inputEvidence.identityEvidence, outputEvidence.identityEvidence]
+    .filter((value, index, values) => values.findIndex((candidate) =>
+      commitment(candidate) === commitment(value)) === index);
+  const generalAssetEvidence = GeneralAssetEvidenceArtifactV1Schema.parse({ version: 1,
+    kind: "general-asset-evidence", identities, valuations: [inputEvidence.valuationEvidence],
+    manifest: deps.manifest });
+  return { ...result, generalAssetEvidence, evidenceExpiresAtSec };
 }

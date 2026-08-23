@@ -126,7 +126,8 @@ export async function POST(request: Request): Promise<Response> {
     }
     leaseId = admission.id;
     if (generalAsset) {
-      const result = await compileGeneralAssetRequestV1({ owner, goal, ...generalAsset });
+      const compiled = await compileGeneralAssetRequestV1({ owner, goal, ...generalAsset });
+      const result = compiled.status === "review" ? { ...compiled, compilationLeaseId: leaseId } : compiled;
       await auth.completeCompilation(leaseId, result);
       return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
     }

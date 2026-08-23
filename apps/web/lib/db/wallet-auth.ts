@@ -115,5 +115,14 @@ export function createWalletAuthRepository(db: CobiaDatabase): WalletAuthReposit
       await db.update(cobiaIntentCompileAttempts).set({ state: "failed", completedAt: date(nowSec) })
         .where(and(eq(cobiaIntentCompileAttempts.id, id), eq(cobiaIntentCompileAttempts.state, "pending")));
     },
+
+    async readCompletedCompilation({ id, owner, nowSec }) {
+      const row = await db.query.cobiaIntentCompileAttempts.findFirst({
+        where: and(eq(cobiaIntentCompileAttempts.id, id), eq(cobiaIntentCompileAttempts.owner, owner),
+          eq(cobiaIntentCompileAttempts.state, "completed"),
+          gt(cobiaIntentCompileAttempts.completedAt, date(nowSec - CACHE_LIFETIME_SEC))),
+      });
+      return row?.result ?? null;
+    },
   };
 }

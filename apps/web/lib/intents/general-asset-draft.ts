@@ -23,6 +23,7 @@ export interface GeneralAssetDraftV1 {
   sourceChainId: 1 | 196;
   destinationChainId: 1 | 196;
   manifestHash: Hash;
+  evidenceExpiresAtSec: number;
   input: {
     token: Address;
     symbol: string;
@@ -106,6 +107,7 @@ export function compileGeneralAssetDraftV1(input: {
   maximumInputUsdE8: string;
   minimumOutputAtomic: string;
   manifestHash: Hash;
+  evidenceExpiresAtSec: number;
   candidates: readonly GeneralAssetCandidateV1[];
 }): GeneralAssetDraftResultV1 {
   if (![input.maximumInputAtomic, input.maximumInputUsdE8, input.minimumOutputAtomic]
@@ -135,6 +137,7 @@ export function compileGeneralAssetDraftV1(input: {
     sourceChainId: inputAsset.chainId,
     destinationChainId: outputAsset.chainId,
     manifestHash: input.manifestHash,
+    evidenceExpiresAtSec: input.evidenceExpiresAtSec,
     input: {
       token: inputAsset.token.toLowerCase() as Address,
       symbol: inputAsset.symbol,

@@ -50,6 +50,13 @@ describe("wallet authentication repository", () => {
     if (!first || first.kind !== "run") throw new Error("Missing compilation lease");
     const firstGoalHash = admissions[0]?.kind === "run" ? "01".repeat(32) : "02".repeat(32);
     await auth.completeCompilation(first.id, { status: "review" }, nowSec + 1);
+    await expect(auth.readCompletedCompilation({ id: first.id, owner, nowSec: nowSec + 2 }))
+      .resolves.toEqual({ status: "review" });
+    await expect(auth.readCompletedCompilation({ id: first.id,
+      owner: "0x2222222222222222222222222222222222222222", nowSec: nowSec + 2 }))
+      .resolves.toBeNull();
+    await expect(auth.readCompletedCompilation({ id: first.id, owner, nowSec: nowSec + 302 }))
+      .resolves.toBeNull();
     await expect(auth.beginCompilation({ ...base, goalHash: firstGoalHash, nowSec: nowSec + 2 }))
       .resolves.toEqual({ kind: "cached", result: { status: "review" } });
 

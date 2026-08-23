@@ -13,6 +13,7 @@ function values(): GeneralAssetDraftV1 {
   return {
     kind: "general-asset-draft", templateId: "general-asset", displayGoal: "Swap tokens",
     sourceChainId: 196, destinationChainId: 1, manifestHash: hash("1"),
+    evidenceExpiresAtSec: 2_000_000_030,
     input: { token: inputToken, symbol: "IN", decimals: 18, maximumAtomic: "100",
       maximumUsdE8: "50000000000", identityHash: hash("2"), valuationHash: hash("3") },
     output: { token: outputToken, symbol: "OUT", decimals: 6,

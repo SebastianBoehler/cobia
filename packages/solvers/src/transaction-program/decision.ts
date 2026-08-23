@@ -59,6 +59,7 @@ export const GeneralAssetEvidenceArtifactV1Schema = z.object({
   valuations: z.array(AssetValuationEvidenceV1Schema).min(1).max(16),
   manifest: RegisteredAdapterManifestV1Schema,
 }).strict();
+export type GeneralAssetEvidenceArtifactV1 = z.infer<typeof GeneralAssetEvidenceArtifactV1Schema>;
 
 function sameHashSet(left: readonly string[], right: readonly string[]): boolean {
   const expected = [...right].sort();

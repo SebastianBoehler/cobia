@@ -17,6 +17,7 @@ vi.mock("../../../lib/runtime/market", () => ({
   publishGeneralAssetIntent: mocks.publishGeneralAsset,
   OwnerBalanceRequiredError: class OwnerBalanceRequiredError extends Error {},
   IntentSnapshotUnavailableError: class IntentSnapshotUnavailableError extends Error {},
+  GeneralAssetRefreshRequiredError: class GeneralAssetRefreshRequiredError extends Error {},
   ActiveManifestMismatchError: class ActiveManifestMismatchError extends Error {},
 }));
 
@@ -88,11 +89,14 @@ async function signedCompositionRequest() {
   });
 }
 
-async function signedGeneralAssetRequest(value = generalAssetPolicy) {
+const compilationLeaseId = "550e8400-e29b-41d4-a716-446655440077";
+
+async function signedGeneralAssetRequest(value = generalAssetPolicy, includeLease = true) {
   const ownerSignature = await account.signMessage({ message: { raw: commitment(value) } });
   return new Request("https://cobia.example/api/intents", { method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ policy: value, ownerSignature }) });
+    body: JSON.stringify({ policy: value, ownerSignature,
+      ...(includeLease ? { compilationLeaseId } : {}) }) });
 }
 
 describe("general intent competition API", () => {
@@ -183,8 +187,31 @@ describe("general intent competition API", () => {
 
     expect(response.status).toBe(202);
     expect(mocks.publishGeneralAsset).toHaveBeenCalledWith(expect.objectContaining({
-      policy: generalAssetPolicy,
+      policy: generalAssetPolicy, compilationLeaseId,
     }));
+  });
+
+  it("rejects a general asset publication without its server compilation receipt", async () => {
+    const response = await POST(await signedGeneralAssetRequest(generalAssetPolicy, false));
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ code: "INVALID_INTENT" });
+    expect(mocks.publishGeneralAsset).not.toHaveBeenCalled();
+  });
+
+  it("returns an explicit refresh request when the compilation receipt expired", async () => {
+    const { GeneralAssetRefreshRequiredError } = await import("../../../lib/runtime/market");
+    mocks.publishGeneralAsset.mockRejectedValueOnce(new GeneralAssetRefreshRequiredError(
+      "General asset compilation evidence expired; refresh before signing",
+    ));
+
+    const response = await POST(await signedGeneralAssetRequest());
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "GENERAL_ASSET_REFRESH_REQUIRED",
+      refresh: { method: "POST", href: "/api/intents/compile" },
+    });
   });
 
   it("rejects a general asset policy without output identity evidence", async () => {
