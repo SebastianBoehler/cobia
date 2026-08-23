@@ -67,7 +67,8 @@ function validFixture(): VerifyAssetEvidenceInput {
         {
           adapter: { id: "lifi.quote", version: 1 },
           outputAtomic: "1000000",
-          referenceValueUsdE8: "100000000",
+          assetDecimals: 18,
+          unitPriceUsdE8: "100000000",
           liquidityUsdE8: "500000000000",
           priceImpactBps: 20,
           fetchedAtSec: 2_000_000_000,
@@ -77,7 +78,8 @@ function validFixture(): VerifyAssetEvidenceInput {
         {
           adapter: { id: "okx.quote", version: 1 },
           outputAtomic: "1002000",
-          referenceValueUsdE8: "100200000",
+          assetDecimals: 18,
+          unitPriceUsdE8: "100200000",
           liquidityUsdE8: "600000000000",
           priceImpactBps: 25,
           fetchedAtSec: 2_000_000_000,
@@ -102,6 +104,29 @@ describe("general asset evidence", () => {
     if (!result.accepted) throw new Error("Expected accepted evidence");
     expect(result.identityEvidence.token).toBe(token);
     expect(result.valuationEvidence.conservativeValueUsdE8).toBe("100200000");
+  });
+
+  it("derives USD exposure from atomic input and the normalized unit price", async () => {
+    const input = validFixture();
+    input.valuation.quotes = [{
+      ...input.valuation.quotes[0]!,
+      unitPriceUsdE8: "250000000",
+      referenceValueUsdE8: "1",
+    } as unknown as typeof input.valuation.quotes[number]];
+
+    const result = await verifyAssetEvidenceV1(input);
+
+    expect(result.accepted).toBe(true);
+    if (!result.accepted) throw new Error("Expected accepted evidence");
+    expect(result.valuationEvidence.conservativeValueUsdE8).toBe("250000000");
+    expect(result.valuationEvidence.quotes[0]!.referenceValueUsdE8).toBe("250000000");
+  });
+
+  it("rejects zero normalized unit prices with a stable error", async () => {
+    const input = validFixture();
+    input.valuation.quotes[0]!.unitPriceUsdE8 = "0";
+
+    expect(await codes(input)).toContain("VALUATION_PRICE_INVALID");
   });
 
   it("rejects runtime and proxy implementation drift", async () => {
@@ -176,7 +201,7 @@ describe("general asset evidence", () => {
     expect(await codes(expired)).toContain("VALUATION_QUOTE_EXPIRED");
 
     const disagreement = validFixture();
-    disagreement.valuation.quotes[1]!.referenceValueUsdE8 = "120000000";
+    disagreement.valuation.quotes[1]!.unitPriceUsdE8 = "120000000";
     expect(await codes(disagreement)).toContain("VALUATION_PRICE_DISAGREEMENT");
 
     const untrusted = validFixture();

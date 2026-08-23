@@ -8,7 +8,8 @@ import type { GeneralAsset } from "./identity";
 export interface ExecutableValuationQuoteV1 {
   adapter: { id: string; version: number };
   outputAtomic: string;
-  referenceValueUsdE8: string;
+  assetDecimals: number;
+  unitPriceUsdE8: string;
   liquidityUsdE8: string;
   priceImpactBps: number;
   fetchedAtSec: number;
@@ -36,6 +37,15 @@ function sameAsset(left: GeneralAsset, right: GeneralAsset): boolean {
   return left.chainId === right.chainId && left.token === right.token;
 }
 
+function valueUsdE8(inputAtomic: string, unitPriceUsdE8: string, decimals: number): bigint {
+  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 36) {
+    throw new Error("Valuation asset decimals are invalid");
+  }
+  const denominator = 10n ** BigInt(decimals);
+  const numerator = BigInt(inputAtomic) * BigInt(unitPriceUsdE8);
+  return (numerator + denominator - 1n) / denominator;
+}
+
 export function verifyExecutableValuationV1(
   requestedAsset: GeneralAsset,
   valuation: AssetValuationInputV1,
@@ -60,9 +70,19 @@ export function verifyExecutableValuationV1(
     if (BigInt(quote.liquidityUsdE8) < BigInt(valuation.minimumLiquidityUsdE8)) {
       errors.add("VALUATION_LIQUIDITY_INSUFFICIENT");
     }
+    if (!Number.isInteger(quote.assetDecimals) || quote.assetDecimals < 0 ||
+        quote.assetDecimals > 36 || BigInt(quote.unitPriceUsdE8) <= 0n) {
+      errors.add("VALUATION_PRICE_INVALID");
+    }
   }
 
-  const values = valuation.quotes.map(({ referenceValueUsdE8 }) => BigInt(referenceValueUsdE8));
+  if (errors.has("VALUATION_PRICE_INVALID")) return { errorCodes: [...errors].sort() };
+
+  const evidenceQuotes = valuation.quotes.map(({ assetDecimals, unitPriceUsdE8, ...quote }) => ({
+    ...quote,
+    referenceValueUsdE8: valueUsdE8(valuation.inputAtomic, unitPriceUsdE8, assetDecimals).toString(),
+  }));
+  const values = evidenceQuotes.map(({ referenceValueUsdE8 }) => BigInt(referenceValueUsdE8));
   if (values.length > 1) {
     const minimum = values.reduce((left, right) => left < right ? left : right);
     const maximum = values.reduce((left, right) => left > right ? left : right);
@@ -82,7 +102,7 @@ export function verifyExecutableValuationV1(
       inputAtomic: valuation.inputAtomic,
       conservativeValueUsdE8,
       maximumDisagreementBps: valuation.maximumDisagreementBps,
-      quotes: valuation.quotes,
+      quotes: evidenceQuotes,
       capturedAtSec,
       expiresAtSec: evidenceExpiresAtSec,
     }),

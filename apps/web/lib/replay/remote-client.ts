@@ -1,4 +1,9 @@
-import type { CapabilityProgramReplayResultV2, CompiledCapabilityActionV1 } from "@cobia/solvers";
+import type {
+  CapabilityProgramReplayResultV2,
+  CompiledCapabilityActionV1,
+  PlainErc20ProbeV1,
+} from "@cobia/solvers";
+import type { Address } from "viem";
 
 type TransactionReplayResult = Awaited<ReturnType<
   typeof import("../open-exchange/transaction-fork-replay").replayOpenTransactionProgramV1
@@ -49,4 +54,14 @@ export function replayCapabilityRemotely(input: {
   compiled: readonly CompiledCapabilityActionV1[];
 }) {
   return post<CapabilityProgramReplayResultV2>("/v1/replays/capability", input);
+}
+
+export function replayAssetEvidenceRemotely(input: {
+  chainId: 1 | 196;
+  blockNumber: string;
+  token: Address;
+  source: Address;
+  probeAtomic: string;
+}) {
+  return post<PlainErc20ProbeV1>("/v1/replays/asset-evidence", input);
 }

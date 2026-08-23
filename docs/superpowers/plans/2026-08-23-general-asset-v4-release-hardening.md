@@ -26,6 +26,11 @@
 ### Task 1: Server-owned OKX valuation and production asset eligibility
 
 **Files:**
+- Create: `apps/replay-service/src/asset-evidence.ts`
+- Test: `apps/replay-service/src/asset-evidence.test.ts`
+- Modify: `apps/replay-service/src/index.ts`
+- Modify: `apps/web/lib/replay/remote-client.ts`
+- Test: `apps/web/lib/replay/remote-client.test.ts`
 - Create: `apps/web/lib/assets/okx-general-asset-eligibility.ts`
 - Test: `apps/web/lib/assets/okx-general-asset-eligibility.test.ts`
 - Modify: `packages/solvers/src/general-assets/valuation.ts`
@@ -34,7 +39,7 @@
 - Test: `apps/web/app/api/assets/resolve/route.test.ts`
 
 **Interfaces:**
-- Consumes: authenticated `OkxClient.searchToken(chainId, address)`, pinned chain readers, and plain-ERC20 behavior replay.
+- Consumes: authenticated `OkxClient.searchToken(chainId, address)`, canonical RPC reads, and the authenticated Anvil replay service for plain-ERC20 behavior replay.
 - Produces: `createOkxGeneralAssetEligibilityV2(deps)` with `eligibility(asset): Promise<GeneralAssetEligibilityV2>` and normalized evidence whose USD value is computed server-side.
 
 - [ ] **Step 1: Write a failing valuation test** proving a provider/solver-supplied `referenceValueUsdE8` cannot understate `ceil(inputAtomic * priceUsdE8 / 10^decimals)` and that zero or stale price/liquidity fails closed.
@@ -43,9 +48,10 @@
 - [ ] **Step 4: Run GREEN:** rerun the focused solver test and `pnpm --filter @cobia/solvers typecheck`.
 - [ ] **Step 5: Write failing eligibility tests** proving exact chain/address identity, proxy/runtime drift, unsupported token behavior, stale OKX evidence, and insufficient liquidity return explicit non-eligible states.
 - [ ] **Step 6: Run RED:** `pnpm --filter @cobia/web exec vitest run lib/assets/okx-general-asset-eligibility.test.ts app/api/assets/resolve/route.test.ts`; expect the production route to return `verification_pending` because it supplies no verifier.
-- [ ] **Step 7: Implement `createOkxGeneralAssetEligibilityV2`** and inject it from the production route using canonical RPC configuration and authenticated OKX credentials. Cache only complete evidence until its committed expiry.
-- [ ] **Step 8: Run GREEN:** rerun both web tests, web typecheck, and focused ESLint.
-- [ ] **Step 9: Commit:** stage only Task 1 files and commit `feat(assets): verify arbitrary tokens with okx evidence`.
+- [ ] **Step 7: Add `/v1/replays/asset-evidence`** to the existing authenticated replay service and `replayAssetEvidenceRemotely()` to the web client. The service owns the disposable pinned Anvil process; Vercel receives only bounded evidence and never an RPC handle.
+- [ ] **Step 8: Implement `createOkxGeneralAssetEligibilityV2`** and inject it from the production route using canonical RPC configuration, authenticated OKX credentials, and the remote replay client. Cache only complete evidence until its committed expiry.
+- [ ] **Step 9: Run GREEN:** rerun replay-service and web tests, both typechecks, and focused ESLint.
+- [ ] **Step 10: Commit:** stage only Task 1 files and commit `feat(assets): verify arbitrary tokens with okx evidence`.
 
 ### Task 2: Public GeneralAssetPolicy publication and execution context
 

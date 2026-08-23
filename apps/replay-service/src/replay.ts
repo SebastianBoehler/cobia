@@ -7,6 +7,7 @@ import { replayOpenTransactionProgramV1 } from
   "../../web/lib/open-exchange/transaction-fork-replay";
 import { z } from "zod";
 import { rpcForChain, type ReplayServiceConfig } from "./config";
+import { AssetEvidenceReplaySchema, probePlainErc20OnFork } from "./asset-evidence";
 
 const ChainIdSchema = z.union([z.literal(1), z.literal(196), z.literal(8453)]);
 const TransactionReplaySchema = z.object({
@@ -54,4 +55,31 @@ export async function replayCapability(body: unknown, config: ReplayServiceConfi
   } finally {
     await fork.stop();
   }
+}
+
+export async function replayAssetEvidence(
+  body: unknown,
+  config: ReplayServiceConfig,
+  startFork: typeof startLocalAnvilFork = startLocalAnvilFork,
+) {
+  const input = AssetEvidenceReplaySchema.parse(body);
+  const fork = await startFork({ upstreamRpc: rpcForChain(config, input.chainId),
+    blockNumber: input.blockNumber, chainId: input.chainId });
+  try {
+    return await probePlainErc20OnFork(input, fork.rpc);
+  } finally {
+    await fork.stop();
+  }
+}
+
+export async function replayAtPath(
+  path: string,
+  body: unknown,
+  config: ReplayServiceConfig,
+  startFork: typeof startLocalAnvilFork = startLocalAnvilFork,
+) {
+  if (path === "/v1/replays/transaction") return replayTransaction(body, config);
+  if (path === "/v1/replays/capability") return replayCapability(body, config);
+  if (path === "/v1/replays/asset-evidence") return replayAssetEvidence(body, config, startFork);
+  throw new Error("Unknown replay path");
 }

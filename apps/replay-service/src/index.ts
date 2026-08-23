@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { authorized } from "./auth";
 import { readReplayServiceConfig } from "./config";
-import { replayCapability, replayTransaction } from "./replay";
+import { replayAtPath } from "./replay";
 
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const config = readReplayServiceConfig();
@@ -29,7 +29,8 @@ const server = createServer(async (request, response) => {
     return json(response, 200, { ok: true, active, capacity: config.REPLAY_MAX_CONCURRENCY });
   }
   if (request.method !== "POST" ||
-      !["/v1/replays/transaction", "/v1/replays/capability"].includes(request.url ?? "")) {
+      !["/v1/replays/transaction", "/v1/replays/capability", "/v1/replays/asset-evidence"]
+        .includes(request.url ?? "")) {
     return json(response, 404, { error: "not_found" });
   }
   if (!authorized(request.headers.authorization, config.REPLAY_SERVICE_SECRET)) {
@@ -41,9 +42,7 @@ const server = createServer(async (request, response) => {
   active += 1;
   try {
     const input = await body(request);
-    const result = request.url === "/v1/replays/transaction"
-      ? await replayTransaction(input, config)
-      : await replayCapability(input, config);
+    const result = await replayAtPath(request.url!, input, config);
     return json(response, 200, result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Replay failed";
