@@ -1,9 +1,12 @@
 import type {
   CapabilityProgramReplayResultV2,
+  CompiledGeneralAssetStageV1,
   CompiledCapabilityActionV1,
+  GeneralAssetStageReplayV1,
   PlainErc20ProbeV1,
 } from "@cobia/solvers";
-import type { Address } from "viem";
+import type { GeneralAssetStageV1 } from "@cobia/domain";
+import type { Address, Hash } from "viem";
 
 type TransactionReplayResult = Awaited<ReturnType<
   typeof import("../open-exchange/transaction-fork-replay").replayOpenTransactionProgramV1
@@ -64,4 +67,16 @@ export function replayAssetEvidenceRemotely(input: {
   probeAtomic: string;
 }) {
   return post<PlainErc20ProbeV1>("/v1/replays/asset-evidence", input);
+}
+
+export function replayGeneralAssetStageRemotely(input: {
+  chainId: 1 | 196;
+  blockNumber: string;
+  blockHash: Hash;
+  owner: Address;
+  executor: Address;
+  stage: GeneralAssetStageV1;
+  compiled: CompiledGeneralAssetStageV1;
+}) {
+  return post<GeneralAssetStageReplayV1>("/v1/replays/general-asset-stage", input);
 }

@@ -26,7 +26,7 @@ const DeliverySchema = z.discriminatedUnion("kind", [
   }).strict(),
 ]);
 
-const GeneralAssetStageV1Schema = z.object({
+export const GeneralAssetStageV1Schema = z.object({
   stageId: NonZeroHashSchema,
   index: z.number().int().min(0).max(7),
   chainId: GeneralAssetChainIdSchema,

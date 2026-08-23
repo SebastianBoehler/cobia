@@ -8,6 +8,10 @@ import { replayOpenTransactionProgramV1 } from
 import { z } from "zod";
 import { rpcForChain, type ReplayServiceConfig } from "./config";
 import { AssetEvidenceReplaySchema, probePlainErc20OnFork } from "./asset-evidence";
+import {
+  GeneralAssetStageReplayRequestSchema,
+  replayGeneralAssetStageOnFork,
+} from "./general-asset-stage";
 
 const ChainIdSchema = z.union([z.literal(1), z.literal(196), z.literal(8453)]);
 const TransactionReplaySchema = z.object({
@@ -72,6 +76,17 @@ export async function replayAssetEvidence(
   }
 }
 
+export async function replayGeneralAssetStage(body: unknown, config: ReplayServiceConfig) {
+  const input = GeneralAssetStageReplayRequestSchema.parse(body);
+  const fork = await startLocalAnvilFork({ upstreamRpc: rpcForChain(config, input.chainId),
+    blockNumber: input.blockNumber, chainId: input.chainId });
+  try {
+    return await replayGeneralAssetStageOnFork(input, fork.rpc);
+  } finally {
+    await fork.stop();
+  }
+}
+
 export async function replayAtPath(
   path: string,
   body: unknown,
@@ -81,5 +96,6 @@ export async function replayAtPath(
   if (path === "/v1/replays/transaction") return replayTransaction(body, config);
   if (path === "/v1/replays/capability") return replayCapability(body, config);
   if (path === "/v1/replays/asset-evidence") return replayAssetEvidence(body, config, startFork);
+  if (path === "/v1/replays/general-asset-stage") return replayGeneralAssetStage(body, config);
   throw new Error("Unknown replay path");
 }

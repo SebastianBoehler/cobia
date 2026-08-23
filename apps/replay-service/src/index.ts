@@ -29,7 +29,8 @@ const server = createServer(async (request, response) => {
     return json(response, 200, { ok: true, active, capacity: config.REPLAY_MAX_CONCURRENCY });
   }
   if (request.method !== "POST" ||
-      !["/v1/replays/transaction", "/v1/replays/capability", "/v1/replays/asset-evidence"]
+      !["/v1/replays/transaction", "/v1/replays/capability", "/v1/replays/asset-evidence",
+        "/v1/replays/general-asset-stage"]
         .includes(request.url ?? "")) {
     return json(response, 404, { error: "not_found" });
   }

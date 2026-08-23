@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { replayAssetEvidenceRemotely, replayCapabilityRemotely } from "./remote-client";
+import {
+  replayAssetEvidenceRemotely,
+  replayCapabilityRemotely,
+  replayGeneralAssetStageRemotely,
+} from "./remote-client";
 
 describe("remote replay client", () => {
   afterEach(() => {
@@ -45,5 +49,18 @@ describe("remote replay client", () => {
         chainId: 196, blockNumber: "123", token,
         source: "0x2222222222222222222222222222222222222222", probeAtomic: "1000",
       }) }));
+  });
+
+  it("sends exact general-asset stages only to the authenticated replay service", async () => {
+    const fetch = vi.fn(async () => new Response(JSON.stringify({ success: true }), { status: 200 }));
+    vi.stubGlobal("fetch", fetch);
+    vi.stubEnv("REPLAY_SERVICE_ORIGIN", "https://api.cobia.example");
+    vi.stubEnv("REPLAY_SERVICE_SECRET", "s".repeat(32));
+    const address = "0x1111111111111111111111111111111111111111" as const;
+    const hash = `0x${"11".repeat(32)}` as const;
+    await replayGeneralAssetStageRemotely({ chainId: 196, blockNumber: "123", blockHash: hash,
+      owner: address, executor: address, stage: {} as never, compiled: {} as never });
+    expect(fetch).toHaveBeenCalledWith(new URL("https://api.cobia.example/v1/replays/general-asset-stage"),
+      expect.objectContaining({ method: "POST" }));
   });
 });
