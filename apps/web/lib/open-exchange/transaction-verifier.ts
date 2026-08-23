@@ -1,9 +1,10 @@
 import { OpenIntentPolicyV3Schema, OpenIntentSnapshotV1Schema } from "@cobia/domain";
 import {
-  verifyOpenTransactionProgramV1, verifyRawWalletStageV1,
-  type TransactionProgramEvidenceV1,
+  TransactionProgramEvidenceV1Schema, XLAYER_OKX_MANIFEST_V1,
+  verifyOkxSwapStageV1, verifyOpenTransactionProgramV1, verifyRawWalletStageV1,
+  type OkxSwapSimulationV1, type TransactionProgramEvidenceV1,
 } from "@cobia/solvers";
-import { keccak256, type Address, type Hash, type Hex } from "viem";
+import { isAddressEqual, keccak256, type Address, type Hash, type Hex } from "viem";
 import { verifyRegisteredInstrumentIdentityV1 } from "../instruments/verify-identity";
 
 export interface OpenProposalVerificationClientV1 {
@@ -11,6 +12,48 @@ export interface OpenProposalVerificationClientV1 {
   getCode(input: { address: Address; blockNumber: bigint }): Promise<Hex | undefined>;
   readAllowance(input: { token: Address; owner: Address; spender: Address; blockNumber: bigint }):
     Promise<bigint>;
+}
+
+interface OkxStageProjectionV1 {
+  id: string;
+  sender: Address;
+  input: { token: Address };
+  output: { token: Address };
+  approval?: { token: Address; spender: Address };
+  transaction: { dataHash: Hash };
+}
+
+export function okxSimulationFromEvidenceV1(
+  stage: OkxStageProjectionV1,
+  evidence: TransactionProgramEvidenceV1,
+): OkxSwapSimulationV1 | undefined {
+  const simulation = evidence.simulations.find(({ stageId }) => stageId === stage.id);
+  if (!simulation) return undefined;
+  const ownerDeltas = simulation.assetDeltas.filter(({ account }) =>
+    isAddressEqual(account, stage.sender));
+  const delta = (token: Address) => ownerDeltas.find((item) =>
+    isAddressEqual(item.token, token))?.deltaAtomic;
+  const inputDelta = BigInt(delta(stage.input.token) ?? "0");
+  const outputDelta = BigInt(delta(stage.output.token) ?? "0");
+  const allowance = stage.approval ? simulation.allowanceDeltas.find((item) =>
+    isAddressEqual(item.token, stage.approval!.token) &&
+    isAddressEqual(item.owner, stage.sender) &&
+    isAddressEqual(item.spender, stage.approval!.spender)) : undefined;
+  return {
+    reproduced: true,
+    transactionSuccess: simulation.success,
+    completeOwnerAssetDiff: simulation.completeAssetCoverage,
+    transactionDataHash: simulation.transactionDataHash,
+    gasUsed: simulation.gasUsed,
+    observedInputDecreaseAtomic: inputDelta < 0n ? (-inputDelta).toString() : "0",
+    observedOutputIncreaseAtomic: outputDelta > 0n ? outputDelta.toString() : "0",
+    unexpectedOwnerAssetDecreases: ownerDeltas.filter(({ token, deltaAtomic }) =>
+      BigInt(deltaAtomic) < 0n && !isAddressEqual(token, stage.input.token))
+      .map(({ token }) => token).sort(),
+    residualAllowanceAtomic: stage.approval ? allowance?.afterAtomic ?? "1" : "0",
+    traceHash: simulation.traceHash,
+    stateDiffHash: simulation.stateDiffHash,
+  };
 }
 
 export async function verifyOpenStagedProposalV1(input: {
@@ -23,6 +66,7 @@ export async function verifyOpenStagedProposalV1(input: {
 }) {
   const policy = OpenIntentPolicyV3Schema.parse(input.policy);
   const snapshot = OpenIntentSnapshotV1Schema.parse(input.snapshot);
+  const suppliedEvidence = TransactionProgramEvidenceV1Schema.safeParse(input.evidence);
   const client = (chainId: 1 | 196 | 8453) => {
     const value = dependencies.clients[chainId];
     if (!value) throw new Error(`Chain ${chainId} verifier client is unavailable`);
@@ -56,7 +100,7 @@ export async function verifyOpenStagedProposalV1(input: {
       return codeHash(chainId, address, BigInt(blockNumber));
     },
     async verifyProviderStage({ stage, artifact, anchor }) {
-      if (stage.provider !== "evm.raw@1") {
+      if (stage.provider !== "evm.raw@1" && stage.provider !== "okx.dex@1") {
         return { accepted: false as const, errorCodes: ["PROVIDER_UNSUPPORTED"] };
       }
       let currentAllowanceAtomic = "0";
@@ -66,7 +110,23 @@ export async function verifyOpenStagedProposalV1(input: {
           blockNumber: BigInt(anchor.blockNumber),
         })).toString();
       }
-      return verifyRawWalletStageV1({ stage, artifact: artifact.payload, currentAllowanceAtomic });
+      if (stage.provider === "evm.raw@1") {
+        return verifyRawWalletStageV1({ stage, artifact: artifact.payload, currentAllowanceAtomic });
+      }
+      const simulation = suppliedEvidence.success
+        ? okxSimulationFromEvidenceV1(stage, suppliedEvidence.data) : undefined;
+      if (!simulation) return { accepted: false as const, errorCodes: ["OKX_EVIDENCE_MISSING"] };
+      return verifyOkxSwapStageV1({ stage, artifact: artifact.payload,
+        manifest: XLAYER_OKX_MANIFEST_V1, anchor, nowSec: input.nowSec,
+        currentAllowanceAtomic,
+        confirmAnchor: async (candidate) => {
+          const block = await client(196).getBlock({ blockNumber: BigInt(candidate.blockNumber) });
+          return block.hash?.toLowerCase() === candidate.blockHash.toLowerCase();
+        },
+        getCodeHash: async (chainId, address, blockNumber) =>
+          codeHash(chainId, address, BigInt(blockNumber)),
+        simulate: async () => simulation,
+      });
     },
     replay: ({ program, evidence, providerArtifacts }) => dependencies.replay({
       program, evidence, providerArtifacts, snapshot,

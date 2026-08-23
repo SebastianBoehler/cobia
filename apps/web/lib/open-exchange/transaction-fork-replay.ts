@@ -4,6 +4,8 @@ import {
 import {
   ProviderArtifactsV1Schema,
   TransactionProgramEvidenceV1Schema,
+  XLAYER_OKX_MANIFEST_V1,
+  authorizeOkxSwapStageV1,
   verifyRawWalletStageV1,
 } from "@cobia/solvers";
 import {
@@ -14,6 +16,7 @@ import {
 type Rpc = (method: string, params?: readonly unknown[]) => Promise<unknown>;
 type Log = { address: Address; data: Hex; topics: Hash[] };
 type Receipt = { status: Hex; gasUsed: Hex; logs: Log[] };
+type CallTrace = { from?: Address; to?: Address; value?: Hex; calls?: CallTrace[] };
 const TRANSFER = toEventSelector("Transfer(address,address,uint256)").toLowerCase();
 const APPROVAL = toEventSelector("Approval(address,address,uint256)").toLowerCase();
 const GAS_BALANCE = "0x56bc75e2d63100000";
@@ -33,10 +36,23 @@ async function receipt(rpc: Rpc, hash: Hash): Promise<Receipt> {
 }
 
 async function tokenBalance(rpc: Rpc, token: Address, owner: Address): Promise<bigint> {
+  if (isNativeAssetAddress(token)) {
+    const value = await rpc("eth_getBalance", [owner, "latest"]);
+    if (typeof value !== "string") throw new Error("Fork native balance is invalid");
+    return BigInt(value);
+  }
   const value = await rpc("eth_call", [{ to: token,
     data: encodeFunctionData({ abi: erc20Abi, functionName: "balanceOf", args: [owner] }) }, "latest"]);
   if (typeof value !== "string") throw new Error("Fork token balance is invalid");
   return decodeFunctionResult({ abi: erc20Abi, functionName: "balanceOf", data: value as Hex });
+}
+
+function nativeOwnerFlow(trace: CallTrace, owner: Address): bigint {
+  const value = trace.value ? BigInt(trace.value) : 0n;
+  const fromOwner = trace.from?.toLowerCase() === owner;
+  const toOwner = trace.to?.toLowerCase() === owner;
+  return (toOwner ? value : 0n) - (fromOwner ? value : 0n) +
+    (trace.calls ?? []).reduce((sum, call) => sum + nativeOwnerFlow(call, owner), 0n);
 }
 
 async function allowance(rpc: Rpc, token: Address, owner: Address, spender: Address): Promise<bigint> {
@@ -100,16 +116,22 @@ export async function captureOpenTransactionProgramSimulationsV1(input: {
       if (stage.kind !== "wallet-transaction") continue;
       const anchor = snapshot.anchors.find(({ chainId }) => chainId === stage.chainId);
       const artifact = artifacts.artifacts.find(({ stageId }) => stageId === stage.id);
-      if (!anchor || !artifact || artifact.provider !== "evm.raw@1") throw new Error("Fork provider is unsupported");
+      if (!anchor || !artifact) throw new Error("Fork provider artifact is unavailable");
       const current = stage.approval
         ? await allowance(input.rpc, stage.approval.token, owner, stage.approval.spender) : 0n;
-      const verified = verifyRawWalletStageV1({ stage, artifact: artifact.payload,
-        currentAllowanceAtomic: current.toString() });
+      const verified = artifact.provider === "evm.raw@1"
+        ? verifyRawWalletStageV1({ stage, artifact: artifact.payload,
+          currentAllowanceAtomic: current.toString() })
+        : artifact.provider === "okx.dex@1"
+          ? authorizeOkxSwapStageV1({ stage, artifact: artifact.payload,
+            manifest: XLAYER_OKX_MANIFEST_V1, nowSec: stage.fetchedAt,
+            currentAllowanceAtomic: current.toString() })
+          : { accepted: false as const, errorCodes: ["FORK_PROVIDER_UNSUPPORTED"] };
       if (!verified.accepted) throw new Error(verified.errorCodes.join(","));
       const checkpoint = await input.rpc("evm_snapshot") as string;
       const discoveryRun = await runCalls(input.rpc, owner, verified.calls);
       const found = discovered(discoveryRun.receipts, owner);
-      if (!isNativeAssetAddress(stage.input.token)) found.tokens.add(stage.input.token);
+      found.tokens.add(stage.input.token);
       found.tokens.add(stage.output.token);
       if (stage.approval) found.allowances.set(`${stage.approval.token}:${stage.approval.spender}`,
         { token: stage.approval.token, spender: stage.approval.spender });
@@ -119,11 +141,16 @@ export async function captureOpenTransactionProgramSimulationsV1(input: {
       const beforeAllowances = new Map(await Promise.all([...found.allowances].map(async ([key, value]) =>
         [key, await allowance(input.rpc, value.token, owner, value.spender)] as const)));
       const reproduced = await runCalls(input.rpc, owner, verified.calls);
+      const nativeDelta = reproduced.traces.reduce<bigint>((sum, trace) =>
+        sum + nativeOwnerFlow(trace as CallTrace, owner), 0n);
       const afterBalances = new Map(await Promise.all([...found.tokens].map(async (token) =>
-        [token, await tokenBalance(input.rpc, token, owner)] as const)));
+        [token, isNativeAssetAddress(token)
+          ? beforeBalances.get(token)! + nativeDelta
+          : await tokenBalance(input.rpc, token, owner)] as const)));
       const logs = reproduced.receipts.flatMap(({ logs }) => logs.map(({ address, data, topics }) =>
         ({ address: address.toLowerCase(), data: data.toLowerCase(), topics: topics.map((value) => value.toLowerCase()) })));
-      const required = new Set<Address>([stage.transaction.target, stage.output.token]);
+      const required = new Set<Address>([stage.transaction.target]);
+      if (!isNativeAssetAddress(stage.output.token)) required.add(stage.output.token);
       if (!isNativeAssetAddress(stage.input.token)) required.add(stage.input.token);
       if (stage.approval) { required.add(stage.approval.token); required.add(stage.approval.spender); }
       simulations.push({ stageId: stage.id, chainId: stage.chainId,

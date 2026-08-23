@@ -11,6 +11,7 @@ import { startLocalFork } from "./local-fork";
 import { solveRegisteredInstrument } from "./rwa-strategy";
 import { buildSwapActions } from "./swap-routes";
 import { solveComposition } from "./composition-strategy";
+import { solveTransactionIntent } from "./transaction-strategy";
 
 function aaveAsset(input: Address, output: Address) {
   return Object.values(PROTOCOL_REGISTRY.aaveV3.assets).find(({ underlying, aToken }) =>
@@ -32,9 +33,15 @@ export async function solve(intent: SolverIntentV1): Promise<SolverDecisionV1> {
       outcome?.kind === "registered-instrument") {
     return solveRegisteredInstrument(intent, input, outcome);
   }
+  const supportedCapability = input && outcome?.kind === "minimum-increase" &&
+    (Boolean(aaveAsset(input.token, outcome.token)) || registeredSwap(input.token, outcome.token));
+  if (!supportedCapability) {
+    const transaction = await solveTransactionIntent(intent);
+    if (transaction) return transaction;
+  }
   if (!input || intent.policy.inputs.length !== 1 || intent.policy.outcomes.length !== 1 ||
       outcome?.kind !== "minimum-increase" ||
-      (!aaveAsset(input.token, outcome.token) && !registeredSwap(input.token, outcome.token))) {
+      !supportedCapability) {
     return { version: 1, decision: "abstain", reasonCode: "NO_SUPPORTED_REFERENCE_ROUTE" };
   }
   if (!intent.snapshot || intent.snapshot.kind !== "open-onchain") {

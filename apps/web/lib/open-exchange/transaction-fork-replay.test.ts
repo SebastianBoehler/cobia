@@ -47,7 +47,7 @@ function encoded(value: bigint) {
   return encodeAbiParameters([{ type: "uint256" }], [value]);
 }
 
-function fakeRpc(native = false) {
+function fakeRpc(native: false | "input" | "output" = false) {
   let balances = new Map([[inputToken, 10n], [outputToken, 0n]]);
   let saved = new Map(balances);
   let sequence = 0;
@@ -61,18 +61,26 @@ function fakeRpc(native = false) {
       const call = params[0] as { to: Address };
       return encoded(balances.get(call.to) ?? 0n);
     }
+    if (method === "eth_getBalance") return "0x64";
     if (method === "eth_sendTransaction") {
-      if (!native) balances.set(inputToken, balances.get(inputToken)! - 10n);
-      balances.set(outputToken, balances.get(outputToken)! + 2n);
+      if (native !== "input") balances.set(inputToken, balances.get(inputToken)! - 10n);
+      if (native !== "output") balances.set(outputToken, balances.get(outputToken)! + 2n);
       const txHash = hash((++sequence).toString(16));
       receipts.set(txHash, { status: "0x1", gasUsed: "0x186a0", logs: [
-        ...(!native ? [{ address: inputToken, data: encoded(10n), topics: [transfer, padHex(owner), padHex(target)] }] : []),
-        { address: outputToken, data: encoded(2n), topics: [transfer, padHex(target), padHex(owner)] },
+        ...(native !== "input" ? [{ address: inputToken, data: encoded(10n),
+          topics: [transfer, padHex(owner), padHex(target)] }] : []),
+        ...(native !== "output" ? [{ address: outputToken, data: encoded(2n),
+          topics: [transfer, padHex(target), padHex(owner)] }] : []),
       ] });
       return txHash;
     }
     if (method === "eth_getTransactionReceipt") return receipts.get(String(params[0])) ?? null;
-    if (method === "debug_traceTransaction") return { type: "CALL", result: "0x" };
+    if (method === "debug_traceTransaction") return native === "input"
+      ? { type: "CALL", from: owner, to: target, value: "0xa" }
+      : native === "output"
+        ? { type: "CALL", from: owner, to: target, value: "0x0",
+          calls: [{ type: "CALL", from: target, to: owner, value: "0x2" }] }
+        : { type: "CALL", result: "0x" };
     throw new Error(`Unexpected RPC method ${method}`);
   };
 }
@@ -120,12 +128,30 @@ describe("open transaction fork replay", () => {
       provider: "evm.raw@1" as const, payloadHash: commitment(nativePayload), payload: nativePayload }] };
 
     const simulations = await captureOpenTransactionProgramSimulationsV1({
-      program: nativeProgram, providerArtifacts: nativeArtifacts, snapshot, rpc: fakeRpc(true),
+      program: nativeProgram, providerArtifacts: nativeArtifacts, snapshot, rpc: fakeRpc("input"),
     });
 
     expect(simulations[0]?.assetDeltas).toEqual([
       { token: outputToken, account: owner, beforeAtomic: "0", afterAtomic: "2", deltaAtomic: "2" },
+      { token: native, account: owner, beforeAtomic: "100", afterAtomic: "90", deltaAtomic: "-10" },
     ]);
     expect(simulations[0]?.codeIdentities.map(({ address }) => address)).toEqual([outputToken, target]);
+  });
+
+  it("tracks a native OKB output from call value flow without subtracting gas", async () => {
+    const native = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" as Address;
+    const stage = program.stages[0];
+    const nativeProgram = { ...program, stages: [{ ...stage,
+      output: { chainId: 196 as const, token: native, minimumAtomic: "2" } }] };
+
+    const simulations = await captureOpenTransactionProgramSimulationsV1({
+      program: nativeProgram, providerArtifacts, snapshot, rpc: fakeRpc("output"),
+    });
+
+    expect(simulations[0]?.assetDeltas).toEqual([
+      { token: inputToken, account: owner, beforeAtomic: "10", afterAtomic: "0", deltaAtomic: "-10" },
+      { token: native, account: owner, beforeAtomic: "100", afterAtomic: "102", deltaAtomic: "2" },
+    ]);
+    expect(simulations[0]?.codeIdentities.map(({ address }) => address)).toEqual([inputToken, target]);
   });
 });
