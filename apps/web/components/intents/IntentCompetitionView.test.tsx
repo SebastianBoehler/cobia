@@ -84,6 +84,24 @@ describe("IntentCompetitionView", () => {
     expect(html).toContain("No verified OKX route");
   });
 
+  it("shows the exact signed guardrail when a solver program is rejected", () => {
+    const html = renderToStaticMarkup(<IntentCompetitionView
+      goal="Swap bounded USDG into OKB using two wallet steps"
+      closesAt={closesAt}
+      observedAtSec={2_000_000_000}
+      current={[]}
+      history={[]}
+      solverRuns={[{
+        solverId: "cobia-reference", displayName: "Cobia Reference Solver",
+        revision: 1, state: "failed", failureCode: "MINIMUM_STAGES_NOT_MET",
+        updatedAt: "2033-05-18T03:33:20.000Z",
+      }]}
+    />);
+
+    expect(html).toContain("Proposal rejected");
+    expect(html).toContain("Minimum stages not met");
+  });
+
   it("distinguishes verifier work from proposals ready for wallet review", () => {
     const pending = renderToStaticMarkup(<IntentCompetitionView
       goal="Supply bounded USDG" closesAt={closesAt} observedAtSec={2_000_000_000}

@@ -115,7 +115,7 @@ export function IntentCompetitionActivity({ currentSolverIds, pendingSolverIds, 
       return <article data-run-state={run.state} data-state={presentation.kind} key={run.solverId}>
         <span className="solver-activity__run-icon"><Icon aria-hidden="true" size={18} /></span>
         <div><strong>{run.displayName}</strong><small>Revision {run.revision}</small>
-          {run.state === "abstained" && run.failureCode
+          {(run.state === "abstained" || run.state === "failed") && run.failureCode
             ? <small>{readableReason(run.failureCode)}</small> : null}
         </div>
         <span className="solver-activity__run-state"><Icon aria-hidden="true" size={14} />{presentation.label}</span>

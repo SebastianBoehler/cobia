@@ -13,7 +13,7 @@ export type OpenProgramRejectionCodeV1 =
   | "ALLOWANCE_EXPANDED" | "ANCHOR_MISMATCH" | "CODE_IDENTITY_CHANGED"
   | "CODE_IDENTITY_MISSING" | "EVIDENCE_INVALID" | "FORBIDDEN_ASSET"
   | "FORBIDDEN_TARGET" | "GAS_LIMIT_EXCEEDED" | "INPUT_LIMIT_EXCEEDED"
-  | "LIMIT_EXCEEDED" | "OUTCOME_NOT_REPRODUCED" | "POLICY_MISMATCH"
+  | "LIMIT_EXCEEDED" | "MINIMUM_STAGES_NOT_MET" | "OUTCOME_NOT_REPRODUCED" | "POLICY_MISMATCH"
   | "PROGRAM_INVALID" | "PROVIDER_ARTIFACT_INVALID" | "PROVIDER_VERIFICATION_FAILED"
   | "REPLAY_MISMATCH" | "STALE_EVIDENCE"
   | "UNDECLARED_ASSET_DECREASE" | "UNSUPPORTED_STAGE";
@@ -99,8 +99,8 @@ export async function verifyOpenTransactionProgramV1(input: {
     errors.add("UNSUPPORTED_STAGE");
   }
   const approvalCount = walletStages.filter(({ approval }) => approval).length;
-  if (walletStages.length < (policy.limits.minimumStages ?? 1) ||
-      program.stages.length > policy.limits.maxStages || walletStages.length > policy.limits.maxTransactions ||
+  if (walletStages.length < (policy.limits.minimumStages ?? 1)) errors.add("MINIMUM_STAGES_NOT_MET");
+  if (program.stages.length > policy.limits.maxStages || walletStages.length > policy.limits.maxTransactions ||
       approvalCount > policy.limits.maxApprovals) errors.add("LIMIT_EXCEEDED");
   const nativeValues = new Map<number, bigint>();
   const nativeInputValues = new Map<string, bigint>();

@@ -103,8 +103,17 @@ function parseSnapshot(value: unknown) {
 function assertDecisionAuthority(input: {
   decision: ReturnType<typeof SolverDecisionV1Schema.parse>;
   policy: ReturnType<typeof parsePolicy>;
+  nowSec: number;
 }) {
   if (input.decision.decision === "abstain") return;
+  if (input.decision.program.deadline <= input.nowSec) {
+    throw new InvalidSolverDecisionError("Solver program expired before intake");
+  }
+  if (input.decision.proposalKind === "transaction-program" &&
+      input.decision.program.stages.some((stage) =>
+        stage.kind === "wallet-transaction" && stage.expiresAt <= input.nowSec)) {
+    throw new InvalidSolverDecisionError("Solver transaction stage expired before intake");
+  }
   if (input.decision.proposalKind === "general-asset-program") {
     if (input.policy.kind !== "general-asset" ||
         input.decision.program.policyHash !== commitment(input.policy) ||
@@ -224,7 +233,7 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
           !isAddressEqual(signer, profile.attestationAddress as Address)) {
         throw new InvalidSolverDecisionSignatureError("Solver decision signature mismatch");
       }
-      assertDecisionAuthority({ decision, policy });
+      assertDecisionAuthority({ decision, policy, nowSec });
       if (decision.decision === "submit") {
         const declared = new Set(capabilities(profile.declaredCapabilities));
         if (policy.kind === "capability-composition" &&
@@ -256,12 +265,6 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
         return { intentId: claim.intentId, solverId: claim.solverId,
           revision: claim.revision, state: "abstained" };
       }
-      const submission = await dependencies.submissions.append({
-        intentId: claim.intentId, solverId: claim.solverId, revision: claim.revision,
-        programHash: commitment(decision.program),
-        validUntilSec: Math.min(decision.program.deadline, policy.competition.closesAt),
-        blockNumber: anchor.blockNumber, blockHash: anchor.blockHash, observedAtSec: nowSec,
-      });
       const artifacts: [string, unknown][] = [
         ["program", decision.program], ["evidence", decision.evidence],
         ["provenance", decision.provenance],
@@ -270,8 +273,25 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
       if (decision.proposalKind === "transaction-program") {
         artifacts.splice(2, 0, ["provider", decision.providerArtifacts]);
       }
-      for (const [kind, artifact] of artifacts) {
-        await dependencies.submissions.appendArtifact(submission.id, kind, artifact);
+      let submission: { id: string } | undefined;
+      try {
+        submission = await dependencies.submissions.append({
+          intentId: claim.intentId, solverId: claim.solverId, revision: claim.revision,
+          programHash: commitment(decision.program),
+          validUntilSec: Math.min(decision.program.deadline, policy.competition.closesAt),
+          blockNumber: anchor.blockNumber, blockHash: anchor.blockHash, observedAtSec: nowSec,
+        });
+        for (const [kind, artifact] of artifacts) {
+          await dependencies.submissions.appendArtifact(submission.id, kind, artifact);
+        }
+      } catch (error) {
+        if (submission) {
+          await dependencies.submissions.resolve(
+            submission.id, "failed", ["DECISION_INTAKE_FAILED"],
+          );
+        }
+        await dependencies.runs.fail(run.id, "DECISION_INTAKE_FAILED");
+        throw error;
       }
       let verdict: Verification;
       try {

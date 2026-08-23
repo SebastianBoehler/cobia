@@ -8,6 +8,7 @@ import {
 } from "@cobia/solvers";
 import { concatHex, isAddress, keccak256, type Address } from "viem";
 import { signOkxRequest, type OkxCredentials } from "../../../apps/web/lib/okx/auth";
+import { referenceTransactionExpiry } from "./transaction-validity";
 
 const OKX_SWAP_ORIGIN = "https://web3.okx.com";
 const OKX_SWAP_PATH = "/api/v6/dex/aggregator/swap";
@@ -53,9 +54,13 @@ export async function fetchOkxRouteArtifact(input: {
   const fetchedAt = Math.floor(now.getTime() / 1_000);
   return OkxSwapArtifactV1Schema.parse({
     version: 1, provider: "okx.dex@1", stageId: input.stageId,
-    fetchedAt, expiresAt: fetchedAt + 30, request, response: body,
+    fetchedAt, expiresAt: referenceTransactionExpiry(fetchedAt), request, response: body,
     attributedData: concatHex([data, XLAYER_OKX_MANIFEST_V1.builderDataSuffix]),
   });
+}
+
+export function okxMinimumOutputAtomic(raw: unknown) {
+  return OkxSwapArtifactV1Schema.parse(raw).response.data[0]!.tx.minReceiveAmount;
 }
 
 export function buildOkxRouteStage(raw: {

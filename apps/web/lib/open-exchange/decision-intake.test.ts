@@ -138,6 +138,27 @@ describe("open solver decision intake", () => {
     expect(mocks.consume).not.toHaveBeenCalled();
   });
 
+  it("rejects an expired program before consuming or persisting it", async () => {
+    const expiredProgram = { ...program, deadline: nowSec };
+    const expiredDecision = { ...decision, program: expiredProgram,
+      evidence: { ...decision.evidence, programHash: commitment(expiredProgram) } };
+    const expiredClaim = claim(commitment(expiredDecision));
+
+    await expect(intake().submit(await signed(expiredClaim, expiredDecision)))
+      .rejects.toThrow(/expired/i);
+    expect(mocks.consume).not.toHaveBeenCalled();
+    expect(mocks.append).not.toHaveBeenCalled();
+  });
+
+  it("resolves the announced run when proposal persistence fails", async () => {
+    mocks.append.mockRejectedValueOnce(new Error("validity constraint"));
+
+    await expect(intake().submit(await signed())).rejects.toThrow(/validity constraint/i);
+    expect(mocks.failRun).toHaveBeenCalledWith(
+      "550e8400-e29b-41d4-a716-446655440092", "DECISION_INTAKE_FAILED",
+    );
+  });
+
   it("surfaces replay protection without starting verifier work", async () => {
     mocks.consume.mockRejectedValueOnce(new SolverDecisionReplayError("consumed"));
     await expect(intake().submit(await signed())).rejects.toBeInstanceOf(SolverDecisionReplayError);

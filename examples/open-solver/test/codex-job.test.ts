@@ -33,6 +33,8 @@ describe("Codex solver job", () => {
     expect(guidance).toContain("route MCP tools");
     expect(guidance).toContain("not an allowlist");
     expect(guidance).toContain("Use live web research");
+    expect(guidance).toContain("minimumStages");
+    expect(guidance).toContain("wallet-transaction stages");
     expect(guidance).not.toContain("return that canonical abstention immediately");
     expect(job.prompt).toContain("Use live web research");
     expect(job.prompt).not.toContain("return its canonical abstention immediately");

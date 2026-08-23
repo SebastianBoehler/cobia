@@ -24,12 +24,13 @@ const artifact = { version: 1 as const, provider: "okx.dex@1" as const,
   stageId: "01-okx-swap", fetchedAt: 100, expiresAt: 130, request, response,
   attributedData: concatHex([data, XLAYER_OKX_MANIFEST_V1.builderDataSuffix]) };
 
-function intent(inputToken: string, outputToken: string, minimum = "2") {
+function intent(inputToken: string, outputToken: string, minimum = "2", minimumStages = 1) {
   return { id: "550e8400-e29b-41d4-a716-446655440000", policyHash: `0x${"1".repeat(64)}`,
     policy: { kind: "open-onchain", owner, deadline: 200, maxEvidenceAgeSec: 300,
       inputs: [{ chainId: 196, token: inputToken, maximumAtomic: "100" }],
       outcomes: [{ kind: "minimum-increase", chainId: 196, token: outputToken,
-        atomic: minimum }] },
+        atomic: minimum }], limits: { minimumStages, maxStages: 2,
+        maxTransactions: 2, maxApprovals: 2 }, forbiddenAssets: [] },
     snapshot: { kind: "open-onchain", anchors: [{ chainId: 196, blockNumber: "10",
       blockHash: `0x${"2".repeat(64)}` }] } } as never;
 }
@@ -64,6 +65,46 @@ describe("common X Layer transaction strategy", () => {
       stages: [expect.objectContaining({ provider: "okx.dex@1",
         output: { chainId: 196, token: NATIVE_ASSET_ADDRESS, minimumAtomic: "2" } })],
     }));
+  });
+
+  it("uses a registered stablecoin hop when the signed policy requires two wallet steps", async () => {
+    const intermediate = PROTOCOL_REGISTRY.aaveV3.assets.USDt0.underlying.address.toLowerCase();
+    const firstRequest = { ...request, toTokenAddress: intermediate };
+    const firstResponse = { ...response, data: [{ ...response.data[0],
+      routerResult: { ...response.data[0].routerResult, toTokenAmount: "100",
+        toToken: { tokenContractAddress: intermediate, isHoneyPot: false, taxRate: "0" } },
+      tx: { ...response.data[0].tx, minReceiveAmount: "99" } }] };
+    const firstArtifact = { ...artifact, request: firstRequest, response: firstResponse,
+      attributedData: concatHex([data, XLAYER_OKX_MANIFEST_V1.builderDataSuffix]) };
+    const secondRequest = { ...request, amount: "99", fromTokenAddress: intermediate };
+    const secondResponse = { ...response, data: [{ ...response.data[0],
+      routerResult: { ...response.data[0].routerResult, fromTokenAmount: "99",
+        fromToken: { tokenContractAddress: intermediate, isHoneyPot: false, taxRate: "0" } } }] };
+    const secondArtifact = { ...artifact, stageId: "02-okx-swap",
+      request: secondRequest, response: secondResponse };
+    const fetchOkxArtifact = vi.fn()
+      .mockResolvedValueOnce(firstArtifact)
+      .mockResolvedValueOnce(secondArtifact);
+    const finalize = vi.fn(async () => ({ version: 1, decision: "abstain",
+      reasonCode: "CAPTURED" }) as const);
+
+    await solveTransactionIntent(intent(usdg, NATIVE_ASSET_ADDRESS, "2", 2), {
+      nowSec: () => 100, fetchOkxArtifact, finalize,
+    });
+
+    expect(fetchOkxArtifact).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      inputToken: usdg, outputToken: intermediate, inputAtomic: "100", stageId: "01-okx-swap",
+    }));
+    expect(fetchOkxArtifact).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      inputToken: intermediate, outputToken: NATIVE_ASSET_ADDRESS,
+      inputAtomic: "99", stageId: "02-okx-swap",
+    }));
+    expect(finalize).toHaveBeenCalledWith(expect.objectContaining({ stages: [
+      expect.objectContaining({ id: "01-okx-swap", output: expect.objectContaining({
+        token: intermediate, minimumAtomic: "99" }) }),
+      expect.objectContaining({ id: "02-okx-swap", dependsOn: ["01-okx-swap"],
+        input: { token: intermediate, atomic: "99" } }),
+    ] }));
   });
 
   it("withdraws an Aave receipt before routing its exact underlying into native OKB", async () => {

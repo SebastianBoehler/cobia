@@ -160,7 +160,7 @@ describe("open transaction-program verifier", () => {
 
     await expect(verifyOpenTransactionProgramV1(dependencies({
       policy: constrained, program: constrainedProgram, evidence: constrainedEvidence,
-    }))).resolves.toMatchObject({ accepted: false, errorCodes: ["LIMIT_EXCEEDED"] });
+    }))).resolves.toMatchObject({ accepted: false, errorCodes: ["MINIMUM_STAGES_NOT_MET"] });
   });
 
   it("accepts an independently replayed native OKB output", async () => {
