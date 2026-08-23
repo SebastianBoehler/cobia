@@ -11,24 +11,25 @@ const spender = "0x6666666666666666666666666666666666666666" as const;
 const calldata = "0x12345678aabb" as const;
 
 function responses(overrides: { from?: string; minimum?: string; spender?: string;
-  approvalAddress?: string } = {}) {
+  approvalAddress?: string; signatureData?: string[] } = {}) {
   const approveData = encodeFunctionData({ abi: erc20Abi, functionName: "approve",
     args: [(overrides.spender ?? spender) as `0x${string}`, 100n] });
-  return [{ code: "0", msg: "", data: [{ data: approveData,
-    dexContractAddress: overrides.approvalAddress ?? overrides.spender ?? spender,
-    gasLimit: "50000", gasPrice: "1" }] },
-  { code: "0", msg: "", data: [{ routerResult: { chainIndex: "196", swapMode: "exactIn",
+  return [{ code: "0", msg: "", data: [{ routerResult: { chainIndex: "196", swapMode: "exactIn",
     fromTokenAmount: "100", toTokenAmount: "95",
     fromToken: { tokenContractAddress: inputToken, isHoneyPot: false, taxRate: "0" },
     toToken: { tokenContractAddress: outputToken, isHoneyPot: false, taxRate: "0" } },
   tx: { from: overrides.from ?? executor, to: router, value: "0",
-    minReceiveAmount: overrides.minimum ?? "90", slippagePercent: "1", data: calldata, gas: "300000" } }] }];
+    minReceiveAmount: overrides.minimum ?? "90", slippagePercent: "1", data: calldata, gas: "300000",
+    signatureData: overrides.signatureData ?? [JSON.stringify({ approveContract:
+      overrides.approvalAddress ?? overrides.spender ?? spender, approveTxCalldata: approveData })] } }] }];
 }
 
 function compiler(values = responses()) {
   let index = 0;
-  const fetch = vi.fn(async (_url: string | URL | Request, _init?: RequestInit) =>
-    new Response(JSON.stringify(values[index++]!), { status: 200 }));
+  const fetch = vi.fn(async (...args: Parameters<typeof globalThis.fetch>) => {
+    void args;
+    return new Response(JSON.stringify(values[index++]!), { status: 200 });
+  });
   return { fetch, compiler: createOkxGeneralAssetSwapCompilerV1({
     credentials: { apiKey: "key", secretKey: "secret", passphrase: "pass" },
     fetch: fetch as typeof globalThis.fetch, now: () => new Date(2_000_000_000_000),
@@ -48,20 +49,23 @@ describe("authenticated OKX general asset swap compiler", () => {
     expect(decodeFunctionData({ abi: erc20Abi, data: compiled.approval.data })).toMatchObject({
       functionName: "approve", args: [spender, 100n],
     });
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledTimes(1);
     for (const [url, init] of fetch.mock.calls) {
-      expect(url).toMatch(/^https:\/\/web3\.okx\.com\/api\/v6\/dex\/aggregator\//);
+      expect(url).toMatch(/^https:\/\/web3\.okx\.com\/api\/v6\/dex\/aggregator\/swap/);
       expect((init as RequestInit).headers).toMatchObject({ "OK-ACCESS-KEY": "key" });
     }
-    expect(fetch.mock.calls[1]![0]).toContain(`userWalletAddress=${executor}`);
-    expect(fetch.mock.calls[1]![0]).toContain(`swapReceiverAddress=${owner}`);
-    expect(fetch.mock.calls[1]![0]).toContain("swapMode=exactIn");
+    expect(fetch.mock.calls[0]![0]).toContain(`userWalletAddress=${executor}`);
+    expect(fetch.mock.calls[0]![0]).toContain(`swapReceiverAddress=${owner}`);
+    expect(fetch.mock.calls[0]![0]).toContain("swapMode=exactIn");
+    expect(fetch.mock.calls[0]![0]).toContain("approveAmount=100");
+    expect(fetch.mock.calls[0]![0]).toContain("approveTransaction=true");
   });
 
   it.each([
     [responses({ from: owner }), /sender/i],
     [responses({ minimum: "89" }), /minimum/i],
     [responses({ approvalAddress: router }), /approval/i],
+    [responses({ signatureData: ["not-json"] }), /approval/i],
   ])("rejects mismatched authenticated compilation", async (values, error) => {
     await expect(compiler(values).compiler.compile(request)).rejects.toThrow(error);
   });

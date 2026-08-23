@@ -5,7 +5,6 @@ import { commitment } from "@cobia/domain";
 import { signOkxRequest, type OkxCredentials } from "./auth";
 
 const ORIGIN = "https://web3.okx.com";
-const APPROVE_PATH = "/api/v6/dex/aggregator/approve-transaction";
 const SWAP_PATH = "/api/v6/dex/aggregator/swap";
 const AddressSchema = z.string().refine(isAddress).transform((value) => value.toLowerCase() as Address);
 const AtomicSchema = z.string().regex(/^(0|[1-9][0-9]*)$/);
@@ -14,14 +13,14 @@ const HexSchema = z.string().regex(/^0x(?:[0-9a-fA-F]{2})+$/).transform((value) 
 const TokenSchema = z.object({ tokenContractAddress: AddressSchema, isHoneyPot: z.literal(false),
   taxRate: z.literal("0") }).passthrough();
 const EnvelopeSchema = z.object({ code: z.literal("0"), msg: z.string(), data: z.array(z.unknown()).length(1) });
-const ApprovalSchema = z.object({ data: HexSchema, dexContractAddress: AddressSchema,
-  gasLimit: PositiveAtomicSchema, gasPrice: PositiveAtomicSchema }).passthrough();
+const ApprovalSignatureSchema = z.object({ approveContract: AddressSchema,
+  approveTxCalldata: HexSchema }).strict();
 const SwapSchema = z.object({ routerResult: z.object({ chainIndex: z.enum(["1", "196"]),
   swapMode: z.literal("exactIn"), fromTokenAmount: PositiveAtomicSchema,
   toTokenAmount: PositiveAtomicSchema, fromToken: TokenSchema, toToken: TokenSchema }).passthrough(),
-tx: z.object({ from: AddressSchema, to: AddressSchema, value: AtomicSchema,
-  minReceiveAmount: PositiveAtomicSchema, slippagePercent: z.string(), data: HexSchema,
-  gas: PositiveAtomicSchema }).passthrough() }).passthrough();
+  tx: z.object({ from: AddressSchema, to: AddressSchema, value: AtomicSchema,
+    minReceiveAmount: PositiveAtomicSchema, slippagePercent: z.string(), data: HexSchema,
+    gas: PositiveAtomicSchema, signatureData: z.array(z.string()).length(1) }).passthrough() }).passthrough();
 
 export interface GeneralAssetSwapCompileRequestV1 {
   chainId: 1 | 196;
@@ -63,19 +62,21 @@ export function createOkxGeneralAssetSwapCompilerV1(options: {
   }
   return { async compile(input: GeneralAssetSwapCompileRequestV1) {
     const slip = slippagePercent(input.maximumSlippageBps);
-    const approveRequest = query(APPROVE_PATH, { chainIndex: String(input.chainId),
-      tokenContractAddress: input.inputToken.toLowerCase(), approveAmount: input.inputAtomic });
     const swapRequest = query(SWAP_PATH, { chainIndex: String(input.chainId), amount: input.inputAtomic,
       fromTokenAddress: input.inputToken.toLowerCase(), toTokenAddress: input.outputToken.toLowerCase(),
       slippagePercent: slip, userWalletAddress: input.executor.toLowerCase(),
       swapReceiverAddress: input.owner.toLowerCase(), swapMode: "exactIn",
-      disableRFQ: "true", approveTransaction: "false" });
-    const approvalRaw = await get(approveRequest);
+      disableRFQ: "true", approveAmount: input.inputAtomic, approveTransaction: "true" });
     const swapRaw = await get(swapRequest);
-    const approval = ApprovalSchema.parse(approvalRaw);
     const swap = SwapSchema.parse(swapRaw);
-    const decoded = decodeFunctionData({ abi: erc20Abi, data: approval.data });
-    if (decoded.functionName !== "approve" || !isAddressEqual(decoded.args[0], approval.dexContractAddress) ||
+    let approval: z.infer<typeof ApprovalSignatureSchema>;
+    try {
+      approval = ApprovalSignatureSchema.parse(JSON.parse(swap.tx.signatureData[0]!));
+    } catch (error) {
+      throw new Error("OKX approval compilation is invalid", { cause: error });
+    }
+    const decoded = decodeFunctionData({ abi: erc20Abi, data: approval.approveTxCalldata });
+    if (decoded.functionName !== "approve" || !isAddressEqual(decoded.args[0], approval.approveContract) ||
         decoded.args[1] !== BigInt(input.inputAtomic)) throw new Error("OKX approval compilation mismatch");
     const route = swap.routerResult;
     const tx = swap.tx;
@@ -96,10 +97,10 @@ export function createOkxGeneralAssetSwapCompilerV1(options: {
       throw new Error("OKX swap gas limit is invalid");
     }
     const fetchedAtSec = Math.floor(now().getTime() / 1_000);
-    const source = { approveRequest, approval: approvalRaw, swapRequest, swap: swapRaw };
+    const source = { swapRequest, swap: swapRaw };
     return { target: tx.to, data: tx.data, valueAtomic: "0" as const, gasLimit,
-      approval: { spender: approval.dexContractAddress, maximumAtomic: input.inputAtomic,
-        data: approval.data }, quoteHash: commitment(source) as Hash,
+      approval: { spender: approval.approveContract, maximumAtomic: input.inputAtomic,
+        data: approval.approveTxCalldata }, quoteHash: commitment(source) as Hash,
       fetchedAtSec, expiresAtSec: fetchedAtSec + 30, source };
   } };
 }
