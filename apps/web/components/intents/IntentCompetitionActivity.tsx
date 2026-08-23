@@ -12,6 +12,7 @@ export interface CompetitionSolverRun {
 }
 
 interface ActivityProps {
+  closed?: boolean;
   currentSolverIds: string[];
   pendingSolverIds: string[];
   runs: CompetitionSolverRun[];
@@ -44,20 +45,26 @@ function runPresentation(run: CompetitionSolverRun, verified: Set<string>, pendi
   return { label: "Run complete", kind: "quiet", Icon: CircleCheck };
 }
 
-function progressState(index: number, activity: "open" | "working" | "verifying" | "ready") {
-  const activeIndex = { open: 1, working: 1, verifying: 2, ready: 3 }[activity];
+function progressState(index: number, activity: "closed" | "open" | "working" | "verifying" | "ready") {
+  const activeIndex = { closed: 1, open: 1, working: 1, verifying: 2, ready: 3 }[activity];
   if (index < activeIndex) return "complete";
   if (index === activeIndex) return "active";
   return "waiting";
 }
 
-export function IntentCompetitionActivity({ currentSolverIds, pendingSolverIds, runs }: ActivityProps) {
+export function IntentCompetitionActivity({ closed = false,
+  currentSolverIds, pendingSolverIds, runs }: ActivityProps) {
   const visibleRuns = latestRuns(runs);
   const hasWorkingRun = visibleRuns.some(({ state }) => state === "queued" || state === "running");
   const activity = currentSolverIds.length ? "ready"
     : pendingSolverIds.length ? "verifying"
-      : hasWorkingRun ? "working" : "open";
+      : hasWorkingRun ? "working" : closed ? "closed" : "open";
   const copy = {
+    closed: {
+      title: "Solver competition ended",
+      detail: "No verified proposal",
+      description: "Persisted solver results and rejection reasons remain visible below.",
+    },
     open: {
       title: "Solver competition is active",
       detail: "Listening for signed proposals",
@@ -94,7 +101,8 @@ export function IntentCompetitionActivity({ currentSolverIds, pendingSolverIds, 
     <header className="solver-activity__header">
       <div className="solver-activity__signal" data-state={activity}>
         {busy ? <LoaderCircle aria-hidden="true" /> : activity === "ready"
-          ? <CircleCheck aria-hidden="true" /> : <CircleDot aria-hidden="true" />}
+          ? <CircleCheck aria-hidden="true" /> : activity === "closed"
+            ? <TriangleAlert aria-hidden="true" /> : <CircleDot aria-hidden="true" />}
       </div>
       <div>
         <h2 id="solver-activity-title">{copy.title}</h2>

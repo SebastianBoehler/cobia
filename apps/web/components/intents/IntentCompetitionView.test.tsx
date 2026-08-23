@@ -138,6 +138,25 @@ describe("IntentCompetitionView", () => {
     expect(html).not.toContain("Solver activity");
   });
 
+  it("keeps a persisted solver failure visible after the competition closes", () => {
+    const html = renderToStaticMarkup(<IntentCompetitionView
+      goal="Swap bounded USDG into OKB using two wallet steps"
+      closesAt="2026-08-20T16:39:37.000Z"
+      observedAtSec={2_000_000_000}
+      current={[]}
+      history={[]}
+      solverRuns={[{
+        solverId: "cobia-reference", displayName: "Cobia Reference Solver",
+        revision: 1, state: "failed", failureCode: "MINIMUM_STAGES_NOT_MET",
+        updatedAt: "2026-08-20T16:38:20.000Z",
+      }]}
+    />);
+
+    expect(html).toContain("Solver competition ended");
+    expect(html).toContain("No verified proposal");
+    expect(html).toContain("Minimum stages not met");
+  });
+
   it("renders compact, icon-led token evidence with the exact frozen details available", () => {
     const token = "0x2222222222222222222222222222222222222222" as const;
     const html = renderToStaticMarkup(<IntentCompetitionView

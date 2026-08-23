@@ -213,7 +213,8 @@ export function IntentCompetitionView({ goal, closesAt, observedAtSec, current, 
       </div>
     </section>
 
-    {live ? <IntentCompetitionActivity
+    {live || solverRuns.length ? <IntentCompetitionActivity
+      closed={!live}
       currentSolverIds={current.map(({ solverId }) => solverId)}
       pendingSolverIds={pendingSolverIds}
       runs={solverRuns}
