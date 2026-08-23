@@ -25,6 +25,7 @@ const outputToken = address("4");
 const target = address("5");
 const spender = address("6");
 const verifier = privateKeyToAccount(`0x${"77".repeat(32)}`);
+const otherVerifier = privateKeyToAccount(`0x${"88".repeat(32)}`);
 const inputIdentity = AssetIdentityEvidenceV1Schema.parse({
   version: 1, chainId: 196, token: inputToken, runtimeCodeHash: hash("1"),
   proxy: { kind: "none" }, decimals: 18,
@@ -69,6 +70,8 @@ async function verifiedArtifacts(value: unknown, replayOverrides: {
   outputAtomic?: string;
   endingAllowanceAtomic?: string;
   extraDecrease?: boolean;
+  unexpectedSigner?: boolean;
+  freshValueUsdE8?: string;
 } = {}) {
   const program = GeneralAssetProgramV1Schema.parse(value);
   const stage = program.stages[0]!;
@@ -77,7 +80,8 @@ async function verifiedArtifacts(value: unknown, replayOverrides: {
   const freshOutput = AssetIdentityEvidenceV1Schema.parse({ ...outputIdentity,
     blockNumber: "124", blockHash: hash("b"), expiresAtSec: 2_000_000_031 });
   const freshValuation = AssetValuationEvidenceV1Schema.parse({ ...valuation,
-    assetIdentityHash: commitment(freshInput), conservativeValueUsdE8: "200",
+    assetIdentityHash: commitment(freshInput),
+    conservativeValueUsdE8: replayOverrides.freshValueUsdE8 ?? "200",
     expiresAtSec: 2_000_000_031,
     quotes: valuation.quotes.map((quote) => ({ ...quote, expiresAtSec: 2_000_000_031 })) });
   const freshEvidenceBody = { identities: [freshInput, freshOutput],
@@ -111,7 +115,8 @@ async function verifiedArtifacts(value: unknown, replayOverrides: {
     constraints: [{ token: outputToken, kind: 1, minimum: 90n }],
   };
   const verifierAuthorization = buildAuthorizationV4(executionProgram, executor);
-  const signature = await verifier.signTypedData(authorizationTypedDataV4(verifierAuthorization));
+  const signer = replayOverrides.unexpectedSigner ? otherVerifier : verifier;
+  const signature = await signer.signTypedData(authorizationTypedDataV4(verifierAuthorization));
   const evidenceHash = hash("a");
   return { accepted: true as const, errorCodes: [], replay,
     execution: { version: 4 as const, kind: "general-asset-execution" as const,
@@ -155,7 +160,7 @@ function dependencies() {
 }
 
 describe("production general asset solver orchestration", () => {
-  it("readiness-gates publication then persists an attested general asset decision", async () => {
+  it("persists an attested decision when fresh value is below the signed risk cap", async () => {
     const deps = dependencies();
     const result = await publishAndRunGeneralAssetSolverV1({ policy,
       ownerSignature: `0x${"aa".repeat(65)}`, evidence, revision: 1, nowSec: 2_000_000_001 }, deps);
@@ -220,11 +225,24 @@ describe("production general asset solver orchestration", () => {
 
   it("does not publish an artifact signed by another verifier", async () => {
     const deps = dependencies();
-    deps.verifierSigner = address("9");
+    deps.verify.mockImplementation(async ({ program }: { program: unknown }) =>
+      verifiedArtifacts(program, { unexpectedSigner: true }));
 
     await expect(publishAndRunGeneralAssetSolverV1({ policy,
       ownerSignature: `0x${"aa".repeat(65)}`, evidence, revision: 1,
       nowSec: 2_000_000_001 }, deps)).rejects.toThrow(/signature|signer/i);
+
+    expect(deps.publish).not.toHaveBeenCalled();
+  });
+
+  it("does not publish when fresh conservative value exceeds the signed cap", async () => {
+    const deps = dependencies();
+    deps.verify.mockImplementation(async ({ program }: { program: unknown }) =>
+      verifiedArtifacts(program, { freshValueUsdE8: "251" }));
+
+    await expect(publishAndRunGeneralAssetSolverV1({ policy,
+      ownerSignature: `0x${"aa".repeat(65)}`, evidence, revision: 1,
+      nowSec: 2_000_000_001 }, deps)).rejects.toThrow(/fresh evidence|authority|cap/i);
 
     expect(deps.publish).not.toHaveBeenCalled();
   });
