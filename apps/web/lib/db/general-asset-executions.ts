@@ -283,6 +283,18 @@ export function createGeneralAssetExecutionRepository(db: CobiaDatabase) {
       });
     },
 
+    async recordBridgeFailure(programId: string, stageId: string, code: string) {
+      if (!["BRIDGE_DELIVERY_MISMATCH", "BRIDGE_SOURCE_REORGED",
+        "BRIDGE_DESTINATION_REORGED"].includes(code)) {
+        throw new Error("Bridge reconciliation code is invalid");
+      }
+      return db.transaction(async (tx) => {
+        await lockProgram(tx, programId);
+        const stage = await lockStage(tx, programId, stageId);
+        return markReconciliation(tx, stage, code);
+      });
+    },
+
     async getProgram(programId: string) {
       const program = await db.query.cobiaGeneralAssetPrograms.findFirst({
         where: eq(cobiaGeneralAssetPrograms.id, programId),

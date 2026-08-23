@@ -3,6 +3,10 @@ import { mainnet } from "viem/chains";
 import type { createGeneralAssetExecutionRepository } from "../db/general-asset-executions";
 import { readMarketConfig } from "../env";
 import { xLayer } from "../chain/xlayer";
+import {
+  verifyBridgeDeliveryV4,
+  type BridgeDeliveryMonitorV4,
+} from "./bridge-delivery-verifier";
 import type { ReceiptLogV4 } from "./receipt-reconciler";
 import type { GeneralAssetExecutionBundleV4 } from "./stage-artifact";
 
@@ -24,8 +28,10 @@ export interface GeneralAssetStageChainReaderV4 {
 export async function reconcileGeneralAssetStageLiveV4(input: {
   bundle: GeneralAssetExecutionBundleV4;
   stageId: Hash;
-  repository: Pick<Repository, "getProgram" | "reconcileStageReceipt">;
+  repository: Pick<Repository, "getProgram" | "reconcileStageReceipt" |
+    "recordBridgeDelivery" | "recordBridgeFailure">;
   reader: GeneralAssetStageChainReaderV4;
+  bridge?: BridgeDeliveryMonitorV4;
 }) {
   const stage = input.bundle.stages.find(({ stageId }) => stageId === input.stageId);
   if (!stage) throw new Error("Attested stage is unavailable");
@@ -56,11 +62,47 @@ export async function reconcileGeneralAssetStageLiveV4(input: {
       observed: { token: input.bundle.finalOutput.token, beforeAtomic, afterAtomic },
     };
   }
-  return input.repository.reconcileStageReceipt(input.bundle.programId, stage.stageId, {
+  const reconciled = await input.repository.reconcileStageReceipt(input.bundle.programId, stage.stageId, {
     observed: { chainId: stage.chainId, transactionHash, ...transaction, ...receipt },
     currentBlockNumber,
     canonicalBlockHash,
     ...(output ? { output } : {}),
+  });
+  if (stage.delivery.kind !== "bridge" ||
+      !["finalized", "delivered"].includes(reconciled.state) || !input.bridge) return reconciled;
+  const locator = await input.bridge.locate({
+    sourceChainId: stage.chainId,
+    sourceTransactionHash: transactionHash,
+    destinationChainId: stage.delivery.destinationChainId,
+  });
+  const verification = await verifyBridgeDeliveryV4({
+    expected: {
+      sourceChainId: stage.chainId,
+      sourceTransactionHash: transactionHash,
+      destinationChainId: stage.delivery.destinationChainId,
+      recipient: stage.delivery.recipient,
+      token: stage.delivery.token,
+      minimumAtomic: stage.delivery.minimumAtomic,
+      requiredConfirmations: stage.requiredConfirmations,
+    },
+    sourceReceipt: { transactionHash, ...receipt },
+    locator,
+    semantics: input.bridge.semantics,
+    reader: input.bridge.reader,
+  });
+  if (verification.status === "pending") return reconciled;
+  if (verification.status === "reconciliation_required") {
+    return input.repository.recordBridgeFailure(input.bundle.programId, stage.stageId, verification.code);
+  }
+  const proof = verification.evidence;
+  return input.repository.recordBridgeDelivery(input.bundle.programId, stage.stageId, {
+    messageId: proof.messageId,
+    sourceTransactionHash: proof.sourceTransactionHash,
+    destinationChainId: proof.destinationChainId,
+    recipient: proof.recipient,
+    token: proof.token,
+    amountAtomic: proof.amountAtomic,
+    deliveryTransactionHash: proof.deliveryTransactionHash,
   });
 }
 

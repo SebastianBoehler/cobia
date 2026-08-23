@@ -7,6 +7,7 @@ import {
   type GeneralAssetPolicyV1,
   type GeneralAssetProgramV1,
 } from "@cobia/domain";
+import { RegisteredAdapterManifestV1Schema } from "@cobia/solvers";
 import { z } from "zod";
 import type { Address, Hash } from "viem";
 
@@ -17,6 +18,7 @@ export const GeneralAssetEvidenceArtifactV1Schema = z.object({
   kind: z.literal("general-asset-evidence"),
   identities: z.array(AssetIdentityEvidenceV1Schema).min(1).max(16),
   valuations: z.array(AssetValuationEvidenceV1Schema).min(1).max(16),
+  manifest: RegisteredAdapterManifestV1Schema.optional(),
 }).strict();
 
 export type GeneralAssetEvidenceArtifactV1 = z.infer<typeof GeneralAssetEvidenceArtifactV1Schema>;

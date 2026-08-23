@@ -127,12 +127,12 @@
 - Consumes: finalized source receipt, registered adapter delivery semantics, destination-chain canonical logs/balance evidence, exact recipient/token/minimum, and predecessor stage record.
 - Produces: `verifyBridgeDeliveryV4(input): Promise<BridgeDeliveryProofV4>` accepted by `recordBridgeDelivery()` only after exact destination delivery.
 
-- [ ] **Step 1: Write failing tests** for missing delivery, wrong recipient/token/chain/amount/message, duplicate delivery, source reorg, destination reorg, and one exact valid delivery.
-- [ ] **Step 2: Run RED:** run the focused bridge and reconciliation tests; expect a finalized bridge stage never to enter `delivered`.
-- [ ] **Step 3: Implement registered delivery verification** from canonical chain evidence. Provider status is advisory only; exact logs and balance changes must satisfy the committed delivery rule.
-- [ ] **Step 4: Extend live reconciliation** so polling a finalized bridge source verifies delivery and calls `recordBridgeDelivery()` idempotently; only `delivered` unlocks the destination stage.
-- [ ] **Step 5: Run GREEN:** focused tests plus the general-asset PostgreSQL integration suite.
-- [ ] **Step 6: Commit:** stage only Task 4 files and commit `feat(execution): verify v4 bridge delivery`.
+- [x] **Step 1: Write failing tests** for missing delivery, wrong recipient/token/chain/amount/message, duplicate delivery, source reorg, destination reorg, and one exact valid delivery.
+- [x] **Step 2: Run RED:** run the focused bridge and reconciliation tests; expect a finalized bridge stage never to enter `delivered`.
+- [x] **Step 3: Implement registered delivery verification** from canonical chain evidence. Provider status is advisory only; exact logs and balance changes must satisfy the committed delivery rule.
+- [x] **Step 4: Extend live reconciliation** so polling a finalized bridge source verifies delivery and calls `recordBridgeDelivery()` idempotently; only `delivered` unlocks the destination stage.
+- [x] **Step 5: Run GREEN:** focused tests plus the general-asset PostgreSQL integration suite.
+- [x] **Step 6: Commit:** stage only Task 4 files and commit `feat(execution): verify v4 bridge delivery`.
 
 ### Task 5: Partitioned V3/V4 migration exposure
 

@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   getProgram: vi.fn(),
   reconcileLive: vi.fn(),
   revalidate: vi.fn(),
+  createBridgeMonitor: vi.fn(),
 }));
 
 vi.mock("../../../../../../lib/coding-agent-sandbox/execution-access", () => ({
@@ -33,6 +34,9 @@ vi.mock("../../../../../../lib/execution-v4/production-stage-revalidation", () =
   revalidateProductionStageEvidenceV4: (...args: unknown[]) => {
     calls.push("revalidate"); return mocks.revalidate(...args);
   },
+}));
+vi.mock("../../../../../../lib/execution-v4/production-bridge-delivery", () => ({
+  createProductionBridgeDeliveryMonitorV4: mocks.createBridgeMonitor,
 }));
 
 import { POST } from "./route";
@@ -95,11 +99,13 @@ describe("general asset stage API", () => {
       kind: "execution", payload: execution, artifactHash: commitment(execution),
     }] });
     mocks.revalidate.mockResolvedValue({});
+    mocks.createBridgeMonitor.mockReturnValue({ monitor: true });
   });
 
   it("durably arms the canonical stage before returning its exact wallet transaction", async () => {
     mocks.prepareStage.mockResolvedValue({ state: "prepared" });
     mocks.armStage.mockResolvedValue({ state: "broadcasting" });
+    mocks.reconcileLive.mockResolvedValue({ state: "delivered" });
 
     const response = await POST(request({ action: "arm" }), context);
 
@@ -142,6 +148,9 @@ describe("general asset stage API", () => {
     expect(mocks.revalidate).toHaveBeenCalledWith(expect.objectContaining({
       stageId: destinationStageId, program,
     }));
+    expect(mocks.reconcileLive).toHaveBeenCalledWith(expect.objectContaining({
+      stageId, bridge: { monitor: true },
+    }));
   });
 
   it("never arms a prepared stage when fresh evidence fails", async () => {
@@ -173,5 +182,25 @@ describe("general asset stage API", () => {
       bundle: bundle(), stageId, reader: {},
     }));
     await expect(response.json()).resolves.toMatchObject({ stageId, state: "confirmed" });
+  });
+
+  it("uses the committed registered bridge monitor when reconciling a bridge stage", async () => {
+    const execution = crossChainBundle();
+    const program = { marker: "bridge-program" };
+    mocks.getExecutionContext.mockResolvedValue({ owner, state: "attested",
+      policy: { kind: "general-asset" }, program, artifacts: [{
+        kind: "execution", payload: execution, artifactHash: commitment(execution),
+      }] });
+    mocks.reconcileLive.mockResolvedValue({ state: "delivered" });
+
+    const response = await POST(request({ action: "reconcile" }), context);
+
+    expect(response.status).toBe(200);
+    expect(mocks.createBridgeMonitor).toHaveBeenCalledWith(expect.objectContaining({
+      stageId, program,
+    }));
+    expect(mocks.reconcileLive).toHaveBeenCalledWith(expect.objectContaining({
+      stageId, bridge: { monitor: true },
+    }));
   });
 });

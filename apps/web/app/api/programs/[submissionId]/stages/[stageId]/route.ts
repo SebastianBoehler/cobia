@@ -18,6 +18,9 @@ import {
   revalidateProductionStageEvidenceV4,
 } from "../../../../../../lib/execution-v4/production-stage-revalidation";
 import {
+  createProductionBridgeDeliveryMonitorV4,
+} from "../../../../../../lib/execution-v4/production-bridge-delivery";
+import {
   getGeneralAssetExecutionRepository,
   getSolverSubmissionRepository,
 } from "../../../../../../lib/runtime/market";
@@ -74,6 +77,10 @@ export async function POST(
       const reconciled = await reconcileGeneralAssetStageLiveV4({
         bundle, stageId: stage.stageId, repository,
         reader: createGeneralAssetStageChainReaderV4(stage.chainId),
+        ...(stage.delivery.kind === "bridge" ? { bridge: createProductionBridgeDeliveryMonitorV4({
+          policy: stored.policy, program: stored.program, stageId: stage.stageId,
+          artifacts: stored.artifacts,
+        }) } : {}),
       });
       return NextResponse.json({ stageId: stage.stageId, state: reconciled.state,
         delivery: stage.delivery }, { headers: { "Cache-Control": "no-store" } });
@@ -82,6 +89,21 @@ export async function POST(
       const submitted = await repository.recordSubmission(bundle.programId, stage.stageId, body.transactionHash);
       return NextResponse.json({ stageId: stage.stageId, state: submitted.state }, {
         headers: { "Cache-Control": "no-store" },
+      });
+    }
+    if (stage.predecessorStageId) {
+      const predecessor = bundle.stages.find(({ stageId: candidate }) =>
+        candidate === stage.predecessorStageId);
+      if (!predecessor || predecessor.delivery.kind !== "bridge") {
+        throw new Error("Destination stage predecessor is unavailable");
+      }
+      await reconcileGeneralAssetStageLiveV4({
+        bundle, stageId: predecessor.stageId, repository,
+        reader: createGeneralAssetStageChainReaderV4(predecessor.chainId),
+        bridge: createProductionBridgeDeliveryMonitorV4({
+          policy: stored.policy, program: stored.program, stageId: predecessor.stageId,
+          artifacts: stored.artifacts,
+        }),
       });
     }
     await repository.prepareStage({

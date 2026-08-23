@@ -26,7 +26,7 @@ describe("live general asset stage reconciliation", () => {
     const result = await reconcileGeneralAssetStageLiveV4({ bundle, stageId,
       repository: {
         getProgram: vi.fn().mockResolvedValue({ stages: [{ stageId, transactionHash }] }),
-        reconcileStageReceipt,
+        reconcileStageReceipt, recordBridgeDelivery: vi.fn(), recordBridgeFailure: vi.fn(),
       },
       reader: {
         readTransaction: vi.fn().mockResolvedValue({ sender: owner, nonce: "7", target,
@@ -54,7 +54,7 @@ describe("live general asset stage reconciliation", () => {
     const result = await reconcileGeneralAssetStageLiveV4({ bundle, stageId,
       repository: {
         getProgram: vi.fn().mockResolvedValue({ stages: [{ stageId, state: "submitted", transactionHash }] }),
-        reconcileStageReceipt,
+        reconcileStageReceipt, recordBridgeDelivery: vi.fn(), recordBridgeFailure: vi.fn(),
       },
       reader: {
         readTransaction: vi.fn(), readReceipt: vi.fn().mockResolvedValue(undefined),
@@ -63,5 +63,63 @@ describe("live general asset stage reconciliation", () => {
     });
     expect(result).toMatchObject({ state: "submitted" });
     expect(reconcileStageReceipt).not.toHaveBeenCalled();
+  });
+
+  it("records exact verified bridge delivery and otherwise remains finalized", async () => {
+    const destinationToken = "0x4444444444444444444444444444444444444444" as const;
+    const destinationStageId = hash("8");
+    const bridged = { ...bundle,
+      finalOutput: { chainId: 1 as const, token: destinationToken, minimumAtomic: "90" },
+      stages: [
+        { ...bundle.stages[0]!, delivery: { kind: "bridge" as const,
+          destinationChainId: 1 as const, recipient: owner, token: destinationToken,
+          minimumAtomic: "100" } },
+        { ...bundle.stages[0]!, stageId: destinationStageId, ordinal: 1, chainId: 1 as const,
+          predecessorStageId: stageId, inputToken: destinationToken,
+          transaction: { ...bundle.stages[0]!.transaction, chainId: 1 as const, nonce: "8" },
+          delivery: { kind: "none" as const } },
+      ],
+    } as GeneralAssetExecutionBundleV4;
+    const messageId = hash("6");
+    const destinationHash = hash("7");
+    const recordBridgeDelivery = vi.fn().mockResolvedValue({ state: "delivered" });
+    const repository = {
+      getProgram: vi.fn().mockResolvedValue({ stages: [{ stageId, transactionHash }] }),
+      reconcileStageReceipt: vi.fn().mockResolvedValue({ state: "finalized" }),
+      recordBridgeDelivery, recordBridgeFailure: vi.fn(),
+    };
+    const reader = {
+      readTransaction: vi.fn().mockResolvedValue({ sender: owner, nonce: "7", target,
+        valueAtomic: "0", calldata: "0x12345678" }),
+      readReceipt: vi.fn().mockResolvedValue({ success: true, blockNumber: "100", blockHash: hash("5"),
+        transactionIndex: 2, logs: bridged.stages[0]!.expectedLogs }),
+      readCurrentBlockNumber: vi.fn().mockResolvedValue("111"),
+      readCanonicalBlockHash: vi.fn().mockResolvedValue(hash("5")),
+      readTokenBalance: vi.fn(),
+    };
+    const bridgeReader = {
+      receipt: vi.fn().mockResolvedValue({ transactionHash: destinationHash, success: true,
+        blockNumber: "200", blockHash: hash("9"), transactionIndex: 1, logs: [] }),
+      canonicalBlockHash: vi.fn(async (chainId: number) => chainId === 196 ? hash("5") : hash("9")),
+      currentBlockNumber: vi.fn().mockResolvedValue("211"),
+      tokenBalance: vi.fn().mockResolvedValueOnce("10").mockResolvedValueOnce("110"),
+      codeHash: vi.fn().mockResolvedValue(hash("a")),
+    };
+    const monitor = { locate: vi.fn().mockResolvedValue({ sourceTransactionHash: transactionHash,
+      destinationChainId: 1, messageId, deliveryTransactionHash: destinationHash }),
+    semantics: { sourceMessageId: vi.fn(() => messageId), destinationDelivery: vi.fn(() =>
+      ({ messageId, recipient: owner, token: destinationToken, amountAtomic: "100",
+        emitter: target, emitterRuntimeCodeHash: hash("a") })) },
+    reader: bridgeReader };
+
+    await expect(reconcileGeneralAssetStageLiveV4({ bundle: bridged, stageId,
+      repository, reader, bridge: monitor })).resolves.toMatchObject({ state: "delivered" });
+    expect(recordBridgeDelivery).toHaveBeenCalledWith(bridged.programId, stageId,
+      expect.objectContaining({ messageId, deliveryTransactionHash: destinationHash,
+        amountAtomic: "100" }));
+
+    monitor.locate.mockResolvedValueOnce(undefined);
+    await expect(reconcileGeneralAssetStageLiveV4({ bundle: bridged, stageId,
+      repository, reader, bridge: monitor })).resolves.toMatchObject({ state: "finalized" });
   });
 });

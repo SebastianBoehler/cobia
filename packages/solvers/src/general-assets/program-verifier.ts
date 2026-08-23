@@ -188,6 +188,10 @@ export async function verifyGeneralAssetProgramV1(
     const selector = stage.calldata.slice(0, 10);
     if (!entry.selectors.includes(selector)) errors.add("SELECTOR_UNREGISTERED");
     if (stage.targetRuntimeCodeHash !== entry.runtimeCodeHash) errors.add("TARGET_IDENTITY_MISMATCH");
+    if (stage.delivery.kind === "bridge" &&
+        (!entry.bridgeDelivery || entry.bridgeDelivery.destinationChainId !== stage.delivery.destinationChainId)) {
+      errors.add("BRIDGE_DELIVERY_UNREGISTERED");
+    }
     if (stage.approvals.some(({ spender }) => !entry.approvalSpenders.includes(spender))) {
       errors.add("APPROVAL_SPENDER_UNREGISTERED");
     }

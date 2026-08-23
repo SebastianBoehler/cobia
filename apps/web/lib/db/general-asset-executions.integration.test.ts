@@ -216,5 +216,23 @@ describe("general asset V4 durable coordinator", () => {
       observed: receipt(otherHash), currentBlockNumber: "102", canonicalBlockHash: hash("c"),
     });
     expect(reorged).toMatchObject({ state: "reconciliation_required", failureCode: "RECEIPT_REORGED" });
+
+    const bridged = program("8");
+    const bridgeStage = firstStage("9", bridged.programId);
+    await repository.prepareStage({ program: bridged, stage: bridgeStage });
+    await repository.armStage(bridged.programId, bridgeStage.stageId);
+    const bridgeTransaction = hash("a");
+    await repository.recordSubmission(bridged.programId, bridgeStage.stageId, bridgeTransaction);
+    await repository.reconcileStageReceipt(bridged.programId, bridgeStage.stageId, {
+      observed: receipt(bridgeTransaction), currentBlockNumber: "101", canonicalBlockHash: hash("b"),
+    });
+    await repository.recordBridgeDelivery(bridged.programId, bridgeStage.stageId, {
+      messageId: hash("c"), sourceTransactionHash: bridgeTransaction, destinationChainId: 1,
+      recipient: owner, token: outputToken, amountAtomic: "100", deliveryTransactionHash: hash("d"),
+    });
+    await expect(repository.recordBridgeFailure(bridged.programId, bridgeStage.stageId,
+      "BRIDGE_DESTINATION_REORGED")).resolves.toMatchObject({
+      state: "reconciliation_required", failureCode: "BRIDGE_DESTINATION_REORGED",
+    });
   });
 });

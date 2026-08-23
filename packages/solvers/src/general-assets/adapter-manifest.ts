@@ -11,6 +11,18 @@ const AdapterSchema = z.object({
   id: z.string().regex(/^[a-z0-9]+(?:[._-][a-z0-9]+)+$/).max(128),
   version: z.number().int().positive().safe(),
 }).strict();
+const BridgeDeliverySchema = z.object({
+  statusProvider: z.literal("lifi"),
+  destinationChainId: z.union([z.literal(1), z.literal(196)]),
+  destinationEmitters: z.array(z.object({
+    address: CanonicalAddressSchema,
+    runtimeCodeHash: NonZeroHashSchema,
+  }).strict()).min(1).max(16),
+}).strict();
+
+function sortedUnique(values: readonly string[]): boolean {
+  return values.every((value, index) => index === 0 || values[index - 1]! < value);
+}
 
 export const RegisteredAdapterManifestV1Schema = z.object({
   version: z.literal(1),
@@ -22,6 +34,7 @@ export const RegisteredAdapterManifestV1Schema = z.object({
     runtimeCodeHash: NonZeroHashSchema,
     selectors: z.array(z.string().regex(/^0x[0-9a-f]{8}$/)).min(1).max(32),
     approvalSpenders: z.array(CanonicalAddressSchema).max(16),
+    bridgeDelivery: BridgeDeliverySchema.optional(),
   }).strict()).max(128),
 }).strict().superRefine((manifest, context) => {
   const keys = manifest.entries.map(({ adapter, chainId, target }) =>
@@ -40,6 +53,15 @@ export const RegisteredAdapterManifestV1Schema = z.object({
       if (!entry[field].every((value, item) => item === 0 || entry[field][item - 1]! < value)) {
         context.addIssue({ code: "custom", path: ["entries", index, field], message: `${field} must be sorted and unique` });
       }
+    }
+    if (entry.bridgeDelivery && entry.providerFamily !== "lifi") {
+      context.addIssue({ code: "custom", path: ["entries", index, "bridgeDelivery"],
+        message: "Bridge delivery semantics require a LI.FI adapter" });
+    }
+    if (entry.bridgeDelivery &&
+        !sortedUnique(entry.bridgeDelivery.destinationEmitters.map(({ address }) => address))) {
+      context.addIssue({ code: "custom", path: ["entries", index, "bridgeDelivery", "destinationEmitters"],
+        message: "Destination emitters must be sorted and unique" });
     }
   });
 });
