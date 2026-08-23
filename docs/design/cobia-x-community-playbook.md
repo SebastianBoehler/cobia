@@ -2,12 +2,16 @@
 
 Status: canonical living guide
 
-Updated: 2026-08-22
+Updated: 2026-08-23
 
 This playbook turns the Cobia brand into repeatable publishing behavior. It
 borrows the useful part of Jumper's strategy: polished, recognizable product
 posts on the main timeline and a warmer, funnier voice in replies. It does not
 copy Jumper's creative, color, phrasing, or meme style.
+
+Use `cobia-x-crypto-native-voice.md` for the informal CT register, memetic
+formats, community rituals, and slang boundaries. This playbook remains the
+authority for claims, publishing behavior, and approval gates.
 
 ## Channel job
 
@@ -245,6 +249,12 @@ list.
 Replies may be quicker, warmer, and funnier than main posts. They still need to
 sound like Cobia: observant, precise, and calm.
 
+Crypto-native does not mean slang-heavy. Match the original post's register,
+use one native phrase when it sharpens the thought, and stop before the reply
+turns into a pitch. On light surfaces, lowercase fragments and a one-word reply
+may be the right answer when the visual makes the meaning complete. See
+`cobia-x-crypto-native-voice.md` for examples and prohibited speculation cues.
+
 ### Good reply behaviors
 
 - Answer real questions before promoting the product.
@@ -320,18 +330,27 @@ of manufactured vibes.
 ### Post-submission sprint
 
 For the active judging window, increase visibility without turning the timeline
-into an hourly feed. Prepare up to three main-timeline candidates per day:
+into an hourly feed. Target two distinct main-timeline posts per day and prepare
+up to three approval-ready slots:
 
 1. One material proof, product, builder, or ecosystem update when there is new
    evidence.
-2. Up to two timely community-pulse or ecosystem posts when there is a genuine
+2. One distinct product mechanism, builder invitation, or useful short demo.
+3. One conditional community-pulse or ecosystem post when there is a genuine
    conversation to join.
 
-Space actual posts roughly 3-5 hours apart within the daytime window. Use
+Space actual posts roughly 3-4 hours apart within the daytime window. Use
 staggered, non-round times rather than a visibly mechanical top-of-the-hour
 schedule, and vary the content lane rather than repeating a format. If there is
-no evidence or real moment, post less. This sprint is temporary; return to the
-sustainable weekly rhythm when the judging window has passed.
+no evidence or real moment, post less. Never place two prompt clips, two wallet
+clips, or two solver-recruitment clips in adjacent windows. This sprint is
+temporary; return to the sustainable weekly rhythm when the judging window has
+passed.
+
+The exact launch-week media map and copy bank live in
+`cobia-x-launch-week-2026-08-22.md`. A scheduled row is an approval candidate,
+not permission to publish. Recheck the feed, factual claims, links, and media
+repetition at the action window.
 
 #### Interaction loop
 
@@ -437,3 +456,5 @@ Before publishing:
   inspired the format?
 - Would the reply still make sense if the Cobia name were removed?
 - Does a joke avoid minimizing financial or security risk?
+- Does the crypto-native language feel earned by the context rather than added
+  to perform belonging?
