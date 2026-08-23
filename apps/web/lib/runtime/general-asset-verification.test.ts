@@ -91,6 +91,7 @@ describe("production general asset proposal verification", () => {
     const assertReady = vi.fn(async () => undefined);
     const result = await verifyRuntimeGeneralAssetProposalV1(value.input, {
       executor, executorCodeHash: hash("e"), refreshAsset: value.refreshAsset,
+      nowSec: () => nowSec,
       getCodeHash: async (_chainId, address) => address === executor ? hash("e")
         : address === target ? hash("a") : hash("b"), compileSwap: value.compileSwap,
       replayStage: async (_stage, compiled, anchor) => ({ stageId: value.stage.stageId,
@@ -136,6 +137,7 @@ describe("production general asset proposal verification", () => {
 
     const result = await verifyRuntimeGeneralAssetProposalV1(value.input, {
       executor, executorCodeHash: hash("e"), refreshAsset,
+      nowSec: () => nowSec,
       getCodeHash: vi.fn(), compileSwap: value.compileSwap,
       replayStage: vi.fn(), signTypedData: vi.fn(),
     });
@@ -151,6 +153,7 @@ describe("production general asset proposal verification", () => {
         predecessorStageId: value.stage.stageId }] } } as never;
     const result = await verifyRuntimeGeneralAssetProposalV1(input, {
       executor, executorCodeHash: hash("e"), refreshAsset: value.refreshAsset,
+      nowSec: () => nowSec,
       getCodeHash: async () => hash("e"), compileSwap: value.compileSwap,
       replayStage: vi.fn(), signTypedData: vi.fn(),
     });
@@ -163,6 +166,7 @@ describe("production general asset proposal verification", () => {
     const hidden = "0x8888888888888888888888888888888888888888" as const;
     const result = await verifyRuntimeGeneralAssetProposalV1(value.input, {
       executor, executorCodeHash: hash("e"), refreshAsset: value.refreshAsset,
+      nowSec: () => nowSec,
       getCodeHash: async (_chainId, address) => address === executor ? hash("e")
         : address === target ? hash("a") : hash("b"), compileSwap: value.compileSwap,
       replayStage: async (_stage, compiled, anchor) => ({ stageId: value.stage.stageId,
@@ -175,5 +179,30 @@ describe("production general asset proposal verification", () => {
     });
     expect(result).toMatchObject({ accepted: false,
       errorCodes: expect.arrayContaining(["UNDECLARED_ASSET_DECREASE"]) });
+  });
+
+  it("does not return an attestation when signing crosses fresh evidence expiry", async () => {
+    const value = fixture();
+    const account = privateKeyToAccount(`0x${"77".repeat(32)}`);
+    const clock = vi.fn()
+      .mockReturnValueOnce(nowSec)
+      .mockReturnValueOnce(nowSec + 1)
+      .mockReturnValue(nowSec + 31);
+    const signTypedData = vi.fn((typedData) => account.signTypedData(typedData));
+    const result = await verifyRuntimeGeneralAssetProposalV1(value.input, {
+      executor, executorCodeHash: hash("e"), refreshAsset: value.refreshAsset, nowSec: clock,
+      getCodeHash: async (_chainId, address) => address === executor ? hash("e")
+        : address === target ? hash("a") : hash("b"), compileSwap: value.compileSwap,
+      replayStage: async (_stage, compiled, anchor) => ({ stageId: value.stage.stageId,
+        chainId: 196, blockNumber: anchor.blockNumber, blockHash: anchor.blockHash,
+        compiledCallHash: commitment(compiled), matchesCompiledCalls: true, success: true,
+        gasUsed: "200000", ownerAssetDeltas: [{ token: inputToken, deltaAtomic: "-100" },
+          { token: outputToken, deltaAtomic: "99" }],
+        endingAllowances: [{ token: inputToken, spender, atomic: "0" }],
+        traceHash: hash("9"), stateDiffHash: hash("8") }), signTypedData,
+    });
+
+    expect(signTypedData).toHaveBeenCalledOnce();
+    expect(result).toEqual({ accepted: false, errorCodes: ["VERIFICATION_EXPIRED"] });
   });
 });

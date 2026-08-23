@@ -7,7 +7,10 @@ import {
   solverDecisionClaimCommitmentV1,
 } from "@cobia/domain";
 import { privateKeyToAccount } from "viem/accounts";
+import { encodeFunctionData } from "viem";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { COBIA_EXECUTOR_V4_ABI } from "../execution-v4/abi";
+import { buildAuthorizationV4, type ExecutionProgramV4 } from "../execution-v4/commitment";
 import { createOpenDecisionIntakeV1 } from "./decision-intake";
 
 const account = privateKeyToAccount(`0x${"11".repeat(32)}`);
@@ -16,6 +19,7 @@ const inputToken = "0x2222222222222222222222222222222222222222" as const;
 const outputToken = "0x3333333333333333333333333333333333333333" as const;
 const target = "0x4444444444444444444444444444444444444444" as const;
 const nowSec = 2_000_000_100;
+let currentTimeSec = nowSec;
 const inputIdentity = AssetIdentityEvidenceV1Schema.parse({
   version: 1, chainId: 1, token: inputToken, runtimeCodeHash: hash("1"),
   proxy: { kind: "none" }, decimals: 18,
@@ -76,16 +80,32 @@ const decision = { version: 1 as const, decision: "submit" as const,
     identities: [inputIdentity, outputIdentity],
     valuations: [valuation], manifest }, provenance: { version: 1 as const,
     runner: "general-solver@1", dependencies: [], sources: [], commandHashes: [], generatedFiles: [] } };
+const executionProgram: ExecutionProgramV4 = {
+  policyHash: program.policyHash, manifestHash: program.manifestHash,
+  canonicalProgramHash: program.canonicalProgramHash,
+  inputIdentityEvidenceHash: commitment(inputIdentity),
+  outputIdentityEvidenceHash: commitment(outputIdentity), valuationEvidenceHash: commitment(valuation),
+  stageHash: commitment(program.stages[0]!), simulationHash: hash("d"),
+  pinnedBlockNumber: 124n, pinnedBlockHash: hash("b"), sourceChainId: 1n,
+  owner: policy.owner, inputToken, outputToken, inputAmount: 100n, inputUsdE8: 100000000n,
+  deadline: BigInt(program.deadline), nonce: hash("e"), refundTokens: [inputToken, outputToken],
+  calls: [{ adapterKey: hash("f"), target, value: 0n, gasLimit: 300_000,
+    approvals: [], data: "0x12345678" }],
+  constraints: [{ token: outputToken, kind: 1, minimum: 90n }],
+};
+const verifierAuthorization = buildAuthorizationV4(executionProgram, target);
+const verifierSignature = `0x${"12".repeat(65)}` as const;
 const execution = { version: 4 as const, kind: "general-asset-execution" as const,
   programId: program.canonicalProgramHash, owner: policy.owner, deadline: program.deadline,
   finalOutput: program.finalOutput, stages: [{ stageId: program.stages[0]!.stageId,
     ordinal: 0, chainId: 1 as const, predecessorStageId: null, inputToken,
     requiredConfirmations: 12, transaction: { chainId: 1 as const, from: policy.owner,
-      to: target, value: "0x0" as const, data: "0x12345678" as const }, expectedLogs: [],
+      to: target, value: "0x0" as const, data: encodeFunctionData({ abi: COBIA_EXECUTOR_V4_ABI,
+        functionName: "execute", args: [executionProgram, verifierAuthorization, verifierSignature] }) }, expectedLogs: [],
     delivery: { kind: "none" as const }, evidenceHash: hash("a") }] };
 const authorization = [{ version: 4 as const, stageIndex: 0, chainId: 1 as const,
-  executor: target, executionCommitment: hash("b"), evidenceHash: hash("a"),
-  signature: `0x${"12".repeat(65)}` }];
+  executor: target, executionCommitment: verifierAuthorization.executionCommitment,
+  evidenceHash: hash("a"), signature: verifierSignature }];
 
 const mocks = {
   snapshots: vi.fn(), consume: vi.fn(),
@@ -113,7 +133,7 @@ function intake(declaredCapabilities = ["general-asset@1"]) {
     runs: { create: mocks.createRun, start: mocks.startRun, complete: mocks.completeRun,
       abstain: mocks.abstainRun, fail: mocks.failRun },
     submissions: { append: mocks.append, appendArtifact: mocks.appendArtifact, resolve: mocks.resolve },
-    verify: mocks.verify, nowSec: () => nowSec,
+    verify: mocks.verify, nowSec: () => currentTimeSec,
   });
 }
 
@@ -127,8 +147,12 @@ async function signed(snapshotHash?: `0x${string}`) {
 describe("general asset decision intake", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.appendArtifact.mockReset();
+    mocks.resolve.mockReset();
+    currentTimeSec = nowSec;
     mocks.verify.mockResolvedValue({ accepted: true, errorCodes: [],
-      execution, authorization });
+      execution, authorization, verificationValidUntilSec: execution.deadline,
+      verificationAnchor: { chainId: 1, blockNumber: "124", blockHash: hash("b") } });
   });
 
   it("routes committed evidence without requesting a legacy snapshot", async () => {
@@ -162,6 +186,42 @@ describe("general asset decision intake", () => {
       state: "rejected", errorCodes: ["EXECUTION_ARTIFACT_MISSING"],
     });
     expect(mocks.resolve.mock.calls.map((call) => call[1])).toEqual(["rejected"]);
+    expect(mocks.completeRun).not.toHaveBeenCalled();
+  });
+
+  it("rejects authorization commitments that do not match encoded execution", async () => {
+    mocks.verify.mockResolvedValueOnce({ accepted: true, errorCodes: [], execution,
+      authorization: [{ ...authorization[0]!, executionCommitment: hash("9") }],
+      verificationValidUntilSec: execution.deadline,
+      verificationAnchor: { chainId: 1, blockNumber: "124", blockHash: hash("b") } });
+
+    await expect(intake().submit(await signed())).resolves.toMatchObject({
+      state: "rejected", errorCodes: ["EXECUTION_ARTIFACT_MISSING"],
+    });
+    expect(mocks.resolve.mock.calls.map((call) => call[1])).not.toContain("attested");
+  });
+
+  it("never attests when persistence crosses the verified execution deadline", async () => {
+    mocks.appendArtifact.mockImplementation(async (_id, kind) => {
+      if (kind === "authorization") currentTimeSec = execution.deadline;
+    });
+
+    await expect(intake().submit(await signed())).resolves.toMatchObject({
+      state: "rejected", errorCodes: ["VERIFICATION_EXPIRED"],
+    });
+    expect(mocks.resolve.mock.calls.map((call) => call[1])).not.toContain("attested");
+    expect(mocks.completeRun).not.toHaveBeenCalled();
+  });
+
+  it("fails a verified submission when the final attested transition crosses expiry", async () => {
+    mocks.resolve.mockImplementation(async (_id, state) => {
+      if (state === "verified") currentTimeSec = execution.deadline;
+    });
+
+    await expect(intake().submit(await signed())).resolves.toMatchObject({
+      state: "rejected", errorCodes: ["VERIFICATION_EXPIRED"],
+    });
+    expect(mocks.resolve.mock.calls.map((call) => call[1])).toEqual(["verified", "failed"]);
     expect(mocks.completeRun).not.toHaveBeenCalled();
   });
 });

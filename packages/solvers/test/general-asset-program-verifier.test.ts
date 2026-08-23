@@ -1,4 +1,4 @@
-import { commitment } from "@cobia/domain";
+import { AssetValuationEvidenceV1Schema, GeneralAssetPolicyV1Schema, commitment } from "@cobia/domain";
 import { describe, expect, it } from "vitest";
 import {
   canonicalGeneralAssetProgramHash,
@@ -159,11 +159,11 @@ describe("general asset program verifier", () => {
 
   it("binds verifier-owned fresh evidence while preserving program baseline commitments", async () => {
     const input = fixture();
-    const baseline = { ...(input.valuationEvidence[0] as Record<string, unknown>),
+    const baseline = { ...AssetValuationEvidenceV1Schema.parse(input.valuationEvidence[0]),
       expiresAtSec: nowSec - 1 };
     const baselineHash = commitment(baseline);
     input.valuationEvidence = [baseline];
-    input.policy = { ...input.policy, inputValuationHash: baselineHash };
+    input.policy = { ...GeneralAssetPolicyV1Schema.parse(input.policy), inputValuationHash: baselineHash };
     input.program.policyHash = commitment(input.policy);
     input.program.valuationEvidenceHashes = [baselineHash];
     input.program.stages[0]!.input.valuationEvidenceHash = baselineHash;
@@ -171,7 +171,7 @@ describe("general asset program verifier", () => {
     const currentIdentityHash = hash("1");
     const currentValuation = { ...baseline, assetIdentityHash: currentIdentityHash,
       conservativeValueUsdE8: "90000000", capturedAtSec: nowSec, expiresAtSec: nowSec + 30,
-      quotes: (baseline.quotes as Record<string, unknown>[]).map((quote) => ({ ...quote,
+      quotes: baseline.quotes.map((quote) => ({ ...quote,
         fetchedAtSec: nowSec, expiresAtSec: nowSec + 30 })) };
     input.currentEvidence = { identities: [
       { programHash: hash("4"), currentHash: currentIdentityHash },

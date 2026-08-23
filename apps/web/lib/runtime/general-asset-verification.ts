@@ -1,4 +1,5 @@
-import { AssetIdentityEvidenceV1Schema, commitment, type GeneralAssetPolicyV1,
+import { AssetIdentityEvidenceV1Schema, AssetValuationEvidenceV1Schema, commitment,
+  type GeneralAssetPolicyV1,
   type GeneralAssetProgramV1, type GeneralAssetStageV1 } from "@cobia/domain";
 import { verifyGeneralAssetProgramV1, type CompiledGeneralAssetStageV1,
   type GeneralAssetStageReplayV1, type RegisteredAdapterEntryV1,
@@ -25,6 +26,7 @@ interface Input {
 interface Dependencies {
   executor: Address;
   executorCodeHash: Hash;
+  nowSec(): number;
   refreshAsset(input: { chainId: 1 | 196; token: Address; inputAtomic?: string }): Promise<{
     status: "eligible" | "verification_pending" | "unsupported";
     identityHash?: Hash;
@@ -78,6 +80,18 @@ function supportedRoute(input: Input): boolean {
     stage.outputs.length === 1 && stage.approvals.length === 1;
 }
 
+function verificationValidUntil(input: Input, verdict: Extract<Awaited<ReturnType<
+  typeof verifyGeneralAssetProgramV1>>, { accepted: true }>, evidence: {
+    input: ReturnType<typeof AssetIdentityEvidenceV1Schema.parse>;
+    output: ReturnType<typeof AssetIdentityEvidenceV1Schema.parse>;
+    valuation: ReturnType<typeof AssetValuationEvidenceV1Schema.parse>;
+  }) {
+  return Math.min(input.policy.competition.closesAt, input.program.deadline,
+    ...verdict.compiledStages.map(({ expiresAtSec }) => expiresAtSec),
+    evidence.input.expiresAtSec, evidence.output.expiresAtSec, evidence.valuation.expiresAtSec,
+    ...evidence.valuation.quotes.map(({ expiresAtSec }) => expiresAtSec));
+}
+
 function compileStage(input: GeneralAssetSwapCompileRequestV1, stage: GeneralAssetStageV1,
   entry: RegisteredAdapterEntryV1, deps: Dependencies) {
   return deps.compileSwap(input).then((swap): CompiledGeneralAssetStageV1 => {
@@ -100,7 +114,7 @@ function compileStage(input: GeneralAssetSwapCompileRequestV1, stage: GeneralAss
 }
 
 function execution(verdict: Extract<Awaited<ReturnType<typeof verifyGeneralAssetProgramV1>>,
-  { accepted: true }>): ExecutionProgramV4 {
+  { accepted: true }>, validUntilSec: number): ExecutionProgramV4 {
   const stage = verdict.program.stages[0]!;
   const compiled = verdict.compiledStages[0]!;
   const replay = verdict.replays[0]!;
@@ -114,7 +128,7 @@ function execution(verdict: Extract<Awaited<ReturnType<typeof verifyGeneralAsset
     inputToken: stage.input.token, outputToken: stage.outputs[0]!.token,
     inputAmount: BigInt(stage.input.maximumAtomic),
     inputUsdE8: BigInt(verdict.stageInputExposuresUsdE8[0]!),
-    deadline: BigInt(Math.min(verdict.program.deadline, compiled.expiresAtSec)),
+    deadline: BigInt(validUntilSec),
     nonce: generalAssetStageNonceV4(verdict.policy.nonce, stage), refundTokens: compiled.refundTokens,
     calls: [{ adapterKey: compiled.adapterKey, target: compiled.target,
       value: BigInt(compiled.valueAtomic), gasLimit: compiled.gasLimit,
@@ -139,12 +153,20 @@ export async function verifyRuntimeGeneralAssetProposalV1(input: Input, deps: De
       inputAtomic: stage.input.maximumAtomic }),
     deps.refreshAsset({ chainId: stage.chainId, token: stage.outputs[0]!.token }),
   ]);
+  const freshValuation = AssetValuationEvidenceV1Schema.safeParse(freshInput.valuationEvidence);
   if (freshInput.status !== "eligible" || freshOutput.status !== "eligible" ||
       !freshInput.identityHash || !freshOutput.identityHash || !freshInput.identityEvidence ||
-      !freshOutput.identityEvidence || !freshInput.valuationHash || !freshInput.valuationEvidence ||
+      !freshOutput.identityEvidence || !freshInput.valuationHash || !freshValuation.success ||
       stableIdentity(freshInput.identityEvidence) !== stableIdentity(inputBaseline.data) ||
       stableIdentity(freshOutput.identityEvidence) !== stableIdentity(outputBaseline.data)) {
     return rejected("ASSET_EVIDENCE_MISMATCH");
+  }
+  const verificationNowSec = deps.nowSec();
+  if (Math.min(input.policy.competition.closesAt, input.program.deadline,
+    freshInput.identityEvidence.expiresAtSec, freshOutput.identityEvidence.expiresAtSec,
+    freshValuation.data.expiresAtSec,
+    ...freshValuation.data.quotes.map(({ expiresAtSec }) => expiresAtSec)) <= verificationNowSec) {
+    return rejected("VERIFICATION_EXPIRED");
   }
   const anchor = { chainId: stage.chainId, blockNumber: freshInput.identityEvidence.blockNumber,
     blockHash: freshInput.identityEvidence.blockHash };
@@ -159,8 +181,8 @@ export async function verifyRuntimeGeneralAssetProposalV1(input: Input, deps: De
       { programHash: stage.input.identityEvidenceHash, currentHash: freshInput.identityHash },
       { programHash: stage.outputs[0]!.identityEvidenceHash, currentHash: freshOutput.identityHash },
     ], valuations: [{ programHash: stage.input.valuationEvidenceHash,
-      identityProgramHash: stage.input.identityEvidenceHash, evidence: freshInput.valuationEvidence }] },
-    anchors: [anchor], nowSec: input.nowSec,
+      identityProgramHash: stage.input.identityEvidenceHash, evidence: freshValuation.data }] },
+    anchors: [anchor], nowSec: verificationNowSec,
     getCodeHash: deps.getCodeHash,
     compileStage: (exactStage, entry) => compileStage({ chainId: exactStage.chainId,
       executor: deps.executor, owner: input.program.owner, inputToken: exactStage.input.token,
@@ -169,8 +191,13 @@ export async function verifyRuntimeGeneralAssetProposalV1(input: Input, deps: De
       maximumSlippageBps: (input.policy as { limits: { maxSlippageBps: number } }).limits.maxSlippageBps,
     }, exactStage, entry, deps), replayStage: deps.replayStage });
   if (!verdict.accepted) return verdict;
+  const validUntilSec = verificationValidUntil(input, verdict, { input: freshInput.identityEvidence,
+    output: freshOutput.identityEvidence, valuation: freshValuation.data });
+  if (deps.nowSec() >= validUntilSec) return rejected("VERIFICATION_EXPIRED");
   const attestation = await attestExecutionProgramV4({ verdict, stageIndex: 0,
-    execution: execution(verdict), executor: deps.executor, signTypedData: deps.signTypedData });
+    execution: execution(verdict, validUntilSec), executor: deps.executor,
+    signTypedData: deps.signTypedData });
+  if (deps.nowSec() >= validUntilSec) return rejected("VERIFICATION_EXPIRED");
   const authorization = GeneralAssetAuthorizationArtifactsV4Schema.parse([{
     version: 4, stageIndex: attestation.stageIndex,
     chainId: Number(attestation.authorization.chainId), executor: attestation.authorization.executor,
@@ -178,8 +205,9 @@ export async function verifyRuntimeGeneralAssetProposalV1(input: Input, deps: De
     evidenceHash: attestation.evidenceHash, signature: attestation.signature,
   }]);
   const freshEvidence = { identities: [freshInput.identityEvidence, freshOutput.identityEvidence],
-    valuations: [freshInput.valuationEvidence], anchors: [anchor] };
+    valuations: [freshValuation.data], anchors: [anchor] };
   return { accepted: true as const, errorCodes: [] as const, replay: verdict.replays,
     execution: buildGeneralAssetExecutionBundleV4({ verdict, attestations: [attestation] }),
-    authorization, freshEvidence: { ...freshEvidence, hash: commitment(freshEvidence) as Hash } };
+    authorization, verificationValidUntilSec: validUntilSec, verificationAnchor: anchor,
+    freshEvidence: { ...freshEvidence, hash: commitment(freshEvidence) as Hash } };
 }

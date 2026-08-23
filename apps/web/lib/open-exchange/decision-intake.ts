@@ -13,10 +13,16 @@ import { GeneralAssetEvidenceArtifactV1Schema, SolverDecisionV1Schema } from "@c
 import { isAddress, isAddressEqual, recoverMessageAddress, type Address, type Hex } from "viem";
 import { z } from "zod";
 import { GeneralAssetAuthorizationArtifactsV4Schema } from "../execution-v4/authorization-artifact";
+import { assertGeneralAssetArtifactIntegrityV4 } from "../execution-v4/artifact-integrity";
 import { parseGeneralAssetExecutionBundleV4 } from "../execution-v4/stage-artifact";
 
 const SignatureSchema = z.string().regex(/^0x[0-9a-fA-F]{130}$/).transform((value) => value as Hex);
 const FailureCodeSchema = z.string().regex(/^[A-Z][A-Z0-9_]{2,63}$/);
+const VerificationAnchorSchema = z.object({
+  chainId: z.union([z.literal(1), z.literal(196)]),
+  blockNumber: z.string().regex(/^[1-9][0-9]*$/),
+  blockHash: z.string().regex(/^0x[0-9a-f]{64}$/),
+}).strict();
 
 type IntakeReceipt = {
   intentId: string;
@@ -29,7 +35,8 @@ type IntakeReceipt = {
 
 type Verification =
   | { accepted: true; errorCodes: readonly string[]; objective?: unknown; replay?: unknown;
-      execution?: unknown; authorization?: unknown }
+      execution?: unknown; authorization?: unknown; verificationValidUntilSec?: number;
+      verificationAnchor?: unknown }
   | { accepted: false; errorCodes: string[]; replay?: unknown };
 
 interface IntakeDependencies {
@@ -290,17 +297,27 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
       }
       await dependencies.submissions.appendArtifact(submission.id, "verdict", verdict);
       if (verdict.replay) await dependencies.submissions.appendArtifact(submission.id, "replay", verdict.replay);
-      if (verdict.accepted && decision.proposalKind === "general-asset-program" &&
-          (() => {
-            try {
-              const execution = parseGeneralAssetExecutionBundleV4(verdict.execution);
-              const authorization = GeneralAssetAuthorizationArtifactsV4Schema.parse(verdict.authorization);
-              return execution.programId !== decision.program.canonicalProgramHash ||
-                execution.stages.length !== decision.program.stages.length ||
-                authorization.length !== decision.program.stages.length ||
-                authorization.some((item, index) => item.chainId !== decision.program.stages[index]!.chainId);
-            } catch { return true; }
-          })()) {
+      let generalVerification: { validUntilSec: number;
+        anchor: z.infer<typeof VerificationAnchorSchema> } | undefined;
+      if (verdict.accepted && decision.proposalKind === "general-asset-program") {
+        try {
+          const execution = parseGeneralAssetExecutionBundleV4(verdict.execution);
+          const authorization = GeneralAssetAuthorizationArtifactsV4Schema.parse(verdict.authorization);
+          assertGeneralAssetArtifactIntegrityV4(execution, authorization);
+          const anchor = VerificationAnchorSchema.parse(verdict.verificationAnchor);
+          const validUntilSec = z.number().int().positive().safe()
+            .parse(verdict.verificationValidUntilSec);
+          if (execution.programId !== decision.program.canonicalProgramHash ||
+              execution.stages.length !== decision.program.stages.length ||
+              authorization.length !== decision.program.stages.length ||
+              authorization.some((item, index) => item.chainId !== decision.program.stages[index]!.chainId) ||
+              execution.deadline !== validUntilSec || validUntilSec <= dependencies.nowSec()) {
+            throw new Error("General asset execution artifact mismatch");
+          }
+          generalVerification = { validUntilSec, anchor };
+        } catch { generalVerification = undefined; }
+      }
+      if (verdict.accepted && decision.proposalKind === "general-asset-program" && !generalVerification) {
         const errorCodes = ["EXECUTION_ARTIFACT_MISSING"];
         await dependencies.submissions.resolve(submission.id, "rejected", errorCodes);
         await dependencies.runs.fail(run.id, errorCodes[0]!);
@@ -323,7 +340,23 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
       if (verdict.authorization) {
         await dependencies.submissions.appendArtifact(submission.id, "authorization", verdict.authorization);
       }
+      if (generalVerification) {
+        if (dependencies.nowSec() >= generalVerification.validUntilSec) {
+          const errorCodes = ["VERIFICATION_EXPIRED"];
+          await dependencies.submissions.resolve(submission.id, "rejected", errorCodes);
+          await dependencies.runs.fail(run.id, errorCodes[0]!);
+          return { intentId: claim.intentId, solverId: claim.solverId, revision: claim.revision,
+            state: "rejected", submissionId: submission.id, errorCodes };
+        }
+      }
       await dependencies.submissions.resolve(submission.id, "verified", []);
+      if (generalVerification && dependencies.nowSec() >= generalVerification.validUntilSec) {
+        const errorCodes = ["VERIFICATION_EXPIRED"];
+        await dependencies.submissions.resolve(submission.id, "failed", errorCodes);
+        await dependencies.runs.fail(run.id, errorCodes[0]!);
+        return { intentId: claim.intentId, solverId: claim.solverId, revision: claim.revision,
+          state: "rejected", submissionId: submission.id, errorCodes };
+      }
       await dependencies.submissions.resolve(submission.id, "attested", []);
       await dependencies.runs.complete(run.id);
       return { intentId: claim.intentId, solverId: claim.solverId, revision: claim.revision,
