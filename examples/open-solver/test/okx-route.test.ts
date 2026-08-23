@@ -6,7 +6,7 @@ import { buildOkxRouteStage, fetchOkxRouteArtifact } from "../src/okx-route";
 
 const owner = "0x1111111111111111111111111111111111111111" as const;
 const inputToken = "0x2222222222222222222222222222222222222222" as const;
-const data = "0xf2c426960000000000000000000000000000000000000000000000000000000000000001" as const;
+const data = "0x0c307f760000000000000000000000000000000000000000000000000000000000000001" as const;
 const attributedData = concatHex([data, XLAYER_OKX_MANIFEST_V1.builderDataSuffix]);
 const request = {
   chainIndex: "196", amount: "100", fromTokenAddress: inputToken,
@@ -66,7 +66,7 @@ describe("OKX route construction", () => {
       approval: { token: inputToken, spender: XLAYER_OKX_MANIFEST_V1.approval.address,
         maximumAtomic: "100" },
       transaction: { target: XLAYER_OKX_MANIFEST_V1.router.address,
-        selector: "0xf2c42696", valueAtomic: "0" },
+        selector: "0x0c307f76", valueAtomic: "0" },
     });
     expect(result.providerArtifact).toEqual({
       stageId: "01-okx-swap", provider: "okx.dex@1",

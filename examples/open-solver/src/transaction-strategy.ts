@@ -98,6 +98,10 @@ export async function solveTransactionIntent(
         owner: intent.policy.owner, aToken: input.token,
         underlying: receipt.underlying.address, amountAtomic: input.maximumAtomic,
         fetchedAt: nowSec, expiresAt: Math.min(intent.policy.deadline, nowSec + 30) });
+      if (isAddressEqual(receipt.underlying.address, outcome.token)) {
+        return dependencies.finalize({ intent, stages: [withdraw.stage],
+          artifacts: [withdraw.artifact], runner: "cobia-reference-aave-withdraw@1", nowSec });
+      }
       const artifact = await dependencies.fetchOkxArtifact({ owner: intent.policy.owner,
         inputToken: receipt.underlying.address.toLowerCase() as Address,
         outputToken: outcome.token, inputAtomic: input.maximumAtomic,

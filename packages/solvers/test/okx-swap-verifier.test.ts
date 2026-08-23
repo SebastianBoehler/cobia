@@ -6,10 +6,10 @@ import { verifyOkxSwapStageV1, XLAYER_OKX_MANIFEST_V1 } from "../src";
 const owner = "0x1111111111111111111111111111111111111111" as const;
 const fromToken = "0x2222222222222222222222222222222222222222" as const;
 const toToken = "0x3333333333333333333333333333333333333333" as const;
-const router = "0x7c5bee2a8091c3ef39072f64f18fac913060aeaf" as const;
+const router = "0x722db4f285f8bd91ef7af6da397e83f7fa4e80a7" as const;
 const approval = "0x8b773d83bc66be128c60e07e17c8901f7a64f000" as const;
 const builderSuffix = "0x737136646c6a326f6e72386d6c357861100080218021802180218021802180218021" as const;
-const data = "0xf2c426960000000000000000000000000000000000000000000000000000000000000001" as const;
+const data = "0x0c307f760000000000000000000000000000000000000000000000000000000000000001" as const;
 const attributedData = concatHex([data, builderSuffix]);
 const hash = (byte: string) => `0x${byte.repeat(64)}` as `0x${string}`;
 
@@ -41,7 +41,7 @@ const stage = {
   input: { token: fromToken, atomic: "10" },
   output: { chainId: 196 as const, token: toToken, minimumAtomic: "20" },
   approval: { token: fromToken, spender: approval, maximumAtomic: "10" },
-  transaction: { target: router, selector: "0xf2c42696" as const, dataHash: keccak256(attributedData), valueAtomic: "0" },
+  transaction: { target: router, selector: "0x0c307f76" as const, dataHash: keccak256(attributedData), valueAtomic: "0" },
   tools: ["okx-dex-api"],
 };
 const manifest = XLAYER_OKX_MANIFEST_V1;
@@ -64,6 +64,14 @@ const verify = (overrides: Partial<Parameters<typeof verifyOkxSwapStageV1>[0]> =
   });
 
 describe("OKX strict swap stage", () => {
+  it("pins the reviewed X Layer router currently returned by OKX", () => {
+    expect(XLAYER_OKX_MANIFEST_V1.router).toEqual({
+      address: "0x722db4f285f8bd91ef7af6da397e83f7fa4e80a7",
+      runtimeCodeHash: "0x38e02cc6683c3fff0758aefa8b75189fd541ce1623cc9e6139de3119185f2a7f",
+      selectors: ["0x0c307f76"],
+    });
+  });
+
   it("accepts an exact attributed X Layer swap only after code and state replay", async () => {
     const result = await verifyOkxSwapStageV1({
       stage, artifact, manifest, anchor, nowSec: 1_786_900_005, currentAllowanceAtomic: "0",

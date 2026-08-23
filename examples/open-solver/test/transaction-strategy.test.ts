@@ -9,7 +9,7 @@ import { XLAYER_CURVE_LP_TOKEN } from "../src/curve-liquidity-strategy";
 
 const owner = "0x1111111111111111111111111111111111111111" as const;
 const usdg = "0x4ae46a509f6b1d9056937ba4500cb143933d2dc8" as const;
-const data = "0xf2c426960000000000000000000000000000000000000000000000000000000000000001" as const;
+const data = "0x0c307f760000000000000000000000000000000000000000000000000000000000000001" as const;
 const request = { chainIndex: "196", amount: "100", fromTokenAddress: usdg,
   toTokenAddress: NATIVE_ASSET_ADDRESS, slippagePercent: "0.5",
   userWalletAddress: owner, swapReceiverAddress: owner, swapMode: "exactIn",
@@ -86,6 +86,25 @@ describe("common X Layer transaction strategy", () => {
       expect.objectContaining({ id: "02-okx-swap", provider: "okx.dex@1",
         dependsOn: ["01-aave-withdraw"], input: { token: usdg, atomic: "100" } }),
     ] }));
+  });
+
+  it("withdraws an Aave receipt directly when its underlying is the requested output", async () => {
+    const fetchOkxArtifact = vi.fn();
+    const finalize = vi.fn(async () => ({ version: 1, decision: "abstain",
+      reasonCode: "CAPTURED" }) as const);
+    const asset = PROTOCOL_REGISTRY.aaveV3.assets.USDG;
+
+    await solveTransactionIntent(intent(asset.aToken.address, asset.underlying.address, "99"), {
+      nowSec: () => 100, fetchOkxArtifact, finalize,
+    });
+
+    expect(fetchOkxArtifact).not.toHaveBeenCalled();
+    expect(finalize).toHaveBeenCalledWith(expect.objectContaining({
+      stages: [expect.objectContaining({ id: "01-aave-withdraw", provider: "evm.raw@1",
+        input: { token: asset.aToken.address.toLowerCase(), atomic: "100" },
+        output: { chainId: 196, token: asset.underlying.address.toLowerCase(), minimumAtomic: "100" } })],
+      runner: "cobia-reference-aave-withdraw@1",
+    }));
   });
 
   it.each([
