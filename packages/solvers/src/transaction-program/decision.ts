@@ -1,7 +1,14 @@
-import { TransactionProgramV1Schema } from "@cobia/domain";
+import {
+  AssetIdentityEvidenceV1Schema,
+  AssetValuationEvidenceV1Schema,
+  GeneralAssetProgramV1Schema,
+  TransactionProgramV1Schema,
+  commitment,
+} from "@cobia/domain";
 import { z } from "zod";
 import { CapabilityProgramEvidenceV2Schema } from "../capabilities/evidence-v2";
 import { CapabilityProgramV2Schema } from "../capabilities/program-v2";
+import { RegisteredAdapterManifestV1Schema } from "../general-assets/adapter-manifest";
 import { TransactionProgramEvidenceV1Schema } from "./evidence";
 import { ProviderArtifactsV1Schema } from "./provider-artifacts";
 
@@ -45,9 +52,45 @@ const TransactionProposalSchema = z.object({
   provenance: SolverProvenanceV1Schema,
 }).strict();
 
+export const GeneralAssetEvidenceArtifactV1Schema = z.object({
+  version: z.literal(1),
+  kind: z.literal("general-asset-evidence"),
+  identities: z.array(AssetIdentityEvidenceV1Schema).min(1).max(16),
+  valuations: z.array(AssetValuationEvidenceV1Schema).min(1).max(16),
+  manifest: RegisteredAdapterManifestV1Schema,
+}).strict();
+
+function sameHashSet(left: readonly string[], right: readonly string[]): boolean {
+  const expected = [...right].sort();
+  return left.length === expected.length && [...left].sort().every((value, index) =>
+    value === expected[index]);
+}
+
+const GeneralAssetProposalSchema = z.object({
+  version: z.literal(1),
+  decision: z.literal("submit"),
+  proposalKind: z.literal("general-asset-program"),
+  program: GeneralAssetProgramV1Schema,
+  evidence: GeneralAssetEvidenceArtifactV1Schema,
+  provenance: SolverProvenanceV1Schema,
+}).strict().superRefine(({ program, evidence }, context) => {
+  const identities = evidence.identities.map((value) => commitment(value));
+  const valuations = evidence.valuations.map((value) => commitment(value));
+  if (program.manifestHash !== commitment(evidence.manifest)) {
+    context.addIssue({ code: "custom", path: ["evidence", "manifest"],
+      message: "Evidence manifest does not match the program" });
+  }
+  if (!sameHashSet(program.identityEvidenceHashes, identities) ||
+      !sameHashSet(program.valuationEvidenceHashes, valuations)) {
+    context.addIssue({ code: "custom", path: ["evidence"],
+      message: "Program evidence commitments are incomplete" });
+  }
+});
+
 export const SolverDecisionV1Schema = z.union([
   AbstentionSchema,
   CapabilityProposalSchema,
   TransactionProposalSchema,
+  GeneralAssetProposalSchema,
 ]);
 export type SolverDecisionV1 = z.infer<typeof SolverDecisionV1Schema>;

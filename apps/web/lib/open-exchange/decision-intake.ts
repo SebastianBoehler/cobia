@@ -1,6 +1,7 @@
 import {
   CapabilityCompositionPolicyV1Schema,
   CapabilityCompositionSnapshotV1Schema,
+  GeneralAssetPolicyV1Schema,
   OpenIntentPolicyV3Schema,
   OpenIntentSnapshotV1Schema,
   commitment,
@@ -51,9 +52,13 @@ interface IntakeDependencies {
     appendArtifact(id: string, kind: string, value: unknown): Promise<unknown>;
     resolve(id: string, state: string, codes: string[]): Promise<unknown>;
   };
-  verify(value: { runId: string; proposalKind: "capability-v2" | "transaction-program";
-    policy: unknown; snapshot: unknown; program: unknown; evidence: unknown;
-    providerArtifacts?: unknown; nowSec: number }): Promise<Verification>;
+  verify(value: { runId: string;
+    proposalKind: "capability-v2" | "transaction-program" | "general-asset-program";
+    policy: unknown; snapshot: unknown | null; program: unknown; evidence: unknown;
+    providerArtifacts?: unknown; manifest?: unknown; valuationEvidence?: unknown[];
+    identityEvidence?: unknown[];
+    anchors?: { chainId: 1 | 196; blockNumber: string; blockHash: string }[];
+    nowSec: number }): Promise<Verification>;
   nowSec(): number;
 }
 
@@ -71,10 +76,11 @@ function capabilities(value: unknown): string[] {
 }
 
 function parsePolicy(value: unknown) {
-  return value && typeof value === "object" && "kind" in value &&
-    value.kind === "capability-composition"
-    ? CapabilityCompositionPolicyV1Schema.parse(value)
-    : OpenIntentPolicyV3Schema.parse(value);
+  if (value && typeof value === "object" && "kind" in value) {
+    if (value.kind === "capability-composition") return CapabilityCompositionPolicyV1Schema.parse(value);
+    if (value.kind === "general-asset") return GeneralAssetPolicyV1Schema.parse(value);
+  }
+  return OpenIntentPolicyV3Schema.parse(value);
 }
 
 function parseSnapshot(value: unknown) {
@@ -89,6 +95,18 @@ function assertDecisionAuthority(input: {
   policy: ReturnType<typeof parsePolicy>;
 }) {
   if (input.decision.decision === "abstain") return;
+  if (input.decision.proposalKind === "general-asset-program") {
+    if (input.policy.kind !== "general-asset" ||
+        input.decision.program.policyHash !== commitment(input.policy) ||
+        !isAddressEqual(input.decision.program.owner, input.policy.owner) ||
+        input.decision.program.manifestHash !== input.policy.manifestHash) {
+      throw new InvalidSolverDecisionError("General asset program does not match signed intent authority");
+    }
+    return;
+  }
+  if (input.policy.kind === "general-asset") {
+    throw new InvalidSolverDecisionError("General asset intents require general asset programs");
+  }
   if (input.decision.program.requestId !== input.policy.requestId ||
       !isAddressEqual(input.decision.program.owner, input.policy.owner) ||
       input.decision.evidence.programHash !== commitment(input.decision.program)) {
@@ -111,6 +129,26 @@ function assertDecisionAuthority(input: {
   }
 }
 
+function generalAssetAnchors(decision: Extract<
+  ReturnType<typeof SolverDecisionV1Schema.parse>,
+  { proposalKind: "general-asset-program" }
+>) {
+  const anchors = new Map<number, { chainId: 1 | 196; blockNumber: string; blockHash: string }>();
+  for (const stage of decision.program.stages) {
+    const identity = required(decision.evidence.identities.find((candidate) =>
+      commitment(candidate) === stage.input.identityEvidenceHash &&
+      candidate.chainId === stage.chainId && candidate.token === stage.input.token),
+    "General asset stage input evidence is unavailable");
+    const existing = anchors.get(stage.chainId);
+    if (existing && (existing.blockNumber !== identity.blockNumber || existing.blockHash !== identity.blockHash)) {
+      throw new InvalidSolverDecisionError("General asset evidence uses inconsistent chain anchors");
+    }
+    anchors.set(stage.chainId, { chainId: stage.chainId,
+      blockNumber: identity.blockNumber, blockHash: identity.blockHash });
+  }
+  return [...anchors.values()].sort((left, right) => left.chainId - right.chainId);
+}
+
 export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
   return {
     async submit(value: { claim: unknown; signature: string; decision: unknown }): Promise<IntakeReceipt> {
@@ -129,15 +167,41 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
           claim.revision > policy.competition.maxRevisionsPerSolver) {
         throw new SolverDecisionUnavailableError("Intent competition is closed");
       }
-      const storedSnapshot = required(
-        await dependencies.snapshots.get(claim.intentId), "Intent snapshot is unavailable",
-      );
-      const snapshot = parseSnapshot(storedSnapshot.snapshot);
-      if (snapshot.kind !== policy.kind) {
-        throw new InvalidSolverDecisionError("Intent policy and snapshot kinds mismatch");
-      }
-      if (storedSnapshot.snapshotHash !== commitment(snapshot) || claim.snapshotHash !== storedSnapshot.snapshotHash) {
-        throw new InvalidSolverDecisionError("Solver decision snapshot mismatch");
+      let snapshot: ReturnType<typeof parseSnapshot> | null = null;
+      let generalAnchors: ReturnType<typeof generalAssetAnchors> = [];
+      let anchor: { blockNumber: string; blockHash: string };
+      if (policy.kind === "general-asset") {
+        if (decision.decision !== "submit" || decision.proposalKind !== "general-asset-program") {
+          throw new InvalidSolverDecisionError("General asset intents require a program evidence anchor");
+        }
+        if (claim.snapshotHash !== commitment(decision.evidence)) {
+          throw new InvalidSolverDecisionError("Solver decision evidence commitment mismatch");
+        }
+        generalAnchors = generalAssetAnchors(decision);
+        const sourceIdentity = required(decision.evidence.identities.find((identity) =>
+          commitment(identity) === policy.inputIdentityHash && identity.chainId === policy.input.chainId &&
+          identity.token === policy.input.token), "General asset input evidence is unavailable");
+        if (sourceIdentity.expiresAtSec <= nowSec ||
+            nowSec - sourceIdentity.capturedAtSec > policy.maxEvidenceAgeSec) {
+          throw new InvalidSolverDecisionError("General asset input evidence is stale");
+        }
+        anchor = { blockNumber: sourceIdentity.blockNumber, blockHash: sourceIdentity.blockHash };
+      } else {
+        const storedSnapshot = required(
+          await dependencies.snapshots.get(claim.intentId), "Intent snapshot is unavailable",
+        );
+        snapshot = parseSnapshot(storedSnapshot.snapshot);
+        if (snapshot.kind !== policy.kind) {
+          throw new InvalidSolverDecisionError("Intent policy and snapshot kinds mismatch");
+        }
+        if (storedSnapshot.snapshotHash !== commitment(snapshot) ||
+            claim.snapshotHash !== storedSnapshot.snapshotHash) {
+          throw new InvalidSolverDecisionError("Solver decision snapshot mismatch");
+        }
+        anchor = snapshot.kind === "capability-composition"
+          ? { blockNumber: snapshot.route.blockNumber, blockHash: snapshot.route.blockHash }
+          : required(snapshot.anchors.find(({ chainId }) => chainId === 196),
+            "X Layer anchor is unavailable");
       }
       const profile = required(await dependencies.profiles.identity(claim.solverId), "Solver identity is unavailable");
       if (profile.operatorKind !== "community" || !profile.attestationAddress) {
@@ -157,20 +221,21 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
             !declared.has("policy.capability-composition@1")) {
           throw new InvalidSolverDecisionError("Solver did not declare composition policy support");
         }
+        if (policy.kind === "general-asset" && !declared.has("general-asset@1")) {
+          throw new InvalidSolverDecisionError("Solver did not declare general asset support");
+        }
         const undeclared = decision.proposalKind === "capability-v2"
           ? decision.program.actions.some((action) =>
             !declared.has(`${action.capabilityId}@${action.capabilityVersion}`))
-          : decision.program.stages.some((stage) =>
-            "provider" in stage && !declared.has(stage.provider));
+          : decision.proposalKind === "transaction-program"
+            ? decision.program.stages.some((stage) =>
+              "provider" in stage && !declared.has(stage.provider))
+            : false;
         if (undeclared) {
           throw new InvalidSolverDecisionError("Solver used an undeclared capability");
         }
       }
       await dependencies.claims.consume({ claim, signature, decision });
-      const anchor = snapshot.kind === "capability-composition"
-        ? { blockNumber: snapshot.route.blockNumber, blockHash: snapshot.route.blockHash }
-        : required(snapshot.anchors.find(({ chainId }) => chainId === 196),
-          "X Layer anchor is unavailable");
       const run = await dependencies.runs.create({
         intentId: claim.intentId, solverId: claim.solverId, revision: claim.revision,
         blockNumber: anchor.blockNumber, blockHash: anchor.blockHash,
@@ -188,9 +253,10 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
         blockNumber: anchor.blockNumber, blockHash: anchor.blockHash, observedAtSec: nowSec,
       });
       const artifacts: [string, unknown][] = [
-        ["snapshot", snapshot], ["program", decision.program],
-        ["evidence", decision.evidence], ["provenance", decision.provenance],
+        ["program", decision.program], ["evidence", decision.evidence],
+        ["provenance", decision.provenance],
       ];
+      if (snapshot) artifacts.unshift(["snapshot", snapshot]);
       if (decision.proposalKind === "transaction-program") {
         artifacts.splice(2, 0, ["provider", decision.providerArtifacts]);
       }
@@ -202,7 +268,13 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
         verdict = await dependencies.verify({ runId: run.id, proposalKind: decision.proposalKind,
           policy, snapshot, program: decision.program, evidence: decision.evidence,
           ...(decision.proposalKind === "transaction-program"
-            ? { providerArtifacts: decision.providerArtifacts } : {}), nowSec });
+            ? { providerArtifacts: decision.providerArtifacts }
+            : decision.proposalKind === "general-asset-program"
+              ? { manifest: decision.evidence.manifest,
+                valuationEvidence: decision.evidence.valuations,
+                identityEvidence: decision.evidence.identities,
+                anchors: generalAnchors }
+              : {}), nowSec });
       } catch (error) {
         console.error("Open solver verifier failed", {
           intentId: claim.intentId,
