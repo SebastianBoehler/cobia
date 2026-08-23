@@ -102,6 +102,9 @@ export async function createRepositoryFixtureV2({
   const deployedAtomic = (
     BigInt(principalAtomic) * BigInt(protocolExposureBps) / 10_000n
   ).toString();
+  const minimumOutputAtomic = (
+    (BigInt(deployedAtomic) * 9_900n + 9_999n) / 10_000n
+  ).toString();
   const usesCurve = preferredRoute === "curve";
   const allowedAdapters = usesCurve
     ? ["aave-v3@1", "curve-stableswap-ng@1"] as const
@@ -179,7 +182,7 @@ export async function createRepositoryFixtureV2({
         supplyRateBps: 39,
         tvlUsdE6: "500000000000",
         availableLiquidityAtomic: "0",
-        validatedSupplyAtomic: deployedAtomic,
+        validatedSupplyAtomic: minimumOutputAtomic,
       },
     ],
   };

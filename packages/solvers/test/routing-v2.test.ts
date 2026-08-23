@@ -53,7 +53,7 @@ function liveQuoteCase() {
       ...opportunity,
       validatedSupplyAtomic: opportunity.id === "aave:input"
         ? "500000000"
-        : "499528183",
+        : "494532902",
     };
   });
   return { policy, snapshot: changedSnapshot({ opportunities }) };
@@ -181,7 +181,7 @@ describe("deterministic V2 route builder", () => {
         ...opportunity,
         validatedSupplyAtomic: opportunity.id === "aave:input"
           ? "40000000"
-          : "39920000",
+          : "39520800",
       };
     });
     const bundle = build(
@@ -198,7 +198,15 @@ describe("deterministic V2 route builder", () => {
   });
 
   it("derives minimum output from the signed slippage cap", () => {
-    const bundle = build(changedPolicy({ maxSlippageBps: 200 }));
+    const opportunities = routeSnapshot.opportunities.map((opportunity) =>
+      opportunity.kind === "aave-v3-supply" && opportunity.id === "aave:output"
+        ? { ...opportunity, validatedSupplyAtomic: "48902000" }
+        : opportunity
+    );
+    const bundle = build(
+      changedPolicy({ maxSlippageBps: 200 }),
+      changedSnapshot({ opportunities }),
+    );
     expect(firstAction(bundle)).toMatchObject({ minimumOutputAtomic: "48902000" });
   });
 
@@ -224,7 +232,7 @@ describe("deterministic V2 route builder", () => {
       expectedAdapterRegistryHash: routeRegistryHash,
     })).toEqual({
       authorizationValid: false,
-      errorCodes: ["SLIPPAGE_LIMIT_EXCEEDED"],
+      errorCodes: ["SLIPPAGE_LIMIT_EXCEEDED", "OPPORTUNITY_AMOUNT_MISMATCH"],
     });
   });
 

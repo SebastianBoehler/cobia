@@ -49,7 +49,7 @@ const curveSnapshot = {
   opportunities: [
     ...snapshotV2.opportunities.map((opportunity) =>
       opportunity.kind === "aave-v3-supply" && opportunity.asset === outputAssetV2
-        ? { ...opportunity, validatedSupplyAtomic: curveOpportunity.quotedOutputAtomic }
+        ? { ...opportunity, validatedSupplyAtomic: "14859900" }
         : opportunity),
     curveOpportunity,
   ],

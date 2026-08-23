@@ -258,7 +258,7 @@ export function assessRouteAuthorizationV2(
       assessSupply(
         opportunities.get(second.opportunityId),
         second.asset,
-        first.quotedOutputAtomic,
+        first.minimumOutputAtomic,
         policy,
         errors,
       );

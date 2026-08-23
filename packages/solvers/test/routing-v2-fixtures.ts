@@ -75,7 +75,7 @@ export const routeSnapshot: RouteSnapshotV2 = {
       supplyRateBps: 1_000,
       tvlUsdE6: "100000000000",
       availableLiquidityAtomic: "100000000",
-      validatedSupplyAtomic: "49900000",
+      validatedSupplyAtomic: "49401000",
     },
   ],
 };

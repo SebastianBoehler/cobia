@@ -8,7 +8,6 @@ import {
   http,
   keccak256,
   type Address,
-  type Hash,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { describe, expect, it } from "vitest";
@@ -21,7 +20,6 @@ import { testcontainersRehearsalRuntime } from "../execution-v2/anvil-rehearsal"
 import { replayCapabilityProgramOnForkV2 } from "./capability-fork-replay-v2";
 
 const AMOUNT = 10_000_000n;
-const GAS = "0x56bc75e2d63100000";
 
 function rpc(url: string) {
   let id = 0;
@@ -61,23 +59,6 @@ describe("general program on a pinned X Layer fork", () => {
         blockNumber: BigInt(PROTOCOL_REGISTRY.auditedAtBlock.number),
       });
       if (!anchor.hash) throw new Error("Pinned fork block has no hash");
-      await rawRpc("anvil_impersonateAccount", [asset.aToken.address]);
-      try {
-        await rawRpc("anvil_setBalance", [asset.aToken.address, GAS]);
-        const hash = await rawRpc("eth_sendTransaction", [{
-          from: asset.aToken.address,
-          to: asset.underlying.address,
-          data: encodeFunctionData({
-            abi: erc20Abi,
-            functionName: "transfer",
-            args: [owner, AMOUNT],
-          }),
-          value: "0x0",
-        }]) as Hash;
-        await client.waitForTransactionReceipt({ hash });
-      } finally {
-        await rawRpc("anvil_stopImpersonatingAccount", [asset.aToken.address]);
-      }
       const inputRead = balanceRead(asset.underlying);
       const outputRead = balanceRead(asset.aToken);
       const program = {

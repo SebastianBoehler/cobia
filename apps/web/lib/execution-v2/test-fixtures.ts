@@ -172,7 +172,7 @@ export const executionSnapshot: RouteSnapshotV2 = RouteSnapshotV2Schema.parse({
       supplyRateBps: 400,
       tvlUsdE6: "1000000000",
       availableLiquidityAtomic: "1000000000",
-      validatedSupplyAtomic: OUTPUT_ATOMIC.toString(),
+      validatedSupplyAtomic: MINIMUM_OUTPUT_ATOMIC.toString(),
     },
     {
       id: `aave-v3:${usdt0.toLowerCase()}`,

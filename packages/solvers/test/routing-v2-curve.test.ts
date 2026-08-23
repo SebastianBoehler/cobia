@@ -13,6 +13,7 @@ import {
 
 const curvePool = "0x5555555555555555555555555555555555555555" as const;
 const curveOutput = "50010000";
+const curveMinimumOutput = "49509900";
 const outputAsset = routePolicy.allowedOutputAssets[1]!;
 const policy: StablecoinPolicyV2 = {
   ...routePolicy,
@@ -28,7 +29,7 @@ const snapshot: RouteSnapshotV2 = {
   opportunities: [
     ...routeSnapshot.opportunities.map((opportunity) =>
       opportunity.kind === "aave-v3-supply" && opportunity.asset === outputAsset
-        ? { ...opportunity, validatedSupplyAtomic: curveOutput }
+        ? { ...opportunity, validatedSupplyAtomic: curveMinimumOutput }
         : opportunity),
     {
       id: "curve:input-output:50000000",
@@ -59,7 +60,7 @@ describe("Curve StableSwap NG solver candidates", () => {
       inputIndex: 0,
       outputIndex: 1,
       quotedOutputAtomic: curveOutput,
-      minimumOutputAtomic: "49509900",
+      minimumOutputAtomic: curveMinimumOutput,
     }, {
       kind: "aave-v3-supply",
       asset: outputAsset,

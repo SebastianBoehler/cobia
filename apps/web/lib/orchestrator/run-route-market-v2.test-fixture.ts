@@ -86,7 +86,7 @@ export function routeMarketFixtures(): {
           supplyRateBps: 40,
           tvlUsdE6: "1000000000",
           availableLiquidityAtomic: "1",
-          validatedSupplyAtomic: "49900000",
+          validatedSupplyAtomic: "49401000",
         },
       ],
     },

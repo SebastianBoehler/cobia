@@ -96,13 +96,13 @@ export function routeCandidatesV2(
       !policy.allowedAdapters.includes(swap.adapterId) ||
       !isAddressEqual(swap.tokenIn, policy.asset) || !allowed(swap.tokenOut) ||
       swap.quotedInputAtomic !== deployed.toString()) continue;
+    const minimumOutputAtomic = minimumAfterSlippage(
+      swap.quotedOutputAtomic,
+      policy.maxSlippageBps,
+    );
     for (const supply of snapshot.opportunities) {
       if (supply.kind !== "aave-v3-supply" ||
-        !supplyEligible(supply, swap.tokenOut, swap.quotedOutputAtomic)) continue;
-      const minimumOutputAtomic = minimumAfterSlippage(
-        swap.quotedOutputAtomic,
-        policy.maxSlippageBps,
-      );
+        !supplyEligible(supply, swap.tokenOut, minimumOutputAtomic)) continue;
       const swapAction = swap.kind === "curve-stableswap-ng-exact-input"
         ? {
           kind: swap.kind,
