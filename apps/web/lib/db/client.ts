@@ -13,7 +13,7 @@ export function createDatabase(url: string): {
   }
 
   const client = postgres(url, {
-    max: 1,
+    max: 4,
     prepare: false,
     connect_timeout: 10,
     idle_timeout: 20,
