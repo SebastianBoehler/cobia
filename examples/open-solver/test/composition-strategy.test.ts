@@ -7,6 +7,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { PROTOCOL_REGISTRY, registryHash } from "../../../apps/web/lib/adapters/registry";
 import { productionCapabilityManifestV1 } from "../../../apps/web/lib/capabilities/manifest";
 import { buildCapabilityCompositionPolicyV1 } from "../../../apps/web/lib/intents/composition-policy";
+import { captureCapabilityCompositionSnapshotV1 } from
+  "../../../apps/web/lib/open-exchange/capture-composition-snapshot";
+import {
+  block,
+  curveQuote,
+  dependencies as routeDependencies,
+  uniswapQuote,
+} from "../../../apps/web/lib/orchestrator/capture-route-snapshot-v2.test-fixture";
 const mocks = vi.hoisted(() => ({ replay: vi.fn(), stop: vi.fn() }));
 vi.mock("../src/local-fork", () => ({ startLocalFork: vi.fn(async () => ({
   rpc: "http://127.0.0.1:8545", read: {}, stop: mocks.stop,
@@ -80,6 +88,67 @@ describe("composition strategy", () => {
     expect(selected?.balanceConstraints).toEqual([{
       kind: "minimumIncrease", token: usdt0.aToken.address.toLowerCase(), atomic: "998999",
     }]);
+  });
+
+  it("composes a committed slippage-floor supply below the swap quote", () => {
+    const quote = { ...opportunities[1], quotedOutputAtomic: "1000160" };
+    const supply = { ...opportunities[3], validatedSupplyAtomic: "990159" };
+
+    const selected = selectCompositionCandidate(policy, snapshot([quote, supply]));
+
+    expect(selected?.actions).toEqual([
+      expect.objectContaining({ parameters: expect.objectContaining({
+        minimumOutputAtomic: "990159",
+      }) }),
+      expect.objectContaining({ parameters: expect.objectContaining({
+        amountAtomic: "990159",
+      }) }),
+    ]);
+  });
+
+  it("selects the conservative handoff committed by a live-shaped V3 capture", async () => {
+    const livePolicy = buildCapabilityCompositionPolicyV1({
+      requestId, owner: policy.owner, inputToken: usdg.underlying.address,
+      inputAtomic: "100000", nonce: policy.nonce,
+      nowSec: Number(block.timestamp) - 60, displayGoal: "USDG to USDt0 yield",
+      competitionDurationSec: 300, deadlineDurationSec: 600,
+      maxConversionLossBps: 100, minimumReceiptValueBps: 9_900,
+      terminalAsset: usdt0.underlying.address, horizonDays: 30, forbiddenTargets: [],
+    });
+    const route = routeDependencies();
+    route.readOraclePrices.mockResolvedValueOnce({
+      ...(await route.readOraclePrices({ block })),
+      prices: [
+        { asset: usdg.underlying.address, decimals: 6 as const, priceUsdE8: 100_002_081n },
+        { asset: usdt0.underlying.address, decimals: 6 as const, priceUsdE8: 99_980_595n },
+      ],
+    });
+    route.quoteExactInput.mockImplementation(async ({ amountInAtomic }) => ({
+      ...uniswapQuote(amountInAtomic), tokenIn: usdg.underlying.address,
+      tokenOut: usdt0.underlying.address, amountOutAtomic: 100_016n,
+    }));
+    route.quoteCurveExactInput.mockImplementation(async ({ amountInAtomic }) => ({
+      ...curveQuote(amountInAtomic), tokenIn: usdg.underlying.address,
+      tokenOut: usdt0.underlying.address, inputIndex: 0 as const, outputIndex: 1 as const,
+      amountOutAtomic: 100_015n,
+    }));
+    const liveSnapshot = await captureCapabilityCompositionSnapshotV1(livePolicy, {
+      route, getGasPrice: async () => 20_000_001n,
+      getNativeToken: async () => ({ chainId: 196, token:
+        "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", symbol: "OKB", decimals: 18,
+      priceUsd: "111.69" }),
+    });
+
+    const selected = selectCompositionCandidate(livePolicy, liveSnapshot);
+
+    expect(selected?.actions).toEqual([
+      expect.objectContaining({ parameters: expect.objectContaining({
+        minimumOutputAtomic: "99023",
+      }) }),
+      expect.objectContaining({ parameters: expect.objectContaining({
+        amountAtomic: "99023",
+      }) }),
+    ]);
   });
 
   it("selects direct Aave or Uniswap when those are the best allowed lanes", () => {

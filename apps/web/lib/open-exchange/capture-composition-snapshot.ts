@@ -1,12 +1,20 @@
 import {
   CapabilityCompositionPolicyV1Schema,
   CapabilityCompositionSnapshotV1Schema,
+  RouteSnapshotV2Schema,
   StablecoinPolicyV2Schema,
   commitment,
   type CapabilityCompositionPolicyV1,
   type CapabilityCompositionSnapshotV1,
+  type RouteSnapshotV2,
 } from "@cobia/domain";
-import type { Address } from "viem";
+import { isAddressEqual, type Address } from "viem";
+import { ProtocolIneligibleError } from "../adapters/protocol-error";
+import {
+  PROTOCOL_REGISTRY,
+  registryHash,
+  type RegistryAsset,
+} from "../adapters/registry";
 import { productionCapabilityManifestV1 } from "../capabilities/manifest";
 import {
   captureRouteSnapshotV2,
@@ -74,6 +82,97 @@ function routePolicy(policy: CapabilityCompositionPolicyV1) {
   });
 }
 
+function ceilDiv(value: bigint, divisor: bigint) {
+  return (value + divisor - 1n) / divisor;
+}
+
+function minimumAtomicForValue(valueUsdE8: bigint, valuation: {
+  decimals: number; priceUsdE8: string;
+}) {
+  return ceilDiv(valueUsdE8 * 10n ** BigInt(valuation.decimals),
+    BigInt(valuation.priceUsdE8));
+}
+
+function registeredAsset(address: Address) {
+  return Object.entries(PROTOCOL_REGISTRY.aaveV3.assets).find(([, asset]) =>
+    isAddressEqual(asset.underlying.address, address));
+}
+
+async function captureCompositionFloors(input: {
+  policy: CapabilityCompositionPolicyV1;
+  route: RouteSnapshotV2;
+  dependencies: Dependencies["route"];
+}) {
+  const loss = input.policy.constraints.find((item) =>
+    item.kind === "maximum-conversion-loss")!;
+  const receiptFloor = input.policy.constraints.find((item) =>
+    item.kind === "minimum-registered-receipt-value")!;
+  const terminal = input.policy.constraints.find((item) =>
+    item.kind === "required-terminal-asset");
+  const inputValuation = input.route.valuations.find(({ asset }) =>
+    isAddressEqual(asset, input.policy.input.token));
+  if (!inputValuation) throw new Error("Composition input valuation is missing");
+  const inputValue = BigInt(input.policy.input.maxAtomic) *
+    BigInt(inputValuation.priceUsdE8) / 10n ** BigInt(inputValuation.decimals);
+  const conversionValue = ceilDiv(inputValue * BigInt(10_000 - loss.maximumLossBps), 10_000n);
+  const receiptValue = ceilDiv(inputValue * BigInt(receiptFloor.minimumValueBps), 10_000n);
+  const block = {
+    number: BigInt(input.route.blockNumber), hash: input.route.blockHash,
+    timestamp: BigInt(Math.floor(Date.parse(input.route.capturedAt) / 1_000)),
+  };
+  const additions = new Map<string, RouteSnapshotV2["opportunities"][number]>();
+
+  for (const swap of input.route.opportunities) {
+    if ((swap.kind !== "curve-stableswap-ng-exact-input" &&
+        swap.kind !== "uniswap-v3-exact-input") ||
+        !isAddressEqual(swap.tokenIn, input.policy.input.token) ||
+        swap.quotedInputAtomic !== input.policy.input.maxAtomic ||
+        (terminal && !isAddressEqual(swap.tokenOut, terminal.asset))) continue;
+    const outputValuation = input.route.valuations.find(({ asset }) =>
+      isAddressEqual(asset, swap.tokenOut));
+    const registered = registeredAsset(swap.tokenOut);
+    if (!outputValuation || !registered) continue;
+    const unitFloor = ceilDiv(BigInt(swap.quotedOutputAtomic) *
+      BigInt(10_000 - loss.maximumLossBps), 10_000n);
+    const conversionFloor = minimumAtomicForValue(conversionValue, outputValuation);
+    const receiptAtomic = minimumAtomicForValue(receiptValue, outputValuation);
+    const receiptSupplyFloor = receiptAtomic === 1n ? 1n : receiptAtomic + 1n;
+    const amount = [unitFloor, conversionFloor, receiptSupplyFloor]
+      .reduce((maximum, value) => value > maximum ? value : maximum);
+    if (amount > BigInt(swap.quotedOutputAtomic)) continue;
+    const id = `aave-v3:${swap.tokenOut.toLowerCase()}:${amount}`;
+    if (input.route.opportunities.some((item) => item.id === id) || additions.has(id)) continue;
+    const baseline = input.route.opportunities.find((item) =>
+      item.kind === "aave-v3-supply" && isAddressEqual(item.asset, swap.tokenOut));
+    if (!baseline || baseline.kind !== "aave-v3-supply") continue;
+    try {
+      const [assetKey, expected] = registered as [RegistryAsset,
+        (typeof PROTOCOL_REGISTRY.aaveV3.assets)[RegistryAsset]];
+      const reserve = await input.dependencies.readReserve({ asset: assetKey,
+        amountAtomic: amount, block });
+      const rate = reserve.liquidityRateRay / 10n ** 23n;
+      if (reserve.adapterId !== "aave-v3@1" || reserve.registryHash !== registryHash ||
+          reserve.blockNumber !== block.number || reserve.blockHash !== block.hash ||
+          reserve.blockTimestamp !== block.timestamp ||
+          !isAddressEqual(reserve.asset, expected.underlying.address) ||
+          !isAddressEqual(reserve.aToken, expected.aToken.address) ||
+          reserve.decimals !== expected.decimals || reserve.validatedSupplyAtomic !== amount ||
+          rate !== BigInt(baseline.supplyRateBps)) {
+        throw new Error("Composition Aave floor does not match the pinned reserve");
+      }
+      additions.set(id, { ...baseline, id,
+        availableLiquidityAtomic: reserve.availableLiquidityAtomic.toString(),
+        validatedSupplyAtomic: amount.toString() });
+    } catch (error) {
+      if (!(error instanceof ProtocolIneligibleError)) throw error;
+    }
+  }
+  if (!additions.size) return input.route;
+  return RouteSnapshotV2Schema.parse({ ...input.route,
+    opportunities: [...input.route.opportunities, ...additions.values()]
+      .sort((left, right) => left.id.localeCompare(right.id)) });
+}
+
 export async function captureCapabilityCompositionSnapshotV1(
   value: CapabilityCompositionPolicyV1,
   dependencies: Dependencies,
@@ -83,7 +182,7 @@ export async function captureCapabilityCompositionSnapshotV1(
   if (policy.manifestHash !== activeManifestHash) {
     throw new Error("Composition policy targets another capability manifest");
   }
-  const [route, gasPrice, native] = await Promise.all([
+  const [capturedRoute, gasPrice, native] = await Promise.all([
     captureRouteSnapshotV2(routePolicy(policy), dependencies.route),
     dependencies.getGasPrice(),
     dependencies.getNativeToken(),
@@ -93,6 +192,9 @@ export async function captureCapabilityCompositionSnapshotV1(
       native.symbol !== "OKB" || native.decimals !== 18) {
     throw new Error("Exact X Layer OKB market evidence is unavailable");
   }
+  const route = await captureCompositionFloors({
+    policy, route: capturedRoute, dependencies: dependencies.route,
+  });
   return CapabilityCompositionSnapshotV1Schema.parse({
     version: 1,
     kind: "capability-composition",

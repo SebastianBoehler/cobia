@@ -52,6 +52,10 @@ function allowed(policy: CapabilityCompositionPolicyV1, id: string) {
   return policy.allowedCapabilities.some((item) => item.id === id && item.version === 1);
 }
 
+function minimumAfterLoss(value: string, lossBps: number) {
+  return (BigInt(value) * BigInt(10_000 - lossBps) + 9_999n) / 10_000n;
+}
+
 function netScore(
   snapshot: CapabilityCompositionSnapshotV1,
   terminalUsdE8: bigint,
@@ -120,7 +124,10 @@ export function selectCompositionCandidate(
       if (!allowed(policy, capabilityId) || !isAddressEqual(swap.tokenIn, policy.input.token) ||
           !isAddressEqual(swap.tokenOut, supply.asset) ||
           swap.quotedInputAtomic !== policy.input.maxAtomic ||
-          swap.quotedOutputAtomic !== supply.validatedSupplyAtomic ||
+          BigInt(supply.validatedSupplyAtomic) > BigInt(swap.quotedOutputAtomic) ||
+          BigInt(supply.validatedSupplyAtomic) < minimumAfterLoss(
+            swap.quotedOutputAtomic, loss.maximumLossBps,
+          ) ||
           outputValue * 10_000n < inputValue * BigInt(10_000 - loss.maximumLossBps) ||
           supply.supplyRateBps <= 0) continue;
       const scoreUsdE8 = netScore(snapshot, terminalUsdE8, 1_200_000,
@@ -131,7 +138,7 @@ export function selectCompositionCandidate(
         actions: [{ capabilityId, capabilityVersion: 1, valueAtomic: "0",
           parameters: { tokenIn: swap.tokenIn, tokenOut: swap.tokenOut,
             amountInAtomic: swap.quotedInputAtomic,
-            minimumOutputAtomic: swap.quotedOutputAtomic } }, terminal],
+            minimumOutputAtomic: supply.validatedSupplyAtomic } }, terminal],
         balanceConstraints });
     }
   }

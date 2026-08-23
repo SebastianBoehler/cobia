@@ -3,7 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 import { buildCapabilityCompositionPolicyV1 } from "../intents/composition-policy";
 import {
   block,
+  curveQuote,
   dependencies as routeDependencies,
+  uniswapQuote,
+  usdg,
   usdt0,
 } from "../orchestrator/capture-route-snapshot-v2.test-fixture";
 import { captureCapabilityCompositionSnapshotV1 } from "./capture-composition-snapshot";
@@ -59,6 +62,40 @@ describe("composition snapshot capture", () => {
     );
 
     expect(snapshot.gas.nativePriceUsdE8).toBe("11159732916");
+  });
+
+  it("commits an Aave amount that satisfies cross-asset composition floors", async () => {
+    const targeted = buildCapabilityCompositionPolicyV1({
+      requestId: "550e8400-e29b-41d4-a716-446655440098",
+      owner: "0x1111111111111111111111111111111111111111",
+      inputToken: usdg, inputAtomic: "100000", nonce: `0x${"22".repeat(32)}`,
+      nowSec: Number(block.timestamp) - 60, displayGoal: "USDG to USDt0 yield",
+      competitionDurationSec: 300, deadlineDurationSec: 600,
+      maxConversionLossBps: 100, minimumReceiptValueBps: 9_900,
+      terminalAsset: usdt0, horizonDays: 30, forbiddenTargets: [],
+    });
+    const input = dependencies();
+    input.route.readOraclePrices.mockResolvedValueOnce({
+      ...(await input.route.readOraclePrices({ block })),
+      prices: [
+        { asset: usdg, decimals: 6 as const, priceUsdE8: 100_002_081n },
+        { asset: usdt0, decimals: 6 as const, priceUsdE8: 99_980_595n },
+      ],
+    });
+    input.route.quoteExactInput.mockImplementation(async ({ amountInAtomic }) => ({
+      ...uniswapQuote(amountInAtomic), tokenIn: usdg, tokenOut: usdt0,
+      amountOutAtomic: 100_016n,
+    }));
+    input.route.quoteCurveExactInput.mockImplementation(async ({ amountInAtomic }) => ({
+      ...curveQuote(amountInAtomic), tokenIn: usdg, tokenOut: usdt0,
+      inputIndex: 0 as const, outputIndex: 1 as const, amountOutAtomic: 100_015n,
+    }));
+
+    const snapshot = await captureCapabilityCompositionSnapshotV1(targeted, input);
+
+    expect(snapshot.route.opportunities).toContainEqual(expect.objectContaining({
+      kind: "aave-v3-supply", asset: usdt0.toLowerCase(), validatedSupplyAtomic: "99023",
+    }));
   });
 
   it("fails closed on invalid gas or ambiguous native market evidence", async () => {
