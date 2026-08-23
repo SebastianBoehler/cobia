@@ -92,6 +92,35 @@ describe("open intent snapshot capture", () => {
     expect(snapshot.tokenEvidence).toHaveLength(3);
   });
 
+  it("freezes native OKB evidence when OKB is only the requested outcome", async () => {
+    const nativeOutcome = {
+      ...policy,
+      outcomes: [{ kind: "minimum-increase" as const, chainId: 196 as const,
+        token: NATIVE_ASSET_ADDRESS, atomic: "1" }],
+    };
+    const getXLayerTokenEvidence = vi.fn(async (token: string) => ({
+      chainId: 196 as const, token: token.toLowerCase() as `0x${string}`,
+      name: "Input Token", symbol: "IN", decimals: 6, priceUsd: "1",
+      liquidityUsd: "1", holderCount: "1", top10HolderPercent: "1",
+      marketDataAt: "2033-05-18T03:33:29.000Z", communityRecognized: true,
+    }));
+    const getXLayerNativeTokenEvidence = vi.fn(async () => ({
+      assetType: "native" as const, chainId: 196 as const, token: NATIVE_ASSET_ADDRESS,
+      name: "OKB", symbol: "OKB" as const, decimals: 18 as const, priceUsd: "110.25",
+      liquidityUsd: "15000000", marketDataAt: "2033-05-18T03:33:29.000Z",
+    }));
+
+    const snapshot = await captureOpenIntentSnapshotV1(nativeOutcome, {
+      getChainId: async () => 196,
+      getBlock: async () => ({ number: 68_461_706n, hash: hash("2"), timestamp: 2_000_000_010n }),
+    }, { getXLayerTokenEvidence, getXLayerNativeTokenEvidence });
+
+    expect(getXLayerNativeTokenEvidence).toHaveBeenCalledOnce();
+    expect(snapshot.tokenEvidence).toContainEqual(expect.objectContaining({
+      assetType: "native", token: NATIVE_ASSET_ADDRESS, symbol: "OKB",
+    }));
+  });
+
   it("rejects stale OKX token evidence before publishing the snapshot", async () => {
     await expect(captureOpenIntentSnapshotV1(policy, {
       getChainId: async () => 196,
