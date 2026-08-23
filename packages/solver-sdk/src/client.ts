@@ -2,6 +2,7 @@ import {
   CapabilityCompositionPolicyV1Schema,
   CapabilityCompositionSnapshotV1Schema,
   commitment,
+  GeneralAssetPolicyV1Schema,
   OpenIntentPolicyV3Schema,
   OpenIntentSnapshotV1Schema,
   SolverDecisionClaimV1Schema,
@@ -11,6 +12,7 @@ import {
   solverProfileClaimCommitmentV1,
   solverRunClaimCommitmentV1,
 } from "@cobia/domain";
+import { GeneralAssetEvidenceArtifactV1Schema } from "@cobia/solvers";
 import { isAddress, isAddressEqual, recoverMessageAddress } from "viem";
 import { z } from "zod";
 import { SolverDecisionV1Schema } from "./harness";
@@ -24,12 +26,14 @@ const IntentSchema = z.object({
   policy: z.discriminatedUnion("kind", [
     OpenIntentPolicyV3Schema,
     CapabilityCompositionPolicyV1Schema,
+    GeneralAssetPolicyV1Schema,
   ]),
   policyHash: HashSchema,
   ownerSignature: SignatureSchema,
   snapshot: z.discriminatedUnion("kind", [
     OpenIntentSnapshotV1Schema,
     CapabilityCompositionSnapshotV1Schema,
+    GeneralAssetEvidenceArtifactV1Schema,
   ]),
   snapshotHash: HashSchema,
   competitionClosesAt: z.number().int().positive().safe(),
@@ -44,10 +48,16 @@ const IntentSchema = z.object({
   if (intent.competitionClosesAt !== intent.policy.competition.closesAt) {
     context.addIssue({ code: "custom", path: ["competitionClosesAt"], message: "Competition close mismatch" });
   }
-  if (intent.snapshot.requestId !== intent.id || intent.snapshotHash !== commitment(intent.snapshot)) {
+  if (intent.snapshotHash !== commitment(intent.snapshot)) {
     context.addIssue({ code: "custom", path: ["snapshotHash"], message: "Snapshot commitment mismatch" });
   }
-  if (intent.policy.kind !== intent.snapshot.kind) {
+  if (intent.policy.kind === "general-asset") {
+    if (intent.snapshot.kind !== "general-asset-evidence") {
+      context.addIssue({ code: "custom", path: ["snapshot", "kind"],
+        message: "General asset policies require bound evidence" });
+    }
+  } else if (intent.snapshot.kind === "general-asset-evidence" ||
+      intent.snapshot.requestId !== intent.id || intent.policy.kind !== intent.snapshot.kind) {
     context.addIssue({ code: "custom", path: ["snapshot", "kind"],
       message: "Policy and snapshot kinds must match" });
   }

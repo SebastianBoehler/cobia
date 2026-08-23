@@ -8,7 +8,7 @@ interface ResolvedAsset {
   name: string;
   chainId: 1 | 196;
   address: string;
-  status: "supported" | "registered" | "research-only";
+  status: "supported" | "registered" | "catalog-backed" | "research-only";
   priceUsd?: string;
   liquidityUsd?: string;
   holderCount?: string;
@@ -71,6 +71,8 @@ export function useResolvedAssetMentions(
       priceUsd: asset.priceUsd,
       detail: asset.status === "research-only"
         ? `${asset.name} · ${shortAddress(asset.address)} · research only`
+        : asset.status === "catalog-backed"
+          ? `${asset.name} · ${shortAddress(asset.address)} · xStocks catalog`
         : `${asset.name} · ${asset.chainId === 196 ? "X Layer" : "Ethereum"}`,
     })),
     unresolved: unresolved.filter((mention) => active.has(mention.toLowerCase())),

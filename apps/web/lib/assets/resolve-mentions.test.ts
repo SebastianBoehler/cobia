@@ -15,7 +15,8 @@ const aapl = {
     address: "0x1111111111111111111111111111111111111111" as const,
     network: "XLayer" as const,
     supportsAtomicSwaps: true,
-    stablecoins: [],
+    stablecoins: [{ symbol: "USDG", address: "0x4ae46a509f6b1d9056937ba4500cb143933d2dc8" as const,
+      decimals: 6, issuance: true, redemption: true, supportsAtomicSwaps: true }],
   },
 };
 
@@ -74,14 +75,14 @@ describe("asset mention resolver", () => {
     expect(result.assets[0]?.address.toLowerCase()).toBe(canonical);
   });
 
-  it("discovers other xStocks as exact research-only X Layer identities", async () => {
+  it("discovers any atomically routable xStock as a catalog-backed X Layer identity", async () => {
     const xstocks = tool({ assets: [aapl] });
     const result = await resolveAssetMentionsV1(["aaplx"], xstocks);
 
     expect(xstocks.run).toHaveBeenCalledWith({ operation: "get", symbol: "AAPLx" });
     expect(result.assets).toEqual([expect.objectContaining({
       symbol: "AAPLx", address: aapl.deployment.address,
-      underlyingIdentifier: "US0378331005", status: "research-only",
+      underlyingIdentifier: "US0378331005", status: "catalog-backed",
     })]);
   });
 

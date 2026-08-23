@@ -253,10 +253,10 @@ describe("IntentComposer", () => {
     expect(screen.getByLabelText("What should happen?")).toHaveFocus();
   });
 
-  it("highlights any token mention and resolves xStocks without granting execution trust", async () => {
+  it("highlights any token mention and identifies catalog-backed xStocks", async () => {
     vi.stubGlobal("fetch", vi.fn().mockImplementation(() => Promise.resolve(Response.json({ assets: [{
       symbol: "AAPLx", name: "Apple xStock", chainId: 196,
-      address: "0x1111111111111111111111111111111111111111", status: "research-only",
+      address: "0x1111111111111111111111111111111111111111", status: "catalog-backed",
     }], unresolved: [] }))));
     render(<IntentComposer />);
 

@@ -1,5 +1,6 @@
 import { getAddress, isAddressEqual, type Address, type Hash } from "viem";
 import { SUPPORTED_ASSETS } from "../chain/supported-assets";
+import { USDG_ADDRESS } from "../chain/xlayer";
 import { INTENT_ASSETS, RWA_INTENT_ASSETS } from "../intents/capability-templates";
 import type { SolverToolV1 } from "../solver-tools/types";
 import type { XStocksToolValueV1 } from "../solver-tools/xstocks";
@@ -74,7 +75,7 @@ export interface ResolvedAssetMentionV1 {
   name: string;
   chainId: 196 | 1;
   address: Address;
-  status: "supported" | "registered" | "research-only";
+  status: "supported" | "registered" | "catalog-backed" | "research-only";
   underlyingIdentifier?: string;
   priceUsd?: string;
   liquidityUsd?: string;
@@ -140,8 +141,13 @@ export async function resolveAssetMentionsV1(
         ? result.value.assets.find((asset) => asset.symbol.toLowerCase() === canonical.toLowerCase())
         : undefined;
       if (discovered) {
+        const atomicUsdG = discovered.deployment.stablecoins.some(({ symbol, address,
+          supportsAtomicSwaps }) => symbol === "USDG" && supportsAtomicSwaps &&
+          isAddressEqual(address, USDG_ADDRESS));
         assets.push({ symbol: discovered.symbol, name: discovered.name, chainId: 196,
-          address: discovered.deployment.address, status: "research-only",
+          address: discovered.deployment.address,
+          status: !discovered.isTradingHalted && discovered.deployment.supportsAtomicSwaps && atomicUsdG
+            ? "catalog-backed" : "research-only",
           underlyingIdentifier: discovered.underlyingIsin });
         return;
       }

@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   supportsCapability: vi.fn(), compilerOptions: vi.fn(), readPortfolio: vi.fn(),
   readIntentAssetPrices: vi.fn(),
   compileGeneralAsset: vi.fn(),
+  readXStock: vi.fn(),
 }));
 vi.mock("../../../../lib/runtime/wallet-auth", () => ({
   getWalletAuthService: () => mocks,
@@ -29,6 +30,9 @@ vi.mock("../../../../lib/intents/intent-asset-prices", () => ({
 }));
 vi.mock("../../../../lib/intents/compile-general-asset-request", () => ({
   compileGeneralAssetRequestV1: mocks.compileGeneralAsset,
+}));
+vi.mock("../../../../lib/solver-tools/xstocks", () => ({
+  createXStocksInstrumentToolV1: () => ({ run: mocks.readXStock }),
 }));
 
 import { POST } from "./route";
@@ -80,6 +84,8 @@ describe("authenticated intent compiler API", () => {
     mocks.compileGeneralAsset.mockResolvedValue({ status: "review", values: {
       kind: "general-asset-draft", templateId: "general-asset",
     } });
+    mocks.readXStock.mockResolvedValue({ status: "abstained", code: "NOT_FOUND",
+      message: "not found" });
   });
 
   it("rejects missing sessions and cross-origin requests before invoking the model", async () => {
@@ -202,6 +208,33 @@ describe("authenticated intent compiler API", () => {
       owner: "0x1111111111111111111111111111111111111111",
       input: expect.objectContaining({ chainId: 1, maximumAtomic: "1000" }),
       output: expect.objectContaining({ chainId: 196, minimumAtomic: "1" }),
+    }));
+    expect(mocks.compile).not.toHaveBeenCalled();
+    expect(mocks.readPortfolio).not.toHaveBeenCalled();
+  });
+
+  it("compiles any catalog-backed xStock into an exact X Layer policy request", async () => {
+    mocks.readXStock.mockResolvedValueOnce({ status: "ok", sourceHash: `0x${"11".repeat(32)}`,
+      fetchedAt: 2_000_000_000, value: { assets: [{
+        id: "550e8400-e29b-41d4-a716-446655440000", name: "Apple xStock", symbol: "AAPLx",
+        isin: "CH1436218626", underlyingSymbol: "AAPL", underlyingIsin: "US0378331005",
+        isTradingHalted: false, deployment: {
+          address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", network: "XLayer",
+          supportsAtomicSwaps: true, stablecoins: [{ symbol: "USDG",
+            address: "0x4ae46a509f6b1d9056937ba4500cb143933d2dc8", decimals: 6,
+            issuance: true, redemption: true, supportsAtomicSwaps: true }],
+        },
+      }] } });
+
+    const response = await POST(request("token", "https://getcobia.com",
+      "Acquire at least 0.25 @AAPLx with at most 50 @USDG on @XLayer", "any"));
+
+    expect(response.status).toBe(200);
+    expect(mocks.compileGeneralAsset).toHaveBeenCalledWith(expect.objectContaining({
+      input: { chainId: 196, address: "0x4ae46a509f6b1d9056937ba4500cb143933d2dc8",
+        maximumAtomic: "50000000" },
+      output: { chainId: 196, address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        minimumAtomic: "250000000000000000" },
     }));
     expect(mocks.compile).not.toHaveBeenCalled();
     expect(mocks.readPortfolio).not.toHaveBeenCalled();

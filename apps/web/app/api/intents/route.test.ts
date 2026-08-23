@@ -6,12 +6,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   listDiscoverWithSnapshots: vi.fn(),
+  listDiscoverGeneralAssets: vi.fn(),
   publish: vi.fn(async () => undefined),
   publishComposition: vi.fn(async () => undefined),
   publishGeneralAsset: vi.fn(async () => undefined),
 }));
 vi.mock("../../../lib/runtime/market", () => ({
-  getIntentRepository: () => ({ listDiscoverWithSnapshots: mocks.listDiscoverWithSnapshots }),
+  getIntentRepository: () => ({ listDiscoverWithSnapshots: mocks.listDiscoverWithSnapshots,
+    listDiscoverGeneralAssets: mocks.listDiscoverGeneralAssets }),
   publishOpenIntent: mocks.publish,
   publishCapabilityCompositionIntent: mocks.publishComposition,
   publishGeneralAssetIntent: mocks.publishGeneralAsset,
@@ -105,6 +107,7 @@ describe("general intent competition API", () => {
     vi.spyOn(Date, "now").mockReturnValue(nowSec * 1_000);
     vi.clearAllMocks();
     mocks.listDiscoverWithSnapshots.mockResolvedValue([]);
+    mocks.listDiscoverGeneralAssets.mockResolvedValue([]);
     mocks.publish.mockResolvedValue(undefined);
     mocks.publishComposition.mockResolvedValue(undefined);
     mocks.publishGeneralAsset.mockResolvedValue(undefined);
@@ -154,6 +157,41 @@ describe("general intent competition API", () => {
       }],
     });
     expect(mocks.listDiscoverWithSnapshots).toHaveBeenCalledWith(nowSec);
+  });
+
+  it("lists general asset evidence as the immutable solver snapshot", async () => {
+    const identity = { version: 1 as const, chainId: 196 as const,
+        token: "0x2222222222222222222222222222222222222222", runtimeCodeHash: `0x${"11".repeat(32)}`,
+        proxy: { kind: "none" as const }, decimals: 6,
+        behaviorModule: { id: "plain-erc20" as const, version: 1 as const }, blockNumber: "1",
+        blockHash: `0x${"12".repeat(32)}`, capturedAtSec: nowSec - 30, expiresAtSec: nowSec + 120 };
+    const valuation = { version: 1 as const, assetIdentityHash: commitment(identity),
+      referenceAsset: { chainId: 196 as const,
+        token: "0x3333333333333333333333333333333333333333" }, inputAtomic: "1",
+      conservativeValueUsdE8: "1", maximumDisagreementBps: 100,
+      quotes: [{ adapter: { id: "okx.market", version: 1 }, outputAtomic: "1",
+        referenceValueUsdE8: "1", liquidityUsdE8: "1", priceImpactBps: 0,
+        fetchedAtSec: nowSec - 30, expiresAtSec: nowSec + 120,
+        quoteHash: `0x${"13".repeat(32)}` }],
+      capturedAtSec: nowSec - 30, expiresAtSec: nowSec + 120 };
+    const evidence = { version: 1 as const, kind: "general-asset-evidence" as const,
+      identities: [identity], valuations: [valuation], manifest: { version: 1 as const, entries: [] } };
+    const ownerSignature = await account.signMessage({ message: { raw: commitment(generalAssetPolicy) } });
+    mocks.listDiscoverGeneralAssets.mockResolvedValueOnce([{ ...generalAssetPolicy,
+      id: generalAssetPolicy.requestId, policy: generalAssetPolicy,
+      policyHash: commitment(generalAssetPolicy), ownerSignature,
+      generalAssetEvidence: evidence, generalAssetEvidenceHash: commitment(evidence),
+      createdAt: new Date((nowSec - 20) * 1_000),
+      competitionClosesAt: new Date(generalAssetPolicy.competition.closesAt * 1_000) }]);
+
+    const response = await GET();
+
+    await expect(response.json()).resolves.toMatchObject({ intents: [{
+      id: generalAssetPolicy.requestId,
+      policy: generalAssetPolicy,
+      snapshot: evidence,
+      snapshotHash: commitment(evidence),
+    }] });
   });
 
   it("publishes the signed open intent for independent competing solvers", async () => {

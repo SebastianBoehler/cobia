@@ -14,6 +14,9 @@ import { readPortfolio } from "../../../../lib/portfolio/read-portfolio";
 import { readIntentAssetPrices } from "../../../../lib/intents/intent-asset-prices";
 import { RWA_INTENT_ASSETS } from "../../../../lib/intents/capability-templates";
 import { compileGeneralAssetRequestV1 } from "../../../../lib/intents/compile-general-asset-request";
+import { resolveXStockIntentRequestV1 } from "../../../../lib/intents/xstock-intent-request";
+import { createXStocksInstrumentToolV1 } from "../../../../lib/solver-tools/xstocks";
+import { USDG_ADDRESS } from "../../../../lib/chain/xlayer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -71,7 +74,20 @@ export async function POST(request: Request): Promise<Response> {
     let walletAssets: Array<{ address: Address; symbol: string; decimals: number }> | undefined;
     let walletPortfolio: Awaited<ReturnType<typeof readPortfolio>> | undefined;
     let admissionGoal = goal;
-    if (actionPreference === "any" && !generalAsset) {
+    let effectiveGeneralAsset = generalAsset;
+    if (actionPreference === "any" && !effectiveGeneralAsset) {
+      const xStock = await resolveXStockIntentRequestV1({ goal,
+        tool: createXStocksInstrumentToolV1(), usdgAddress: USDG_ADDRESS });
+      if (xStock.status === "clarification") {
+        return NextResponse.json({ status: "clarification", question: xStock.question },
+          { headers: { "Cache-Control": "no-store" } });
+      }
+      if (xStock.status === "resolved") {
+        effectiveGeneralAsset = { input: xStock.input, output: xStock.output };
+        admissionGoal = `${goal}\n[xstocks:${xStock.symbol}:${xStock.sourceHash}]`;
+      }
+    }
+    if (actionPreference === "any" && !effectiveGeneralAsset) {
       walletPortfolio = await readPortfolio(session.owner, 196).catch(() => undefined);
       if (!walletPortfolio) {
         return NextResponse.json({ code: "WALLET_BALANCE_UNAVAILABLE",
@@ -87,13 +103,14 @@ export async function POST(request: Request): Promise<Response> {
         .sort().join(",");
       admissionGoal = `${goal}\n[wallet-balances:${balanceFingerprint}]`;
     }
-    if (generalAsset) {
-      admissionGoal = `${goal}\n[general-asset:${generalAsset.input.chainId}:${generalAsset.input.address}:` +
-        `${generalAsset.input.maximumAtomic}:${generalAsset.output.chainId}:${generalAsset.output.address}:` +
-        `${generalAsset.output.minimumAtomic}]`;
+    if (effectiveGeneralAsset) {
+      admissionGoal = `${admissionGoal}\n[general-asset:${effectiveGeneralAsset.input.chainId}:` +
+        `${effectiveGeneralAsset.input.address}:${effectiveGeneralAsset.input.maximumAtomic}:` +
+        `${effectiveGeneralAsset.output.chainId}:${effectiveGeneralAsset.output.address}:` +
+        `${effectiveGeneralAsset.output.minimumAtomic}]`;
     }
     let assetPricesUsd: Readonly<Record<string, string>> | undefined;
-    if (actionPreference === "any") {
+    if (actionPreference === "any" && !effectiveGeneralAsset) {
       const requestedRwaSymbols = RWA_INTENT_ASSETS.filter(({ symbol }) =>
         new RegExp(`(^|[^A-Za-z0-9])@?${symbol}(?=$|[^A-Za-z0-9])`, "i").test(goal))
         .map(({ symbol }) => symbol);
@@ -131,8 +148,8 @@ export async function POST(request: Request): Promise<Response> {
       });
     }
     leaseId = admission.id;
-    if (generalAsset) {
-      const compiled = await compileGeneralAssetRequestV1({ owner, goal, ...generalAsset });
+    if (effectiveGeneralAsset) {
+      const compiled = await compileGeneralAssetRequestV1({ owner, goal, ...effectiveGeneralAsset });
       const result = compiled.status === "review" ? { ...compiled, compilationLeaseId: leaseId } : compiled;
       await auth.completeCompilation(leaseId, result);
       return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });

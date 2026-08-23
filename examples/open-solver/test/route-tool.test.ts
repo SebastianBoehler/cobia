@@ -12,6 +12,7 @@ describe("reference route tool", () => {
       "curve-stableswap-ng.exact-input@1",
       "curve-stableswap-ng.liquidity@1",
       "evm.raw@1",
+      "general-asset@1",
       "general.evm-program@1",
       "okx.dex-routing@1",
       "policy.capability-composition@1",

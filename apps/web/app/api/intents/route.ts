@@ -8,6 +8,7 @@ import {
   parseOpenIntentPolicyV3,
 } from "@cobia/domain";
 import { NextResponse } from "next/server";
+import { GeneralAssetEvidenceArtifactV1Schema } from "@cobia/solvers";
 import type { Hex } from "viem";
 import { z } from "zod";
 import { verifyPolicyOwnerSignature } from "../../../lib/intents/signature";
@@ -47,9 +48,13 @@ class InvalidOwnerSignatureError extends Error {}
 export async function GET(): Promise<Response> {
   const observedAt = Math.floor(Date.now() / 1_000);
   try {
-    const rows = await getIntentRepository().listDiscoverWithSnapshots(observedAt);
-    const intents = rows.map(({ intent: row, snapshot }) => {
-      return {
+    const repository = getIntentRepository();
+    const [rows, generalAssetRows] = await Promise.all([
+      repository.listDiscoverWithSnapshots(observedAt),
+      repository.listDiscoverGeneralAssets(observedAt),
+    ]);
+    const openIntents = rows.map(({ intent: row, snapshot }) => {
+      return { createdAtMs: row.createdAt.getTime(), intent: {
         id: row.id,
         policy: row.policy && typeof row.policy === "object" &&
           "kind" in row.policy && row.policy.kind === "capability-composition"
@@ -64,8 +69,30 @@ export async function GET(): Promise<Response> {
           intent: `/api/intents/${row.id}`,
           decisions: `/api/intents/${row.id}/decisions`,
         },
-      };
+      } };
     });
+    const generalAssetIntents = generalAssetRows.map((row) => {
+      const policy = GeneralAssetPolicyV1Schema.parse(row.policy);
+      const snapshot = GeneralAssetEvidenceArtifactV1Schema.parse(row.generalAssetEvidence);
+      if (row.generalAssetEvidenceHash !== commitment(snapshot)) {
+        throw new Error("General asset evidence commitment mismatch");
+      }
+      return { createdAtMs: row.createdAt.getTime(), intent: {
+        id: row.id,
+        policy,
+        policyHash: row.policyHash,
+        ownerSignature: row.ownerSignature,
+        snapshot,
+        snapshotHash: row.generalAssetEvidenceHash,
+        competitionClosesAt: Math.floor(row.competitionClosesAt.getTime() / 1_000),
+        links: { intent: `/api/intents/${row.id}`,
+          decisions: `/api/intents/${row.id}/decisions` },
+      } };
+    });
+    const intents = [...openIntents, ...generalAssetIntents]
+      .sort((left, right) => right.createdAtMs - left.createdAtMs)
+      .slice(0, 30)
+      .map(({ intent }) => intent);
     return NextResponse.json({ observedAt, intents }, {
       headers: { "Cache-Control": PUBLIC_CACHE_10_SECONDS },
     });

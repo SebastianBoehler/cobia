@@ -94,6 +94,18 @@ export function createIntentRepository(db: CobiaDatabase) {
         .limit(30);
     },
 
+    listDiscoverGeneralAssets(observedAtSec: number) {
+      return db.query.cobiaIntents.findMany({
+        where: and(eq(cobiaIntents.state, "collecting"),
+          gt(cobiaIntents.competitionClosesAt, new Date(observedAtSec * 1_000)),
+          sql`${cobiaIntents.policy}->>'kind' = 'general-asset'`,
+          sql`${cobiaIntents.generalAssetEvidence} IS NOT NULL`,
+          sql`${cobiaIntents.generalAssetEvidenceHash} IS NOT NULL`),
+        orderBy: [desc(cobiaIntents.createdAt)],
+        limit: 30,
+      });
+    },
+
     async select(intentId: string, submissionId: string, observedAtSec: number) {
       return db.transaction(async (tx) => {
         const intent = (await tx.select().from(cobiaIntents)

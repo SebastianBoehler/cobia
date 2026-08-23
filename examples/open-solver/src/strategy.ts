@@ -12,6 +12,11 @@ import { solveRegisteredInstrument } from "./rwa-strategy";
 import { buildSwapActions } from "./swap-routes";
 import { solveComposition } from "./composition-strategy";
 import { solveTransactionIntent } from "./transaction-strategy";
+import { solveGeneralAssetIntent } from "./general-asset-strategy";
+
+interface StrategyDependencies {
+  solveGeneralAsset(intent: SolverIntentV1): Promise<SolverDecisionV1>;
+}
 
 function aaveAsset(input: Address, output: Address) {
   return Object.values(PROTOCOL_REGISTRY.aaveV3.assets).find(({ underlying, aToken }) =>
@@ -25,7 +30,10 @@ function registeredSwap(input: Address, output: Address) {
 }
 
 /** Reference lane: a real, fork-replayed Aave supply. Other solvers remain free to use transaction programs. */
-export async function solve(intent: SolverIntentV1): Promise<SolverDecisionV1> {
+export async function solve(intent: SolverIntentV1, dependencies: StrategyDependencies = {
+  solveGeneralAsset: solveGeneralAssetIntent,
+}): Promise<SolverDecisionV1> {
+  if (intent.policy.kind === "general-asset") return dependencies.solveGeneralAsset(intent);
   if (intent.policy.kind === "capability-composition") return solveComposition(intent);
   const input = intent.policy.inputs[0];
   const outcome = intent.policy.outcomes[0];
