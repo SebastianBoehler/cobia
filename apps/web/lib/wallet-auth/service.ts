@@ -31,6 +31,15 @@ export type CompilationAdmission =
   | { kind: "limited" }
   | { kind: "busy" };
 
+export function reusableCompilationResult(result: unknown, nowSec: number): boolean {
+  if (!result || typeof result !== "object" || !("status" in result) || result.status !== "review" ||
+      !("values" in result) || !result.values || typeof result.values !== "object" ||
+      !("kind" in result.values) || result.values.kind !== "general-asset-draft") return true;
+  return "evidenceExpiresAtSec" in result.values &&
+    typeof result.values.evidenceExpiresAtSec === "number" &&
+    result.values.evidenceExpiresAtSec > nowSec + 5;
+}
+
 export interface WalletAuthRepository {
   createChallenge(value: ChallengeRecord & { nonceHash: string }): Promise<void>;
   readChallenge(value: { nonceHash: string; owner: Address; nowSec: number }): Promise<ChallengeRecord | null>;

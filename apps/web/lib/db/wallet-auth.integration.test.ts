@@ -69,4 +69,17 @@ describe("wallet authentication repository", () => {
     await expect(auth.beginCompilation({ ...base, goalHash: "06".repeat(32), nowSec: nowSec + 6 }))
       .resolves.toEqual({ kind: "limited" });
   });
+
+  it("bypasses a completed general asset result once its evidence is near expiry", async () => {
+    const auth = repository();
+    const request = { owner: "0x3333333333333333333333333333333333333333" as const,
+      clientKey: "dd".repeat(32), actionPreference: "any", goalHash: "33".repeat(32), nowSec };
+    const admission = await auth.beginCompilation(request);
+    expect(admission.kind).toBe("run");
+    if (admission.kind !== "run") throw new Error("Missing compilation lease");
+    await auth.completeCompilation(admission.id, { status: "review",
+      values: { kind: "general-asset-draft", evidenceExpiresAtSec: nowSec + 5 } }, nowSec);
+    await expect(auth.beginCompilation({ ...request, nowSec: nowSec + 1 }))
+      .resolves.toMatchObject({ kind: "run" });
+  });
 });

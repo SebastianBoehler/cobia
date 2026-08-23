@@ -111,6 +111,17 @@ describe("authenticated intent compiler API", () => {
     expect(mocks.compile).not.toHaveBeenCalled();
   });
 
+  it("refuses cached general asset evidence that is expired or near expiry", async () => {
+    mocks.beginCompilation.mockResolvedValue({ kind: "cached", result: { status: "review",
+      values: { kind: "general-asset-draft", evidenceExpiresAtSec: 1 } } });
+
+    const response = await POST(generalAssetRequest());
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({ code: "COMPILATION_REFRESH_REQUIRED" });
+    expect(mocks.compileGeneralAsset).not.toHaveBeenCalled();
+  });
+
   it("records successful and failed model work against the durable lease", async () => {
     expect((await POST(request("token"))).status).toBe(200);
     expect(mocks.supportsCapability).toHaveBeenCalledWith(

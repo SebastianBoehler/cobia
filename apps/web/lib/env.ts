@@ -39,6 +39,17 @@ const GeneralAssetRpcEnvSchema = z.object({
   ETHEREUM_RPC_URL: z.string().url().default("https://ethereum-rpc.publicnode.com"),
 });
 
+const RuntimeAddressSchema = z.string().refine(isAddress)
+  .transform((value) => value.toLowerCase() as Address);
+const RuntimeHashSchema = z.string().regex(/^0x[0-9a-fA-F]{64}$/)
+  .transform((value) => value.toLowerCase() as Hex);
+const GeneralAssetV4ConfigSchema = z.object({ entries: z.array(z.object({
+  chainId: z.union([z.literal(1), z.literal(196)]), executor: RuntimeAddressSchema,
+  executorCodeHash: RuntimeHashSchema, registry: RuntimeAddressSchema,
+  registryCodeHash: RuntimeHashSchema, riskManager: RuntimeAddressSchema,
+  riskManagerCodeHash: RuntimeHashSchema, protocolCapUsdE8: z.string().regex(/^[1-9][0-9]*$/),
+}).strict()).min(1).max(2) }).strict();
+
 const AgenticSolverEnvSchema = z.object({
   OPENAI_API_KEY: z.string().min(1),
   OPENAI_SOLVER_MODEL: z.string().min(1),
@@ -117,6 +128,20 @@ export function readGeneralAssetRpcConfig(
   if (!parsed.success) {
     const invalid = parsed.error.issues.map((issue) => issue.path.join(".")).join(", ");
     throw new Error(`Missing or invalid general asset RPC configuration: ${invalid}`);
+  }
+  return parsed.data;
+}
+
+export function readGeneralAssetV4Config(
+  source: Record<string, string | undefined> = process.env,
+) {
+  let value: unknown;
+  try { value = JSON.parse(source.GENERAL_ASSET_V4_CONFIG_JSON ?? ""); }
+  catch { throw new Error("Missing or invalid general asset V4 runtime configuration"); }
+  const parsed = GeneralAssetV4ConfigSchema.safeParse(value);
+  if (!parsed.success || new Set(parsed.data.entries.map(({ chainId }) => chainId)).size !==
+      parsed.data.entries.length) {
+    throw new Error("Missing or invalid general asset V4 runtime configuration");
   }
   return parsed.data;
 }

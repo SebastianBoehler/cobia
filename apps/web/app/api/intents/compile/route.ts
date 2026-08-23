@@ -7,7 +7,7 @@ import { isSameOrigin, walletSessionToken } from "../../../../lib/wallet-auth/ht
 import {
   getWalletAuthService, walletAuthClientKey,
 } from "../../../../lib/runtime/wallet-auth";
-import { WalletSessionRejectedError } from "../../../../lib/wallet-auth/service";
+import { reusableCompilationResult, WalletSessionRejectedError } from "../../../../lib/wallet-auth/service";
 import { getSolverProfileRepository } from "../../../../lib/runtime/market";
 import { currentUnixSeconds } from "../../../../lib/time";
 import { readPortfolio } from "../../../../lib/portfolio/read-portfolio";
@@ -112,6 +112,12 @@ export async function POST(request: Request): Promise<Response> {
     const admission = await auth.beginCompilation({ owner: session.owner,
       clientKey: walletAuthClientKey(request), goal: admissionGoal, actionPreference });
     if (admission.kind === "cached") {
+      if (!reusableCompilationResult(admission.result, currentUnixSeconds())) {
+        return NextResponse.json({ code: "COMPILATION_REFRESH_REQUIRED",
+          message: "General asset evidence expired. Compile a fresh policy draft." }, {
+          status: 409, headers: { "Cache-Control": "no-store", "Retry-After": "1" },
+        });
+      }
       return NextResponse.json(admission.result, { headers: { "Cache-Control": "no-store" } });
     }
     if (admission.kind === "limited") {

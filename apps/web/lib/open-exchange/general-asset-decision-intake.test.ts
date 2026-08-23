@@ -76,6 +76,16 @@ const decision = { version: 1 as const, decision: "submit" as const,
     identities: [inputIdentity, outputIdentity],
     valuations: [valuation], manifest }, provenance: { version: 1 as const,
     runner: "general-solver@1", dependencies: [], sources: [], commandHashes: [], generatedFiles: [] } };
+const execution = { version: 4 as const, kind: "general-asset-execution" as const,
+  programId: program.canonicalProgramHash, owner: policy.owner, deadline: program.deadline,
+  finalOutput: program.finalOutput, stages: [{ stageId: program.stages[0]!.stageId,
+    ordinal: 0, chainId: 1 as const, predecessorStageId: null, inputToken,
+    requiredConfirmations: 12, transaction: { chainId: 1 as const, from: policy.owner,
+      to: target, value: "0x0" as const, data: "0x12345678" as const }, expectedLogs: [],
+    delivery: { kind: "none" as const }, evidenceHash: hash("a") }] };
+const authorization = [{ version: 4 as const, stageIndex: 0, chainId: 1 as const,
+  executor: target, executionCommitment: hash("b"), evidenceHash: hash("a"),
+  signature: `0x${"12".repeat(65)}` }];
 
 const mocks = {
   snapshots: vi.fn(), consume: vi.fn(),
@@ -118,7 +128,7 @@ describe("general asset decision intake", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.verify.mockResolvedValue({ accepted: true, errorCodes: [],
-      execution: { version: 4 }, authorization: { version: 4 } });
+      execution, authorization });
   });
 
   it("routes committed evidence without requesting a legacy snapshot", async () => {

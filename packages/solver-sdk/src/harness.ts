@@ -76,11 +76,15 @@ export async function runSolverCycle(input: {
   return Promise.all(intents.map(async (intent) => {
     const decision = SolverDecisionV1Schema.parse(await input.solve(intent));
     if (decision.decision === "submit") {
-      if (decision.program.requestId !== intent.id ||
-          decision.program.owner !== intent.policy.owner ||
-          decision.evidence.programHash !== commitment(decision.program) ||
-          (decision.proposalKind === "transaction-program" &&
-            decision.program.policyHash !== intent.policyHash)) {
+      const matches = decision.proposalKind === "general-asset-program"
+        ? decision.program.owner === intent.policy.owner &&
+          decision.program.policyHash === intent.policyHash
+        : decision.program.requestId === intent.id &&
+          decision.program.owner === intent.policy.owner &&
+          decision.evidence.programHash === commitment(decision.program) &&
+          (decision.proposalKind !== "transaction-program" ||
+            decision.program.policyHash === intent.policyHash);
+      if (!matches) {
         throw new Error(`Solver proposal for ${intent.id} does not match signed intent authority`);
       }
     }

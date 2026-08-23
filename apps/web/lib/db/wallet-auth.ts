@@ -1,5 +1,5 @@
 import { and, count, desc, eq, gt, isNull, sql } from "drizzle-orm";
-import type { WalletAuthRepository } from "../wallet-auth/service";
+import { reusableCompilationResult, type WalletAuthRepository } from "../wallet-auth/service";
 import type { CobiaDatabase } from "./client";
 import {
   cobiaIntentCompileAttempts, cobiaWalletAuthChallenges, cobiaWalletAuthSessions,
@@ -73,7 +73,8 @@ export function createWalletAuthRepository(db: CobiaDatabase): WalletAuthReposit
             gt(cobiaIntentCompileAttempts.completedAt, completedAfter)),
           orderBy: [desc(cobiaIntentCompileAttempts.completedAt)],
         });
-        if (cached?.result !== null && cached?.result !== undefined) {
+        if (cached?.result !== null && cached?.result !== undefined &&
+            reusableCompilationResult(cached.result, input.nowSec)) {
           return { kind: "cached" as const, result: cached.result };
         }
         const active = await tx.query.cobiaIntentCompileAttempts.findFirst({

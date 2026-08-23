@@ -24,7 +24,7 @@ export const EIP1967_BEACON_SLOT =
 const ZERO = "0x0000000000000000000000000000000000000000" as const;
 const BEACON_ABI = parseAbi(["function implementation() view returns (address)"]);
 
-interface Client {
+export interface GeneralAssetViemClient {
   getChainId(): Promise<number>;
   getBlockNumber(): Promise<bigint>;
   getBlock(input: { blockNumber: bigint }): Promise<{ number: bigint; hash: Hash | null }>;
@@ -39,13 +39,13 @@ function storageAddress(word: Hex | undefined): Address | undefined {
   return isAddressEqual(address, ZERO) ? undefined : address;
 }
 
-async function codeHash(client: Client, address: Address, blockNumber: bigint): Promise<Hash | null> {
+async function codeHash(client: GeneralAssetViemClient, address: Address, blockNumber: bigint): Promise<Hash | null> {
   const code = await client.getCode({ address, blockNumber });
   return !code || code === "0x" ? null : keccak256(code);
 }
 
 async function proxyIdentity(
-  client: Client,
+  client: GeneralAssetViemClient,
   token: Address,
   blockNumber: bigint,
 ): Promise<ProxyIdentityV1> {
@@ -76,7 +76,7 @@ async function proxyIdentity(
     implementation: beaconImplementation, implementationRuntimeCodeHash };
 }
 
-function createReader(client: Client): PinnedAssetReaderV1 {
+export function createPinnedAssetReaderV1(client: GeneralAssetViemClient): PinnedAssetReaderV1 {
   return {
     latestBlockNumber: async (chainId) => {
       if (await client.getChainId() !== chainId) throw new Error("Asset reader chain ID mismatch");
@@ -104,7 +104,7 @@ function createReader(client: Client): PinnedAssetReaderV1 {
 
 export async function captureGeneralAssetIdentityV1(
   asset: GeneralAsset,
-  client: Client,
+  client: GeneralAssetViemClient,
   nowSec: number,
 ): Promise<{ anchor: { blockNumber: string; blockHash: Hash; capturedAtSec: number;
   expiresAtSec: number; maximumBlockAge: number }; claimedIdentity: ClaimedAssetIdentityV1;
@@ -113,7 +113,7 @@ export async function captureGeneralAssetIdentityV1(
   const blockNumber = await client.getBlockNumber();
   const block = await client.getBlock({ blockNumber });
   if (!block.hash || block.number !== blockNumber) throw new Error("Asset block is not pinned");
-  const reader = createReader(client);
+  const reader = createPinnedAssetReaderV1(client);
   const [runtimeCodeHash, proxy, decimals] = await Promise.all([
     reader.runtimeCodeHash(asset.chainId, asset.token, blockNumber),
     reader.proxy(asset.chainId, asset.token, blockNumber),
@@ -125,7 +125,7 @@ export async function captureGeneralAssetIdentityV1(
   claimedIdentity: { runtimeCodeHash, proxy, decimals }, reader };
 }
 
-function viemClient(chainId: 1 | 196, rpcUrl: string): Client {
+function viemClient(chainId: 1 | 196, rpcUrl: string): GeneralAssetViemClient {
   const client = chainId === 1
     ? createPublicClient({ chain: mainnet, transport: http(rpcUrl, { timeout: 15_000 }), cacheTime: 0 })
     : createPublicClient({ chain: xLayer, transport: http(rpcUrl, { timeout: 15_000 }), cacheTime: 0 });

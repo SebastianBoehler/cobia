@@ -1,11 +1,13 @@
 import {
   OpenIntentPolicyV3Schema,
+  GeneralAssetPolicyV1Schema,
+  GeneralAssetProgramV1Schema,
   type GeneralAssetPolicyV1,
   TransactionProgramV1Schema,
   type GeneralIntentPolicyV2,
   type OpenIntentPolicyV3,
 } from "@cobia/domain";
-import { createPublicClient, erc20Abi, http, type Address } from "viem";
+import { createPublicClient, erc20Abi, http, keccak256, type Address, type Hash } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { base, mainnet } from "viem/chains";
 import { createDatabase } from "../db/client";
@@ -24,7 +26,7 @@ import { createSolverSuccessFeeRepository } from "../db/solver-success-fees";
 import { createWalletAuthRepository } from "../db/wallet-auth";
 import { createGeneralAssetExecutionRepository } from "../db/general-asset-executions";
 import { readCodingAgentV3RuntimeConfig, readDatabaseUrl, readGeneralAssetManifest,
-  readOkxCredentials } from "../env";
+  readGeneralAssetV4Config, readOkxCredentials } from "../env";
 import { openGeneralCodingAgentCompetition } from "./general-coding-agent";
 import { cobiaCodingAgentProfile } from "./solver-catalog";
 import { productionCapabilityManifestV1 } from "../capabilities/manifest";
@@ -43,7 +45,8 @@ import { verifyOpenStagedProposalV1 } from "../open-exchange/transaction-verifie
 import {
   assertAgentExecutorReadyV1, createAgentExecutorReadV1,
 } from "../coding-agent-sandbox/executor-preflight";
-import { replayCapabilityRemotely, replayTransactionRemotely } from "../replay/remote-client";
+import { replayCapabilityRemotely, replayGeneralAssetStageRemotely,
+  replayTransactionRemotely } from "../replay/remote-client";
 import { createOkxClient } from "../okx/client";
 import { publishCapabilityComposition } from "./composition-market";
 import { IntentSnapshotUnavailableError, OwnerBalanceRequiredError } from "./market-errors";
@@ -51,6 +54,11 @@ import { GeneralAssetManifestMismatchError, GeneralAssetOwnerBalanceRequiredErro
   publishGeneralAssetIntentV1 } from "./general-asset-publication";
 import { GeneralAssetRefreshRequiredError,
   parseGeneralAssetCompilationReceiptV1 } from "./general-asset-compilation-receipt";
+import { createOkxGeneralAssetSwapCompilerV1 } from "../okx/general-asset-swap";
+import { verifyRawGeneralAssetIdentityV1,
+  verifyRuntimeGeneralAssetProposalV1 } from "./general-asset-verification";
+import { createPinnedAssetReaderV1 } from "../assets/general-asset-chain-reader";
+import { assertGeneralAssetV4Ready } from "./general-asset-v4-readiness";
 
 let activityRepository: ReturnType<typeof createActivityRepository> | undefined;
 let database: ReturnType<typeof createDatabase> | undefined;
@@ -318,6 +326,50 @@ export function submitOpenSolverDecision(value: {
     submissions: getSolverSubmissionRepository(),
     nowSec: () => Math.floor(Date.now() / 1_000),
     async verify(input) {
+      if (input.policy && typeof input.policy === "object" && "kind" in input.policy &&
+          input.policy.kind === "general-asset") {
+        if (input.proposalKind !== "general-asset-program") {
+          return { accepted: false as const, errorCodes: ["POLICY_MISMATCH"] };
+        }
+        const policy = GeneralAssetPolicyV1Schema.parse(input.policy);
+        const program = GeneralAssetProgramV1Schema.parse(input.program);
+        const manifest = readGeneralAssetManifest();
+        const chainId = program.stages[0]?.chainId;
+        const executionConfig = readGeneralAssetV4Config().entries.find((entry) => entry.chainId === chainId);
+        if (!executionConfig || !chainId) throw new Error("General asset V4 execution chain is not configured");
+        const rawClient = chainId === 1 ? ethereumClient : client;
+        const reader = createPinnedAssetReaderV1(rawClient as never);
+        const swapCompiler = createOkxGeneralAssetSwapCompilerV1({ credentials: readOkxCredentials() });
+        const anchor = input.anchors?.find((value) => value.chainId === chainId);
+        const stage = program.stages[0];
+        const entry = stage && manifest.entries.find((value) => value.chainId === chainId &&
+          value.adapter.id === stage.adapter.id && value.adapter.version === stage.adapter.version &&
+          value.target === stage.target);
+        return verifyRuntimeGeneralAssetProposalV1({ policy, program, manifest,
+          identityEvidence: input.identityEvidence ?? [], valuationEvidence: input.valuationEvidence ?? [],
+          anchors: (input.anchors ?? []) as { chainId: 1 | 196; blockNumber: string; blockHash: Hash }[],
+          nowSec: input.nowSec }, {
+          executor: executionConfig.executor, executorCodeHash: executionConfig.executorCodeHash,
+          verifyIdentity: (evidence) => verifyRawGeneralAssetIdentityV1(evidence, reader, input.nowSec),
+          async getCodeHash(_exactChainId, address, blockNumber) {
+            const code = await rawClient.getCode({ address, blockNumber: BigInt(blockNumber) });
+            return !code || code === "0x" ? undefined : keccak256(code);
+          },
+          compileSwap: swapCompiler.compile,
+          replayStage: (exactStage, compiled, exactAnchor) => replayGeneralAssetStageRemotely({
+            chainId, blockNumber: exactAnchor.blockNumber, blockHash: exactAnchor.blockHash,
+            owner: policy.owner as Address, executor: executionConfig.executor,
+            stage: exactStage, compiled,
+          }),
+          signTypedData: (typedData) => verifier.signTypedData(typedData),
+          async assertReady() {
+            if (!anchor || !entry || !stage) throw new Error("General asset V4 anchor or adapter is unavailable");
+            await assertGeneralAssetV4Ready({ client: rawClient as never, config: executionConfig,
+              verifier: verifier.address, target: entry.target,
+              selector: stage.calldata.slice(0, 10) as `0x${string}`, blockNumber: anchor.blockNumber });
+          },
+        });
+      }
       if (input.policy && typeof input.policy === "object" && "kind" in input.policy &&
           input.policy.kind === "capability-composition") {
         if (input.proposalKind !== "capability-v2") {

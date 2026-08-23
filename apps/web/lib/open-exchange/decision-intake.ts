@@ -12,6 +12,8 @@ import {
 import { GeneralAssetEvidenceArtifactV1Schema, SolverDecisionV1Schema } from "@cobia/solvers";
 import { isAddress, isAddressEqual, recoverMessageAddress, type Address, type Hex } from "viem";
 import { z } from "zod";
+import { GeneralAssetAuthorizationArtifactsV4Schema } from "../execution-v4/authorization-artifact";
+import { parseGeneralAssetExecutionBundleV4 } from "../execution-v4/stage-artifact";
 
 const SignatureSchema = z.string().regex(/^0x[0-9a-fA-F]{130}$/).transform((value) => value as Hex);
 const FailureCodeSchema = z.string().regex(/^[A-Z][A-Z0-9_]{2,63}$/);
@@ -293,7 +295,16 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
       await dependencies.submissions.appendArtifact(submission.id, "verdict", verdict);
       if (verdict.replay) await dependencies.submissions.appendArtifact(submission.id, "replay", verdict.replay);
       if (verdict.accepted && decision.proposalKind === "general-asset-program" &&
-          (!verdict.execution || !verdict.authorization)) {
+          (() => {
+            try {
+              const execution = parseGeneralAssetExecutionBundleV4(verdict.execution);
+              const authorization = GeneralAssetAuthorizationArtifactsV4Schema.parse(verdict.authorization);
+              return execution.programId !== decision.program.canonicalProgramHash ||
+                execution.stages.length !== decision.program.stages.length ||
+                authorization.length !== decision.program.stages.length ||
+                authorization.some((item, index) => item.chainId !== decision.program.stages[index]!.chainId);
+            } catch { return true; }
+          })()) {
         const errorCodes = ["EXECUTION_ARTIFACT_MISSING"];
         await dependencies.submissions.resolve(submission.id, "rejected", errorCodes);
         await dependencies.runs.fail(run.id, errorCodes[0]!);
