@@ -1,5 +1,5 @@
 import {
-  solverDecisionClaimCommitmentV1, solverProfileClaimCommitmentV1,
+  solverProfileClaimCommitmentV1,
 } from "@cobia/domain";
 import {
   createSolverExchangeClient, watchSolverIntents, type SolverIntentV1,
@@ -13,15 +13,15 @@ import { z } from "zod";
 import { prepareCodexJob } from "./codex-job";
 import { readExistingCodexDecision } from "./codex-output";
 import { runCodexSolver } from "./codex-runner";
-import { canonicalDecisionCommitment } from "./decision-commitment";
 import { decideCuratedFirst } from "./decision-source";
-import { canRetryBeforeCompetitionClose, competitionWorkTimeoutMs } from "./intent-deadline";
+import { competitionWorkTimeoutMs } from "./intent-deadline";
 import { IntentAttempts, SolverJobStateSchema, WorkLimiter, type SolverJobState } from "./job-control";
 import { writeHeartbeat } from "./heartbeat";
 import { REFERENCE_CAPABILITIES } from "./route-tool";
 import { readReferenceSolverConfig, type ReferenceSolverConfig } from "./solver-config";
 import { solve } from "./strategy";
-import { announceSolverRun } from "./solver-run";
+import { announceSolverRun, submitSolverDecision } from "./solver-run";
+import { handleIntentError } from "./worker-error";
 
 function nonce(): Hash {
   return keccak256(toHex(crypto.getRandomValues(new Uint8Array(32))));
@@ -126,21 +126,15 @@ async function processIntent(input: {
         message: error instanceof Error ? error.message : String(error) });
     },
   });
-  const canonical = canonicalDecisionCommitment(selected.decision);
-  const decision = canonical.decision;
+  const decision = selected.decision;
   output({ event: "decision-selected", source: selected.source, intentId: input.intent.id,
     revision: input.revision, decision: decision.decision });
-  const issuedAt = Math.floor(Date.now() / 1_000);
-  const claim = { version: 1 as const, solverId: input.solverId, intentId: input.intent.id,
-    revision: input.revision, decisionHash: canonical.decisionHash,
-    snapshotHash: input.intent.snapshotHash as Hash,
-    nonce: nonce(), issuedAt, expiresAt: Math.min(issuedAt + 240, input.intent.competitionClosesAt) };
-  if (claim.expiresAt <= claim.issuedAt) return;
-  const signature = await input.account.signMessage({
-    message: { raw: solverDecisionClaimCommitmentV1(claim) },
+  const receipt = await submitSolverDecision({
+    client: input.client, account: input.account, solverId: input.solverId,
+    intent: input.intent, revision: input.revision, decision,
   });
-  const receipt = await input.client.submitDecision({ claim, signature, decision });
-  await input.record(claim.revision, receipt.state);
+  if (!receipt) return;
+  await input.record(input.revision, receipt.state);
   output({ event: "decision", intentId: input.intent.id, decision: decision.decision,
     receiptState: receipt.state, submissionId: receipt.submissionId });
 }
@@ -199,16 +193,12 @@ await watchSolverIntents({
       output({ event: "poll-error", message: error instanceof Error ? error.message : String(error) });
       return;
     }
-    const failed = attempts.failed(intent.id);
-    const retryable = failed.attempts < maxAttempts && canRetryBeforeCompetitionClose({
-      competitionClosesAt: intent.competitionClosesAt,
-      retryAfterMs: failed.retryAfterMs,
-    });
-    if (!retryable && failed.attempts < maxAttempts) attempts.stop(intent.id);
-    await persistState();
+    const result = await handleIntentError({ error, intent, attempts, maxAttempts,
+      client, account, solverId: worker.solverId, persist: persistState });
     output({ event: "intent-error", intentId: intent.id,
-      message: error instanceof Error ? error.message : String(error), attempts: failed.attempts,
-      retry: retryable ? new Date(failed.retryAfterMs).toISOString() : "stopped" });
+      message: error instanceof Error ? error.message : String(error), attempts: result.attempts,
+      retry: result.retryable ? new Date(result.retryAfterMs!).toISOString() : "stopped",
+      terminalState: result.terminalState, terminalError: result.terminalError });
   },
   async onIntent(intent) {
     if (competitionWorkTimeoutMs({ competitionClosesAt: intent.competitionClosesAt,

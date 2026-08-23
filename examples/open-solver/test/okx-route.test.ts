@@ -3,6 +3,7 @@ import { XLAYER_OKX_MANIFEST_V1 } from "@cobia/solvers";
 import { concatHex } from "viem";
 import { describe, expect, it } from "vitest";
 import { buildOkxRouteStage, fetchOkxRouteArtifact } from "../src/okx-route";
+import { REFERENCE_CAPABILITIES } from "../src/route-tool";
 
 const owner = "0x1111111111111111111111111111111111111111" as const;
 const inputToken = "0x2222222222222222222222222222222222222222" as const;
@@ -72,6 +73,15 @@ describe("OKX route construction", () => {
       stageId: "01-okx-swap", provider: "okx.dex@1",
       payloadHash: commitment(artifact), payload: artifact,
     });
+  });
+
+  it("declares the exact provider emitted by an OKX transaction stage", () => {
+    const result = buildOkxRouteStage({ artifact, owner, inputToken,
+      outputToken: NATIVE_ASSET_ADDRESS, inputAtomic: "100", minimumOutputAtomic: "2" });
+
+    expect("provider" in result.stage).toBe(true);
+    if (!("provider" in result.stage)) throw new Error("OKX stage provider is unavailable");
+    expect(REFERENCE_CAPABILITIES).toContain(result.stage.provider);
   });
 
   it.each([

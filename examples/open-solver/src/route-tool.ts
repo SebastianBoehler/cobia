@@ -11,6 +11,7 @@ export const REFERENCE_CAPABILITIES = [
   "general-asset@1",
   "general.evm-program@1",
   "okx.dex-routing@1",
+  "okx.dex@1",
   "policy.capability-composition@1",
   "uniswap-v3.exact-input@1",
   "uniswap-v3.swaps@1",
