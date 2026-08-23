@@ -76,6 +76,8 @@ The initial four-call Safe batch executed in transaction
 at block `68736333` (`2026-08-23T17:16:09Z`). Adapter, canary-wallet, and unpause
 activation become eligible at `2026-08-25T17:16:09Z`. The pinned proposed-state
 spec is [`general-asset-v4-xlayer-proposed-state.json`](./general-asset-v4-xlayer-proposed-state.json).
+The public, signer-free web runtime binding is
+[`general-asset-v4-xlayer-runtime-config.json`](./general-asset-v4-xlayer-runtime-config.json).
 At this stage V4 remains paused, the adapter and canary wallet remain inactive, open
 access remains unproposed, and V3 remains unchanged.
 
