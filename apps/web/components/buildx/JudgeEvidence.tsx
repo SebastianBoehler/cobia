@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { ProtocolMark } from "../brand/ProtocolMark";
+import { XStocksMark } from "../brand/XStocksMark";
 import styles from "./JudgeEvidence.module.css";
 
 const MAINNET_DEPLOYMENT_TX = "0x2278a9241529becaf1baac9a3de7777fd5ab6051e0e65b3b4fc45e1e3f3fc767";
@@ -62,7 +63,12 @@ const evidence = [
   },
 ] as const;
 
-const supportedProtocols = ["Aave V3", "Curve StableSwap", "Uniswap V3"] as const;
+const supportedIntegrations = [
+  { label: "Aave V3", detail: "Lending", kind: "protocol" },
+  { label: "Curve StableSwap", detail: "Exchange", kind: "protocol" },
+  { label: "Uniswap V3", detail: "Exchange", kind: "protocol" },
+  { label: "xStocks", detail: "Tokenized equities · Staged", kind: "asset-rail" },
+] as const;
 
 const foundations = [
   ["AI application", "AI solvers research, write, and test transaction plans while deterministic verification retains authorization authority."],
@@ -156,12 +162,14 @@ export function JudgeEvidence() {
 
     <section className={styles.protocols} aria-labelledby="protocols-title">
       <div>
-        <h2 id="protocols-title">Protocols already entering verified plans.</h2>
-        <p>Aave supply plus Curve and Uniswap swaps are pinned to explicit X Layer adapters and independently replayed before wallet review.</p>
+        <h2 id="protocols-title">Protocols and asset rails entering verified plans.</h2>
+        <p>Aave supply plus Curve and Uniswap swaps use explicit X Layer adapters. The staged xStocks lane adds issuer-backed asset identity under the same verification boundary.</p>
       </div>
-      <ul>{supportedProtocols.map((protocol) => <li key={protocol}>
-        <ProtocolMark protocol={protocol} size={58} />
-        <strong>{protocol}</strong>
+      <ul>{supportedIntegrations.map((integration) => <li key={integration.label}>
+        {integration.kind === "protocol"
+          ? <ProtocolMark protocol={integration.label} size={58} />
+          : <XStocksMark size={58} />}
+        <div><strong>{integration.label}</strong><small>{integration.detail}</small></div>
       </li>)}</ul>
     </section>
 

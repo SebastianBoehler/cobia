@@ -40,12 +40,14 @@
 .boundary li { border-top: 1px solid color-mix(in oklch, var(--paper) 14%, transparent); padding: 27px 0 30px; }
 .boundary h3 { font-size: 22px; letter-spacing: -.035em; margin: 0; }
 .boundary li p { color: color-mix(in oklch, var(--paper) 62%, transparent); font-size: 13px; line-height: 1.6; margin: 9px 0 0; max-width: 54ch; }
-.protocols { align-items: end; display: grid; gap: clamp(54px, 8vw, 110px); grid-template-columns: minmax(0, 1.25fr) minmax(360px, .75fr); margin: 0 auto; max-width: 1328px; padding: clamp(88px, 10vw, 148px) clamp(24px, 5.1vw, 68px); }
+.protocols { align-items: end; display: grid; gap: clamp(54px, 8vw, 110px); grid-template-columns: minmax(0, 1.2fr) minmax(460px, .9fr); margin: 0 auto; max-width: 1328px; padding: clamp(88px, 10vw, 148px) clamp(24px, 5.1vw, 68px); }
 .protocols > div > p { color: var(--muted); font-size: 16px; line-height: 1.65; margin: 26px 0 0; max-width: 66ch; }
-.protocols ul { border-block: 1px solid var(--line); display: grid; grid-template-columns: repeat(3, 1fr); list-style: none; margin: 0; padding: 0; }
+.protocols ul { border-block: 1px solid var(--line); display: grid; grid-template-columns: repeat(4, 1fr); list-style: none; margin: 0; padding: 0; }
 .protocols li { align-items: center; display: flex; flex-direction: column; gap: 15px; padding: 26px 10px; text-align: center; }
 .protocols li + li { border-inline-start: 1px solid var(--line); }
+.protocols li > div { display: grid; gap: 4px; }
 .protocols li strong { font-size: 15px; letter-spacing: -.02em; }
+.protocols li small { color: var(--muted); font-size: 11px; line-height: 1.35; }
 .evidence, .foundations { margin: 0 auto; max-width: 1328px; padding: clamp(88px, 10vw, 148px) clamp(24px, 5.1vw, 68px); }
 .sectionHeader { align-items: end; display: flex; gap: 40px; justify-content: space-between; }
 .sectionHeader h2 { max-width: 850px; }
@@ -104,7 +106,9 @@
   .signalStages span { flex-direction: column; }
   .boundary { gap: 54px; padding-inline: 20px; }
   .protocols { padding-inline: 20px; }
-  .protocols ul { width: 100%; }
+  .protocols ul { grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  .protocols li:nth-child(odd) { border-inline-start: 0; }
+  .protocols li:nth-child(n + 3) { border-block-start: 1px solid var(--line); }
   .sectionHeader { align-items: start; flex-direction: column; }
   .evidence { padding-inline: 20px; }
   .evidenceList { margin-top: 48px; }

@@ -69,8 +69,9 @@ describe("Build X project page", () => {
     expect(html).toContain("0x68cff1d6bbba6b436d0be39cd91e772a811027519487a7fefe91d5bef81521a6");
   });
 
-  it("uses protocol marks instead of decorative micro-labels", () => {
+  it("distinguishes live protocol adapters from the staged xStocks asset rail", () => {
     const html = renderToStaticMarkup(<BuildXEvidencePage />);
+    const text = html.replace(/<[^>]+>/g, "");
 
     expect(html).not.toContain("BuildX AI Season · Judge evidence");
     expect(html).not.toContain(">The boundary<");
@@ -80,6 +81,9 @@ describe("Build X project page", () => {
     expect(html).toContain('aria-label="Aave V3"');
     expect(html).toContain('aria-label="Curve StableSwap"');
     expect(html).toContain('aria-label="Uniswap V3"');
+    expect(html).toContain('aria-label="xStocks"');
+    expect(text).toContain("Protocols and asset rails entering verified plans.");
+    expect(text).toContain("xStocksTokenized equities · Staged");
   });
 
   it("keeps internal evaluation strategy out of the public experience", () => {
