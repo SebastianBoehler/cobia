@@ -5,6 +5,7 @@ import { revalidateStageEvidenceV4 } from "./revalidate-stage-evidence";
 const inputToken = "0x2222222222222222222222222222222222222222" as const;
 const outputToken = "0x3333333333333333333333333333333333333333" as const;
 const target = "0x4444444444444444444444444444444444444444" as const;
+const spender = "0x5555555555555555555555555555555555555555" as const;
 const hash = (byte: string) => `0x${byte.repeat(64)}` as `0x${string}`;
 const nowSec = 2_000_000_000;
 
@@ -39,18 +40,25 @@ function fixture() {
     ...(token === inputToken ? { valuationHash: commitment(freshValuation),
       valuationEvidence: freshValuation } : {}),
   }));
-  return { input: { nowSec, policy: { maximumInputUsdE8: "250", inputIdentityHash: commitment(inputIdentity),
+  const manifest = { version: 1 as const, entries: [{ providerFamily: "okx" as const,
+    adapter: { id: "okx.swap", version: 1 }, chainId: 196 as const, target,
+    runtimeCodeHash: hash("4"), selectors: ["0x12345678"],
+    approvalSpenders: [{ address: spender, runtimeCodeHash: hash("5") }] }] };
+  return { input: { nowSec, policy: { maximumInputUsdE8: "250", manifestHash: commitment(manifest),
+      inputIdentityHash: commitment(inputIdentity),
       inputValuationHash: commitment(valuation), outputs: [{ chainId: 196 as const, token: outputToken,
         identityHash: commitment(outputIdentity) }] },
-    stage: { index: 0, chainId: 196 as const, target, targetRuntimeCodeHash: hash("4"),
+    stage: { index: 0, chainId: 196 as const, adapter: { id: "okx.swap", version: 1 },
+      target, targetRuntimeCodeHash: hash("4"),
       input: { token: inputToken, maximumAtomic: "100", maximumUsdE8: "250",
         identityEvidenceHash: commitment(inputIdentity), valuationEvidenceHash: commitment(valuation) },
-      outputs: [{ token: outputToken, identityEvidenceHash: commitment(outputIdentity) }] },
-    evidence: { identities: [inputIdentity, outputIdentity], valuations: [valuation] },
+      outputs: [{ token: outputToken, identityEvidenceHash: commitment(outputIdentity) }],
+      approvals: [{ token: inputToken, spender, maximumAtomic: "100" }] },
+    evidence: { identities: [inputIdentity, outputIdentity], valuations: [valuation], manifest },
     programIdentityEvidenceHashes: [commitment(inputIdentity), commitment(outputIdentity)],
     programValuationEvidenceHashes: [commitment(valuation)],
     eligibility: { eligibility }, reader: { blockHash: vi.fn(async () => hash("b")),
-      codeHash: vi.fn(async () => hash("4")) } }, eligibility };
+      codeHash: vi.fn(async (_chainId, address) => address === target ? hash("4") : hash("5")) } }, eligibility };
 }
 
 describe("V4 stage evidence revalidation", () => {
@@ -113,5 +121,12 @@ describe("V4 stage evidence revalidation", () => {
 
     const block = fixture(); block.input.reader.blockHash = vi.fn(async () => hash("f"));
     await expect(revalidateStageEvidenceV4(block.input)).rejects.toThrow(/block hash/i);
+  });
+
+  it("rejects approval spender code drift before wallet review", async () => {
+    const value = fixture();
+    value.input.reader.codeHash = vi.fn(async (_chainId, address) =>
+      address === spender ? hash("f") : hash("4"));
+    await expect(revalidateStageEvidenceV4(value.input)).rejects.toThrow(/spender.*code/i);
   });
 });

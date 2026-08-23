@@ -157,12 +157,14 @@ contract CobiaExecutorV4 is EIP712, ReentrancyGuard {
         }
         if (!registry.isActive(call_.adapterKey, call_.target, selector)) revert PermissionInactive();
         for (uint256 index; index < call_.approvals.length; ++index) {
-            IERC20(call_.approvals[index].token).forceApprove(call_.target, call_.approvals[index].amount);
+            IERC20(call_.approvals[index].token).forceApprove(
+                call_.approvals[index].spender, call_.approvals[index].amount
+            );
         }
         (bool success,) = call_.target.call{value: call_.value, gas: call_.gasLimit}(call_.data);
         if (!success) revert AdapterCallFailed();
         for (uint256 index; index < call_.approvals.length; ++index) {
-            IERC20(call_.approvals[index].token).forceApprove(call_.target, 0);
+            IERC20(call_.approvals[index].token).forceApprove(call_.approvals[index].spender, 0);
         }
     }
 

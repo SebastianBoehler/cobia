@@ -9,7 +9,7 @@ import {
 } from "viem";
 
 export type ConstraintKindV4 = 0 | 1;
-export interface ApprovalV4 { token: Address; amount: bigint }
+export interface ApprovalV4 { token: Address; spender: Address; amount: bigint }
 export interface CallV4 {
   adapterKey: Hash;
   target: Address;
@@ -70,7 +70,7 @@ export interface VerifierAuthorizationV4 {
 }
 
 const programParameters = parseAbiParameters(
-  "(bytes32 policyHash,bytes32 manifestHash,bytes32 canonicalProgramHash,bytes32 inputIdentityEvidenceHash,bytes32 outputIdentityEvidenceHash,bytes32 valuationEvidenceHash,bytes32 stageHash,bytes32 simulationHash,uint64 pinnedBlockNumber,bytes32 pinnedBlockHash,uint256 sourceChainId,address owner,address inputToken,address outputToken,uint128 inputAmount,uint128 inputUsdE8,uint64 deadline,bytes32 nonce,address[] refundTokens,(bytes32 adapterKey,address target,uint96 value,uint32 gasLimit,(address token,uint128 amount)[] approvals,bytes data)[] calls,(address token,uint8 kind,uint128 minimum)[] constraints)",
+  "(bytes32 policyHash,bytes32 manifestHash,bytes32 canonicalProgramHash,bytes32 inputIdentityEvidenceHash,bytes32 outputIdentityEvidenceHash,bytes32 valuationEvidenceHash,bytes32 stageHash,bytes32 simulationHash,uint64 pinnedBlockNumber,bytes32 pinnedBlockHash,uint256 sourceChainId,address owner,address inputToken,address outputToken,uint128 inputAmount,uint128 inputUsdE8,uint64 deadline,bytes32 nonce,address[] refundTokens,(bytes32 adapterKey,address target,uint96 value,uint32 gasLimit,(address token,address spender,uint128 amount)[] approvals,bytes data)[] calls,(address token,uint8 kind,uint128 minimum)[] constraints)",
 );
 const authorizationParameters = parseAbiParameters(
   "(address executor,uint256 chainId,bytes32 executionCommitment,bytes32 policyHash,bytes32 manifestHash,bytes32 canonicalProgramHash,bytes32 inputIdentityEvidenceHash,bytes32 outputIdentityEvidenceHash,bytes32 valuationEvidenceHash,bytes32 stageHash,bytes32 simulationHash,uint64 pinnedBlockNumber,bytes32 pinnedBlockHash,address owner,address inputToken,address outputToken,uint128 inputAmount,uint128 inputUsdE8,uint64 deadline,bytes32 nonce)",
@@ -130,9 +130,12 @@ export function assertExecutionProgramV4(value: ExecutionProgramV4): void {
     calldataBytes += (call.data.length - 2) / 2;
     totalGas += call.gasLimit;
     approvalCount += call.approvals.length;
-    const approved = call.approvals.map(({ token }) => token);
-    approved.forEach((token) => assertAddress(token, "approval token"));
-    assertSortedUnique(approved, "Approval tokens");
+    const approved = call.approvals.map(({ token, spender }) => `${token.toLowerCase()}:${spender.toLowerCase()}`);
+    call.approvals.forEach(({ token, spender }) => {
+      assertAddress(token, "approval token");
+      assertAddress(spender, "approval spender");
+    });
+    assertSortedUnique(approved, "Approval token-spender pairs");
     for (const approval of call.approvals) {
       assertUint(approval.amount, UINT128_MAX, "approval amount");
       if (!refunds.has(approval.token.toLowerCase())) throw new Error("Approval token must be refundable");

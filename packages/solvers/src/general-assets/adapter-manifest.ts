@@ -19,6 +19,10 @@ const BridgeDeliverySchema = z.object({
     runtimeCodeHash: NonZeroHashSchema,
   }).strict()).min(1).max(16),
 }).strict();
+const RuntimeCodeIdentitySchema = z.object({
+  address: CanonicalAddressSchema,
+  runtimeCodeHash: NonZeroHashSchema,
+}).strict();
 
 function sortedUnique(values: readonly string[]): boolean {
   return values.every((value, index) => index === 0 || values[index - 1]! < value);
@@ -33,7 +37,7 @@ export const RegisteredAdapterManifestV1Schema = z.object({
     target: CanonicalAddressSchema,
     runtimeCodeHash: NonZeroHashSchema,
     selectors: z.array(z.string().regex(/^0x[0-9a-f]{8}$/)).min(1).max(32),
-    approvalSpenders: z.array(CanonicalAddressSchema).max(16),
+    approvalSpenders: z.array(RuntimeCodeIdentitySchema).max(16),
     bridgeDelivery: BridgeDeliverySchema.optional(),
   }).strict()).max(128),
 }).strict().superRefine((manifest, context) => {
@@ -49,10 +53,13 @@ export const RegisteredAdapterManifestV1Schema = z.object({
     if (entry.providerFamily !== expectedFamily) {
       context.addIssue({ code: "custom", path: ["entries", index, "providerFamily"], message: "Unsupported adapter family" });
     }
-    for (const field of ["selectors", "approvalSpenders"] as const) {
-      if (!entry[field].every((value, item) => item === 0 || entry[field][item - 1]! < value)) {
-        context.addIssue({ code: "custom", path: ["entries", index, field], message: `${field} must be sorted and unique` });
-      }
+    if (!sortedUnique(entry.selectors)) {
+      context.addIssue({ code: "custom", path: ["entries", index, "selectors"],
+        message: "selectors must be sorted and unique" });
+    }
+    if (!sortedUnique(entry.approvalSpenders.map(({ address }) => address))) {
+      context.addIssue({ code: "custom", path: ["entries", index, "approvalSpenders"],
+        message: "approvalSpenders must be sorted and unique" });
     }
     if (entry.bridgeDelivery && entry.providerFamily !== "lifi") {
       context.addIssue({ code: "custom", path: ["entries", index, "bridgeDelivery"],

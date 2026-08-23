@@ -19,6 +19,25 @@ contract CobiaExecutorV4Test is ExecutorV4TestBase {
         assert(riskManager.walletRollingUsdE8(OWNER) == value.inputUsdE8);
     }
 
+    function test_approvesAndCleansTheExactVerifierAuthorizedSpender() public {
+        _activate(adapter.callExecutor.selector);
+        CobiaExecutionTypesV4.ExecutionProgramV4 memory value = program(1_000_000);
+        value.calls[0].approvals[0].spender = address(spender);
+        value.calls[0].data = abi.encodeCall(
+            adapter.callExecutor,
+            (address(spender), abi.encodeCall(spender.pull, (input, address(executor), address(adapter), 1_000_000)))
+        );
+        output.mint(OWNER, 1);
+        value.constraints[0] = CobiaExecutionTypesV4.BalanceConstraintV4(
+            address(output), CobiaExecutionTypesV4.ConstraintKind.Absolute, 1
+        );
+        executeAsOwner(value);
+
+        assert(input.balanceOf(address(adapter)) == 1_000_000);
+        assert(input.allowance(address(executor), address(spender)) == 0);
+        assert(input.allowance(address(executor), address(adapter)) == 0);
+    }
+
     function test_nativeValueAndGasArePartOfTheExactRegisteredCall() public {
         CobiaExecutionTypesV4.ExecutionProgramV4 memory value = program(1);
         value.calls[0].value = 1;
@@ -31,11 +50,11 @@ contract CobiaExecutorV4Test is ExecutorV4TestBase {
         CobiaExecutionTypesV4.ExecutionProgramV4 memory value = _interopProgram();
         CobiaExecutionTypesV4.VerifierAuthorizationV4 memory auth = _interopAuthorization(value);
         assert(
-            executor.executionProgramHash(value) == 0xb31b702fe929525c3210bf75edbd649cdda1fa1d8202d96192bf4e20fa9e8752
+            executor.executionProgramHash(value) == 0x12ba65e0c6f546afcee3930a8d32de483c1e468b2b0507e81287bb10ed22910f
         );
         assert(
             executor.authorizationPayloadHash(auth)
-                == 0x8d320cb542646db070a718b3d0e37293ffd3eeab9deb6b62d7d930d84e196d60
+                == 0xad0e54c9297e926a6a499b7c0f242996f379586e94f7317fe53483a693eee94f
         );
     }
 
@@ -44,7 +63,9 @@ contract CobiaExecutorV4Test is ExecutorV4TestBase {
         refunds[0] = address(0x2222222222222222222222222222222222222222);
         refunds[1] = address(0x4444444444444444444444444444444444444444);
         CobiaExecutionTypesV4.ApprovalV4[] memory approvals = new CobiaExecutionTypesV4.ApprovalV4[](1);
-        approvals[0] = CobiaExecutionTypesV4.ApprovalV4(refunds[0], 1_000_000);
+        approvals[0] = CobiaExecutionTypesV4.ApprovalV4(
+            refunds[0], address(0x7777777777777777777777777777777777777777), 1_000_000
+        );
         CobiaExecutionTypesV4.CallV4[] memory calls = new CobiaExecutionTypesV4.CallV4[](1);
         calls[0] = CobiaExecutionTypesV4.CallV4(
             bytes32(uint256(type(uint256).max) / 0xff * 0xbb),

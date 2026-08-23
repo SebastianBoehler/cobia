@@ -4,11 +4,13 @@ import { RegisteredAdapterManifestV1Schema } from "../src/general-assets/adapter
 const hash = (byte: string) => `0x${byte.repeat(64)}`;
 const target = "0x1111111111111111111111111111111111111111";
 const emitter = "0x2222222222222222222222222222222222222222";
+const spender = "0x3333333333333333333333333333333333333333";
 
 function manifest() {
   return { version: 1 as const, entries: [{ providerFamily: "lifi" as const,
     adapter: { id: "lifi.route", version: 1 }, chainId: 196 as const, target,
-    runtimeCodeHash: hash("1"), selectors: ["0x12345678"], approvalSpenders: [target],
+    runtimeCodeHash: hash("1"), selectors: ["0x12345678"],
+    approvalSpenders: [{ address: spender, runtimeCodeHash: hash("3") }],
     bridgeDelivery: { statusProvider: "lifi" as const, destinationChainId: 1 as const,
       destinationEmitters: [{ address: emitter, runtimeCodeHash: hash("2") }] } }] };
 }
@@ -18,6 +20,16 @@ describe("registered general asset adapter manifest", () => {
     expect(RegisteredAdapterManifestV1Schema.parse(manifest()).entries[0]!.bridgeDelivery)
       .toEqual({ statusProvider: "lifi", destinationChainId: 1,
         destinationEmitters: [{ address: emitter, runtimeCodeHash: hash("2") }] });
+  });
+
+  it("fails closed unless every approval spender pins its runtime code", () => {
+    const parsed = RegisteredAdapterManifestV1Schema.parse(manifest());
+    expect(parsed.entries[0]!.approvalSpenders).toEqual([
+      { address: spender, runtimeCodeHash: hash("3") },
+    ]);
+    expect(() => RegisteredAdapterManifestV1Schema.parse({ ...manifest(), entries: [{
+      ...manifest().entries[0], approvalSpenders: [spender],
+    }] })).toThrow();
   });
 
   it("rejects delivery semantics on another provider or duplicate emitters", () => {

@@ -69,13 +69,22 @@ library CobiaExecutionValidationV4 {
             for (uint256 approvalIndex; approvalIndex < call_.approvals.length; ++approvalIndex) {
                 Types.ApprovalV4 calldata approval = call_.approvals[approvalIndex];
                 if (
-                    approval.token == address(0) || approval.amount == 0
+                    approval.token == address(0) || approval.spender == address(0) || approval.spender == executor
+                        || approval.amount == 0
                         || !_contains(program.refundTokens, approval.token)
-                        || (approvalIndex > 0 && call_.approvals[approvalIndex - 1].token >= approval.token)
+                        || (approvalIndex > 0 && !_approvalFollows(call_.approvals[approvalIndex - 1], approval))
                 ) revert InvalidProgram();
             }
         }
         if (approvalCount > 16 || calldataBytes > 16_384 || totalGas > 4_000_000) revert InvalidProgram();
+    }
+
+    function _approvalFollows(Types.ApprovalV4 calldata previous, Types.ApprovalV4 calldata current)
+        private
+        pure
+        returns (bool)
+    {
+        return previous.token < current.token || (previous.token == current.token && previous.spender < current.spender);
     }
 
     function _validateConstraints(Types.ExecutionProgramV4 calldata program) private pure {

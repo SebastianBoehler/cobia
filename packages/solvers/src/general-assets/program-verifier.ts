@@ -206,7 +206,8 @@ export async function verifyGeneralAssetProgramV1(
         (!entry.bridgeDelivery || entry.bridgeDelivery.destinationChainId !== stage.delivery.destinationChainId)) {
       errors.add("BRIDGE_DELIVERY_UNREGISTERED");
     }
-    if (stage.approvals.some(({ spender }) => !entry.approvalSpenders.includes(spender))) {
+    if (stage.approvals.some(({ spender }) =>
+      !entry.approvalSpenders.some(({ address }) => address === spender))) {
       errors.add("APPROVAL_SPENDER_UNREGISTERED");
     }
     const anchor = anchors.get(stage.chainId);
@@ -216,6 +217,13 @@ export async function verifyGeneralAssetProgramV1(
     }
     if (await input.getCodeHash(stage.chainId, stage.target, anchor.blockNumber) !== entry.runtimeCodeHash) {
       errors.add("TARGET_CODE_DRIFT");
+    }
+    for (const approval of stage.approvals) {
+      const registered = entry.approvalSpenders.find(({ address }) => address === approval.spender);
+      if (registered && await input.getCodeHash(stage.chainId, approval.spender, anchor.blockNumber) !==
+          registered.runtimeCodeHash) {
+        errors.add("APPROVAL_SPENDER_CODE_DRIFT");
+      }
     }
     const compiled = await input.compileStage(stage, entry);
     compiledStages.push(compiled);

@@ -9,6 +9,7 @@ library CobiaExecutionTypesV4 {
 
     struct ApprovalV4 {
         address token;
+        address spender;
         uint128 amount;
     }
 

@@ -12,6 +12,7 @@ const inputToken = "0x2222222222222222222222222222222222222222" as const;
 const target = "0x3333333333333333333333333333333333333333" as const;
 const outputToken = "0x4444444444444444444444444444444444444444" as const;
 const hiddenToken = "0x5555555555555555555555555555555555555555" as const;
+const spender = "0x6666666666666666666666666666666666666666" as const;
 const nowSec = 2_000_000_010;
 
 function fixture(): GeneralAssetProgramVerificationInputV1 {
@@ -24,7 +25,7 @@ function fixture(): GeneralAssetProgramVerificationInputV1 {
       target,
       runtimeCodeHash: hash("a"),
       selectors: ["0x12345678" as const],
-      approvalSpenders: [target],
+      approvalSpenders: [{ address: spender, runtimeCodeHash: hash("b") }],
     }],
   };
   const valuationEvidence = {
@@ -78,7 +79,7 @@ function fixture(): GeneralAssetProgramVerificationInputV1 {
     input: { token: inputToken, maximumAtomic: "100", maximumUsdE8: "100000000",
       identityEvidenceHash: hash("4"), valuationEvidenceHash: commitment(valuationEvidence) },
     outputs: [{ token: outputToken, minimumIncreaseAtomic: "99", identityEvidenceHash: hash("6") }],
-    approvals: [{ token: inputToken, spender: target, maximumAtomic: "100" }],
+    approvals: [{ token: inputToken, spender, maximumAtomic: "100" }],
     refundTokens: [inputToken, outputToken],
     finality: { confirmations: 12 },
     delivery: { kind: "none" as const },
@@ -124,7 +125,7 @@ function fixture(): GeneralAssetProgramVerificationInputV1 {
       { token: inputToken, deltaAtomic: "-100" },
       { token: outputToken, deltaAtomic: "99" },
     ],
-    endingAllowances: [{ token: inputToken, spender: target, atomic: "0" }],
+    endingAllowances: [{ token: inputToken, spender, atomic: "0" }],
     traceHash: hash("e"),
     stateDiffHash: hash("9"),
   };
@@ -136,7 +137,7 @@ function fixture(): GeneralAssetProgramVerificationInputV1 {
     verifiedIdentityEvidenceHashes: [hash("4"), hash("6")],
     anchors: [{ chainId: 196, blockNumber: "123", blockHash: hash("d") }],
     nowSec,
-    getCodeHash: async () => hash("a"),
+    getCodeHash: async (_chainId, address) => address === target ? hash("a") : hash("b"),
     compileStage: async () => compiled,
     replayStage: async () => replay,
   };
@@ -169,6 +170,12 @@ describe("general asset program verifier", () => {
     const code = fixture();
     code.getCodeHash = async () => hash("f");
     expect(await errors(code)).toContain("TARGET_CODE_DRIFT");
+  });
+
+  it("rejects approval spender runtime code drift at the pinned block", async () => {
+    const input = fixture();
+    input.getCodeHash = async (_chainId, address) => address === target ? hash("a") : hash("f");
+    expect(await errors(input)).toContain("APPROVAL_SPENDER_CODE_DRIFT");
   });
 
   it("rejects approval or recipient substitutions during adapter compilation", async () => {

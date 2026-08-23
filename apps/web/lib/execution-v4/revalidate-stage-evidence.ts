@@ -7,7 +7,7 @@ import {
   type GeneralAssetPolicyV1,
   type GeneralAssetProgramV1,
 } from "@cobia/domain";
-import { RegisteredAdapterManifestV1Schema } from "@cobia/solvers";
+import { RegisteredAdapterManifestV1Schema, type RegisteredAdapterManifestV1 } from "@cobia/solvers";
 import { z } from "zod";
 import type { Address, Hash } from "viem";
 
@@ -18,7 +18,7 @@ export const GeneralAssetEvidenceArtifactV1Schema = z.object({
   kind: z.literal("general-asset-evidence"),
   identities: z.array(AssetIdentityEvidenceV1Schema).min(1).max(16),
   valuations: z.array(AssetValuationEvidenceV1Schema).min(1).max(16),
-  manifest: RegisteredAdapterManifestV1Schema.optional(),
+  manifest: RegisteredAdapterManifestV1Schema,
 }).strict();
 
 export type GeneralAssetEvidenceArtifactV1 = z.infer<typeof GeneralAssetEvidenceArtifactV1Schema>;
@@ -35,6 +35,7 @@ interface RevalidationInput {
   nowSec: number;
   policy: {
     maximumInputUsdE8: string;
+    manifestHash: Hash;
     inputIdentityHash: Hash;
     inputValuationHash: Hash;
     outputs: readonly { chainId: ChainId; token: Address; identityHash: Hash }[];
@@ -42,14 +43,16 @@ interface RevalidationInput {
   stage: {
     index: number;
     chainId: ChainId;
+    adapter: { id: string; version: number };
     target: Address;
     targetRuntimeCodeHash: Hash;
     input: { token: Address; maximumAtomic: string; maximumUsdE8: string;
       identityEvidenceHash: Hash; valuationEvidenceHash: Hash };
     outputs: readonly { token: Address; identityEvidenceHash: Hash }[];
+    approvals: readonly { token: Address; spender: Address; maximumAtomic: string }[];
   };
   evidence: { identities: readonly AssetIdentityEvidenceV1[];
-    valuations: readonly AssetValuationEvidenceV1[] };
+    valuations: readonly AssetValuationEvidenceV1[]; manifest: RegisteredAdapterManifestV1 };
   programIdentityEvidenceHashes: readonly Hash[];
   programValuationEvidenceHashes: readonly Hash[];
   eligibility: { eligibility(input: { chainId: ChainId; token: Address;
@@ -95,6 +98,19 @@ function baselineValuation(input: RevalidationInput, identityHash: Hash) {
   return { evidence, hash };
 }
 
+function registeredStageEntry(input: RevalidationInput) {
+  if (commitment(input.evidence.manifest) !== input.policy.manifestHash) {
+    throw new Error("Adapter manifest does not match the signed policy");
+  }
+  const entry = input.evidence.manifest.entries.find((candidate) =>
+    candidate.chainId === input.stage.chainId && candidate.adapter.id === input.stage.adapter.id &&
+    candidate.adapter.version === input.stage.adapter.version && candidate.target === input.stage.target);
+  if (!entry || entry.runtimeCodeHash !== input.stage.targetRuntimeCodeHash) {
+    throw new Error("Stage adapter does not match the committed manifest");
+  }
+  return entry;
+}
+
 async function currentEligibility(
   input: RevalidationInput,
   token: Address,
@@ -123,6 +139,7 @@ export async function revalidateStageEvidenceV4(input: RevalidationInput): Promi
   identityHash: Hash;
   valuationHash: Hash;
 }> {
+  const manifestEntry = registeredStageEntry(input);
   const baselineInput = baselineIdentity(input, input.stage.chainId, input.stage.input.token);
   const baselineValue = baselineValuation(input, baselineInput.hash);
   if (baselineInput.hash !== input.stage.input.identityEvidenceHash ||
@@ -176,6 +193,15 @@ export async function revalidateStageEvidenceV4(input: RevalidationInput): Promi
   if (targetHash !== input.stage.targetRuntimeCodeHash) {
     throw new Error("Execution target runtime code drifted from the committed program");
   }
+  for (const approval of input.stage.approvals) {
+    const registered = manifestEntry.approvalSpenders.find(({ address }) => address === approval.spender);
+    if (!registered) throw new Error("Approval spender is not registered by the committed manifest");
+    const spenderHash = await input.reader.codeHash(input.stage.chainId, approval.spender,
+      BigInt(pinnedBlockNumber));
+    if (spenderHash !== registered.runtimeCodeHash) {
+      throw new Error("Approval spender runtime code drifted from the committed manifest");
+    }
+  }
 
   return { pinnedBlockNumber, pinnedBlockHash: freshInput.identityEvidence.blockHash,
     identityHash: baselineInput.hash, valuationHash: baselineValue.hash };
@@ -197,6 +223,7 @@ export async function revalidateStoredStageEvidenceV4(input: {
     nowSec: input.nowSec,
     policy: {
       maximumInputUsdE8: input.policy.input.maximumUsdE8,
+      manifestHash: input.policy.manifestHash,
       inputIdentityHash: input.policy.inputIdentityHash,
       inputValuationHash: input.policy.inputValuationHash,
       outputs: input.policy.outputs,

@@ -13,6 +13,7 @@ const target = "0x3333333333333333333333333333333333333333" as const;
 const outputToken = "0x4444444444444444444444444444444444444444" as const;
 const executor = "0x5555555555555555555555555555555555555555" as const;
 const alternateOutput = "0x6666666666666666666666666666666666666666" as const;
+const spender = "0x7777777777777777777777777777777777777777" as const;
 
 function program(): ExecutionProgramV4 {
   return {
@@ -40,7 +41,7 @@ function program(): ExecutionProgramV4 {
       target,
       value: 123n,
       gasLimit: 300_000,
-      approvals: [{ token: inputToken, amount: 1_000_000n }],
+      approvals: [{ token: inputToken, spender, amount: 1_000_000n }],
       data: "0x12345678",
     }],
     constraints: [{ token: outputToken, kind: 1, minimum: 990_000n }],
@@ -52,8 +53,8 @@ describe("ExecutorV4 commitments", () => {
     const value = program();
     const authorization = buildAuthorizationV4(value, executor);
 
-    expect(executionProgramHashV4(value)).toBe("0xb31b702fe929525c3210bf75edbd649cdda1fa1d8202d96192bf4e20fa9e8752");
-    expect(authorizationPayloadHashV4(authorization)).toBe("0x8d320cb542646db070a718b3d0e37293ffd3eeab9deb6b62d7d930d84e196d60");
+    expect(executionProgramHashV4(value)).toBe("0x12ba65e0c6f546afcee3930a8d32de483c1e468b2b0507e81287bb10ed22910f");
+    expect(authorizationPayloadHashV4(authorization)).toBe("0xad0e54c9297e926a6a499b7c0f242996f379586e94f7317fe53483a693eee94f");
   });
 
   it("binds every program field including USD, gas, native value, and exact assets", () => {
@@ -73,6 +74,9 @@ describe("ExecutorV4 commitments", () => {
       { ...value, calls: [{ ...value.calls[0]!, data: "0xdeadbeef" }] },
       { ...value, calls: [{ ...value.calls[0]!, value: 124n }] },
       { ...value, calls: [{ ...value.calls[0]!, gasLimit: 300_001 }] },
+      { ...value, calls: [{ ...value.calls[0]!, approvals: [{
+        ...value.calls[0]!.approvals[0]!, spender: owner,
+      }] }] },
       { ...value, constraints: [{ ...value.constraints[0]!, minimum: 989_999n }] },
     ];
     for (const changed of mutations) expect(executionProgramHashV4(changed)).not.toBe(baseline);
@@ -96,5 +100,11 @@ describe("ExecutorV4 commitments", () => {
       ...program(),
       calls: [{ ...program().calls[0]!, gasLimit: 1_000_001 }],
     })).toThrow();
+    expect(() => executionProgramHashV4({
+      ...program(),
+      calls: [{ ...program().calls[0]!, approvals: [{
+        ...program().calls[0]!.approvals[0]!, spender: "0x0000000000000000000000000000000000000000",
+      }] }],
+    })).toThrow(/spender/i);
   });
 });

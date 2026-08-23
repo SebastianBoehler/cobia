@@ -35,6 +35,12 @@ contract MockAdapterV4 {
     }
 }
 
+contract MockApprovalSpenderV4 {
+    function pull(MockToken token, address owner, address recipient, uint256 amount) external {
+        token.transferFrom(owner, recipient, amount);
+    }
+}
+
 contract ExecutorV4Deployer {
     function deploy(address owner, CobiaAdapterRegistry registry, address verifier)
         external
@@ -61,6 +67,7 @@ abstract contract ExecutorV4TestBase {
     MockToken internal input;
     MockToken internal output;
     MockAdapterV4 internal adapter;
+    MockApprovalSpenderV4 internal spender;
 
     function setUp() public virtual {
         vmV4.chainId(196);
@@ -69,6 +76,7 @@ abstract contract ExecutorV4TestBase {
         input = new MockToken("RANDOM-IN");
         output = new MockToken("RANDOM-OUT");
         adapter = new MockAdapterV4();
+        spender = new MockApprovalSpenderV4();
         _activate(adapter.supply.selector);
 
         ExecutorV4Deployer deployer = new ExecutorV4Deployer();
@@ -86,7 +94,7 @@ abstract contract ExecutorV4TestBase {
 
     function program(uint128 amount) internal view returns (CobiaExecutionTypesV4.ExecutionProgramV4 memory value) {
         CobiaExecutionTypesV4.ApprovalV4[] memory approvals = new CobiaExecutionTypesV4.ApprovalV4[](1);
-        approvals[0] = CobiaExecutionTypesV4.ApprovalV4(address(input), amount);
+        approvals[0] = CobiaExecutionTypesV4.ApprovalV4(address(input), address(adapter), amount);
         CobiaExecutionTypesV4.CallV4[] memory calls = new CobiaExecutionTypesV4.CallV4[](1);
         calls[0] = CobiaExecutionTypesV4.CallV4({
             adapterKey: ADAPTER_KEY,

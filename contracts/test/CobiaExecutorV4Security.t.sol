@@ -61,6 +61,16 @@ contract CobiaExecutorV4SecurityTest is ExecutorV4TestBase {
         expectOwnerRevert(CobiaExecutorV4.PermissionInactive.selector, value);
     }
 
+    function test_rejectsZeroOrExecutorApprovalSpender() public {
+        CobiaExecutionTypesV4.ExecutionProgramV4 memory value = program(1);
+        value.calls[0].approvals[0].spender = address(0);
+        expectOwnerRevert(CobiaExecutorV4.InvalidProgram.selector, value);
+
+        value = program(2);
+        value.calls[0].approvals[0].spender = address(executor);
+        expectOwnerRevert(CobiaExecutorV4.InvalidProgram.selector, value);
+    }
+
     function test_hiddenInputDebitAndFailedCallsRollbackEverything() public {
         _activate(adapter.debitWallet.selector);
         vm.prank(OWNER);

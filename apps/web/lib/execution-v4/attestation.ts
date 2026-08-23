@@ -58,7 +58,8 @@ function sameCalls(left: ExecutionProgramV4["calls"], right: ExecutionProgramV4[
       call.value === expected.value && call.gasLimit === expected.gasLimit && call.data === expected.data &&
       call.approvals.length === expected.approvals.length && call.approvals.every((approval, approvalIndex) => {
         const expectedApproval = expected.approvals[approvalIndex]!;
-        return isAddressEqual(approval.token, expectedApproval.token) && approval.amount === expectedApproval.amount;
+        return isAddressEqual(approval.token, expectedApproval.token) &&
+          isAddressEqual(approval.spender, expectedApproval.spender) && approval.amount === expectedApproval.amount;
       });
   });
 }
@@ -85,14 +86,20 @@ function assertMatchesVerifiedStage(
   if (!stage || !compiled || !replay || verdict.replayHash !== commitment(verdict.replays)) {
     throw new Error("Accepted verdict is missing exact replay evidence");
   }
+  const manifestEntry = verdict.manifest.entries.find((entry) =>
+    entry.chainId === stage.chainId && entry.adapter.id === stage.adapter.id &&
+    entry.adapter.version === stage.adapter.version && isAddressEqual(entry.target, stage.target));
+  if (!manifestEntry || compiled.approvals.some(({ spender }) =>
+    !manifestEntry.approvalSpenders.some(({ address }) => isAddressEqual(address, spender)))) {
+    throw new Error("Approval spender is not registered by the verified adapter manifest");
+  }
   const expectedCall = {
     adapterKey: compiled.adapterKey,
     target: compiled.target,
     value: BigInt(compiled.valueAtomic),
     gasLimit: compiled.gasLimit,
     approvals: compiled.approvals.map(({ token, spender, maximumAtomic }) => {
-      if (!isAddressEqual(spender, compiled.target)) throw new Error("Approval spender does not match adapter target");
-      return { token, amount: BigInt(maximumAtomic) };
+      return { token, spender, amount: BigInt(maximumAtomic) };
     }),
     data: compiled.data,
   };
