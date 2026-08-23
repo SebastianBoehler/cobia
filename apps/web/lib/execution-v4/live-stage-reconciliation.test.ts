@@ -15,7 +15,7 @@ const bundle = {
   finalOutput: { chainId: 196, token, minimumAtomic: "90" },
   stages: [{ stageId, ordinal: 0, chainId: 196, predecessorStageId: null, inputToken: token,
     requiredConfirmations: 12,
-    transaction: { chainId: 196, from: owner, to: target, nonce: "7", value: "0x0", data: "0x12345678" },
+    transaction: { chainId: 196, from: owner, to: target, value: "0x0", data: "0x12345678" },
     expectedLogs: [{ address: target, topics: [hash("3")], data: "0x" }],
     delivery: { kind: "none" }, evidenceHash: hash("4") }],
 } as GeneralAssetExecutionBundleV4;
@@ -76,7 +76,7 @@ describe("live general asset stage reconciliation", () => {
           minimumAtomic: "100" } },
         { ...bundle.stages[0]!, stageId: destinationStageId, ordinal: 1, chainId: 1 as const,
           predecessorStageId: stageId, inputToken: destinationToken,
-          transaction: { ...bundle.stages[0]!.transaction, chainId: 1 as const, nonce: "8" },
+          transaction: { ...bundle.stages[0]!.transaction, chainId: 1 as const },
           delivery: { kind: "none" as const } },
       ],
     } as GeneralAssetExecutionBundleV4;

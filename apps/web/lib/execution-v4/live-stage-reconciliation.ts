@@ -106,7 +106,8 @@ export async function reconcileGeneralAssetStageLiveV4(input: {
   });
 }
 
-export function createGeneralAssetStageChainReaderV4(chainId: 1 | 196): GeneralAssetStageChainReaderV4 {
+export function createGeneralAssetStageChainReaderV4(chainId: 1 | 196):
+GeneralAssetStageChainReaderV4 & { readPendingNonce(owner: Address): Promise<string> } {
   const config = readMarketConfig();
   const client = chainId === 1
     ? createPublicClient({ chain: mainnet,
@@ -114,6 +115,9 @@ export function createGeneralAssetStageChainReaderV4(chainId: 1 | 196): GeneralA
     : createPublicClient({ chain: xLayer,
       transport: http(config.XLAYER_RPC_URL, { timeout: 15_000 }), cacheTime: 0 });
   return {
+    async readPendingNonce(owner) {
+      return (await client.getTransactionCount({ address: owner, blockTag: "pending" })).toString();
+    },
     async readTransaction(hash) {
       const transaction = await client.getTransaction({ hash });
       if (!transaction.to) throw new Error("Stage transaction target is unavailable");

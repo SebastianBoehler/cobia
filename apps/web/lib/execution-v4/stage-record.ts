@@ -12,7 +12,7 @@ export function generalAssetProgramRecordV4(bundle: Bundle) {
   };
 }
 
-export function generalAssetStageRecordV4(bundle: Bundle, stage: Stage) {
+export function generalAssetStageRecordV4(bundle: Bundle, stage: Stage, expectedNonce: string) {
   return {
     programId: bundle.programId,
     stageId: stage.stageId,
@@ -24,7 +24,7 @@ export function generalAssetStageRecordV4(bundle: Bundle, stage: Stage) {
     target: stage.transaction.to,
     valueAtomic: BigInt(stage.transaction.value).toString(),
     calldata: stage.transaction.data,
-    expectedNonce: stage.transaction.nonce,
+    expectedNonce,
     requiredConfirmations: stage.requiredConfirmations,
     expectedLogs: stage.expectedLogs,
     delivery: stage.delivery,

@@ -58,12 +58,9 @@ export type ReceiptReconciliationResultV4 =
 const same = (left: string, right: string) => left.toLowerCase() === right.toLowerCase();
 
 function sameLogs(left: ReceiptLogV4[], right: ReceiptLogV4[]): boolean {
-  return left.length === right.length && left.every((log, index) => {
-    const candidate = right[index];
-    return candidate !== undefined && same(log.address, candidate.address) &&
-      same(log.data, candidate.data) && log.topics.length === candidate.topics.length &&
-      log.topics.every((topic, topicIndex) => same(topic, candidate.topics[topicIndex]!));
-  });
+  return left.every((log) => right.some((candidate) => same(log.address, candidate.address) &&
+    same(log.data, candidate.data) && log.topics.length === candidate.topics.length &&
+    log.topics.every((topic, topicIndex) => same(topic, candidate.topics[topicIndex]!))));
 }
 
 function mismatch(input: ReceiptReconciliationInputV4): ReceiptReconciliationCodeV4 | null {
@@ -75,7 +72,7 @@ function mismatch(input: ReceiptReconciliationInputV4): ReceiptReconciliationCod
   if (!same(observed.target, expected.target)) return "TARGET_MISMATCH";
   if (observed.valueAtomic !== expected.valueAtomic) return "VALUE_MISMATCH";
   if (!same(observed.calldata, expected.calldata)) return "CALLDATA_MISMATCH";
-  if (!sameLogs(observed.logs, expected.logs)) return "LOG_MISMATCH";
+  if (!sameLogs(expected.logs, observed.logs)) return "LOG_MISMATCH";
   if (!observed.success) return "RECEIPT_REVERTED";
   if (!same(observed.blockHash, input.canonicalBlockHash)) return "RECEIPT_REORGED";
   return null;

@@ -35,6 +35,8 @@ import { prepareGeneralAssetExecutionReviewV4 } from "../../../../../lib/executi
 import {
   revalidateProductionStageEvidenceV4,
 } from "../../../../../lib/execution-v4/production-stage-revalidation";
+import { createGeneralAssetStageChainReaderV4 } from
+  "../../../../../lib/execution-v4/live-stage-reconciliation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -104,6 +106,8 @@ export async function POST(
         revalidate: (stageId) => revalidateProductionStageEvidenceV4({
           nowSec, stageId, policy: stored.policy, program: stored.program, artifacts: stored.artifacts,
         }),
+        readPendingNonce: (chainId, owner) =>
+          createGeneralAssetStageChainReaderV4(chainId).readPendingNonce(owner),
       });
       return NextResponse.json({ ...execution, successFee: WAIVED_SOLVER_SUCCESS_FEE }, {
         headers: { "Cache-Control": "no-store" },

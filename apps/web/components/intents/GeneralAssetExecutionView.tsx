@@ -6,7 +6,8 @@ import {
   buildAgentExecutionAccessProof, type AgentExecutionAccessProof,
 } from "../../lib/coding-agent-sandbox/execution-access";
 import {
-  assertExactStageTransaction, type WalletStageTransactionV4,
+  assertExactStageTransaction, type PreparedWalletStageTransactionV4,
+  type WalletStageTransactionV4,
 } from "../../lib/execution-v4/stage-artifact";
 import type { StageStateV4 } from "../../lib/execution-v4/stage-machine";
 import { randomBytes32 } from "../../lib/payments/random";
@@ -20,7 +21,7 @@ import { useWallet } from "../wallet/WalletProvider";
 interface ExecutionAccess { value: AgentExecutionAccessProof; signature: Hex }
 interface ReviewStage {
   stageId: Hash; ordinal: number; chainId: 1 | 196; state: StageStateV4;
-  transaction: WalletStageTransactionV4;
+  transaction: WalletStageTransactionV4 & { nonce?: string };
   delivery: { kind: "none" } | { kind: "bridge"; destinationChainId: 1 | 196 };
 }
 interface ExecutionReview { programVersion: 4; programId: Hash; stages: ReviewStage[] }
@@ -95,9 +96,10 @@ export function GeneralAssetExecutionView({ program }: { program: ProgramView })
       const executionAccess = await currentAccess();
       await wallet.switchChain(stage.chainId);
       const armed = await post(`/api/programs/${programId}/stages/${stage.stageId}`, executionAccess,
-        { action: "arm" }) as { state: string; transaction: WalletStageTransactionV4 };
+        { action: "arm" }) as { state: string; transaction: PreparedWalletStageTransactionV4 };
       if (armed.state !== "broadcasting") throw new Error("Stage was not durably armed.");
-      assertExactStageTransaction(stage.transaction, armed.transaction);
+      const { nonce: _reviewNonce, ...attested } = stage.transaction;
+      assertExactStageTransaction(attested, armed.transaction);
       if (!wallet.account || !isAddressEqual(wallet.account, armed.transaction.from)) {
         throw new Error("Connected wallet does not match the attested sender.");
       }

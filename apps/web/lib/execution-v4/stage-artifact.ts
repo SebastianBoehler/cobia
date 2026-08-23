@@ -9,7 +9,6 @@ const AddressSchema = z.string().regex(/^0x[0-9a-f]{40}$/)
 const HashSchema = z.string().regex(/^0x[0-9a-f]{64}$/)
   .refine((value) => !/^0x0{64}$/.test(value))
   .transform((value) => value as Hex);
-const AtomicSchema = z.string().regex(/^(0|[1-9][0-9]*)$/);
 const PositiveAtomicSchema = z.string().regex(/^[1-9][0-9]*$/);
 const HexValueSchema = z.string().regex(/^0x(?:0|[1-9a-f][0-9a-f]*)$/)
   .transform((value) => value as Hex);
@@ -20,7 +19,6 @@ const WalletStageTransactionSchema = z.object({
   chainId: ChainSchema,
   from: AddressSchema,
   to: AddressSchema,
-  nonce: AtomicSchema,
   value: HexValueSchema,
   data: CalldataSchema,
 }).strict();
@@ -29,9 +27,12 @@ export interface WalletStageTransactionV4 {
   chainId: 1 | 196;
   from: Address;
   to: Address;
-  nonce: string;
   value: Hex;
   data: Hex;
+}
+
+export interface PreparedWalletStageTransactionV4 extends WalletStageTransactionV4 {
+  nonce: string;
 }
 
 const LogSchema = z.object({
@@ -59,7 +60,7 @@ const StageSchema = z.object({
   inputToken: AddressSchema,
   requiredConfirmations: z.number().int().min(1).max(256),
   transaction: WalletStageTransactionSchema,
-  expectedLogs: z.array(LogSchema).min(1).max(64),
+  expectedLogs: z.array(LogSchema).max(64),
   delivery: DeliverySchema,
   evidenceHash: HashSchema,
 }).strict();
@@ -108,9 +109,10 @@ export function parseGeneralAssetExecutionBundleV4(value: unknown): GeneralAsset
 
 export function assertExactStageTransaction(
   attested: WalletStageTransactionV4,
-  proposed: WalletStageTransactionV4,
+  proposed: PreparedWalletStageTransactionV4,
 ): void {
-  if (commitment(attested) !== commitment(proposed)) {
+  const { nonce, ...exact } = proposed;
+  if (!/^(0|[1-9][0-9]*)$/.test(nonce) || commitment(attested) !== commitment(exact)) {
     throw new Error("Wallet transaction does not match attestation");
   }
 }

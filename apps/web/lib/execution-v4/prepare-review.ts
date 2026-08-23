@@ -11,6 +11,7 @@ export async function prepareGeneralAssetExecutionReviewV4(input: {
   submissionState: string;
   repository: Pick<Repository, "prepareStage">;
   revalidate(stageId: `0x${string}`): Promise<unknown>;
+  readPendingNonce(chainId: 1 | 196, owner: Address): Promise<string>;
 }) {
   const bundle = parseGeneralAssetExecutionBundleV4(input.artifact);
   if (input.submissionState !== "attested" || !isAddressEqual(bundle.owner, input.owner)) {
@@ -18,9 +19,10 @@ export async function prepareGeneralAssetExecutionReviewV4(input: {
   }
   const first = bundle.stages[0]!;
   await input.revalidate(first.stageId);
+  const expectedNonce = await input.readPendingNonce(first.chainId, bundle.owner);
   const prepared = await input.repository.prepareStage({
     program: generalAssetProgramRecordV4(bundle),
-    stage: generalAssetStageRecordV4(bundle, first),
+    stage: generalAssetStageRecordV4(bundle, first, expectedNonce),
   });
   return {
     programVersion: 4 as const,
@@ -36,7 +38,7 @@ export async function prepareGeneralAssetExecutionReviewV4(input: {
       predecessorStageId: stage.predecessorStageId,
       state: index === 0 ? prepared.state : "pending",
       inputToken: stage.inputToken,
-      transaction: stage.transaction,
+      transaction: { ...stage.transaction, ...(index === 0 ? { nonce: expectedNonce } : {}) },
       requiredConfirmations: stage.requiredConfirmations,
       delivery: stage.delivery,
       evidenceHash: stage.evidenceHash,

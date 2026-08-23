@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   getExecutionContext: vi.fn(),
   prepareStage: vi.fn(),
   revalidate: vi.fn(),
+  readPendingNonce: vi.fn(),
 }));
 
 vi.mock("../../../../../lib/coding-agent-sandbox/execution-access", () => ({
@@ -19,6 +20,9 @@ vi.mock("../../../../../lib/runtime/market", () => ({
 }));
 vi.mock("../../../../../lib/execution-v4/production-stage-revalidation", () => ({
   revalidateProductionStageEvidenceV4: mocks.revalidate,
+}));
+vi.mock("../../../../../lib/execution-v4/live-stage-reconciliation", () => ({
+  createGeneralAssetStageChainReaderV4: () => ({ readPendingNonce: mocks.readPendingNonce }),
 }));
 
 import { POST } from "./route";
@@ -38,7 +42,7 @@ function bundle() {
     finalOutput: { chainId: 196 as const, token: outputToken, minimumAtomic: "90" },
     stages: [{ stageId: hash("2"), ordinal: 0, chainId: 196 as const,
       predecessorStageId: null, inputToken, requiredConfirmations: 12,
-      transaction: { chainId: 196 as const, from: owner, to: executor, nonce: "7",
+      transaction: { chainId: 196 as const, from: owner, to: executor,
         value: "0x0" as const, data: "0x12345678" as const },
       expectedLogs: [{ address: executor, topics: [hash("3")], data: "0x" as const }],
       delivery: { kind: "none" as const }, evidenceHash: hash("4") }],
@@ -56,6 +60,7 @@ describe("general asset program execution review", () => {
       kind: "execution", payload: execution, artifactHash: commitment(execution),
     }] });
     mocks.revalidate.mockResolvedValue({});
+    mocks.readPendingNonce.mockResolvedValue("7");
     mocks.prepareStage.mockResolvedValue({ state: "prepared" });
 
     const response = await POST(new Request(
@@ -84,6 +89,7 @@ describe("general asset program execution review", () => {
         kind: "execution", payload: execution, artifactHash: commitment(execution),
       }] });
     mocks.revalidate.mockRejectedValue(new Error("Asset identity drift"));
+    mocks.readPendingNonce.mockResolvedValue("7");
 
     const response = await POST(new Request(
       `https://getcobia.com/api/programs/${submissionId}/execution`,

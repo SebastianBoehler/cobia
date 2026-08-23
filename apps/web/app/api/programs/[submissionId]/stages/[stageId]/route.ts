@@ -106,9 +106,11 @@ export async function POST(
         }),
       });
     }
+    const reader = createGeneralAssetStageChainReaderV4(stage.chainId);
+    const expectedNonce = await reader.readPendingNonce(bundle.owner);
     await repository.prepareStage({
       program: generalAssetProgramRecordV4(bundle),
-      stage: generalAssetStageRecordV4(bundle, stage),
+      stage: generalAssetStageRecordV4(bundle, stage, expectedNonce),
     });
     await revalidateProductionStageEvidenceV4({
       nowSec, stageId: stage.stageId, policy: stored.policy, program: stored.program,
@@ -118,7 +120,7 @@ export async function POST(
     return NextResponse.json({
       stageId: stage.stageId,
       state: armed.state,
-      transaction: stage.transaction,
+      transaction: { ...stage.transaction, nonce: expectedNonce },
       guarantee: "The broadcasting state was committed before this exact transaction was returned.",
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

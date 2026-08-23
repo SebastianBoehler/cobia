@@ -27,7 +27,7 @@ vi.mock("../../../../../../lib/runtime/market", () => ({
   }),
 }));
 vi.mock("../../../../../../lib/execution-v4/live-stage-reconciliation", () => ({
-  createGeneralAssetStageChainReaderV4: vi.fn(() => ({})),
+  createGeneralAssetStageChainReaderV4: vi.fn(() => ({ readPendingNonce: vi.fn(async () => "7") })),
   reconcileGeneralAssetStageLiveV4: mocks.reconcileLive,
 }));
 vi.mock("../../../../../../lib/execution-v4/production-stage-revalidation", () => ({
@@ -58,7 +58,7 @@ function bundle() {
     finalOutput: { chainId: 196 as const, token: outputToken, minimumAtomic: "90" },
     stages: [{ stageId, ordinal: 0, chainId: 196 as const, predecessorStageId: null,
       inputToken, requiredConfirmations: 12,
-      transaction: { chainId: 196 as const, from: owner, to: executor, nonce: "7",
+      transaction: { chainId: 196 as const, from: owner, to: executor,
         value: "0x0" as const, data: "0x12345678" as const },
       expectedLogs: [{ address: executor, topics: [hash("3")], data: "0x" as const }],
       delivery: { kind: "none" as const }, evidenceHash: hash("4") }],
@@ -82,7 +82,7 @@ function crossChainBundle() {
         minimumAtomic: "85" } },
       { stageId: destinationStageId, ordinal: 1, chainId: 1 as const,
         predecessorStageId: stageId, inputToken: destinationInput, requiredConfirmations: 12,
-        transaction: { chainId: 1 as const, from: owner, to: executor, nonce: "8",
+        transaction: { chainId: 1 as const, from: owner, to: executor,
           value: "0x0" as const, data: "0x87654321" as const },
         expectedLogs: [{ address: executor, topics: [hash("6")], data: "0x" as const }],
         delivery: { kind: "none" as const }, evidenceHash: hash("7") },
@@ -112,7 +112,7 @@ describe("general asset stage API", () => {
     expect(response.status).toBe(200);
     expect(calls).toEqual(["prepare", "revalidate", "arm"]);
     await expect(response.json()).resolves.toMatchObject({
-      state: "broadcasting", stageId, transaction: bundle().stages[0].transaction,
+      state: "broadcasting", stageId, transaction: { ...bundle().stages[0].transaction, nonce: "7" },
     });
   });
 
@@ -179,7 +179,7 @@ describe("general asset stage API", () => {
 
     expect(response.status).toBe(200);
     expect(mocks.reconcileLive).toHaveBeenCalledWith(expect.objectContaining({
-      bundle: bundle(), stageId, reader: {},
+      bundle: bundle(), stageId, reader: expect.objectContaining({ readPendingNonce: expect.any(Function) }),
     }));
     await expect(response.json()).resolves.toMatchObject({ stageId, state: "confirmed" });
   });
