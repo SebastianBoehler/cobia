@@ -20,6 +20,8 @@ function capabilityProtocol(capability: string): string | null {
   if (capability.startsWith("aave-")) return "Aave V3";
   if (capability.startsWith("curve-")) return "Curve";
   if (capability.startsWith("uniswap-")) return "Uniswap V3";
+  if (capability.startsWith("okx.")) return "OKX";
+  if (capability.startsWith("xlayer.")) return "X Layer";
   if (capability.startsWith("pendle.")) return "Pendle";
   return null;
 }
@@ -85,7 +87,7 @@ export function SolverProfileView({ profile }: { profile: {
       </dl>
     </section>
     <section className="solver-profile__capabilities">
-      <header><ShieldCheck aria-hidden="true" size={19} /><div><h2>Declared capabilities</h2><p>Declarations are discovery metadata, not execution authority.</p></div></header>
+      <header><ShieldCheck aria-hidden="true" size={19} /><div><h2>Operator-declared capabilities</h2><p>Declarations are discovery metadata, not execution authority.</p></div></header>
       <ul>{profile.declaredCapabilities.map((item) => {
         const protocol = capabilityProtocol(item);
         return <li key={item} title={item}>

@@ -3,7 +3,7 @@ import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import { SolverDecisionV1Schema, type SolverIntentV1 } from "@cobia/solver-sdk";
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
-import { REFERENCE_CAPABILITIES } from "./route-tool";
+import { REFERENCE_CAPABILITY_DECLARATION } from "./route-tool";
 import { solve } from "./strategy";
 
 function requiredOption(args: readonly string[], name: string) {
@@ -28,8 +28,7 @@ serveStdio(() => {
     title: "Cobia supported capabilities",
     description: "List curated semantic adapters. This is not a protocol allowlist.",
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
-  }, async () => result({ version: 1, capabilities: REFERENCE_CAPABILITIES,
-    openLane: "transaction-program/evm.raw@1" }));
+  }, async () => result(REFERENCE_CAPABILITY_DECLARATION));
   server.registerTool("solve", {
     title: "Build a supported Cobia candidate",
     description: "Construct a canonical decision for this MCP server's immutable signed intent.",
