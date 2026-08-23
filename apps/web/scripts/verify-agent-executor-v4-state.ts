@@ -23,7 +23,12 @@ function spec(path: string): MainnetV4StateSpec {
     executor: getAddress(raw.executor), canary: getAddress(raw.canary),
     codeHashes: raw.codeHashes,
     permissions: raw.permissions.map((permission) => ({ ...permission,
-      key: permission.key as Hash, target: getAddress(permission.target) })) };
+      key: permission.key as Hash, target: getAddress(permission.target) })),
+    migration: { ...raw.migration,
+      ...(raw.migration.v3RiskManager
+        ? { v3RiskManager: getAddress(raw.migration.v3RiskManager) } : {}),
+      v3Assets: raw.migration.v3Assets.map((asset) => ({ ...asset,
+        token: getAddress(asset.token).toLowerCase() as `0x${string}` })) } };
 }
 
 async function main() {

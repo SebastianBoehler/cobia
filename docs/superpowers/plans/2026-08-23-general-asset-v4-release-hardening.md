@@ -148,13 +148,13 @@
 - Consumes: chain-specific remaining V3 stablecoin caps valued at USD-E8, proposed V4 rolling cap, and the fixed `$50,000` combined protocol budget.
 - Produces: `assertPartitionedMigrationBudgetV4(input)` and deployment/read-back evidence that `remainingV3UsdE8 + v4ProtocolCapUsdE8 <= 5_000_000_000_000n`.
 
-- [ ] **Step 1: Write failing tests** proving a V4 open plan is rejected when maximum remaining V3 consumption plus V4 exposure exceeds `$50,000`, including two independently capped V3 stablecoins.
-- [ ] **Step 2: Run RED:** run focused deployment tests; expect the current plan to ignore V3 exposure.
-- [ ] **Step 3: Implement exact partition arithmetic** with no price lookup: only migration assets explicitly fixed at `$1.00` in the reviewed state spec may contribute V3 atomic remaining caps. Reject any other V3 asset or decimals mismatch.
-- [ ] **Step 4: Require the partition in open-mode planning and read-back.** Cap reductions remain separate immediate Safe actions; V4 cap increases and public access retain their delays.
-- [ ] **Step 5: Run GREEN:** focused deployment tests, web typecheck, and both signer-free chain planners using reviewed fixture inputs.
-- [ ] **Step 6: Update the runbook** with the exact cap partition, V3-continuity rule, two governance windows, rollback, and explicit prohibition on pausing V3 during judging.
-- [ ] **Step 7: Commit:** stage only Task 5 files and commit `feat(deployment): partition v3 and v4 migration risk`.
+- [x] **Step 1: Write failing tests** proving a V4 open plan is rejected when maximum remaining V3 consumption plus V4 exposure exceeds `$50,000`, including two independently capped V3 stablecoins.
+- [x] **Step 2: Run RED:** run focused deployment tests; expect the current plan to ignore V3 exposure.
+- [x] **Step 3: Implement exact partition arithmetic** with no price lookup: only migration assets explicitly fixed at `$1.00` in the reviewed state spec may contribute V3 atomic remaining caps. Reject any other V3 asset or decimals mismatch.
+- [x] **Step 4: Require the partition in open-mode planning and read-back.** Cap reductions remain separate immediate Safe actions; V4 cap increases and public access retain their delays.
+- [x] **Step 5: Run GREEN:** focused deployment tests, web typecheck, and both signer-free chain planners using reviewed fixture inputs.
+- [x] **Step 6: Update the runbook** with the exact cap partition, V3-continuity rule, two governance windows, rollback, and explicit prohibition on pausing V3 during judging.
+- [x] **Step 7: Commit:** stage only Task 5 files and commit `feat(deployment): partition v3 and v4 migration risk`.
 
 ### Task 6: Adversarial release gate and dark-deployment artifacts
 

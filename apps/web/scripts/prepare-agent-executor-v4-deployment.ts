@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { getAddress, isAddress, type Address, type Hash, type Hex } from "viem";
 import { buildAgentExecutorDeploymentPlanV4 } from "../lib/deployment/agent-executor-v4-plan";
+import type { PartitionedMigrationBudgetInputV4 } from "../lib/deployment/v4-migration-budget";
 import { addressArgument, argument, executorArtifactsV4 } from "./executor-deployment-input";
 
 interface AdapterFile {
@@ -29,6 +30,28 @@ function adapters(path: string): AdapterFile[] {
   });
 }
 
+function migration(path: string, chainId: 1 | 196): PartitionedMigrationBudgetInputV4 {
+  const value = JSON.parse(readFileSync(path, "utf8")) as unknown;
+  if (!value || typeof value !== "object") throw new Error("Migration input is malformed");
+  const item = value as Record<string, unknown>;
+  if (item.chainId !== chainId || typeof item.combinedProtocolBudgetUsdE8 !== "string" ||
+      typeof item.v4ProtocolCapUsdE8 !== "string" || !Array.isArray(item.v3Assets)) {
+    throw new Error("Migration input is malformed");
+  }
+  const v3Assets = item.v3Assets.map((entry) => {
+    if (!entry || typeof entry !== "object") throw new Error("Migration asset is malformed");
+    const asset = entry as Record<string, unknown>;
+    if (asset.chainId !== chainId || typeof asset.token !== "string" || !isAddress(asset.token) ||
+        typeof asset.decimals !== "number" || typeof asset.fixedUsdE8PerToken !== "string" ||
+        typeof asset.maximumRemainingAtomic !== "string") throw new Error("Migration asset is malformed");
+    return { chainId, token: getAddress(asset.token).toLowerCase() as Address,
+      decimals: asset.decimals, fixedUsdE8PerToken: asset.fixedUsdE8PerToken,
+      maximumRemainingAtomic: asset.maximumRemainingAtomic };
+  });
+  return { chainId, combinedProtocolBudgetUsdE8: item.combinedProtocolBudgetUsdE8,
+    v4ProtocolCapUsdE8: item.v4ProtocolCapUsdE8, v3Assets };
+}
+
 const chainId = Number(argument("chain-id"));
 if (chainId !== 1 && chainId !== 196) throw new Error("--chain-id must be 1 or 196");
 const plan = buildAgentExecutorDeploymentPlanV4({
@@ -41,5 +64,6 @@ const plan = buildAgentExecutorDeploymentPlanV4({
   registry: addressArgument("registry"),
   artifacts: executorArtifactsV4(),
   adapters: adapters(argument("adapters")),
+  migration: migration(argument("migration"), chainId),
 });
 process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
