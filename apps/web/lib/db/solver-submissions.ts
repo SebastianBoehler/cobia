@@ -3,7 +3,7 @@ import {
   commitment, GeneralAssetPolicyV1Schema, GeneralAssetProgramV1Schema,
   OpenIntentPolicyV3Schema, OpenIntentSnapshotV1Schema,
 } from "@cobia/domain";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { ObjectiveMeasurementV1Schema } from "../competitions/objective-measurement";
 import { projectCompetitionProgramPreview, projectProgramProtocols } from "../competitions/submission-preview";
@@ -160,11 +160,20 @@ export function createSolverSubmissionRepository(db: CobiaDatabase) {
         }
         const failures = ["rejected", "failed"].includes(resolution.state);
         if (failures !== (resolution.failureCodes.length > 0)) throw new Error("Submission failure codes mismatch");
+        const target = resolution.state === "attested"
+          ? and(eq(cobiaSolverSubmissions.id, id),
+            gt(cobiaSolverSubmissions.validUntil, sql`clock_timestamp()`))
+          : eq(cobiaSolverSubmissions.id, id);
         const rows = await tx.update(cobiaSolverSubmissions).set({
           state: resolution.state, failureCodes: resolution.failureCodes,
           completedAt: new Date(), updatedAt: new Date(),
-        }).where(eq(cobiaSolverSubmissions.id, id)).returning();
-        if (!rows[0]) throw new Error("Solver submission was not resolved");
+        }).where(target).returning();
+        if (!rows[0]) {
+          if (resolution.state === "attested") {
+            throw new Error("Solver submission validity expired before attestation");
+          }
+          throw new Error("Solver submission was not resolved");
+        }
         return rows[0];
       });
     },

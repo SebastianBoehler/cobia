@@ -201,6 +201,17 @@ describe("general asset decision intake", () => {
     expect(mocks.resolve.mock.calls.map((call) => call[1])).not.toContain("attested");
   });
 
+  it("rejects a verification anchor that differs from encoded execution", async () => {
+    mocks.verify.mockResolvedValueOnce({ accepted: true, errorCodes: [], execution, authorization,
+      verificationValidUntilSec: execution.deadline,
+      verificationAnchor: { chainId: 1, blockNumber: "125", blockHash: hash("b") } });
+
+    await expect(intake().submit(await signed())).resolves.toMatchObject({
+      state: "rejected", errorCodes: ["EXECUTION_ARTIFACT_MISSING"],
+    });
+    expect(mocks.resolve.mock.calls.map((call) => call[1])).not.toContain("attested");
+  });
+
   it("never attests when persistence crosses the verified execution deadline", async () => {
     mocks.appendArtifact.mockImplementation(async (_id, kind) => {
       if (kind === "authorization") currentTimeSec = execution.deadline;

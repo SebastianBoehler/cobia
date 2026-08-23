@@ -10,7 +10,7 @@ import {
   solverDecisionClaimCommitmentV1,
 } from "@cobia/domain";
 import { GeneralAssetEvidenceArtifactV1Schema, SolverDecisionV1Schema } from "@cobia/solvers";
-import { isAddress, isAddressEqual, recoverMessageAddress, type Address, type Hex } from "viem";
+import { isAddress, isAddressEqual, recoverMessageAddress, type Address, type Hash, type Hex } from "viem";
 import { z } from "zod";
 import { GeneralAssetAuthorizationArtifactsV4Schema } from "../execution-v4/authorization-artifact";
 import { assertGeneralAssetArtifactIntegrityV4 } from "../execution-v4/artifact-integrity";
@@ -21,7 +21,7 @@ const FailureCodeSchema = z.string().regex(/^[A-Z][A-Z0-9_]{2,63}$/);
 const VerificationAnchorSchema = z.object({
   chainId: z.union([z.literal(1), z.literal(196)]),
   blockNumber: z.string().regex(/^[1-9][0-9]*$/),
-  blockHash: z.string().regex(/^0x[0-9a-f]{64}$/),
+  blockHash: z.string().regex(/^0x[0-9a-f]{64}$/).transform((value) => value as Hash),
 }).strict();
 
 type IntakeReceipt = {
@@ -303,8 +303,8 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
         try {
           const execution = parseGeneralAssetExecutionBundleV4(verdict.execution);
           const authorization = GeneralAssetAuthorizationArtifactsV4Schema.parse(verdict.authorization);
-          assertGeneralAssetArtifactIntegrityV4(execution, authorization);
           const anchor = VerificationAnchorSchema.parse(verdict.verificationAnchor);
+          assertGeneralAssetArtifactIntegrityV4(execution, authorization, anchor);
           const validUntilSec = z.number().int().positive().safe()
             .parse(verdict.verificationValidUntilSec);
           if (execution.programId !== decision.program.canonicalProgramHash ||

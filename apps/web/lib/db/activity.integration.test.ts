@@ -10,7 +10,7 @@ import { cobiaActivityEvents } from "./schema";
 type Database = Awaited<ReturnType<typeof startIntegrationDatabase>>;
 
 const owner = "0x9afbf85e52612a9922617adda9569e13f565de31";
-const nowSec = Math.floor(Date.now() / 1_000);
+const nowSec = Math.floor(Date.now() / 1_000) + 600;
 const hash = (byte: string) => `0x${byte.repeat(64)}` as `0x${string}`;
 let database: Database | undefined;
 
