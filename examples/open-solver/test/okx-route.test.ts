@@ -25,6 +25,16 @@ const response = { code: "0", data: [{
 }], msg: "" } as const;
 const artifact = { version: 1 as const, provider: "okx.dex@1" as const,
   stageId: "01-okx-swap", fetchedAt: 100, expiresAt: 130, request, response, attributedData };
+const nativeRequest = { ...request, fromTokenAddress: NATIVE_ASSET_ADDRESS,
+  toTokenAddress: inputToken } as const;
+const nativeResponse = { ...response, data: [{ ...response.data[0],
+  routerResult: { ...response.data[0].routerResult,
+    fromToken: { tokenContractAddress: NATIVE_ASSET_ADDRESS,
+      isHoneyPot: false, taxRate: "0" },
+    toToken: { tokenContractAddress: inputToken, isHoneyPot: false, taxRate: "0" } },
+  tx: { ...response.data[0].tx, value: "100" },
+}] } as const;
+const nativeArtifact = { ...artifact, request: nativeRequest, response: nativeResponse };
 
 describe("OKX route construction", () => {
   it("requests a signed exact-input route without approval or RFQ authority", async () => {
@@ -73,6 +83,21 @@ describe("OKX route construction", () => {
       stageId: "01-okx-swap", provider: "okx.dex@1",
       payloadHash: commitment(artifact), payload: artifact,
     });
+  });
+
+  it("builds an exact native OKB to ERC-20 stage without approval", () => {
+    const result = buildOkxRouteStage({ artifact: nativeArtifact, owner,
+      inputToken: NATIVE_ASSET_ADDRESS, outputToken: inputToken,
+      inputAtomic: "100", minimumOutputAtomic: "2" });
+
+    expect(result.stage).toMatchObject({
+      provider: "okx.dex@1", sender: owner, recipient: owner,
+      input: { token: NATIVE_ASSET_ADDRESS, atomic: "100" },
+      output: { token: inputToken, minimumAtomic: "2" },
+      transaction: { target: XLAYER_OKX_MANIFEST_V1.router.address,
+        selector: "0x0c307f76", valueAtomic: "100" },
+    });
+    expect("approval" in result.stage).toBe(false);
   });
 
   it("declares the exact provider emitted by an OKX transaction stage", () => {

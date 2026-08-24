@@ -76,9 +76,7 @@ export function buildOkxRouteStage(raw: {
   const owner = canonicalAddress(raw.owner, "owner");
   const inputToken = canonicalAddress(raw.inputToken, "input");
   const outputToken = canonicalAddress(raw.outputToken, "output");
-  if (isNativeAssetAddress(inputToken)) {
-    throw new Error("OKX route builder currently requires ERC-20 input");
-  }
+  const nativeInput = isNativeAssetAddress(inputToken);
   const request = artifact.request;
   const route = artifact.response.data[0]!.routerResult;
   const tx = artifact.response.data[0]!.tx;
@@ -96,7 +94,8 @@ export function buildOkxRouteStage(raw: {
     throw new Error("OKX output floor does not satisfy the signed route");
   }
   if (tx.to !== XLAYER_OKX_MANIFEST_V1.router.address) throw new Error("OKX router mismatch");
-  if (tx.value !== "0") throw new Error("OKX ERC-20 route value mismatch");
+  const expectedValue = nativeInput ? raw.inputAtomic : "0";
+  if (tx.value !== expectedValue) throw new Error("OKX swap value mismatch");
   const data = concatHex([tx.data, XLAYER_OKX_MANIFEST_V1.builderDataSuffix]);
   const selector = tx.data.slice(0, 10);
   if (artifact.attributedData !== data ||
@@ -111,9 +110,12 @@ export function buildOkxRouteStage(raw: {
     expiresAt: artifact.expiresAt, sender: owner, recipient: owner,
     input: { token: inputToken, atomic: raw.inputAtomic },
     output: { chainId: 196, token: outputToken, minimumAtomic: raw.minimumOutputAtomic },
-    approval: { token: inputToken, spender: XLAYER_OKX_MANIFEST_V1.approval.address,
-      maximumAtomic: raw.inputAtomic },
-    transaction: { target: tx.to, selector, dataHash: keccak256(data), valueAtomic: "0" },
+    ...(nativeInput ? {} : { approval: {
+      token: inputToken, spender: XLAYER_OKX_MANIFEST_V1.approval.address,
+      maximumAtomic: raw.inputAtomic,
+    } }),
+    transaction: { target: tx.to, selector, dataHash: keccak256(data),
+      valueAtomic: expectedValue },
     tools: ["okx-dex-api"],
   });
   const providerArtifact = ProviderArtifactV1Schema.parse({
