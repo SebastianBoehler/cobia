@@ -33,6 +33,7 @@ import type { GeneralAssetDraftV1 } from "../../lib/intents/general-asset-draft"
 import { GeneralAssetPolicyEditor } from "./GeneralAssetPolicyEditor";
 import { publicIntentExamples } from "../../lib/intents/public-examples";
 import { useGeneralAssetLaunchState } from "../network/useGeneralAssetLaunchState";
+import { IntentAssetAuthority } from "./IntentAssetAuthority";
 
 type ComposerValues = ReceiptValues | ComposedIntentDraft | StagedConversionDraft | GeneralAssetDraftV1;
 type NativeBalanceReadiness =
@@ -196,6 +197,14 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
   }, [executionChainIds, nativeBalanceReadinessKey, step, valid, wallet.account]);
 
   const mentions = useMemo<IntentMention[]>(() => [
+    { id: "asset:OKB", group: "Assets" as const, mention: NATIVE_INTENT_ASSET.symbol,
+      address: NATIVE_INTENT_ASSET.address, priceUsd: assetPrices.okb,
+      walletBalance: activePortfolio?.native
+        ? `${Number(activePortfolio.native.formatted).toLocaleString("en-US", { maximumFractionDigits: 6 })} OKB`
+        : undefined,
+      detail: activePortfolio?.native
+        ? `${Number(activePortfolio.native.formatted).toLocaleString("en-US", { maximumFractionDigits: 6 })} OKB available`
+        : "X Layer native asset" },
     ...INTENT_ASSETS.map(({ symbol, address }) => {
       const balance = activePortfolio?.balances?.find((item) => item.symbol === symbol);
       const walletBalance = balance
@@ -224,7 +233,8 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
       mention: `${offer.merchant.displayName}/${(offer.product.name ?? offer.product.id).replaceAll(" ", "-")}`,
       detail: `${offer.payment.atomicAmount} atomic · chain ${offer.payment.chainId}` })),
   ], [activePortfolio, assetPrices, offers]);
-  const { assets: resolvedAssetMentions, unresolved: unresolvedAssetMentions } = useResolvedAssetMentions(goal, mentions);
+  const { assets: resolvedAssetMentions, unresolved: unresolvedAssetMentions,
+    status: assetResolutionStatus } = useResolvedAssetMentions(goal, mentions);
   const availableAssets = useMemo<AvailableIntentAsset[]>(() => {
     if (!activePortfolio) return [];
     const balances = [
@@ -243,6 +253,12 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
     });
   }, [activePortfolio, assetPrices]);
   const allMentions = useMemo(() => [...mentions, ...resolvedAssetMentions], [mentions, resolvedAssetMentions]);
+  const assetSymbols = useMemo(() => [...new Set([
+    NATIVE_INTENT_ASSET.symbol,
+    ...allMentions.filter(({ group }) => group === "Assets").map(({ mention }) => mention),
+  ])], [allMentions]);
+  const assetResolutionBlocksReview = assetResolutionStatus === "checking" ||
+    assetResolutionStatus === "error" || unresolvedAssetMentions.length > 0;
   const selectedMentions = useMemo(() => {
     const selected = allMentions.filter(({ mention }) => {
     const escaped = mention.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -272,6 +288,10 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
 
   async function compileGoal() {
     if (goal.trim().length < 3 || !wallet.account) return;
+    if (assetResolutionBlocksReview) {
+      setError("Resolve every token identity before reviewing the policy.");
+      return;
+    }
     if (action === "service-purchase") {
       if (selectedService) router.push(`/commerce/offers/${selectedService}`);
       else setError("Tag one Cobia-supported service from the @ menu.");
@@ -347,9 +367,10 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
     <form className={`intent-composer intent-composer--${step}`} noValidate onSubmit={submit}>
       {step === "goal" ? <>
         <IntentGoalInput action={action} compiling={compiling}
-          submitEnabled={Boolean(wallet.account)}
+          submitEnabled={Boolean(wallet.account) && !assetResolutionBlocksReview}
           examples={publicIntentExamples(generalAssetLaunchState)}
           excludedProtocols={excludedProtocols} mentions={allMentions}
+          assetResolutionStatus={assetResolutionStatus} assetSymbols={assetSymbols}
           unresolvedMentions={unresolvedAssetMentions}
           availableAssets={availableAssets} portfolioState={activePortfolioState}
           value={goal} onActionChange={setAction} onChange={setGoal} onMention={mention}
@@ -364,6 +385,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
           onClick={() => { setStep("goal"); setError(undefined); }} type="button">
           <ArrowLeft aria-hidden="true" size={16} /> Edit goal
         </button></div>
+        <IntentAssetAuthority values={values} />
         {generalAsset
           ? <GeneralAssetPolicyEditor owner={wallet.account} values={values} onChange={setValues} />
           : composed

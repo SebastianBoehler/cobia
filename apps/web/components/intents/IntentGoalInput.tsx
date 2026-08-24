@@ -6,6 +6,8 @@ import {
 import { IntentAvailableAssets, type AvailableIntentAsset } from "./IntentAvailableAssets";
 import { IntentOptionMark } from "./IntentOptionMark";
 import { V3_INTENT_EXAMPLES } from "../../lib/intents/public-examples";
+import { tagKnownAssetSymbols } from "../../lib/intents/intent-asset-references";
+import type { AssetResolutionStatus } from "./useResolvedAssetMentions";
 
 function extractMentionQuery(value: string): string | undefined {
   return value.match(/(?:^|\s)@([A-Za-z0-9.$_-]*)$/)?.[1];
@@ -46,7 +48,8 @@ export interface IntentMention {
 }
 
 export function IntentGoalInput({ value, compiling, submitEnabled, action, excludedProtocols, mentions,
-  unresolvedMentions, availableAssets, portfolioState, examples = V3_INTENT_EXAMPLES,
+  unresolvedMentions, assetResolutionStatus, assetSymbols, availableAssets, portfolioState,
+  examples = V3_INTENT_EXAMPLES,
   onChange, onActionChange, onMention, onMentionMenuOpen,
   onMentionSuggestion, onExcludedProtocolsChange, onSubmit }: {
   value: string;
@@ -56,6 +59,8 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
   excludedProtocols: readonly ProtocolExclusionId[];
   mentions: readonly IntentMention[];
   unresolvedMentions: readonly string[];
+  assetResolutionStatus: AssetResolutionStatus;
+  assetSymbols: readonly string[];
   availableAssets: readonly AvailableIntentAsset[];
   portfolioState: "idle" | "loading" | "ready" | "error";
   examples?: readonly string[];
@@ -193,6 +198,17 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
             });
             onChange(nextValue);
           }}
+          onPaste={(event) => {
+            event.preventDefault();
+            const pasted = tagKnownAssetSymbols(event.clipboardData.getData("text/plain"), assetSymbols);
+            const start = event.currentTarget.selectionStart;
+            const end = event.currentTarget.selectionEnd;
+            const nextValue = `${value.slice(0, start)}${pasted}${value.slice(end)}`;
+            onChange(nextValue);
+            requestAnimationFrame(() => textareaRef.current?.setSelectionRange(
+              start + pasted.length, start + pasted.length,
+            ));
+          }}
           onScroll={(event) => {
             if (highlightRef.current) {
               highlightRef.current.scrollLeft = event.currentTarget.scrollLeft;
@@ -249,6 +265,15 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
           </button>)}
         </div> : null}
       </div>
+      {assetResolutionStatus === "checking" ? <p className="intent-token-status" role="status">
+        Checking token identity…
+      </p> : assetResolutionStatus === "error" ? <p className="intent-token-status intent-token-status--error" role="alert">
+        Token identity could not be verified. Try again before review.
+      </p> : unresolvedMentions.length ? <p className="intent-token-status intent-token-status--error" role="alert">
+        {unresolvedMentions.length === 1
+          ? `Choose a supported token for @${unresolvedMentions[0]} before review.`
+          : `Choose supported tokens for ${unresolvedMentions.map((mention) => `@${mention}`).join(", ")} before review.`}
+      </p> : null}
       {!value.trim() ? <div aria-label="Example intents" className="intent-examples">
         {examples.map((example) => <button aria-label={`Use example: ${example}`}
           key={example} onClick={() => onChange(example)} type="button">

@@ -64,6 +64,18 @@ describe("IntentComposer", () => {
     expect(within(screen.getByTestId("intent-goal-highlight")).getByText("@XLayer")).toBeVisible();
   });
 
+  it("tags exact known asset symbols when intent text is pasted", () => {
+    render(<IntentComposer />);
+    const goal = screen.getByLabelText("What should happen?");
+
+    fireEvent.paste(goal, {
+      clipboardData: { getData: () => "0.01 OKB into USDG" },
+    });
+
+    expect(goal).toHaveValue("0.01 @OKB into @USDG");
+    expect(screen.queryByLabelText("Detected assets")).not.toBeInTheDocument();
+  });
+
   it("keeps every pre-V4 example on the currently public lane", () => {
     render(<IntentComposer />);
 
@@ -299,6 +311,24 @@ describe("IntentComposer", () => {
       .getByText("@FAKE")).toHaveClass("intent-mention--unresolved"));
     expect(within(screen.getByTestId("intent-goal-highlight"))
       .getByText("@USDG")).not.toHaveClass("intent-mention--unresolved");
+    expect(screen.getByRole("button", { name: "Review policy" })).toBeDisabled();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Choose a supported token for @FAKE before review.",
+    );
+  });
+
+  it("fails closed when token identity resolution is unavailable", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(() => Promise.reject(new Error("offline"))));
+    render(<IntentComposer />);
+
+    fireEvent.change(screen.getByLabelText("What should happen?"), {
+      target: { value: "Swap 1 @EXAMPLE into @USDG" },
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Token identity could not be verified. Try again before review.",
+    );
+    expect(screen.getByRole("button", { name: "Review policy" })).toBeDisabled();
   });
 
   it("shows OKX contract and price evidence on a resolved token mention", async () => {
@@ -639,6 +669,9 @@ describe("IntentComposer", () => {
     fireEvent.click(screen.getByRole("button", { name: "Review policy" }));
 
     expect(await screen.findByRole("heading", { name: "Review the staged conversion" })).toBeVisible();
+    const authority = screen.getByRole("region", { name: "Asset authority" });
+    expect(within(authority).getByText("0.005 native OKB + 1 USDt0")).toBeVisible();
+    expect(within(authority).getByText("At least 1.521679 USDG")).toBeVisible();
     expect(screen.getByLabelText("Maximum input · OKB")).toHaveValue("0.005");
     expect(screen.getByLabelText("Maximum input · USDt0")).toHaveValue("1");
     expect(screen.getByText("Native OKB")).toBeVisible();

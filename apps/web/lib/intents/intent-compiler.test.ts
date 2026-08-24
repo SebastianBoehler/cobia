@@ -636,6 +636,58 @@ describe("intent compiler", () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
+  it("rejects a simple draft that reverses the tagged asset direction", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(simple({
+      status: "review", question: null, templateId: "exact-input-swap",
+      inputSymbol: "USDt0", outputSymbol: "USDG", amount: "1", minimum: "0.99",
+      jurisdiction: null,
+    }))));
+    const compiler = createOpenAiIntentCompiler({ apiKey: "test", model: "test-model", fetcher });
+
+    await expect(compiler.compile("Swap 1 @USDG into @USDt0", "any")).resolves.toEqual({
+      status: "clarification",
+      question: "Cobia interpreted the requested assets differently. Nothing was signed. Check the token tags and try again.",
+    });
+  });
+
+  it("rejects a conversion draft that reverses the tagged asset direction", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(conversion([
+      { symbol: "USDG", amount: "1", walletShareBps: null },
+    ], "OKB", "0.009"))));
+    const compiler = createOpenAiIntentCompiler({ apiKey: "test", model: "test-model", fetcher,
+      assetPricesUsd: { OKB: "100", USDG: "1" } });
+
+    await expect(compiler.compile("Turn 1 @OKB into @USDG", "any")).resolves.toEqual({
+      status: "clarification",
+      question: "Cobia interpreted the requested assets differently. Nothing was signed. Check the token tags and try again.",
+    });
+  });
+
+  it("carries an exact composed output into the terminal receipt authority", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify({
+      status: "review", question: null, kind: "composed",
+      templateId: "exact-input-swap", inputSymbol: "USDG", outputSymbol: "USDt0",
+      amount: "1", walletShareBps: null, minimum: "", jurisdiction: null,
+      composed: {
+        inputSymbol: "USDG", amount: "1",
+        capabilityIds: ["aave-v3.supply", "curve-stableswap-ng.exact-input"],
+        maxConversionLossBps: 100, deadlineMinutes: 5,
+      },
+      conversion: null,
+    })));
+    const compiler = createOpenAiIntentCompiler({ apiKey: "test", model: "test-model",
+      fetcher, compositionAvailable: true });
+
+    await expect(compiler.compile(
+      "Put 1 @USDG through a registered yield route into @USDt0", "any",
+    )).resolves.toMatchObject({
+      status: "review",
+      values: { kind: "composed", terminalAsset: INTENT_ASSETS.find(
+        ({ symbol }) => symbol === "USDt0",
+      )!.address },
+    });
+  });
+
   it("rejects a composed draft that replaces the exact tagged OKB input", async () => {
     const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify({
       status: "review", question: null, kind: "composed",
@@ -654,7 +706,7 @@ describe("intent compiler", () => {
 
     await expect(compiler.compile("0.01 @OKB into @USDG", "any")).resolves.toEqual({
       status: "clarification",
-      question: "The draft did not preserve the exact wallet token tagged in your goal. Edit the token tag and try again.",
+      question: "Cobia interpreted the requested assets differently. Nothing was signed. Check the token tags and try again.",
     });
   });
 });

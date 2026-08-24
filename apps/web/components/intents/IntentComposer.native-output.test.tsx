@@ -47,6 +47,7 @@ describe("IntentComposer native conversion output", () => {
     fireEvent.change(screen.getByLabelText("What should happen?"), {
       target: { value: "sell @aXlrUSDG into @OKB" },
     });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Review policy" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Review policy" }));
 
     expect(await screen.findByRole("heading", { name: "Review the staged conversion" })).toBeVisible();

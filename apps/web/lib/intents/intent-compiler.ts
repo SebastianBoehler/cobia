@@ -15,7 +15,8 @@ import {
   type ComposedIntentDraft,
 } from "./composition-draft";
 import { resolveRegisteredCompositionGoal } from "./registered-composition-goal";
-import { hasExactTaggedWalletInputs, preserveExactTaggedWalletInputs } from "./exact-wallet-inputs";
+import { preserveExactTaggedWalletInputs } from "./exact-wallet-inputs";
+import { preservesRequestedAssetFlow } from "./intent-asset-references";
 import type { WalletBalances } from "./wallet-balance-request";
 import { INTENT_COMPILER_INSTRUCTIONS, INTENT_TEMPLATE_CONTRACTS } from "./intent-compiler-contract";
 import {
@@ -24,6 +25,8 @@ import {
 } from "./staged-conversion-draft";
 
 const TemplateSchema = z.enum(["aave-supply", "exact-input-swap", "round-trip", "rwa-acquisition"]);
+const ASSET_IDENTITY_MISMATCH =
+  "Cobia interpreted the requested assets differently. Nothing was signed. Check the token tags and try again.";
 const CompilationSchema = z.object({
   status: z.enum(["review", "clarification"]),
   question: z.string().min(1).nullable(),
@@ -196,6 +199,10 @@ export function createOpenAiIntentCompiler(options: Options) {
       ? ["rwa-acquisition" as const]
       : actionPreference === "any" ? TemplateSchema.options : [actionPreference];
     const walletAssets = options.walletAssets ?? INTENT_ASSETS;
+    const assetSymbols = [...new Set([
+      NATIVE_INTENT_ASSET.symbol, ...walletAssets.map(({ symbol }) => symbol),
+      ...INTENT_ASSETS.map(({ symbol }) => symbol), ...RWA_INTENT_ASSETS.map(({ symbol }) => symbol),
+    ])];
     const inputSymbols = [...new Set([
       "OKB", ...walletAssets.map(({ symbol }) => symbol), ...Object.keys(options.walletBalances ?? {}),
     ])];
@@ -280,7 +287,12 @@ export function createOpenAiIntentCompiler(options: Options) {
         conversion.inputs, walletAssets);
       if (!exactInputs) {
         return { status: "clarification",
-          question: "The draft did not preserve the exact wallet token tagged in your goal. Edit the token tag and try again." };
+          question: ASSET_IDENTITY_MISMATCH };
+      }
+      if (!preservesRequestedAssetFlow(goal, {
+        inputs: exactInputs.map(({ symbol }) => symbol), output: conversion.outputSymbol,
+      }, assetSymbols)) {
+        return { status: "clarification", question: ASSET_IDENTITY_MISMATCH };
       }
       const resolved = resolveConversionDraft({ ...conversion, inputs: exactInputs }, options.assetPricesUsd,
         options.walletBalances, walletAssets);
@@ -297,15 +309,24 @@ export function createOpenAiIntentCompiler(options: Options) {
         question: "No compatible multi-step solver is active yet." };
       if (!compiled.composed) throw new Error("Intent compiler omitted composed policy fields");
       const composed = CompositionModelDraftSchema.parse(compiled.composed);
-      if (!hasExactTaggedWalletInputs(goal, compiled.outputSymbol,
-        [composed.inputSymbol], walletAssets)) return { status: "clarification",
-        question: "The draft did not preserve the exact wallet token tagged in your goal. Edit the token tag and try again." };
-      return { status: "review", values: resolveCompositionDraft(composed) };
+      if (!preservesRequestedAssetFlow(goal, {
+        inputs: [composed.inputSymbol], output: compiled.outputSymbol,
+      }, assetSymbols)) return { status: "clarification", question: ASSET_IDENTITY_MISMATCH };
+      const terminal = INTENT_ASSETS.find(({ symbol }) =>
+        symbol.toLowerCase() === compiled.outputSymbol.toLowerCase());
+      if (!terminal) return { status: "clarification",
+        question: "Choose a registered terminal receipt asset for this composition." };
+      return { status: "review", values: {
+        ...resolveCompositionDraft(composed), terminalAsset: terminal.address,
+      } };
     }
     if (actionPreference !== "any" && boundedCompilation.templateId !== actionPreference) {
       return { status: "clarification",
         question: "Adjust the goal so it matches the selected action type." };
     }
+    if (!preservesRequestedAssetFlow(goal, {
+      inputs: [boundedCompilation.inputSymbol], output: boundedCompilation.outputSymbol,
+    }, assetSymbols)) return { status: "clarification", question: ASSET_IDENTITY_MISMATCH };
     return { status: "review",
       values: resolveSimpleReceipt(boundedCompilation, minimumSource) };
   } };

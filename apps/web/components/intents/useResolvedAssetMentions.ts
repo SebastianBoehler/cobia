@@ -14,6 +14,15 @@ interface ResolvedAsset {
   holderCount?: string;
 }
 
+export type AssetResolutionStatus = "idle" | "checking" | "ready" | "error";
+
+interface ResolutionState {
+  key: string;
+  status: Exclude<AssetResolutionStatus, "idle">;
+  assets: ResolvedAsset[];
+  unresolved: string[];
+}
+
 export function extractGoalMentions(goal: string): string[] {
   return [...new Map([...goal.matchAll(/@([A-Za-z0-9]+(?:[./-][A-Za-z0-9]+)*)/g)]
     .map((match) => [match[1]!.toLowerCase(), match[1]!])).values()];
@@ -26,9 +35,8 @@ function shortAddress(address: string): string {
 export function useResolvedAssetMentions(
   goal: string,
   knownMentions: readonly IntentMention[],
-): { assets: IntentMention[]; unresolved: string[] } {
-  const [assets, setAssets] = useState<ResolvedAsset[]>([]);
-  const [unresolved, setUnresolved] = useState<string[]>([]);
+): { assets: IntentMention[]; unresolved: string[]; status: AssetResolutionStatus } {
+  const [resolution, setResolution] = useState<ResolutionState>();
   const unknown = useMemo(() => {
     const known = new Set(knownMentions.map(({ mention }) => mention.toLowerCase()));
     return extractGoalMentions(goal).filter((mention) => !known.has(mention.toLowerCase())).slice(0, 8);
@@ -44,17 +52,19 @@ export function useResolvedAssetMentions(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ symbols: unknown }),
         signal: controller.signal,
-      }).then(async (response) => response.ok
-        ? response.json() as Promise<{ assets: ResolvedAsset[]; unresolved: string[] }>
-        : { assets: [], unresolved: [] })
+      }).then(async (response) => {
+        if (!response.ok) throw new Error("Asset resolution failed");
+        return response.json() as Promise<{ assets?: ResolvedAsset[]; unresolved?: string[] }>;
+      })
         .then((result) => {
-          setAssets(result.assets);
-          setUnresolved(result.unresolved);
+          if (!Array.isArray(result.assets) || !Array.isArray(result.unresolved)) {
+            throw new Error("Asset resolution payload is invalid");
+          }
+          setResolution({ key, status: "ready", assets: result.assets, unresolved: result.unresolved });
         })
         .catch(() => {
           if (!controller.signal.aborted) {
-            setAssets([]);
-            setUnresolved([]);
+            setResolution({ key, status: "error", assets: [], unresolved: unknown });
           }
         });
     }, 250);
@@ -62,8 +72,9 @@ export function useResolvedAssetMentions(
   }, [key, unknown]);
 
   const active = new Set(unknown.map((mention) => mention.toLowerCase()));
+  const current = resolution?.key === key ? resolution : undefined;
   return {
-    assets: assets.filter((asset) => active.has(asset.symbol.toLowerCase())).map((asset) => ({
+    assets: (current?.assets ?? []).filter((asset) => active.has(asset.symbol.toLowerCase())).map((asset) => ({
       id: `resolved-asset:${asset.chainId}:${asset.address}`,
       group: "Assets",
       mention: asset.symbol,
@@ -75,6 +86,7 @@ export function useResolvedAssetMentions(
           ? `${asset.name} · ${shortAddress(asset.address)} · xStocks catalog`
         : `${asset.name} · ${asset.chainId === 196 ? "X Layer" : "Ethereum"}`,
     })),
-    unresolved: unresolved.filter((mention) => active.has(mention.toLowerCase())),
+    unresolved: (current?.unresolved ?? []).filter((mention) => active.has(mention.toLowerCase())),
+    status: !key ? "idle" : current?.status ?? "checking",
   };
 }
