@@ -90,7 +90,6 @@ export async function solveTransactionIntent(
       return finalize({ stages: [built.stage], artifacts: [built.artifact],
         runner: "cobia-reference-native-okb@1" });
     }
-    if (isNativeAssetAddress(input.token)) return;
     if (isAddressEqual(outcome.token, XLAYER_CURVE_LP_TOKEN)) {
       const built = buildCurveAddLiquidityStage({ stageId: "01-curve-add",
         owner: policy.owner, inputToken: input.token, inputAtomic: input.maximumAtomic,

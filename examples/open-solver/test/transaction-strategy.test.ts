@@ -67,6 +67,35 @@ describe("common X Layer transaction strategy", () => {
     }));
   });
 
+  it("asks OKX for a native OKB to arbitrary ERC-20 route", async () => {
+    const nativeRequest = { ...request, fromTokenAddress: NATIVE_ASSET_ADDRESS,
+      toTokenAddress: usdg };
+    const nativeResponse = { ...response, data: [{ ...response.data[0],
+      routerResult: { ...response.data[0].routerResult,
+        fromToken: { tokenContractAddress: NATIVE_ASSET_ADDRESS,
+          isHoneyPot: false, taxRate: "0" },
+        toToken: { tokenContractAddress: usdg, isHoneyPot: false, taxRate: "0" } },
+      tx: { ...response.data[0].tx, value: "100" } }] };
+    const nativeArtifact = { ...artifact, request: nativeRequest, response: nativeResponse };
+    const fetchOkxArtifact = vi.fn(async () => nativeArtifact);
+    const finalize = vi.fn(async (_input: unknown) => ({ version: 1, decision: "abstain",
+      reasonCode: "CAPTURED" }) as const);
+
+    await solveTransactionIntent(intent(NATIVE_ASSET_ADDRESS, usdg), {
+      nowSec: () => 100, fetchOkxArtifact, finalize,
+    });
+
+    expect(fetchOkxArtifact).toHaveBeenCalledWith(expect.objectContaining({ owner,
+      inputToken: NATIVE_ASSET_ADDRESS, outputToken: usdg, inputAtomic: "100" }));
+    expect(finalize).toHaveBeenCalledWith(expect.objectContaining({
+      stages: [expect.objectContaining({ provider: "okx.dex@1",
+        input: { token: NATIVE_ASSET_ADDRESS, atomic: "100" },
+        transaction: expect.objectContaining({ valueAtomic: "100" }) })],
+    }));
+    const finalized = finalize.mock.lastCall?.[0] as { stages: unknown[] };
+    expect(finalized.stages[0]).not.toHaveProperty("approval");
+  });
+
   it("swaps to WOKB and unwraps when native OKB requires two wallet steps", async () => {
     const firstRequest = { ...request, toTokenAddress: XLAYER_WOKB.address };
     const firstResponse = { ...response, data: [{ ...response.data[0],
