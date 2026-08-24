@@ -18,6 +18,31 @@ no activation, migration, or public opening has occurred.
 The entry order is schema-valid. The canonical keys compare as strings, so
 `okx.swap@1:196:...` sorts before `okx.swap@1:1:...`.
 
+## Zero-delay hackathon replacement
+
+The final X Layer launch profile makes the governance delay a constructor-bound
+RiskManager value and sets it to zero. Emergency pause, wallet deny, exact verifier
+authorization, and the deployed `$1,000` route, `$5,000` wallet/24h, and `$50,000`
+protocol/24h caps remain unchanged.
+
+At the planning snapshot the operator pending nonce was `20`. The signer-free plan is
+[`general-asset-v4-xlayer-zero-delay-unsigned-plan.json`](./general-asset-v4-xlayer-zero-delay-unsigned-plan.json)
+(SHA-256 `6d3aa053c11af02bd3074a9c80e73db3c52a55ab02e92931ec0825b0b8088e22`).
+It predicts RiskManager V2 `0x02f436b5E6DaDF4aaF9B13844A8fc8b1cDD5672C` at nonce `20`
+and Executor V4 `0x3a04e65b2edf263EAe7207DE5a5745ccF41797BF` at nonce `21`.
+
+The checksummed Transaction Builder artifact is
+[`general-asset-v4-xlayer-zero-delay-safe-batches.json`](./general-asset-v4-xlayer-zero-delay-safe-batches.json)
+(SHA-256 `314f6536642346082b1c707e5682b1f7e48b5223bb28150e8b364db3f4200fef`).
+Its immediate-canary batch has checksum
+`0x794541ece3d0686a6613b531b0462608951fbce461b23bd28cc4465cd97a9b21`
+and contains `proposeWallet`, `proposeUnpause`, `activateWallet`, and
+`activateUnpause`. Its public batch has checksum
+`0x3c8d5cd59259e8243b6e95da6374f58631771fdc2a336aa2baab4438c003f7f6`
+and contains `proposeOpenAccess` followed by `activateOpenAccess`. The public batch
+must still execute only after one successful low-value canary; the distinction is
+sequencing rather than a time lock.
+
 ## X Layer snapshot and plan
 
 Read at X Layer block `68733577`:

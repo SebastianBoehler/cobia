@@ -1,0 +1,62 @@
+{
+  "proposal": {
+    "version": "1.0",
+    "chainId": "196",
+    "createdAt": 1787597933,
+    "meta": {
+      "name": "Cobia Executor V4 chain 196 immediate canary - retain protocol cap",
+      "description": "Retains the deployed contract limits and immediately activates only the canary wallet.",
+      "txBuilderVersion": "2.1.0",
+      "createdFromSafeAddress": "0x08eea990F0b165A20d723e59517044a519C83351",
+      "createdFromOwnerAddress": "",
+      "checksum": "0x794541ece3d0686a6613b531b0462608951fbce461b23bd28cc4465cd97a9b21"
+    },
+    "transactions": [
+      {
+        "to": "0x02f436b5E6DaDF4aaF9B13844A8fc8b1cDD5672C",
+        "value": "0",
+        "data": "0xbeb7f7050000000000000000000000009afbf85e52612a9922617adda9569e13f565de31"
+      },
+      {
+        "to": "0x02f436b5E6DaDF4aaF9B13844A8fc8b1cDD5672C",
+        "value": "0",
+        "data": "0xfae8a3d6"
+      },
+      {
+        "to": "0x02f436b5E6DaDF4aaF9B13844A8fc8b1cDD5672C",
+        "value": "0",
+        "data": "0x03e28f370000000000000000000000009afbf85e52612a9922617adda9569e13f565de31"
+      },
+      {
+        "to": "0x02f436b5E6DaDF4aaF9B13844A8fc8b1cDD5672C",
+        "value": "0",
+        "data": "0x10d52379"
+      }
+    ]
+  },
+  "openProposal": {
+    "version": "1.0",
+    "chainId": "196",
+    "createdAt": 1787597933,
+    "meta": {
+      "name": "Cobia Executor V4 chain 196 immediate public access",
+      "description": "Immediately activates public access after a successful canary.",
+      "txBuilderVersion": "2.1.0",
+      "createdFromSafeAddress": "0x08eea990F0b165A20d723e59517044a519C83351",
+      "createdFromOwnerAddress": "",
+      "checksum": "0x3c8d5cd59259e8243b6e95da6374f58631771fdc2a336aa2baab4438c003f7f6"
+    },
+    "transactions": [
+      {
+        "to": "0x02f436b5E6DaDF4aaF9B13844A8fc8b1cDD5672C",
+        "value": "0",
+        "data": "0x39e7aae5"
+      },
+      {
+        "to": "0x02f436b5E6DaDF4aaF9B13844A8fc8b1cDD5672C",
+        "value": "0",
+        "data": "0xcd7cf55c"
+      }
+    ]
+  }
+}
