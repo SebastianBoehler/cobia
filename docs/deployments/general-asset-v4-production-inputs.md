@@ -113,11 +113,13 @@ The executor is bound to the expected registry and replacement risk manager.
 
 The uploadable replacement proposal is
 [`general-asset-v4-xlayer-replacement-safe-proposal.json`](./general-asset-v4-xlayer-replacement-safe-proposal.json)
-(SHA-256 `67bb0a701feb0fcfcb5a7baf730e14159d85cbde32d8339bdaa0fa8cabccb36f`,
-Safe checksum `0x958037f4da257b38c4306ebbb653410423a0be61884d90d9ce00a56cb2a57707`).
-It contains exactly three zero-value calls to the replacement risk manager: reduce the
-protocol cap to `$48,000`, propose the canary wallet, and propose unpause. It has not been
-executed; the replacement activation delay has not started.
+(SHA-256 `7598e2f200a82c8da701c895ee0ae4b72c178e9d8ea8e8465158aefb89e7ca59`,
+Safe checksum `0xe87874ee06343634ee9785c2b91a7393477d44f77a89aae5a4f89628e5a31e42`).
+At the operator's explicit direction, it retains the deployed contract's `$50,000` V4
+protocol cap instead of applying the earlier cross-version migration partition. It contains
+exactly two zero-value calls to the replacement risk manager: propose the canary wallet and
+propose unpause. The `$1,000` route and `$5,000` wallet caps remain unchanged. The batch has
+not been executed; the replacement activation delay has not started.
 
 ## Executed initial X Layer stage
 

@@ -1,6 +1,9 @@
 import { readFileSync } from "node:fs";
 import { getAddress, isAddress, type Address, type Hash, type Hex } from "viem";
-import { buildAgentExecutorDeploymentPlanV4 } from "../lib/deployment/agent-executor-v4-plan";
+import {
+  buildAgentExecutorDeploymentPlanV4,
+  safeProposalTransactionsV4,
+} from "../lib/deployment/agent-executor-v4-plan";
 import { buildSafeBatch } from "../lib/deployment/safe-batch";
 import type { PartitionedMigrationBudgetInputV4 } from "../lib/deployment/v4-migration-budget";
 import {
@@ -77,14 +80,17 @@ if (format === "plan") {
   process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
 } else if (format === "safe-batches") {
   const createdAt = Number(argument("created-at"));
+  const retainProtocolCap = process.argv.includes("--retain-protocol-cap");
   const batch = (name: string, description: string, transactions: readonly {
     to: Address; value: Hex; data: Hex;
   }[]) => buildSafeBatch({ chainId, safe: plan.owner, name, description, createdAt, transactions });
   process.stdout.write(`${JSON.stringify({
     proposal: batch(
-      `Cobia Executor V4 chain ${chainId} proposal`,
-      "Applies the reviewed migration cap and starts the reviewed 48-hour governance delays.",
-      [...plan.migrationRiskReductionTransactions, ...plan.proposalTransactions],
+      `Cobia Executor V4 chain ${chainId} proposal${retainProtocolCap ? " - retain protocol cap" : ""}`,
+      retainProtocolCap
+        ? "Retains the deployed contract limits and starts only the reviewed 48-hour governance delays."
+        : "Applies the reviewed migration cap and starts the reviewed 48-hour governance delays.",
+      safeProposalTransactionsV4(plan, { retainProtocolCap }),
     ),
     activation: batch(
       `Cobia Executor V4 chain ${chainId} activation`,

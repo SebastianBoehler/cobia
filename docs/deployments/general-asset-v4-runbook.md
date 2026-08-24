@@ -45,6 +45,8 @@ pnpm executor:v4:plan -- --chain-id 1 --deployer 0x... --nonce 0 --owner 0x... -
 pnpm executor:v4:plan -- --chain-id 196 --deployer 0x... --nonce 0 --owner 0x... --verifier 0x... --canary-wallet 0x... --registry 0x... --adapters ./xlayer-adapters.json --migration ./xlayer-migration.json
 ```
 
+`--format safe-batches --retain-protocol-cap` deliberately omits the immediate migration-cap reduction and retains the deployed contract's default protocol cap. Use it only when the release decision explicitly abandons the combined V3/V4 migration partition; it never removes the contract's route, wallet, or protocol limits.
+
 Independently check predicted addresses, constructor bindings, bytecode, any optional plugin permissions,
 the fixed `$1,000` route and `$5,000` wallet caps, and the printed V3/V4 partition. The sum
 of maximum remaining V3 consumption and V4 rolling protocol exposure must not exceed

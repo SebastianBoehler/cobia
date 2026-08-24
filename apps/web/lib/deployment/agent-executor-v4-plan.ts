@@ -120,3 +120,12 @@ export function buildAgentExecutorDeploymentPlanV4(input: {
     openActivationTransaction: call("activate-open-access", riskManager, RISK_ABI, "activateOpenAccess"),
   };
 }
+
+export function safeProposalTransactionsV4(
+  plan: ReturnType<typeof buildAgentExecutorDeploymentPlanV4>,
+  options: { retainProtocolCap: boolean },
+) {
+  return options.retainProtocolCap
+    ? [...plan.proposalTransactions]
+    : [...plan.migrationRiskReductionTransactions, ...plan.proposalTransactions];
+}

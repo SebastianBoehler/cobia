@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { keccak256, stringToHex, type Abi } from "viem";
-import { buildAgentExecutorDeploymentPlanV4 } from "./agent-executor-v4-plan";
+import {
+  buildAgentExecutorDeploymentPlanV4,
+  safeProposalTransactionsV4,
+} from "./agent-executor-v4-plan";
 
 const address = (byte: string) => `0x${byte.repeat(40)}` as `0x${string}`;
 const hash = (byte: string) => `0x${byte.repeat(64)}` as `0x${string}`;
@@ -68,6 +71,8 @@ describe("agent executor V4 deployment plan", () => {
     expect(plan.activationTransactions.map(({ label }) => label)).toEqual([
       "activate-canary-wallet", "activate-unpause",
     ]);
+    expect(safeProposalTransactionsV4(plan, { retainProtocolCap: true }).map(({ label }) => label))
+      .toEqual(["propose-canary-wallet", "propose-unpause"]);
   });
 
   it("rejects an open plan whose combined V3 and V4 budget exceeds the migration ceiling", () => {
