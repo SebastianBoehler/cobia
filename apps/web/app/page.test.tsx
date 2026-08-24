@@ -37,8 +37,8 @@ describe("home conversion path", () => {
     expect(html).toContain("Solvers search");
     expect(html).toContain("Cobia verifies");
     expect(html).toContain("You approve");
-    expect(html).toContain("never receives your private key");
-    expect(html).toContain("Broadcast only to a disposable fork");
+    expect(html).toContain("Access your private key");
+    expect(html).toContain("test them in an isolated rehearsal");
   });
 
   it("makes the wallet product and competition model visible before architecture", async () => {
@@ -46,7 +46,7 @@ describe("home conversion path", () => {
     const portfolioIndex = html.indexOf("Portfolio");
     const activityIndex = html.indexOf("Activity");
     const standingIndex = html.indexOf("Standing challenges");
-    const architectureIndex = html.indexOf("Creative search");
+    const architectureIndex = html.indexOf("AI can explore");
 
     expect(portfolioIndex).toBeGreaterThan(-1);
     expect(activityIndex).toBeGreaterThan(portfolioIndex);
@@ -62,9 +62,9 @@ describe("home conversion path", () => {
 
     expect(seasonIndex).toBeGreaterThan(heroIndex);
     expect(seasonIndex).toBeLessThan(productIndex);
-    expect(html).toContain("Built for AI Season. Proven on X Layer mainnet.");
-    expect(html).toContain("separates open-ended AI search from wallet authority");
-    expect(html).toContain("See Build X evidence");
+    expect(html).toContain("Built for AI Season. Working on X Layer mainnet.");
+    expect(html).toContain("inspect the transactions, receipts, and source behind every claim");
+    expect(html).toContain("Watch demo and proof");
     expect(html).not.toMatch(/judg(?:e|ing)/i);
     expect(html).toContain('href="/buildx"');
   });
@@ -72,11 +72,11 @@ describe("home conversion path", () => {
   it("shows only live proof surfaces instead of planned capabilities", async () => {
     const html = renderToStaticMarkup(await Home());
 
-    expect(html).toContain("One safety model. Four live proof surfaces.");
-    expect(html).toContain("X Layer execution");
-    expect(html).toContain("Open solver exchange");
-    expect(html).toContain("Independent fork replay");
-    expect(html).toContain("Public outcome evidence");
+    expect(html).toContain("AI finds options. You keep control.");
+    expect(html).toContain("Live transactions on X Layer");
+    expect(html).toContain("Solvers compete for you");
+    expect(html).toContain("Every plan is tested first");
+    expect(html).toContain("Results anyone can verify");
     expect(html).not.toContain("Verified xStocks acquisition");
     expect(html).not.toContain("Recurring actions");
     expect(html).toContain('href="/solvers"');

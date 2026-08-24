@@ -4,29 +4,29 @@ import Link from "next/link";
 const domains = [
   {
     icon: BadgeDollarSign,
-    title: "X Layer execution",
-    description: "Aave supply plus Curve and Uniswap swaps with explicit outcome limits.",
+    title: "Live transactions on X Layer",
+    description: "Swap through Curve or Uniswap, or supply to Aave with minimum outcomes you set.",
     status: "Live",
     live: true,
   },
   {
     icon: Waypoints,
-    title: "Open solver exchange",
-    description: "Signed solver runs, revisions, abstentions, and verifier-owned histories remain inspectable.",
+    title: "Solvers compete for you",
+    description: "Compare competing plans and evaluate each solver through independently verified history.",
     status: "Live",
     live: true,
   },
   {
     icon: Code2,
-    title: "Independent fork replay",
-    description: "Cobia reproduces exact calls and outcomes on pinned state before wallet review.",
+    title: "Every plan is tested first",
+    description: "Cobia replays the exact transaction against fresh X Layer state before wallet review.",
     status: "Verified",
     live: true,
   },
   {
     icon: ShieldCheck,
-    title: "Public outcome evidence",
-    description: "Accepted plans resolve to programs, receipts, asset deltas, and X Layer transactions.",
+    title: "Results anyone can verify",
+    description: "Every confirmed result links to the plan, receipt, balance changes, and X Layer transaction.",
     status: "Public",
     live: true,
   },
@@ -36,8 +36,8 @@ export function DomainCapabilityGrid() {
   return (
     <section className="domain-section" aria-labelledby="domain-title">
       <header className="section-heading-row">
-        <div><h2 id="domain-title">One safety model. Four live proof surfaces.</h2></div>
-        <p>AI solvers can search broadly. Cobia keeps execution exact by separating proposals, independent verification, and owner approval.</p>
+        <div><h2 id="domain-title">AI finds options. You keep control.</h2></div>
+        <p>Cobia gives solvers room to search, then independently tests their work before anything reaches your wallet.</p>
       </header>
       <div className="domain-grid">
         {domains.map(({ icon: Icon, title, description, status, live }) => (
@@ -48,7 +48,7 @@ export function DomainCapabilityGrid() {
           </article>
         ))}
       </div>
-      <Link className="inline-action" href="/solvers">Meet the solvers <ArrowRight aria-hidden="true" size={16} /></Link>
+      <Link className="inline-action" href="/solvers">Compare solvers <ArrowRight aria-hidden="true" size={16} /></Link>
     </section>
   );
 }

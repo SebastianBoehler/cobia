@@ -13,7 +13,7 @@ describe("Build X project page", () => {
     const boundaryIndex = html.indexOf('id="boundary"');
     const evidenceIndex = html.indexOf('id="evidence"');
 
-    expect(text).toContain("AI proposes. Cobia proves what may execute.");
+    expect(text).toContain("AI finds the route. Cobia proves it stays within your limits.");
     expect(productProofIndex).toBeGreaterThan(-1);
     expect(evidenceIndex).toBeGreaterThan(productProofIndex);
     expect(boundaryIndex).toBeGreaterThan(evidenceIndex);
@@ -25,9 +25,9 @@ describe("Build X project page", () => {
 
     expect(html).toContain("Deployed");
     expect(html).toContain("Live product");
-    expect(html).toContain("Confirmed outcome");
-    expect(html).toContain("First mainnet intent outcome");
-    expect(html).toContain("1 USDt0 for 0.999471 USDG");
+    expect(html).toContain("Proven on mainnet");
+    expect(html).toContain("First verified mainnet result");
+    expect(html).toContain("1 USDt0 into 0.999471 USDG");
     expect(html).not.toContain("Canary attempted");
     expect(html).not.toContain("No settlement transaction or independently verifiable receipt has been observed");
     expect(html).not.toContain("Ethy settlement verified");
@@ -37,7 +37,7 @@ describe("Build X project page", () => {
     const html = renderToStaticMarkup(<BuildXEvidencePage />);
 
     expect(html).toContain("Build X · General Hackathon");
-    expect(html).toContain("transaction firewall for AI agents on X Layer");
+    expect(html).toContain("without handing it control of your wallet");
     expect(html).toContain("25+ confirmed outcomes");
     expect(html).toContain("3 signed solver profiles");
     expect(html).toContain('/media/cobia-live-intent-flow-x-layer.mp4');
@@ -48,8 +48,8 @@ describe("Build X project page", () => {
     const html = renderToStaticMarkup(<BuildXEvidencePage />);
 
     expect(html).toContain("Every asset, everywhere—without giving AI the keys.");
-    expect(html).toContain("Live on X Layer mainnet today");
-    expect(html).toContain("expanding toward general-asset execution");
+    expect(html).toContain("Live today for X Layer swaps and Aave");
+    expect(html).toContain("broader asset support adopting the same owner-controlled model");
     expect(html).toContain('title="X Layer post: every asset, everywhere, accessible on X Layer"');
     expect(html).toContain("platform.twitter.com/embed/Tweet.html?id=2091166000142012900");
     expect(html).toContain('href="https://x.com/XLayerOfficial/status/2091166000142012900"');
@@ -82,7 +82,7 @@ describe("Build X project page", () => {
     expect(html).toContain('aria-label="Curve StableSwap"');
     expect(html).toContain('aria-label="Uniswap V3"');
     expect(html).toContain('aria-label="xStocks"');
-    expect(text).toContain("Protocols and asset rails entering verified plans.");
+    expect(text).toContain("Move, earn, and diversify through plans Cobia can verify.");
     expect(text).toContain("xStocksTokenized equities · Staged");
   });
 
@@ -90,6 +90,11 @@ describe("Build X project page", () => {
     const html = renderToStaticMarkup(<BuildXEvidencePage />);
 
     expect(html).not.toMatch(/judg(?:e|ing)/i);
+    expect(html).not.toContain("sq6dlj2onr8ml5xa");
+    expect(html).not.toContain(">AI application<");
+    expect(html).not.toContain(">Product completeness<");
+    expect(html).toContain("X Layer ecosystem attribution");
+    expect(html).toContain("Useful AI, bounded risk");
     expect(metadata.title).toBe("Cobia for X Layer AI Season");
   });
 });

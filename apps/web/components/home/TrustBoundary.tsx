@@ -2,9 +2,9 @@ import { ArrowRight, Code2, KeyRound, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
 const stages = [
-  ["Solvers search", "Write and test programs against a pinned disposable fork."],
-  ["Cobia verifies", "Reproduce the exact program and check policy, targets, balances, and freshness."],
-  ["You approve", "Review and sign the independently verified calls in your wallet."],
+  ["Solvers search", "Competing AI solvers explore different ways to reach your outcome."],
+  ["Cobia verifies", "Every call is replayed against your limits and fresh X Layer state."],
+  ["You approve", "Review the verified transaction in your wallet and make the final decision."],
 ] as const;
 
 export function TrustBoundary() {
@@ -13,8 +13,8 @@ export function TrustBoundary() {
       <section className="trust-section" aria-labelledby="trust-title">
         <header>
           <ShieldCheck aria-hidden="true" size={24} />
-          <h2 id="trust-title">Creative search. Conservative execution.</h2>
-          <p>Agent-authored and independently verified are two different claims.</p>
+          <h2 id="trust-title">AI can explore. It cannot approve.</h2>
+          <p>Cobia separates finding a route from permission to use your wallet.</p>
         </header>
         <ol>
           {stages.map(([title, description], index) => (
@@ -22,12 +22,12 @@ export function TrustBoundary() {
           ))}
         </ol>
         <div className="trust-section__limits">
-          <article><Code2 aria-hidden="true" size={20} /><strong>Inside the sandbox</strong><p>Read pinned public state. Write code. Broadcast only to a disposable fork.</p></article>
-          <article><KeyRound aria-hidden="true" size={20} /><strong>Outside the sandbox</strong><p>The agent never receives your private key, wallet handle, or production send method.</p></article>
+          <article><Code2 aria-hidden="true" size={20} /><strong>What AI can do</strong><p>Research routes, write transaction plans, and test them in an isolated rehearsal.</p></article>
+          <article><KeyRound aria-hidden="true" size={20} /><strong>What AI cannot do</strong><p>Access your private key, control your wallet, or send a production transaction.</p></article>
         </div>
       </section>
       <section className="home-final">
-        <div><h2>Give solvers an outcome, not your keys.</h2><p>The signed policy is the boundary. The verified program is the proposal.</p></div>
+        <div><h2>Give solvers an outcome, not your keys.</h2><p>Set the target and limits. Cobia brings back a verified plan for your review.</p></div>
         <Link className="button button--primary" href="/intents/new">Create an intent <ArrowRight aria-hidden="true" size={17} /></Link>
       </section>
     </>

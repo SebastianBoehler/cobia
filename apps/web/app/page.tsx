@@ -23,9 +23,9 @@ export async function generateMetadata() {
 }
 
 const productLinks = [
-  { href: "/portfolio", icon: WalletCards, title: "Portfolio", description: "Balances and protocol positions at a pinned block." },
-  { href: "/activity", icon: Clock3, title: "Activity", description: "Intent, program, authorization, and receipt history." },
-  { href: "/discover", icon: Compass, title: "Standing challenges", description: "Persistent goals, bounded rounds, and past discoveries." },
+  { href: "/portfolio", icon: WalletCards, title: "Portfolio", description: "See wallet balances and Aave positions from one fresh X Layer snapshot." },
+  { href: "/activity", icon: Clock3, title: "Activity", description: "Follow each intent from your request to a confirmed transaction." },
+  { href: "/discover", icon: Compass, title: "Standing challenges", description: "Reuse supported goals or explore what solvers have already found." },
 ] as const;
 
 export default async function Home() {
@@ -37,11 +37,11 @@ export default async function Home() {
         <GeneralIntentHero />
         <section className="buildx-callout" aria-labelledby="buildx-callout-title">
           <div>
-            <h2 id="buildx-callout-title">Built for AI Season. Proven on X Layer mainnet.</h2>
-            <p>Cobia separates open-ended AI search from wallet authority, then resolves every accepted plan to public programs, receipts, and X Layer transactions.</p>
+            <h2 id="buildx-callout-title">Built for AI Season. Working on X Layer mainnet.</h2>
+            <p>Watch a complete intent become a verified result, then inspect the transactions, receipts, and source behind every claim.</p>
           </div>
           <Link className="button button--paper" href="/buildx">
-            See Build X evidence <ArrowRight aria-hidden="true" size={17} />
+            Watch demo and proof <ArrowRight aria-hidden="true" size={17} />
           </Link>
         </section>
         <nav className="product-strip" aria-label="Cobia product">

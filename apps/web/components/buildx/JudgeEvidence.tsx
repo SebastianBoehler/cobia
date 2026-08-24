@@ -19,47 +19,47 @@ const FIRST_VERIFIED_INTENT_TX = "0x83500273bbdaf6f2ad5e27f3d6807b7555383599ea53
 const XLAYER_ENDGAME_POST = "https://x.com/XLayerOfficial/status/2091166000142012900";
 
 const boundary = [
-  ["01", "Signed outcome", "The wallet commits the goal, assets, hard limits and deadline."],
-  ["02", "Open generation", "Solvers propose unsigned programs and may revise or abstain."],
-  ["03", "Independent proof", "Cobia checks identities, calldata, balances and fresh-fork outcomes."],
-  ["04", "Wallet authority", "Only an exact accepted program is offered for owner approval."],
+  ["01", "Set your limits", "Choose the outcome, assets, spending limit, minimum result, and deadline."],
+  ["02", "Solvers compete", "Independent AI solvers search for the best way to reach your outcome."],
+  ["03", "Cobia verifies", "Every proposed call is replayed against fresh chain state and your limits."],
+  ["04", "You decide", "Your wallet sees only a plan that passed—and you still choose whether to approve it."],
 ] as const;
 
 const evidence = [
   {
-    title: "Cobia on X Layer", status: "Live product",
-    detail: "Intent creation, discovery, portfolios, solver evidence and wallet review on chain 196.",
-    href: "https://getcobia.com", link: "Open product",
+    title: "Try Cobia on X Layer", status: "Live product",
+    detail: "Create an intent, compare solver proposals, and review a verified plan before your wallet approves it.",
+    href: "https://getcobia.com", link: "Try Cobia",
   },
   {
-    title: "First mainnet intent outcome", status: "Confirmed outcome",
-    detail: "An owner-approved Cobia program swapped 1 USDt0 for 0.999471 USDG on X Layer and carried the registered Builder Code.",
-    href: `https://web3.okx.com/explorer/x-layer/evm/tx/${FIRST_VERIFIED_INTENT_TX}`, link: "Inspect execution",
+    title: "First verified mainnet result", status: "Proven on mainnet",
+    detail: "A user approved a Cobia plan that converted 1 USDt0 into 0.999471 USDG. The public X Layer transaction proves the result.",
+    href: `https://web3.okx.com/explorer/x-layer/evm/tx/${FIRST_VERIFIED_INTENT_TX}`, link: "Verify the result",
   },
   {
     title: "Cobia Network", status: "Public proof",
-    detail: "Confirmed outcomes and solver attribution resolve to exact programs, receipts and X Layer transactions.",
-    href: "/network", link: "Inspect network", internal: true,
+    detail: "Every confirmed result links the solver, verified plan, receipt, and X Layer transaction—no trust-me metrics.",
+    href: "/network", link: "Explore results", internal: true,
   },
   {
-    title: "Executor V3 deployment", status: "Deployed",
-    detail: "Wallet-created X Layer mainnet contract with independently reproduced creation input and runtime identity.",
-    href: `https://www.oklink.com/x-layer/tx/${MAINNET_DEPLOYMENT_TX}`, link: "Inspect transaction",
+    title: "Mainnet execution contract", status: "Deployed",
+    detail: "Cobia’s wallet execution contract is live on X Layer and reproducible from the public source.",
+    href: `https://www.oklink.com/x-layer/tx/${MAINNET_DEPLOYMENT_TX}`, link: "Verify deployment",
   },
   {
-    title: "X Layer testnet", status: "Deployed",
-    detail: "Paused-by-design testnet contracts with canonical receipt anchors and public read-back evidence.",
-    href: `https://www.oklink.com/x-layer-testnet/tx/${TESTNET_DEPLOYMENT_TX}`, link: "Inspect transaction",
+    title: "X Layer testnet", status: "Rehearsal environment",
+    detail: "A separate testnet deployment lets new capabilities be rehearsed without presenting them as production-ready.",
+    href: `https://www.oklink.com/x-layer-testnet/tx/${TESTNET_DEPLOYMENT_TX}`, link: "Verify deployment",
   },
   {
-    title: "Registered Builder Code", status: "Attributable",
-    detail: "Cobia transactions bind registered Builder Code sq6dlj2onr8ml5xa before verification and signing.",
-    href: `https://www.oklink.com/x-layer/tx/${BUILDER_REGISTRATION_TX}`, link: "Inspect registration",
+    title: "X Layer ecosystem attribution", status: "Registered",
+    detail: "Verified Cobia transactions are attributed through X Layer’s builder program, making product activity measurable without changing who controls the wallet.",
+    href: `https://www.oklink.com/x-layer/tx/${BUILDER_REGISTRATION_TX}`, link: "Verify registration",
   },
   {
     title: "Public source", status: "Public source",
-    detail: "Verifier, solver exchange, replay service, contracts, tests and deployment evidence are reviewable.",
-    href: "https://github.com/SebastianBoehler/cobia", link: "Browse repository",
+    detail: "Review the verifier, solver exchange, contracts, tests, and deployment history on GitHub.",
+    href: "https://github.com/SebastianBoehler/cobia", link: "Review the code",
   },
 ] as const;
 
@@ -71,12 +71,12 @@ const supportedIntegrations = [
 ] as const;
 
 const foundations = [
-  ["AI application", "AI solvers research, write, and test transaction plans while deterministic verification retains authorization authority."],
-  ["Innovation", "Open-ended generation is separated from fail-closed execution permission."],
-  ["Product completeness", "A live product, 25+ confirmed outcomes, signed solver histories, and public receipts run on X Layer mainnet."],
-  ["User value", "Owners use AI assistance without giving an agent a private key, wallet handle, or production send method."],
-  ["X Layer native", "Chain 196 protocols, mainnet receipts, testnet deployment evidence, and Builder Code attribution are built into the product."],
-  ["Ecosystem growth", "Each new solver, merchant, and protocol expands the same independently verified transaction market."],
+  ["Useful AI, bounded risk", "Solvers can research and test many routes, but they cannot bypass your limits or approve a transaction."],
+  ["A better trust model", "Cobia separates creative planning from permission to execute, so more capable AI does not require weaker wallet safety."],
+  ["Working today", "Create an intent on the live product and inspect 25+ confirmed outcomes, solver histories, receipts, and mainnet transactions."],
+  ["Your keys stay yours", "No solver receives your private key, wallet connection, or a way to send a production transaction."],
+  ["Built around X Layer", "Live contracts, protocol integrations, public receipts, and builder attribution make X Layer the product’s execution home."],
+  ["More choice without blind trust", "New solvers, merchants, and protocols can join the same competition and independent verification model."],
 ] as const;
 
 function EvidenceLink({ item }: { item: typeof evidence[number] }) {
@@ -92,8 +92,8 @@ export function JudgeEvidence() {
       <div className={styles.heroInner}>
         <div className={styles.heroCopy}>
           <p className={styles.eyebrow}>Build X · General Hackathon</p>
-          <h1>AI proposes. <span>Cobia proves what may execute.</span></h1>
-          <p className={styles.lede}>Cobia is the transaction firewall for AI agents on X Layer. Competing solvers build transaction plans, Cobia independently replays every call, and only the owner wallet can approve the exact verified plan.</p>
+          <h1>AI finds the route. <span>Cobia proves it stays within your limits.</span></h1>
+          <p className={styles.lede}>Use AI for onchain transactions without handing it control of your wallet. Competing solvers search for a plan, Cobia independently tests every call, and you decide whether the verified result is worth approving.</p>
           <div className={styles.actions}>
             <Link className="button button--primary" href="/intents/new">
               Describe an outcome <ArrowUpRight aria-hidden="true" size={16} />
@@ -114,8 +114,8 @@ export function JudgeEvidence() {
             <span><WalletCards aria-hidden="true" size={15} /> Approval</span>
           </div>
           <div className={styles.signalVerdict}>
-            <strong>Exact calls only</strong>
-            <p>AI receives no signing key or production send method.</p>
+            <strong>What you review is what runs</strong>
+            <p>AI never receives your signing key or a way to send the transaction.</p>
           </div>
         </div>
       </div>
@@ -130,9 +130,9 @@ export function JudgeEvidence() {
 
     <section className={styles.productProof} id="product-proof" aria-labelledby="product-proof-title">
       <div>
-        <h2 id="product-proof-title">One intent, from outcome to evidence.</h2>
-        <p>See Cobia turn a natural-language goal into explicit limits, solver proposals, independent proof, wallet review, and an inspectable X Layer result.</p>
-        <a className="text-link" href="#evidence">Inspect the mainnet evidence</a>
+        <h2 id="product-proof-title">From one sentence to a verified result.</h2>
+        <p>Watch Cobia turn a goal into clear limits, compare solver proposals, test the winning plan, and hand the final decision back to the wallet.</p>
+        <a className="text-link" href="#evidence">Verify the mainnet result</a>
       </div>
       <video controls playsInline poster="/media/cobia-intent-proof-poster.jpg" preload="metadata">
         <source src="/media/cobia-live-intent-flow-x-layer.mp4" type="video/mp4" />
@@ -141,7 +141,7 @@ export function JudgeEvidence() {
 
     <section className={styles.evidence} id="evidence">
       <header className={styles.sectionHeader}>
-        <div><h2>Claims that resolve to something inspectable.</h2></div>
+        <div><h2>Every claim links to public proof.</h2></div>
         <a href="https://x.com/Cobia_Web3/status/2090604315052302774" rel="noreferrer" target="_blank">
           Build X post <ArrowUpRight aria-hidden="true" size={15} />
         </a>
@@ -162,8 +162,8 @@ export function JudgeEvidence() {
 
     <section className={styles.protocols} aria-labelledby="protocols-title">
       <div>
-        <h2 id="protocols-title">Protocols and asset rails entering verified plans.</h2>
-        <p>Aave supply plus Curve and Uniswap swaps use explicit X Layer adapters. The staged xStocks lane adds issuer-backed asset identity under the same verification boundary.</p>
+        <h2 id="protocols-title">Move, earn, and diversify through plans Cobia can verify.</h2>
+        <p>Aave supply and Curve and Uniswap swaps are live on X Layer. xStocks support is staged and will use the same identity checks and wallet-controlled approval.</p>
       </div>
       <ul>{supportedIntegrations.map((integration) => <li key={integration.label}>
         {integration.kind === "protocol"
@@ -178,8 +178,8 @@ export function JudgeEvidence() {
       <div className={styles.vision}>
         <div className={styles.visionCopy}>
           <h3>Every asset, everywhere—without giving AI the keys.</h3>
-          <p>X Layer is making every asset accessible. Cobia answers the next question: who decides what AI may execute? Solvers can search broadly; signed limits, independent replay, and wallet approval decide exactly what moves.</p>
-          <strong>Live on X Layer mainnet today, with the same verification boundary expanding toward general-asset execution.</strong>
+          <p>X Layer is making every asset accessible. Cobia makes that future usable with AI while keeping people in control: solvers search broadly, but your limits and wallet decide exactly what moves.</p>
+          <strong>Live today for X Layer swaps and Aave, with broader asset support adopting the same owner-controlled model.</strong>
         </div>
         <div className={styles.visionPost}>
           <iframe
@@ -199,7 +199,7 @@ export function JudgeEvidence() {
         <a className="button button--paper" href="https://getcobia.com" rel="noreferrer" target="_blank">Review Cobia <ArrowUpRight aria-hidden="true" size={16} /></a>
         <a href="https://web3.okx.com/xlayer/build-x-series" rel="noreferrer" target="_blank">AI Season rules <ArrowUpRight aria-hidden="true" size={14} /></a>
       </div>
-      <p className={styles.closeNote}><ShieldCheck aria-hidden="true" size={14} /> New permissions activate only after independent production checks and governance read-back.</p>
+      <p className={styles.closeNote}><ShieldCheck aria-hidden="true" size={14} /> New capabilities stay unavailable until they pass production checks and onchain governance approval.</p>
     </section>
   </main>;
 }
