@@ -94,7 +94,9 @@ if (format === "plan") {
     ),
     activation: batch(
       `Cobia Executor V4 chain ${chainId} activation`,
-      "Activates the matured adapter, canary wallet, and unpause proposals after independent re-verification.",
+      plan.adapters.length === 0
+        ? "Activates the matured canary-wallet and unpause proposals after independent re-verification."
+        : "Activates the matured plugin, canary-wallet, and unpause proposals after independent re-verification.",
       plan.activationTransactions,
     ),
     openProposal: batch(

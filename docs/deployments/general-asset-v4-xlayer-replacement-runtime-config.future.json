@@ -1,0 +1,14 @@
+{
+  "entries": [
+    {
+      "chainId": 196,
+      "executor": "0xFcb59964fD41E9C097a28F02E13854Df0a26A44E",
+      "executorCodeHash": "0x93ddb1f1d2975a4e4ff8a4d118e67b8623e511e63bf20f412de6032b2b8818e1",
+      "registry": "0xEf955cC592346e3b4cb8c7a67f3FE6B2c4688877",
+      "registryCodeHash": "0x5de8b09ab2d521591020ccacace3eb18b42900ce7e300cf4aa31e634af14416d",
+      "riskManager": "0x13B9070f2d52812bFFB7CD7358653c741AbF5F40",
+      "riskManagerCodeHash": "0xb02d509cd26048642ee1c4eeaaba481db05e65130b90be64567f498ddddf96cb",
+      "protocolCapUsdE8": "5000000000000"
+    }
+  ]
+}

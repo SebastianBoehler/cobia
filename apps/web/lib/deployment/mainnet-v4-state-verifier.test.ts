@@ -62,4 +62,14 @@ describe("mainnet V4 state verifier", () => {
       maxRoute: 10_000_000n, maxWalletDaily: 50_000_000n, maxCumulative: 3_000_000_000n,
     } }), mode: "open" })).rejects.toThrow(/remaining cap/i);
   });
+
+  it("verifies the deployed contract caps without a migration partition", async () => {
+    const contractCapSpec = { ...spec, migration: undefined };
+    await expect(verifyMainnetV4State({ spec: contractCapSpec, reader: reader("proposed", {
+      limits: { maxRouteUsdE8: 100_000_000_000n, maxWallet24hUsdE8: 500_000_000_000n,
+        maxProtocol24hUsdE8: 5_000_000_000_000n },
+    }), mode: "proposed" })).resolves.toMatchObject({
+      version: 4, mode: "proposed", permissionCount: 1, migration: undefined,
+    });
+  });
 });

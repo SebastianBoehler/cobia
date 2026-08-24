@@ -1,0 +1,16 @@
+{
+  "chainId": 196,
+  "owner": "0x08eea990F0b165A20d723e59517044a519C83351",
+  "verifier": "0x1667d3e9a37655600eb4ee56BD2F5BAddC49fed4",
+  "registry": "0xEf955cC592346e3b4cb8c7a67f3FE6B2c4688877",
+  "riskManager": "0x13B9070f2d52812bFFB7CD7358653c741AbF5F40",
+  "executor": "0xFcb59964fD41E9C097a28F02E13854Df0a26A44E",
+  "canary": "0x9Afbf85e52612A9922617aDdA9569e13f565de31",
+  "activationAtSec": 1787768422,
+  "openAccessAfterSec": 0,
+  "codeHashes": {
+    "riskManager": "0xb02d509cd26048642ee1c4eeaaba481db05e65130b90be64567f498ddddf96cb",
+    "executor": "0x93ddb1f1d2975a4e4ff8a4d118e67b8623e511e63bf20f412de6032b2b8818e1"
+  },
+  "permissions": []
+}

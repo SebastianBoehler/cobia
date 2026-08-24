@@ -1,0 +1,25 @@
+{
+  "version": "1.0",
+  "chainId": "196",
+  "createdAt": 1787595193000,
+  "meta": {
+    "name": "Cobia Executor V4 chain 196 activation",
+    "description": "Activates the matured canary-wallet and unpause proposals after independent re-verification.",
+    "txBuilderVersion": "2.1.0",
+    "createdFromSafeAddress": "0x08eea990F0b165A20d723e59517044a519C83351",
+    "createdFromOwnerAddress": "",
+    "checksum": "0xa51aa2e4bc68867fecb88333d831de9fd49baf821bd5659d4098ea71781ec6a3"
+  },
+  "transactions": [
+    {
+      "to": "0x13B9070f2d52812bFFB7CD7358653c741AbF5F40",
+      "value": "0",
+      "data": "0x03e28f370000000000000000000000009afbf85e52612a9922617adda9569e13f565de31"
+    },
+    {
+      "to": "0x13B9070f2d52812bFFB7CD7358653c741AbF5F40",
+      "value": "0",
+      "data": "0x10d52379"
+    }
+  ]
+}

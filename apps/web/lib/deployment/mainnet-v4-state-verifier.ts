@@ -17,7 +17,7 @@ export interface MainnetV4StateSpec {
   openAccessAfterSec: number;
   codeHashes: { riskManager: Hash; executor: Hash };
   permissions: readonly { key: Hash; target: Address; runtimeCodeHash: Hash }[];
-  migration: PartitionedMigrationBudgetInputV4 & { v3RiskManager?: Address };
+  migration?: PartitionedMigrationBudgetInputV4 & { v3RiskManager?: Address };
 }
 type Field = "owner" | "verifierSigner" | "executor" | "registry" | "riskManager" | "limits" |
   "pendingLimits" | "pendingVerifier" | "verifierActivateAfter" | "paused" | "accessMode" |
@@ -118,7 +118,8 @@ export function createMainnetV4StateReader(client: V4PublicClient): MainnetV4Sta
 }
 
 const ZERO = "0x0000000000000000000000000000000000000000";
-const fixedLimits = { maxRouteUsdE8: 100_000_000_000n, maxWallet24hUsdE8: 500_000_000_000n };
+const contractLimits = { maxRouteUsdE8: 100_000_000_000n,
+  maxWallet24hUsdE8: 500_000_000_000n, maxProtocol24hUsdE8: 5_000_000_000_000n };
 function fail(condition: boolean, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
@@ -162,8 +163,9 @@ export async function verifyMainnetV4State(input: {
   fail(address(await read(spec.executor, "registry"), spec.registry), "executor registry mismatch");
   fail(address(await read(spec.executor, "riskManager"), spec.riskManager), "executor risk mismatch");
   const activeLimits = limits(await read(spec.riskManager, "limits"));
-  const expectedLimits = { ...fixedLimits,
-    maxProtocol24hUsdE8: BigInt(spec.migration.v4ProtocolCapUsdE8) };
+  const expectedLimits = spec.migration
+    ? { ...contractLimits, maxProtocol24hUsdE8: BigInt(spec.migration.v4ProtocolCapUsdE8) }
+    : contractLimits;
   fail(sameLimits(activeLimits, expectedLimits), "V4 limits mismatch");
   const pending = object(await read(spec.riskManager, "pendingLimits"), "pending limits");
   const zeroLimits = { maxRouteUsdE8: 0n, maxWallet24hUsdE8: 0n, maxProtocol24hUsdE8: 0n };
@@ -192,21 +194,25 @@ export async function verifyMainnetV4State(input: {
     fail(sameHash(await reader.codeHash(expected.target, block.number), expected.runtimeCodeHash),
       "permission target code hash mismatch");
   }
-  fail(spec.migration.chainId === spec.chainId, "migration chain mismatch");
-  const v3Assets = await Promise.all(spec.migration.v3Assets.map(async (asset) => {
-    fail(Boolean(spec.migration.v3RiskManager), "V3 risk manager is missing");
-    const tokenLimits = object(await read(spec.migration.v3RiskManager!, "tokenLimits", [asset.token]),
-      "V3 token limits");
-    const maximum = bigint(tokenLimits.maxCumulative, "V3 cumulative cap");
-    const consumed = bigint(await read(spec.migration.v3RiskManager!, "cumulativeInput", [asset.token]),
-      "V3 cumulative usage");
-    fail(maximum >= consumed, "V3 cumulative usage exceeds its cap");
-    const remaining = maximum - consumed;
-    fail(remaining.toString() === asset.maximumRemainingAtomic, "V3 remaining cap mismatch");
-    return { ...asset, maximumRemainingAtomic: remaining.toString() };
-  }));
-  const migration = assertPartitionedMigrationBudgetV4({ ...spec.migration,
-    v4ProtocolCapUsdE8: activeLimits.maxProtocol24hUsdE8.toString(), v3Assets });
+  let migration;
+  if (spec.migration) {
+    const migrationSpec = spec.migration;
+    fail(migrationSpec.chainId === spec.chainId, "migration chain mismatch");
+    const v3Assets = await Promise.all(migrationSpec.v3Assets.map(async (asset) => {
+      fail(Boolean(migrationSpec.v3RiskManager), "V3 risk manager is missing");
+      const tokenLimits = object(await read(migrationSpec.v3RiskManager!, "tokenLimits", [asset.token]),
+        "V3 token limits");
+      const maximum = bigint(tokenLimits.maxCumulative, "V3 cumulative cap");
+      const consumed = bigint(await read(migrationSpec.v3RiskManager!, "cumulativeInput", [asset.token]),
+        "V3 cumulative usage");
+      fail(maximum >= consumed, "V3 cumulative usage exceeds its cap");
+      const remaining = maximum - consumed;
+      fail(remaining.toString() === asset.maximumRemainingAtomic, "V3 remaining cap mismatch");
+      return { ...asset, maximumRemainingAtomic: remaining.toString() };
+    }));
+    migration = assertPartitionedMigrationBudgetV4({ ...migrationSpec,
+      v4ProtocolCapUsdE8: activeLimits.maxProtocol24hUsdE8.toString(), v3Assets });
+  }
   fail(sameHash(await reader.codeHash(spec.riskManager, block.number), spec.codeHashes.riskManager),
     "risk manager code hash mismatch");
   fail(sameHash(await reader.codeHash(spec.executor, block.number), spec.codeHashes.executor),
