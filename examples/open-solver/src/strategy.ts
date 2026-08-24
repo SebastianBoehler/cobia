@@ -50,7 +50,7 @@ export async function solve(intent: SolverIntentV1, dependencies: StrategyDepend
   if (!input || intent.policy.inputs.length !== 1 || intent.policy.outcomes.length !== 1 ||
       outcome?.kind !== "minimum-increase" ||
       !supportedCapability) {
-    return { version: 1, decision: "abstain", reasonCode: "NO_SUPPORTED_REFERENCE_ROUTE" };
+    return { version: 1, decision: "abstain", reasonCode: "NO_VERIFIED_ROUTE_BEFORE_DEADLINE" };
   }
   if (!intent.snapshot || intent.snapshot.kind !== "open-onchain") {
     return { version: 1, decision: "abstain", reasonCode: "SNAPSHOT_KIND_MISMATCH" };

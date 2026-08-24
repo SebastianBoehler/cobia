@@ -31,7 +31,7 @@ Solve only the signed intent in \`intent.json\`.
 - Treat policy.limits.minimumStages as a hard lower bound on wallet-transaction stages. An explicit multi-step request is not satisfied by one swap, even if that swap reaches the output floor.
 - Your entire final response must be one structured object whose \`decisionJson\` string contains exactly one schema-valid SolverDecisionV1. Do not add prose or Markdown. Do not write decision.json; the host validates your final response and writes it.
 - Submit only when the complete program satisfies the signed policy; otherwise use a precise abstention code.
-- A canonical abstention is \`{"version":1,"decision":"abstain","reasonCode":"NO_SUPPORTED_REFERENCE_ROUTE"}\`.
+- A canonical abstention is \`{"version":1,"decision":"abstain","reasonCode":"NO_VERIFIED_ROUTE_BEFORE_DEADLINE"}\`.
 `;
 }
 

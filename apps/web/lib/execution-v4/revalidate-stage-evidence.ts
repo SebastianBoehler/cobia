@@ -2,6 +2,7 @@ import {
   AssetIdentityEvidenceV1Schema,
   AssetValuationEvidenceV1Schema,
   commitment,
+  stableAssetIdentityV1,
   type AssetIdentityEvidenceV1,
   type AssetValuationEvidenceV1,
   type GeneralAssetPolicyV1,
@@ -64,15 +65,7 @@ interface RevalidationInput {
 }
 
 function sameIdentity(left: AssetIdentityEvidenceV1, right: AssetIdentityEvidenceV1): boolean {
-  return commitment({
-    version: left.version, chainId: left.chainId, token: left.token,
-    runtimeCodeHash: left.runtimeCodeHash, proxy: left.proxy, decimals: left.decimals,
-    behaviorModule: left.behaviorModule,
-  }) === commitment({
-    version: right.version, chainId: right.chainId, token: right.token,
-    runtimeCodeHash: right.runtimeCodeHash, proxy: right.proxy, decimals: right.decimals,
-    behaviorModule: right.behaviorModule,
-  });
+  return commitment(stableAssetIdentityV1(left)) === commitment(stableAssetIdentityV1(right));
 }
 
 function baselineIdentity(input: RevalidationInput, chainId: ChainId, token: Address) {

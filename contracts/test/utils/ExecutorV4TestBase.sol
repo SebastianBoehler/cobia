@@ -25,6 +25,17 @@ contract MockAdapterV4 {
         output.mint(beneficiary, amount);
     }
 
+    function supplyFromNative(MockToken output, address beneficiary, uint256 amount) external payable {
+        require(msg.value == amount, "native amount");
+        output.mint(beneficiary, amount);
+    }
+
+    function swapForNative(MockToken token, uint256 inputAmount, uint256 outputAmount) external {
+        token.transferFrom(msg.sender, address(this), inputAmount);
+        (bool success,) = msg.sender.call{value: outputAmount}("");
+        require(success, "native output");
+    }
+
     function debitWallet(MockToken token, address owner, address recipient, uint256 amount) external {
         token.transferFrom(owner, recipient, amount);
     }
@@ -57,6 +68,7 @@ abstract contract ExecutorV4TestBase {
     ExecutorVm internal constant vm = ExecutorVm(address(uint160(uint256(keccak256("hevm cheat code")))));
     ExecutorV4Vm private constant vmV4 = ExecutorV4Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
     bytes32 internal constant ADAPTER_KEY = keccak256("semantic.protocol@1");
+    address internal constant NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     uint256 internal constant VERIFIER_KEY = 0xA11CE;
     address internal constant OWNER = address(0xC0B1A);
     address internal constant THIEF = address(0xBAD);
@@ -77,8 +89,6 @@ abstract contract ExecutorV4TestBase {
         output = new MockToken("RANDOM-OUT");
         adapter = new MockAdapterV4();
         spender = new MockApprovalSpenderV4();
-        _activate(adapter.supply.selector);
-
         ExecutorV4Deployer deployer = new ExecutorV4Deployer();
         (executor, riskManager) = deployer.deploy(address(this), registry, vm.addr(VERIFIER_KEY));
         riskManager.proposeWallet(OWNER);
@@ -99,6 +109,7 @@ abstract contract ExecutorV4TestBase {
         calls[0] = CobiaExecutionTypesV4.CallV4({
             adapterKey: ADAPTER_KEY,
             target: address(adapter),
+            targetRuntimeCodeHash: address(adapter).codehash,
             value: 0,
             gasLimit: 300_000,
             approvals: approvals,
@@ -164,6 +175,35 @@ abstract contract ExecutorV4TestBase {
             deadline: value.deadline,
             nonce: value.nonce
         });
+    }
+
+    function nativeInputProgram(uint128 amount)
+        internal
+        view
+        returns (CobiaExecutionTypesV4.ExecutionProgramV4 memory value)
+    {
+        value = program(amount);
+        value.inputToken = NATIVE_ASSET;
+        value.calls[0].approvals = new CobiaExecutionTypesV4.ApprovalV4[](0);
+        value.calls[0].value = uint96(amount);
+        value.calls[0].data = abi.encodeCall(adapter.supplyFromNative, (output, OWNER, amount));
+        value.refundTokens = new address[](1);
+        value.refundTokens[0] = address(output);
+    }
+
+    function nativeOutputProgram(uint128 amount)
+        internal
+        returns (CobiaExecutionTypesV4.ExecutionProgramV4 memory value)
+    {
+        vmV4.deal(address(adapter), amount);
+        value = program(amount);
+        value.outputToken = NATIVE_ASSET;
+        value.calls[0].data = abi.encodeCall(adapter.swapForNative, (input, amount, amount));
+        value.constraints[0] = CobiaExecutionTypesV4.BalanceConstraintV4(
+            NATIVE_ASSET, CobiaExecutionTypesV4.ConstraintKind.Increase, amount
+        );
+        value.refundTokens = new address[](1);
+        value.refundTokens[0] = address(input);
     }
 
     function executeAsOwner(CobiaExecutionTypesV4.ExecutionProgramV4 memory value) internal {

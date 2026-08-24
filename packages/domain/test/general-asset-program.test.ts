@@ -63,6 +63,16 @@ describe("GeneralAssetProgramV1", () => {
     });
   });
 
+  it("accepts ordered same-chain stages without fake bridge delivery", () => {
+    const value = program();
+    value.stages[0] = { ...value.stages[0], chainId: 196, delivery: { kind: "none" } };
+
+    expect(parseGeneralAssetProgramV1(value)).toMatchObject({ stages: [
+      { index: 0, chainId: 196, delivery: { kind: "none" } },
+      { index: 1, chainId: 196, predecessorStageId: hash("1") },
+    ] });
+  });
+
   it("rejects reordered or skipped predecessor stages", () => {
     const valid = program();
     expect(() => GeneralAssetProgramV1Schema.parse({

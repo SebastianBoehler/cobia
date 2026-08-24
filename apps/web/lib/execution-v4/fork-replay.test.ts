@@ -109,6 +109,7 @@ function execution(
     nonce: generalAssetStageNonceV4(verdict.policy.nonce, exactStage),
     refundTokens: exactCompiled.refundTokens,
     calls: [{ adapterKey: exactCompiled.adapterKey, target: exactCompiled.target,
+      targetRuntimeCodeHash: exactCompiled.targetRuntimeCodeHash,
       value: BigInt(exactCompiled.valueAtomic), gasLimit: exactCompiled.gasLimit,
       approvals: exactCompiled.approvals.map(({ token, spender, maximumAtomic }) =>
         ({ token, spender, amount: BigInt(maximumAtomic) })), data: exactCompiled.data }],

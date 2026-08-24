@@ -216,6 +216,24 @@ describe("general asset program verifier", () => {
     expect(await errors(code)).toContain("TARGET_CODE_DRIFT");
   });
 
+  it("does not turn semantic plugin registration into generic call admission", async () => {
+    const input = fixture();
+    input.manifest.entries = [];
+    const policy = GeneralAssetPolicyV1Schema.parse({ ...GeneralAssetPolicyV1Schema.parse(input.policy),
+      manifestHash: commitment(input.manifest),
+      allowedAdapters: [{ id: "general.evm-call", version: 1 }] });
+    input.policy = policy;
+    input.program.manifestHash = policy.manifestHash;
+    input.program.policyHash = commitment(policy);
+    input.program.stages[0]!.adapter = { id: "general.evm-call", version: 1 };
+    input.program.canonicalProgramHash = canonicalGeneralAssetProgramHash(input.program);
+    const result = await verifyGeneralAssetProgramV1(input);
+
+    expect(result.errorCodes).not.toContain("ADAPTER_UNREGISTERED");
+    expect(result.errorCodes).not.toContain("SELECTOR_UNREGISTERED");
+    expect(result.errorCodes).not.toContain("APPROVAL_SPENDER_UNREGISTERED");
+  });
+
   it("rejects approval spender runtime code drift at the pinned block", async () => {
     const input = fixture();
     input.getCodeHash = async (_chainId, address) => address === target ? hash("a") : hash("f");

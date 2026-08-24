@@ -22,6 +22,7 @@ export * from "./general-assets/behavior";
 export * from "./general-assets/adapter-manifest";
 export * from "./general-assets/asset-flow";
 export * from "./general-assets/identity";
+export * from "./general-assets/generic-call";
 export * from "./general-assets/program-verifier";
 export * from "./general-assets/program-builder";
 export * from "./general-assets/rejections";

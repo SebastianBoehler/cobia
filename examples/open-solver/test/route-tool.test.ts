@@ -34,7 +34,7 @@ describe("reference route tool", () => {
       version: 1,
       declarationKind: "operator",
       capabilities: REFERENCE_CAPABILITIES,
-      openLane: "transaction-program/evm.raw@1",
+      openLane: "verifier-authorized-program@1",
     });
   });
 

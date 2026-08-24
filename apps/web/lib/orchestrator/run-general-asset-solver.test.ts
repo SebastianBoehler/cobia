@@ -110,6 +110,7 @@ async function verifiedArtifacts(value: unknown, replayOverrides: {
     deadline: 2_000_000_031n, nonce: generalAssetStageNonceV4(policy.nonce, stage),
     refundTokens: [inputToken, outputToken], calls: [{
       adapterKey: keccak256(stringToHex("okx.swap@1")), target,
+      targetRuntimeCodeHash: hash("a"),
       value: 0n, gasLimit: 300_000,
       approvals: [{ token: inputToken, spender, amount: 100n }], data: "0x12345678" }],
     constraints: [{ token: outputToken, kind: 1, minimum: 90n }],

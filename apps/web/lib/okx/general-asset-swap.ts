@@ -1,7 +1,7 @@
 import { decodeFunctionData, erc20Abi, isAddress, isAddressEqual,
   type Address, type Hash, type Hex } from "viem";
 import { z } from "zod";
-import { commitment } from "@cobia/domain";
+import { commitment, isNativeAssetAddress } from "@cobia/domain";
 import { signOkxRequest, type OkxCredentials } from "./auth";
 
 const ORIGIN = "https://web3.okx.com";
@@ -20,7 +20,7 @@ const SwapSchema = z.object({ routerResult: z.object({ chainIndex: z.enum(["1", 
   toTokenAmount: PositiveAtomicSchema, fromToken: TokenSchema, toToken: TokenSchema }).passthrough(),
   tx: z.object({ from: AddressSchema, to: AddressSchema, value: AtomicSchema,
     minReceiveAmount: PositiveAtomicSchema, slippagePercent: z.string(), data: HexSchema,
-    gas: PositiveAtomicSchema, signatureData: z.array(z.string()).length(1) }).passthrough() }).passthrough();
+    gas: PositiveAtomicSchema, signatureData: z.array(z.string()).max(1) }).passthrough() }).passthrough();
 
 export interface GeneralAssetSwapCompileRequestV1 {
   chainId: 1 | 196;
@@ -62,22 +62,29 @@ export function createOkxGeneralAssetSwapCompilerV1(options: {
   }
   return { async compile(input: GeneralAssetSwapCompileRequestV1) {
     const slip = slippagePercent(input.maximumSlippageBps);
-    const swapRequest = query(SWAP_PATH, { chainIndex: String(input.chainId), amount: input.inputAtomic,
+    const nativeInput = isNativeAssetAddress(input.inputToken);
+    const requestValues = { chainIndex: String(input.chainId), amount: input.inputAtomic,
       fromTokenAddress: input.inputToken.toLowerCase(), toTokenAddress: input.outputToken.toLowerCase(),
       slippagePercent: slip, userWalletAddress: input.executor.toLowerCase(),
       swapReceiverAddress: input.owner.toLowerCase(), swapMode: "exactIn",
-      disableRFQ: "true", approveAmount: input.inputAtomic, approveTransaction: "true" });
+      disableRFQ: "true", approveTransaction: nativeInput ? "false" : "true",
+      ...(nativeInput ? {} : { approveAmount: input.inputAtomic }) };
+    const swapRequest = query(SWAP_PATH, requestValues);
     const swapRaw = await get(swapRequest);
     const swap = SwapSchema.parse(swapRaw);
-    let approval: z.infer<typeof ApprovalSignatureSchema>;
-    try {
-      approval = ApprovalSignatureSchema.parse(JSON.parse(swap.tx.signatureData[0]!));
-    } catch (error) {
-      throw new Error("OKX approval compilation is invalid", { cause: error });
+    let approval: z.infer<typeof ApprovalSignatureSchema> | undefined;
+    if (!nativeInput) {
+      try {
+        approval = ApprovalSignatureSchema.parse(JSON.parse(swap.tx.signatureData[0]!));
+      } catch (error) {
+        throw new Error("OKX approval compilation is invalid", { cause: error });
+      }
+      const decoded = decodeFunctionData({ abi: erc20Abi, data: approval.approveTxCalldata });
+      if (decoded.functionName !== "approve" || !isAddressEqual(decoded.args[0], approval.approveContract) ||
+          decoded.args[1] !== BigInt(input.inputAtomic)) throw new Error("OKX approval compilation mismatch");
+    } else if (swap.tx.signatureData.length) {
+      throw new Error("OKX native compilation returned unexpected approval metadata");
     }
-    const decoded = decodeFunctionData({ abi: erc20Abi, data: approval.approveTxCalldata });
-    if (decoded.functionName !== "approve" || !isAddressEqual(decoded.args[0], approval.approveContract) ||
-        decoded.args[1] !== BigInt(input.inputAtomic)) throw new Error("OKX approval compilation mismatch");
     const route = swap.routerResult;
     const tx = swap.tx;
     if (route.chainIndex !== String(input.chainId) || route.fromTokenAmount !== input.inputAtomic ||
@@ -87,7 +94,8 @@ export function createOkxGeneralAssetSwapCompilerV1(options: {
       throw new Error("OKX route asset mismatch");
     }
     if (!isAddressEqual(tx.from, input.executor)) throw new Error("OKX swap sender mismatch");
-    if (tx.value !== "0") throw new Error("OKX ERC20 swap value mismatch");
+    const expectedValue = nativeInput ? input.inputAtomic : "0";
+    if (tx.value !== expectedValue) throw new Error("OKX swap value mismatch");
     if (tx.slippagePercent !== slip) throw new Error("OKX swap slippage mismatch");
     if (BigInt(tx.minReceiveAmount) < BigInt(input.minimumOutputAtomic)) {
       throw new Error("OKX swap minimum output mismatch");
@@ -98,9 +106,10 @@ export function createOkxGeneralAssetSwapCompilerV1(options: {
     }
     const fetchedAtSec = Math.floor(now().getTime() / 1_000);
     const source = { swapRequest, swap: swapRaw };
-    return { target: tx.to, data: tx.data, valueAtomic: "0" as const, gasLimit,
-      approval: { spender: approval.approveContract, maximumAtomic: input.inputAtomic,
-        data: approval.approveTxCalldata }, quoteHash: commitment(source) as Hash,
+    return { target: tx.to, data: tx.data, valueAtomic: expectedValue, gasLimit,
+      ...(approval ? { approval: { spender: approval.approveContract,
+        maximumAtomic: input.inputAtomic, data: approval.approveTxCalldata } } : {}),
+      quoteHash: commitment(source) as Hash,
       fetchedAtSec, expiresAtSec: fetchedAtSec + 30, source };
   } };
 }

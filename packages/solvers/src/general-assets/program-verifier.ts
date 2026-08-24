@@ -15,6 +15,7 @@ import {
   type RegisteredAdapterManifestV1,
 } from "./adapter-manifest";
 import { assessGeneralAssetStageFlowV1, type GeneralAssetStageReplayV1 } from "./asset-flow";
+import { compileGenericCallV1, isGenericCallV1 } from "./generic-call";
 
 export interface CompiledGeneralAssetStageV1 {
   stageId: Hash;
@@ -218,19 +219,20 @@ export async function verifyGeneralAssetProgramV1(
   const replays: GeneralAssetStageReplayV1[] = [];
   for (const stage of program.stages) {
     if (!allowed.has(adapterKey(stage.adapter))) errors.add("ADAPTER_NOT_ALLOWED");
+    const generic = isGenericCallV1(stage);
     const entry = findEntry(manifest, stage);
-    if (!entry) {
+    if (!entry && !generic) {
       errors.add("ADAPTER_UNREGISTERED");
       continue;
     }
     const selector = stage.calldata.slice(0, 10);
-    if (!entry.selectors.includes(selector)) errors.add("SELECTOR_UNREGISTERED");
-    if (stage.targetRuntimeCodeHash !== entry.runtimeCodeHash) errors.add("TARGET_IDENTITY_MISMATCH");
-    if (stage.delivery.kind === "bridge" &&
-        (!entry.bridgeDelivery || entry.bridgeDelivery.destinationChainId !== stage.delivery.destinationChainId)) {
+    if (entry && !entry.selectors.includes(selector)) errors.add("SELECTOR_UNREGISTERED");
+    if (entry && stage.targetRuntimeCodeHash !== entry.runtimeCodeHash) errors.add("TARGET_IDENTITY_MISMATCH");
+    if (stage.delivery.kind === "bridge" && (!entry ||
+        (!entry.bridgeDelivery || entry.bridgeDelivery.destinationChainId !== stage.delivery.destinationChainId))) {
       errors.add("BRIDGE_DELIVERY_UNREGISTERED");
     }
-    if (stage.approvals.some(({ spender }) =>
+    if (entry && stage.approvals.some(({ spender }) =>
       !entry.approvalSpenders.some(({ address }) => address === spender))) {
       errors.add("APPROVAL_SPENDER_UNREGISTERED");
     }
@@ -239,17 +241,23 @@ export async function verifyGeneralAssetProgramV1(
       errors.add("ANCHOR_MISSING");
       continue;
     }
-    if (await input.getCodeHash(stage.chainId, stage.target, anchor.blockNumber) !== entry.runtimeCodeHash) {
+    if (await input.getCodeHash(stage.chainId, stage.target, anchor.blockNumber) !==
+        stage.targetRuntimeCodeHash) {
       errors.add("TARGET_CODE_DRIFT");
     }
     for (const approval of stage.approvals) {
-      const registered = entry.approvalSpenders.find(({ address }) => address === approval.spender);
+      const registered = entry?.approvalSpenders.find(({ address }) => address === approval.spender);
       if (registered && await input.getCodeHash(stage.chainId, approval.spender, anchor.blockNumber) !==
           registered.runtimeCodeHash) {
         errors.add("APPROVAL_SPENDER_CODE_DRIFT");
+      } else if (!registered && generic &&
+          await input.getCodeHash(stage.chainId, approval.spender, anchor.blockNumber) === undefined) {
+        errors.add("APPROVAL_SPENDER_CODE_DRIFT");
       }
     }
-    const compiled = await input.compileStage(stage, entry);
+    const compiled = generic
+      ? compileGenericCallV1(stage, policy, program.deadline)
+      : await input.compileStage(stage, entry!);
     compiledStages.push(compiled);
     if (!sameCompilation(stage, compiled)) errors.add("ADAPTER_COMPILE_MISMATCH");
     if (compiled.expiresAtSec <= input.nowSec) errors.add("QUOTE_EXPIRED");

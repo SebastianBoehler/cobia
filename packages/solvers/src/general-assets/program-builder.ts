@@ -2,6 +2,7 @@ import {
   GeneralAssetPolicyV1Schema,
   GeneralAssetProgramV1Schema,
   commitment,
+  isNativeAssetAddress,
   type GeneralAssetPolicyV1,
 } from "@cobia/domain";
 import { type Address, type Hash, type Hex } from "viem";
@@ -17,7 +18,7 @@ export interface GeneralAssetSwapCompilationV1 {
   data: Hex;
   valueAtomic: string;
   gasLimit: number;
-  approval: { spender: Address; maximumAtomic: string; data: Hex };
+  approval?: { spender: Address; maximumAtomic: string; data: Hex };
   quoteHash: Hash;
   fetchedAtSec: number;
   expiresAtSec: number;
@@ -49,7 +50,7 @@ function evidenceExpiry(evidence: GeneralAssetEvidenceArtifactV1): number {
 function assertSupportedPolicy(policy: GeneralAssetPolicyV1): void {
   if (policy.sourceChainId !== policy.destinationChainId || policy.outputs.length !== 1 ||
       policy.outputs[0]!.chainId !== policy.sourceChainId || policy.limits.maxStages < 1 ||
-      policy.limits.maxCallsPerStage < 1 || policy.limits.maxApprovals < 1 ||
+      policy.limits.maxCallsPerStage < 1 ||
       !policy.allowedAdapters.some(({ id, version }) => id === "okx.swap" && version === 1)) {
     throw new Error("The production general asset solver supports one-stage same-chain OKX swaps only");
   }
@@ -115,10 +116,16 @@ export async function buildGeneralAssetDecisionV1(input: {
   if (!entry.selectors.includes(compiled.data.slice(0, 10))) {
     throw new Error("OKX compiler returned an unregistered selector");
   }
-  if (!entry.approvalSpenders.some(({ address }) => address === compiled.approval.spender)) {
+  const nativeInput = isNativeAssetAddress(policy.input.token);
+  if (nativeInput && compiled.approval) throw new Error("Native input cannot require an approval");
+  if (!nativeInput && !compiled.approval) throw new Error("ERC-20 input requires an exact approval");
+  if (compiled.approval &&
+      !entry.approvalSpenders.some(({ address }) => address === compiled.approval!.spender)) {
     throw new Error("OKX compiler returned an unregistered approval spender");
   }
-  if (compiled.approval.maximumAtomic !== policy.input.maximumAtomic || compiled.valueAtomic !== "0") {
+  const expectedValue = nativeInput ? policy.input.maximumAtomic : "0";
+  if ((!nativeInput && compiled.approval!.maximumAtomic !== policy.input.maximumAtomic) ||
+      compiled.valueAtomic !== expectedValue) {
     throw new Error("OKX compiler exceeded exact input authority");
   }
   const calldataBytes = (compiled.data.length - 2) / 2;
@@ -134,7 +141,8 @@ export async function buildGeneralAssetDecisionV1(input: {
     compiled.expiresAtSec,
   );
   if (programDeadline <= observedAtSec) throw new Error("General asset program has no fresh execution window");
-  const refundTokens = [policy.input.token, output.token].sort() as Address[];
+  const refundTokens = [policy.input.token, output.token]
+    .filter((token) => !isNativeAssetAddress(token)).sort() as Address[];
   const stageId = commitment({
     domain: "cobia.general-asset-stage.v1",
     policyHash: commitment(policy),
@@ -152,7 +160,7 @@ export async function buildGeneralAssetDecisionV1(input: {
     target: entry.target,
     targetRuntimeCodeHash: entry.runtimeCodeHash,
     calldata: compiled.data,
-    nativeValueAtomic: "0",
+    nativeValueAtomic: expectedValue,
     input: {
       token: policy.input.token,
       maximumAtomic: policy.input.maximumAtomic,
@@ -162,8 +170,8 @@ export async function buildGeneralAssetDecisionV1(input: {
     },
     outputs: [{ token: output.token, minimumIncreaseAtomic: output.minimumAtomic,
       identityEvidenceHash: output.identityHash }],
-    approvals: [{ token: policy.input.token, spender: compiled.approval.spender,
-      maximumAtomic: policy.input.maximumAtomic }],
+    approvals: compiled.approval ? [{ token: policy.input.token, spender: compiled.approval.spender,
+      maximumAtomic: policy.input.maximumAtomic }] : [],
     refundTokens,
     finality: { confirmations: 12 },
     delivery: { kind: "none" as const },

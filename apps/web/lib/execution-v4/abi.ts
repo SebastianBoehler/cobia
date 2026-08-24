@@ -2,7 +2,7 @@ import { parseAbi } from "viem";
 
 export const COBIA_EXECUTOR_V4_ABI = parseAbi([
   "struct ApprovalV4 { address token; address spender; uint128 amount; }",
-  "struct CallV4 { bytes32 adapterKey; address target; uint96 value; uint32 gasLimit; ApprovalV4[] approvals; bytes data; }",
+  "struct CallV4 { bytes32 adapterKey; address target; bytes32 targetRuntimeCodeHash; uint96 value; uint32 gasLimit; ApprovalV4[] approvals; bytes data; }",
   "struct BalanceConstraintV4 { address token; uint8 kind; uint128 minimum; }",
   "struct ExecutionProgramV4 { bytes32 policyHash; bytes32 manifestHash; bytes32 canonicalProgramHash; bytes32 inputIdentityEvidenceHash; bytes32 outputIdentityEvidenceHash; bytes32 valuationEvidenceHash; bytes32 stageHash; bytes32 simulationHash; uint64 pinnedBlockNumber; bytes32 pinnedBlockHash; uint256 sourceChainId; address owner; address inputToken; address outputToken; uint128 inputAmount; uint128 inputUsdE8; uint64 deadline; bytes32 nonce; address[] refundTokens; CallV4[] calls; BalanceConstraintV4[] constraints; }",
   "struct VerifierAuthorizationV4 { address executor; uint256 chainId; bytes32 executionCommitment; bytes32 policyHash; bytes32 manifestHash; bytes32 canonicalProgramHash; bytes32 inputIdentityEvidenceHash; bytes32 outputIdentityEvidenceHash; bytes32 valuationEvidenceHash; bytes32 stageHash; bytes32 simulationHash; uint64 pinnedBlockNumber; bytes32 pinnedBlockHash; address owner; address inputToken; address outputToken; uint128 inputAmount; uint128 inputUsdE8; uint64 deadline; bytes32 nonce; }",

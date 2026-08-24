@@ -4,6 +4,7 @@ import {
   HashSchema,
   PositiveAtomicAmountSchema,
 } from "./primitives";
+import { NATIVE_ASSET_ADDRESS } from "./native-asset";
 import { z } from "zod";
 
 export const GeneralAssetChainIdSchema = z.union([z.literal(1), z.literal(196)]);
@@ -42,24 +43,53 @@ const ProxyEvidenceSchema = z.discriminatedUnion("kind", [
   }).strict(),
 ]);
 
-export const AssetIdentityEvidenceV1Schema = z.object({
+const IdentityLifetimeShape = {
   version: z.literal(1),
   chainId: GeneralAssetChainIdSchema,
-  token: CanonicalAddressSchema,
-  runtimeCodeHash: NonZeroHashSchema,
-  proxy: ProxyEvidenceSchema,
-  decimals: z.number().int().min(0).max(36),
-  behaviorModule: z.object({ id: z.literal("plain-erc20"), version: z.literal(1) }).strict(),
   blockNumber: PositiveAtomicAmountSchema,
   blockHash: NonZeroHashSchema,
   capturedAtSec: TimestampSecSchema,
   expiresAtSec: TimestampSecSchema,
-}).strict().superRefine((evidence, context) => {
+};
+
+function validLifetime(evidence: { capturedAtSec: number; expiresAtSec: number }, context: z.RefinementCtx) {
   if (evidence.expiresAtSec <= evidence.capturedAtSec) {
     context.addIssue({ code: "custom", path: ["expiresAtSec"], message: "Evidence expiry must follow capture" });
   }
-});
+}
+
+export const Erc20AssetIdentityEvidenceV1Schema = z.object({
+  ...IdentityLifetimeShape,
+  token: CanonicalAddressSchema.refine((value) => value !== NATIVE_ASSET_ADDRESS,
+    "Native gas requires native identity evidence"),
+  runtimeCodeHash: NonZeroHashSchema,
+  proxy: ProxyEvidenceSchema,
+  decimals: z.number().int().min(0).max(36),
+  behaviorModule: z.object({ id: z.literal("plain-erc20"), version: z.literal(1) }).strict(),
+}).strict().superRefine(validLifetime);
+
+export const NativeAssetIdentityEvidenceV1Schema = z.object({
+  ...IdentityLifetimeShape,
+  token: z.literal(NATIVE_ASSET_ADDRESS),
+  decimals: z.literal(18),
+  behaviorModule: z.object({ id: z.literal("native-gas"), version: z.literal(1) }).strict(),
+}).strict().superRefine(validLifetime);
+
+export const AssetIdentityEvidenceV1Schema = z.union([
+  Erc20AssetIdentityEvidenceV1Schema,
+  NativeAssetIdentityEvidenceV1Schema,
+]);
+export type Erc20AssetIdentityEvidenceV1 = z.infer<typeof Erc20AssetIdentityEvidenceV1Schema>;
+export type NativeAssetIdentityEvidenceV1 = z.infer<typeof NativeAssetIdentityEvidenceV1Schema>;
 export type AssetIdentityEvidenceV1 = z.infer<typeof AssetIdentityEvidenceV1Schema>;
+
+export function stableAssetIdentityV1(evidence: AssetIdentityEvidenceV1) {
+  const common = { version: evidence.version, chainId: evidence.chainId, token: evidence.token,
+    decimals: evidence.decimals, behaviorModule: evidence.behaviorModule };
+  return "runtimeCodeHash" in evidence
+    ? { ...common, runtimeCodeHash: evidence.runtimeCodeHash, proxy: evidence.proxy }
+    : common;
+}
 
 const ValuationQuoteV1Schema = z.object({
   adapter: AdapterSchema,

@@ -6,8 +6,9 @@ Date: 2026-08-24 · Status: approved in chat; implementation checkpoint pending
 
 Cobia must search every route shape its signed V3 and V4 policies can express.
 Plugins provide fast typed access but never decide program admissibility.
-The independent verifier is the sole authority for presenting exact calls to a
-wallet or authorizing an executor program.
+The deployed contract is the immutable hard execution envelope. Inside that
+envelope, the independent verifier is the per-intent authority for presenting
+exact calls to a wallet or authorizing an executor program.
 
 The reference solver may still fail operationally when no honest quote,
 calldata, evidence, or replay can be obtained before the signed deadline. It
@@ -44,7 +45,7 @@ addresses and unsigned configuration are not silently reused.
 
 ## Product boundary
 
-Generation is open-world; authority is signed and deterministic.
+Generation is open-world; contract limits are hard, and policy is verifier-bound.
 
 - The solver may research public contracts and ABIs, query providers, read
   pinned state, build arbitrary calldata, compose stages, and simulate.

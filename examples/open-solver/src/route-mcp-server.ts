@@ -41,9 +41,8 @@ serveStdio(() => {
     inputSchema: z.object({ decisionJson: z.string().min(2) }).strict(),
   }, async ({ decisionJson }) => {
     const decision = SolverDecisionV1Schema.parse(JSON.parse(decisionJson));
-    if (decision.decision !== "submit" || decision.proposalKind !== "transaction-program" ||
-        !decision.providerArtifacts.artifacts.some(({ provider }) => provider === "evm.raw@1")) {
-      throw new Error("Exact-call lane requires a canonical evm.raw@1 transaction proposal");
+    if (decision.decision !== "submit") {
+      throw new Error("Open lane requires a canonical submitted program");
     }
     return result(decision);
   });

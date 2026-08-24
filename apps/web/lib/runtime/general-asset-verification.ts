@@ -1,4 +1,6 @@
 import { AssetIdentityEvidenceV1Schema, AssetValuationEvidenceV1Schema, commitment,
+  isNativeAssetAddress,
+  stableAssetIdentityV1,
   type GeneralAssetPolicyV1,
   type GeneralAssetProgramV1, type GeneralAssetStageV1 } from "@cobia/domain";
 import { verifyGeneralAssetProgramV1, type CompiledGeneralAssetStageV1,
@@ -51,6 +53,9 @@ export async function verifyRawGeneralAssetIdentityV1(
 ): Promise<boolean> {
   if (evidence.capturedAtSec > nowSec || evidence.expiresAtSec <= nowSec) return false;
   const blockNumber = BigInt(evidence.blockNumber);
+  if (!("runtimeCodeHash" in evidence)) {
+    return await reader.blockHash(evidence.chainId, blockNumber) === evidence.blockHash;
+  }
   const [blockHash, runtimeCodeHash, proxy, decimals] = await Promise.all([
     reader.blockHash(evidence.chainId, blockNumber),
     reader.runtimeCodeHash(evidence.chainId, evidence.token, blockNumber),
@@ -66,18 +71,18 @@ function rejected(code: string) {
 }
 
 function stableIdentity(evidence: ReturnType<typeof AssetIdentityEvidenceV1Schema.parse>) {
-  return commitment({ chainId: evidence.chainId, token: evidence.token,
-    runtimeCodeHash: evidence.runtimeCodeHash, proxy: evidence.proxy, decimals: evidence.decimals,
-    behaviorModule: evidence.behaviorModule });
+  return commitment(stableAssetIdentityV1(evidence));
 }
 
 function supportedRoute(input: Input): boolean {
   if (input.program.stages.length !== 1) return false;
   const stage = input.program.stages[0]!;
+  const nativeInput = isNativeAssetAddress(stage.input.token);
   return input.policy.sourceChainId === input.policy.destinationChainId &&
     stage.chainId === input.policy.sourceChainId && stage.adapter.id === "okx.swap" &&
-    stage.adapter.version === 1 && stage.delivery.kind === "none" && stage.nativeValueAtomic === "0" &&
-    stage.outputs.length === 1 && stage.approvals.length === 1;
+    stage.adapter.version === 1 && stage.delivery.kind === "none" &&
+    stage.nativeValueAtomic === (nativeInput ? stage.input.maximumAtomic : "0") &&
+    stage.outputs.length === 1 && stage.approvals.length === (nativeInput ? 0 : 1);
 }
 
 function verificationValidUntil(input: Input, verdict: Extract<Awaited<ReturnType<
@@ -95,20 +100,23 @@ function verificationValidUntil(input: Input, verdict: Extract<Awaited<ReturnTyp
 function compileStage(input: GeneralAssetSwapCompileRequestV1, stage: GeneralAssetStageV1,
   entry: RegisteredAdapterEntryV1, deps: Dependencies) {
   return deps.compileSwap(input).then((swap): CompiledGeneralAssetStageV1 => {
-    const approval = stage.approvals[0]!;
+    const approval = stage.approvals[0];
+    const nativeInput = isNativeAssetAddress(stage.input.token);
     if (!isAddressEqual(swap.target, entry.target) ||
         !entry.selectors.includes(swap.data.slice(0, 10) as Hex) ||
-        !entry.approvalSpenders.some(({ address }) => isAddressEqual(address, swap.approval.spender)) ||
-        !isAddressEqual(approval.token, stage.input.token) ||
-        !isAddressEqual(approval.spender, swap.approval.spender) ||
-        approval.maximumAtomic !== swap.approval.maximumAtomic) {
+        (nativeInput ? Boolean(swap.approval || approval) :
+          !swap.approval || !approval ||
+          !entry.approvalSpenders.some(({ address }) => isAddressEqual(address, swap.approval!.spender)) ||
+          !isAddressEqual(approval.token, stage.input.token) ||
+          !isAddressEqual(approval.spender, swap.approval.spender) ||
+          approval.maximumAtomic !== swap.approval.maximumAtomic)) {
       throw new Error("Authenticated OKX compilation does not match the reviewed manifest and stage");
     }
     return { stageId: stage.stageId, chainId: stage.chainId, adapterKey: ADAPTER_KEY,
       target: swap.target, targetRuntimeCodeHash: entry.runtimeCodeHash, data: swap.data,
       valueAtomic: swap.valueAtomic, gasLimit: swap.gasLimit,
-      approvals: [{ token: stage.input.token, spender: swap.approval.spender,
-        maximumAtomic: swap.approval.maximumAtomic }], refundTokens: stage.refundTokens,
+      approvals: swap.approval ? [{ token: stage.input.token, spender: swap.approval.spender,
+        maximumAtomic: swap.approval.maximumAtomic }] : [], refundTokens: stage.refundTokens,
       quoteHash: swap.quoteHash, expiresAtSec: swap.expiresAtSec };
   });
 }
@@ -131,6 +139,7 @@ function execution(verdict: Extract<Awaited<ReturnType<typeof verifyGeneralAsset
     deadline: BigInt(validUntilSec),
     nonce: generalAssetStageNonceV4(verdict.policy.nonce, stage), refundTokens: compiled.refundTokens,
     calls: [{ adapterKey: compiled.adapterKey, target: compiled.target,
+      targetRuntimeCodeHash: compiled.targetRuntimeCodeHash,
       value: BigInt(compiled.valueAtomic), gasLimit: compiled.gasLimit,
       approvals: compiled.approvals.map(({ token, spender, maximumAtomic }) =>
         ({ token, spender, amount: BigInt(maximumAtomic) })), data: compiled.data }],

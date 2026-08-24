@@ -13,6 +13,7 @@ export interface ApprovalV4 { token: Address; spender: Address; amount: bigint }
 export interface CallV4 {
   adapterKey: Hash;
   target: Address;
+  targetRuntimeCodeHash: Hash;
   value: bigint;
   gasLimit: number;
   approvals: ApprovalV4[];
@@ -70,7 +71,7 @@ export interface VerifierAuthorizationV4 {
 }
 
 const programParameters = parseAbiParameters(
-  "(bytes32 policyHash,bytes32 manifestHash,bytes32 canonicalProgramHash,bytes32 inputIdentityEvidenceHash,bytes32 outputIdentityEvidenceHash,bytes32 valuationEvidenceHash,bytes32 stageHash,bytes32 simulationHash,uint64 pinnedBlockNumber,bytes32 pinnedBlockHash,uint256 sourceChainId,address owner,address inputToken,address outputToken,uint128 inputAmount,uint128 inputUsdE8,uint64 deadline,bytes32 nonce,address[] refundTokens,(bytes32 adapterKey,address target,uint96 value,uint32 gasLimit,(address token,address spender,uint128 amount)[] approvals,bytes data)[] calls,(address token,uint8 kind,uint128 minimum)[] constraints)",
+  "(bytes32 policyHash,bytes32 manifestHash,bytes32 canonicalProgramHash,bytes32 inputIdentityEvidenceHash,bytes32 outputIdentityEvidenceHash,bytes32 valuationEvidenceHash,bytes32 stageHash,bytes32 simulationHash,uint64 pinnedBlockNumber,bytes32 pinnedBlockHash,uint256 sourceChainId,address owner,address inputToken,address outputToken,uint128 inputAmount,uint128 inputUsdE8,uint64 deadline,bytes32 nonce,address[] refundTokens,(bytes32 adapterKey,address target,bytes32 targetRuntimeCodeHash,uint96 value,uint32 gasLimit,(address token,address spender,uint128 amount)[] approvals,bytes data)[] calls,(address token,uint8 kind,uint128 minimum)[] constraints)",
 );
 const authorizationParameters = parseAbiParameters(
   "(address executor,uint256 chainId,bytes32 executionCommitment,bytes32 policyHash,bytes32 manifestHash,bytes32 canonicalProgramHash,bytes32 inputIdentityEvidenceHash,bytes32 outputIdentityEvidenceHash,bytes32 valuationEvidenceHash,bytes32 stageHash,bytes32 simulationHash,uint64 pinnedBlockNumber,bytes32 pinnedBlockHash,address owner,address inputToken,address outputToken,uint128 inputAmount,uint128 inputUsdE8,uint64 deadline,bytes32 nonce)",
@@ -80,6 +81,7 @@ const CALLDATA = /^0x(?:[0-9a-fA-F]{2}){4,}$/;
 const UINT64_MAX = (1n << 64n) - 1n;
 const UINT96_MAX = (1n << 96n) - 1n;
 const UINT128_MAX = (1n << 128n) - 1n;
+const NATIVE_ASSET = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 
 function assertHash(value: string, label: string): asserts value is Hash {
   if (!HASH.test(value) || /^0x0{64}$/i.test(value)) throw new Error(`${label} must be nonzero bytes32`);
@@ -113,7 +115,8 @@ export function assertExecutionProgramV4(value: ExecutionProgramV4): void {
   value.refundTokens.forEach((token) => assertAddress(token, "refund token"));
   assertSortedUnique(value.refundTokens, "Refund tokens");
   const refunds = new Set(value.refundTokens.map((token) => token.toLowerCase()));
-  if (!refunds.has(value.inputToken.toLowerCase()) || !refunds.has(value.outputToken.toLowerCase())) {
+  if ((value.inputToken.toLowerCase() !== NATIVE_ASSET && !refunds.has(value.inputToken.toLowerCase())) ||
+      (value.outputToken.toLowerCase() !== NATIVE_ASSET && !refunds.has(value.outputToken.toLowerCase()))) {
     throw new Error("Input and output tokens must be refundable");
   }
 
@@ -122,6 +125,7 @@ export function assertExecutionProgramV4(value: ExecutionProgramV4): void {
   let totalGas = 0;
   for (const call of value.calls) {
     assertHash(call.adapterKey, "adapterKey");
+    assertHash(call.targetRuntimeCodeHash, "targetRuntimeCodeHash");
     assertAddress(call.target, "call target");
     if (call.value < 0n || call.value > UINT96_MAX || !Number.isInteger(call.gasLimit) ||
         call.gasLimit < 21_000 || call.gasLimit > 1_000_000 || !CALLDATA.test(call.data)) {
@@ -134,6 +138,7 @@ export function assertExecutionProgramV4(value: ExecutionProgramV4): void {
     call.approvals.forEach(({ token, spender }) => {
       assertAddress(token, "approval token");
       assertAddress(spender, "approval spender");
+      if (token.toLowerCase() === NATIVE_ASSET) throw new Error("Native assets cannot be approved");
     });
     assertSortedUnique(approved, "Approval token-spender pairs");
     for (const approval of call.approvals) {
@@ -150,7 +155,11 @@ export function assertExecutionProgramV4(value: ExecutionProgramV4): void {
   assertSortedUnique(constrained, "Constraint tokens");
   for (const constraint of value.constraints) {
     assertUint(constraint.minimum, UINT128_MAX, "constraint minimum");
-    if (!refunds.has(constraint.token.toLowerCase())) throw new Error("Constraint token must be refundable");
+    if (constraint.token.toLowerCase() === NATIVE_ASSET) {
+      if (constraint.kind !== 1) throw new Error("Native constraints must measure an increase");
+    } else if (!refunds.has(constraint.token.toLowerCase())) {
+      throw new Error("Constraint token must be refundable");
+    }
   }
   if (!constrained.some((token) => token.toLowerCase() === value.outputToken.toLowerCase())) {
     throw new Error("Output token requires a final constraint");

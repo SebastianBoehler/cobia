@@ -103,8 +103,12 @@ export const GeneralAssetProgramV1Schema = z.object({
     }
     if (index < program.stages.length - 1) {
       const next = program.stages[index + 1]!;
-      if (stage.delivery.kind !== "bridge" || stage.delivery.destinationChainId !== next.chainId) {
-        context.addIssue({ code: "custom", path: ["stages", index, "delivery"], message: "Stage delivery must reach the next chain" });
+      const validSameChain = stage.chainId === next.chainId && stage.delivery.kind === "none";
+      const validBridge = stage.chainId !== next.chainId && stage.delivery.kind === "bridge" &&
+        stage.delivery.destinationChainId === next.chainId;
+      if (!validSameChain && !validBridge) {
+        context.addIssue({ code: "custom", path: ["stages", index, "delivery"],
+          message: "Stage delivery must match the next chain" });
       }
     } else if (stage.delivery.kind !== "none") {
       context.addIssue({ code: "custom", path: ["stages", index, "delivery"], message: "Final stage cannot declare another delivery" });

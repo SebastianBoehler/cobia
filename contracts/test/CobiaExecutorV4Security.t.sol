@@ -49,7 +49,7 @@ contract CobiaExecutorV4SecurityTest is ExecutorV4TestBase {
         expectOwnerRevert(CobiaExecutorV4.InvalidProgram.selector, value);
     }
 
-    function test_registryCodeDriftApprovalCleanupAndPreexistingResidueProtection() public {
+    function test_codeDriftApprovalCleanupAndPreexistingResidueProtection() public {
         input.mint(address(executor), 50);
         CobiaExecutionTypesV4.ExecutionProgramV4 memory value = program(100);
         executeAsOwner(value);
@@ -58,7 +58,7 @@ contract CobiaExecutorV4SecurityTest is ExecutorV4TestBase {
 
         value = program(101);
         vm.etch(address(adapter), hex"00");
-        expectOwnerRevert(CobiaExecutorV4.PermissionInactive.selector, value);
+        expectOwnerRevert(CobiaExecutorV4.TargetCodeIdentityChanged.selector, value);
     }
 
     function test_rejectsZeroOrExecutorApprovalSpender() public {

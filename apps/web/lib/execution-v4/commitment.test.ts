@@ -39,6 +39,7 @@ function program(): ExecutionProgramV4 {
     calls: [{
       adapterKey: hash("b"),
       target,
+      targetRuntimeCodeHash: hash("c"),
       value: 123n,
       gasLimit: 300_000,
       approvals: [{ token: inputToken, spender, amount: 1_000_000n }],
@@ -53,8 +54,8 @@ describe("ExecutorV4 commitments", () => {
     const value = program();
     const authorization = buildAuthorizationV4(value, executor);
 
-    expect(executionProgramHashV4(value)).toBe("0x12ba65e0c6f546afcee3930a8d32de483c1e468b2b0507e81287bb10ed22910f");
-    expect(authorizationPayloadHashV4(authorization)).toBe("0xad0e54c9297e926a6a499b7c0f242996f379586e94f7317fe53483a693eee94f");
+    expect(executionProgramHashV4(value)).toBe("0x8ae1af7da9ef344cd290d9146688153235392fc642d18f7ba7f6e283a1e5935f");
+    expect(authorizationPayloadHashV4(authorization)).toBe("0xe1eab017f801b03271b1b7a40b3b2914ebe97ee4d80cf6b8fcc9f81322d07d61");
   });
 
   it("binds every program field including USD, gas, native value, and exact assets", () => {
@@ -71,6 +72,7 @@ describe("ExecutorV4 commitments", () => {
       { ...value, stageHash: hash("c") },
       { ...value, calls: [{ ...value.calls[0]!, adapterKey: hash("c") }] },
       { ...value, calls: [{ ...value.calls[0]!, target: owner }] },
+      { ...value, calls: [{ ...value.calls[0]!, targetRuntimeCodeHash: hash("d") }] },
       { ...value, calls: [{ ...value.calls[0]!, data: "0xdeadbeef" }] },
       { ...value, calls: [{ ...value.calls[0]!, value: 124n }] },
       { ...value, calls: [{ ...value.calls[0]!, gasLimit: 300_001 }] },

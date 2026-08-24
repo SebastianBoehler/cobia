@@ -116,6 +116,7 @@ describe("production general asset proposal verification", () => {
 
   it("independently rereads every baseline identity field at its pinned block", async () => {
     const evidence = fixture().input.identityEvidence[0]!;
+    if (!("runtimeCodeHash" in evidence)) throw new Error("Expected ERC-20 evidence");
     const reader = { latestBlockNumber: vi.fn(),
       blockHash: vi.fn(async () => evidence.blockHash),
       runtimeCodeHash: vi.fn(async () => evidence.runtimeCodeHash),
@@ -131,6 +132,7 @@ describe("production general asset proposal verification", () => {
     const refreshAsset = async (request: { token: Address; inputAtomic?: string }) => {
       const result = await value.refreshAsset(request);
       if (request.token !== inputToken || !result.identityEvidence) return result;
+      if (!("runtimeCodeHash" in result.identityEvidence)) return result;
       const identityEvidence = { ...result.identityEvidence, decimals: 6 };
       return { ...result, identityHash: commitment(identityEvidence), identityEvidence };
     };

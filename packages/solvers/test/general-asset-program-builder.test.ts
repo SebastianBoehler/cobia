@@ -2,6 +2,7 @@ import {
   AssetIdentityEvidenceV1Schema,
   AssetValuationEvidenceV1Schema,
   GeneralAssetPolicyV1Schema,
+  NATIVE_ASSET_ADDRESS,
   commitment,
 } from "@cobia/domain";
 import { describe, expect, it } from "vitest";
@@ -83,6 +84,36 @@ describe("general asset program builder", () => {
       },
       evidence,
     });
+  });
+
+  it("builds native gas input with exact value and no approval", async () => {
+    const nativeIdentity = AssetIdentityEvidenceV1Schema.parse({
+      version: 1, chainId: 196, token: NATIVE_ASSET_ADDRESS, decimals: 18,
+      behaviorModule: { id: "native-gas", version: 1 }, blockNumber: "123",
+      blockHash: hash("2"), capturedAtSec: 2_000_000_000, expiresAtSec: 2_000_000_300,
+    });
+    const nativeValuation = AssetValuationEvidenceV1Schema.parse({
+      ...valuation, assetIdentityHash: commitment(nativeIdentity), inputAtomic: "100",
+    });
+    const nativeEvidence = { ...evidence,
+      identities: [nativeIdentity, outputIdentity], valuations: [nativeValuation] };
+    const nativePolicy = GeneralAssetPolicyV1Schema.parse({ ...policy,
+      manifestHash: commitment(nativeEvidence.manifest),
+      inputIdentityHash: commitment(nativeIdentity),
+      inputValuationHash: commitment(nativeValuation),
+      input: { ...policy.input, token: NATIVE_ASSET_ADDRESS },
+      limits: { ...policy.limits, maxApprovals: 0 },
+    });
+
+    const decision = await buildGeneralAssetDecisionV1({
+      policy: nativePolicy, evidence: nativeEvidence, executor, nowSec: 2_000_000_001,
+      compile: async () => ({ ...(await compile()), valueAtomic: "100", approval: undefined }),
+    });
+
+    expect(decision).toMatchObject({ decision: "submit", program: { stages: [{
+      input: { token: NATIVE_ASSET_ADDRESS }, nativeValueAtomic: "100", approvals: [],
+      refundTokens: [outputToken],
+    }] } });
   });
 
   it("does not make baseline evidence expiry the execution deadline", async () => {

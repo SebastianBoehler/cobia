@@ -1,4 +1,5 @@
 import { AssetIdentityEvidenceV1Schema, AssetValuationEvidenceV1Schema, commitment,
+  stableAssetIdentityV1,
   type GeneralAssetPolicyV1, type GeneralAssetProgramV1 } from "@cobia/domain";
 import { assessGeneralAssetStageFlowV1, type GeneralAssetEvidenceArtifactV1 } from "@cobia/solvers";
 import { decodeFunctionData, isAddressEqual, keccak256, recoverTypedDataAddress, stringToHex,
@@ -102,9 +103,7 @@ function assertExecutionProgram(input: {
 }
 
 function stableIdentity(value: z.infer<typeof AssetIdentityEvidenceV1Schema>) {
-  return commitment({ chainId: value.chainId, token: value.token,
-    runtimeCodeHash: value.runtimeCodeHash, proxy: value.proxy, decimals: value.decimals,
-    behaviorModule: value.behaviorModule });
+  return commitment(stableAssetIdentityV1(value));
 }
 
 function validateFreshEvidence(input: { verdict: GeneralAssetSolutionVerdictV1;

@@ -14,6 +14,8 @@ import {CobiaRiskManagerV2} from "./CobiaRiskManagerV2.sol";
 contract CobiaExecutorV4 is EIP712, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
+    address public constant NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
     uint256 public constant MAX_CALLS = 8;
     uint256 public constant MAX_APPROVALS = 16;
     uint256 public constant MAX_CONSTRAINTS = 8;
@@ -32,6 +34,7 @@ contract CobiaExecutorV4 is EIP712, ReentrancyGuard {
     error NativeRefundFailed();
     error NonceAlreadyUsed();
     error PermissionInactive();
+    error TargetCodeIdentityChanged();
     error VerifierSignatureInvalid();
     error WalletDebitExceeded();
 
@@ -56,6 +59,8 @@ contract CobiaExecutorV4 is EIP712, ReentrancyGuard {
         riskManager = riskManager_;
     }
 
+    receive() external payable {}
+
     function execute(
         Types.ExecutionProgramV4 calldata program,
         Types.VerifierAuthorizationV4 calldata authorization,
@@ -68,19 +73,7 @@ contract CobiaExecutorV4 is EIP712, ReentrancyGuard {
         nonceUsed[program.owner][program.nonce] = true;
         riskManager.consumeUsd(program.owner, program.inputUsdE8);
 
-        uint256 ownerInputBefore = IERC20(program.inputToken).balanceOf(program.owner);
-        uint256[] memory constraintBalances = _constraintBalances(program);
-        uint256[] memory executorBalances = _refundBalances(program.refundTokens);
-        uint256 nativeBefore = address(this).balance - msg.value;
-
-        IERC20(program.inputToken).safeTransferFrom(program.owner, address(this), program.inputAmount);
-        for (uint256 index; index < program.calls.length; ++index) {
-            _executeCall(program.calls[index]);
-        }
-        _refundTokens(program.owner, program.refundTokens, executorBalances);
-        _refundNative(program.owner, nativeBefore);
-        _assertWalletDebit(program, ownerInputBefore);
-        _assertConstraints(program, constraintBalances);
+        _executeProgram(program);
 
         emit ProgramExecuted(
             program.owner,
@@ -90,6 +83,25 @@ contract CobiaExecutorV4 is EIP712, ReentrancyGuard {
             program.simulationHash,
             program.inputUsdE8
         );
+    }
+
+    function _executeProgram(Types.ExecutionProgramV4 calldata program) private {
+        bool nativeInput = program.inputToken == NATIVE_ASSET;
+        uint256 ownerInputBefore = nativeInput ? 0 : IERC20(program.inputToken).balanceOf(program.owner);
+        uint256[] memory constraintBalances = _constraintBalances(program);
+        uint256[] memory executorBalances = _refundBalances(program.refundTokens);
+        uint256 nativeBefore = address(this).balance - msg.value;
+
+        if (!nativeInput) {
+            IERC20(program.inputToken).safeTransferFrom(program.owner, address(this), program.inputAmount);
+        }
+        for (uint256 index; index < program.calls.length; ++index) {
+            _executeCall(program.calls[index]);
+        }
+        _refundTokens(program.owner, program.refundTokens, executorBalances);
+        uint256 nativeRefunded = _refundNative(program.owner, nativeBefore);
+        _assertWalletDebit(program, ownerInputBefore);
+        _assertConstraints(program, constraintBalances, nativeRefunded);
     }
 
     function executionProgramHash(Types.ExecutionProgramV4 memory program) public pure returns (bytes32) {
@@ -150,12 +162,7 @@ contract CobiaExecutorV4 is EIP712, ReentrancyGuard {
     }
 
     function _executeCall(Types.CallV4 calldata call_) private {
-        bytes4 selector;
-        bytes calldata data = call_.data;
-        assembly {
-            selector := calldataload(data.offset)
-        }
-        if (!registry.isActive(call_.adapterKey, call_.target, selector)) revert PermissionInactive();
+        if (call_.target.codehash != call_.targetRuntimeCodeHash) revert TargetCodeIdentityChanged();
         for (uint256 index; index < call_.approvals.length; ++index) {
             IERC20(call_.approvals[index].token).forceApprove(
                 call_.approvals[index].spender, call_.approvals[index].amount
@@ -175,7 +182,8 @@ contract CobiaExecutorV4 is EIP712, ReentrancyGuard {
     {
         balances = new uint256[](program.constraints.length);
         for (uint256 index; index < program.constraints.length; ++index) {
-            balances[index] = IERC20(program.constraints[index].token).balanceOf(program.owner);
+            address token = program.constraints[index].token;
+            balances[index] = token == NATIVE_ASSET ? 0 : IERC20(token).balanceOf(program.owner);
         }
     }
 
@@ -197,10 +205,10 @@ contract CobiaExecutorV4 is EIP712, ReentrancyGuard {
         }
     }
 
-    function _refundNative(address owner, uint256 nativeBefore) private {
+    function _refundNative(address owner, uint256 nativeBefore) private returns (uint256 refundable) {
         uint256 balance = address(this).balance;
         if (balance < nativeBefore) revert ExecutorBalanceConsumed();
-        uint256 refundable = balance - nativeBefore;
+        refundable = balance - nativeBefore;
         if (refundable != 0) {
             (bool success,) = owner.call{value: refundable}("");
             if (!success) revert NativeRefundFailed();
@@ -208,12 +216,20 @@ contract CobiaExecutorV4 is EIP712, ReentrancyGuard {
         if (address(this).balance != nativeBefore) revert ExecutorBalanceConsumed();
     }
 
-    function _assertConstraints(Types.ExecutionProgramV4 calldata program, uint256[] memory beforeBalances)
+    function _assertConstraints(
+        Types.ExecutionProgramV4 calldata program,
+        uint256[] memory beforeBalances,
+        uint256 nativeRefunded
+    )
         private
         view
     {
         for (uint256 index; index < program.constraints.length; ++index) {
             Types.BalanceConstraintV4 calldata constraint = program.constraints[index];
+            if (constraint.token == NATIVE_ASSET) {
+                if (nativeRefunded < constraint.minimum) revert FinalBalanceBelowMinimum();
+                continue;
+            }
             uint256 afterBalance = IERC20(constraint.token).balanceOf(program.owner);
             uint256 minimum = constraint.kind == Types.ConstraintKind.Absolute
                 ? constraint.minimum
@@ -223,6 +239,7 @@ contract CobiaExecutorV4 is EIP712, ReentrancyGuard {
     }
 
     function _assertWalletDebit(Types.ExecutionProgramV4 calldata program, uint256 ownerInputBefore) private view {
+        if (program.inputToken == NATIVE_ASSET) return;
         uint256 afterBalance = IERC20(program.inputToken).balanceOf(program.owner);
         if (afterBalance < ownerInputBefore && ownerInputBefore - afterBalance > program.inputAmount) {
             revert WalletDebitExceeded();

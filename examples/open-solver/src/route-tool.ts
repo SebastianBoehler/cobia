@@ -22,7 +22,7 @@ export const REFERENCE_CAPABILITY_DECLARATION = {
   version: 1 as const,
   declarationKind: "operator" as const,
   capabilities: REFERENCE_CAPABILITIES,
-  openLane: "transaction-program/evm.raw@1" as const,
+  openLane: "verifier-authorized-program@1" as const,
 };
 
 interface Dependencies {

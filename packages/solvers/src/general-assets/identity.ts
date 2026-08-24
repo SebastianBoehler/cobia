@@ -1,12 +1,13 @@
 import {
   AssetIdentityEvidenceV1Schema,
   type AssetIdentityEvidenceV1,
+  type Erc20AssetIdentityEvidenceV1,
 } from "@cobia/domain";
 import type { Address, Hash } from "viem";
 
 export type GeneralAssetChainId = 1 | 196;
 export type GeneralAsset = { chainId: GeneralAssetChainId; token: Address };
-export type ProxyIdentityV1 = AssetIdentityEvidenceV1["proxy"];
+export type ProxyIdentityV1 = Erc20AssetIdentityEvidenceV1["proxy"];
 
 export interface ClaimedAssetIdentityV1 {
   runtimeCodeHash: Hash;

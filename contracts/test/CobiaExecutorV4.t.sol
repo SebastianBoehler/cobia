@@ -6,7 +6,7 @@ import {CobiaExecutorV4} from "../src/CobiaExecutorV4.sol";
 import {ExecutorV4TestBase} from "./utils/ExecutorV4TestBase.sol";
 
 contract CobiaExecutorV4Test is ExecutorV4TestBase {
-    function test_executesAnyVerifiedTokenPairThroughARegisteredAdapter() public {
+    function test_executesAnyVerifiedTokenPairWithoutRegistryAdmission() public {
         CobiaExecutionTypesV4.ExecutionProgramV4 memory value = program(1_000_000);
         executeAsOwner(value);
 
@@ -46,15 +46,35 @@ contract CobiaExecutorV4Test is ExecutorV4TestBase {
         assert(address(adapter).balance == 1);
     }
 
+    function test_executesNativeInputWithoutTokenApproval() public {
+        CobiaExecutionTypesV4.ExecutionProgramV4 memory value = nativeInputProgram(1_000_000);
+        uint256 beforeBalance = OWNER.balance;
+        executeAsOwner(value);
+
+        assert(OWNER.balance == beforeBalance - 1_000_000);
+        assert(output.balanceOf(OWNER) == 1_000_000);
+        assert(address(executor).balance == 0);
+    }
+
+    function test_refundsVerifiedNativeOutputToTheOwner() public {
+        CobiaExecutionTypesV4.ExecutionProgramV4 memory value = nativeOutputProgram(1_000_000);
+        uint256 beforeBalance = OWNER.balance;
+        executeAsOwner(value);
+
+        assert(OWNER.balance == beforeBalance + 1_000_000);
+        assert(address(executor).balance == 0);
+        assert(input.balanceOf(address(adapter)) == 1_000_000);
+    }
+
     function test_executionAndAuthorizationPayloadHashesMatchFrozenTypeScriptVectors() public view {
         CobiaExecutionTypesV4.ExecutionProgramV4 memory value = _interopProgram();
         CobiaExecutionTypesV4.VerifierAuthorizationV4 memory auth = _interopAuthorization(value);
         assert(
-            executor.executionProgramHash(value) == 0x12ba65e0c6f546afcee3930a8d32de483c1e468b2b0507e81287bb10ed22910f
+            executor.executionProgramHash(value) == 0x8ae1af7da9ef344cd290d9146688153235392fc642d18f7ba7f6e283a1e5935f
         );
         assert(
             executor.authorizationPayloadHash(auth)
-                == 0xad0e54c9297e926a6a499b7c0f242996f379586e94f7317fe53483a693eee94f
+                == 0xe1eab017f801b03271b1b7a40b3b2914ebe97ee4d80cf6b8fcc9f81322d07d61
         );
     }
 
@@ -70,6 +90,7 @@ contract CobiaExecutorV4Test is ExecutorV4TestBase {
         calls[0] = CobiaExecutionTypesV4.CallV4(
             bytes32(uint256(type(uint256).max) / 0xff * 0xbb),
             address(0x3333333333333333333333333333333333333333),
+            _repeat(0xcc),
             123,
             300_000,
             approvals,

@@ -16,6 +16,7 @@ library CobiaExecutionTypesV4 {
     struct CallV4 {
         bytes32 adapterKey;
         address target;
+        bytes32 targetRuntimeCodeHash;
         uint96 value;
         uint32 gasLimit;
         ApprovalV4[] approvals;

@@ -2,6 +2,7 @@ import {
   AssetIdentityEvidenceV1Schema,
   AssetValuationEvidenceV1Schema,
   GeneralAssetPolicyV1Schema,
+  NATIVE_ASSET_ADDRESS,
   parseAssetIdentityEvidenceV1,
   parseAssetValuationEvidenceV1,
   parseGeneralAssetPolicyV1,
@@ -105,6 +106,20 @@ describe("general asset evidence", () => {
     expect(AssetValuationEvidenceV1Schema.parse(valuation())).toMatchObject({
       conservativeValueUsdE8: "300000000000",
     });
+  });
+
+  it("represents native gas identity without fake token bytecode or proxy evidence", () => {
+    const native = AssetIdentityEvidenceV1Schema.parse({
+      version: 1, chainId: 196, token: NATIVE_ASSET_ADDRESS, decimals: 18,
+      behaviorModule: { id: "native-gas", version: 1 },
+      blockNumber: "123", blockHash: hash("9"),
+      capturedAtSec: 2_000_000_000, expiresAtSec: 2_000_000_300,
+    });
+
+    expect(native).toMatchObject({ token: NATIVE_ASSET_ADDRESS,
+      behaviorModule: { id: "native-gas" } });
+    expect(native).not.toHaveProperty("runtimeCodeHash");
+    expect(native).not.toHaveProperty("proxy");
   });
 
   it("rejects expired evidence and zero token authority", () => {

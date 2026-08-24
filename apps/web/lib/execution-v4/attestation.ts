@@ -1,4 +1,4 @@
-import { commitment } from "@cobia/domain";
+import { commitment, isNativeAssetAddress } from "@cobia/domain";
 import type { GeneralAssetProgramVerdictV1 } from "@cobia/solvers";
 import {
   encodeFunctionData,
@@ -96,6 +96,7 @@ function assertMatchesVerifiedStage(
   const expectedCall = {
     adapterKey: compiled.adapterKey,
     target: compiled.target,
+    targetRuntimeCodeHash: compiled.targetRuntimeCodeHash,
     value: BigInt(compiled.valueAtomic),
     gasLimit: compiled.gasLimit,
     approvals: compiled.approvals.map(({ token, spender, maximumAtomic }) => {
@@ -145,7 +146,9 @@ export async function attestExecutionProgramV4(input: {
   }
   const signature = await input.signTypedData(authorizationTypedDataV4(authorization));
   if (!/^0x[0-9a-fA-F]{130}$/.test(signature)) throw new Error("Verifier signature must contain 65 bytes");
-  const nativeValue = input.execution.calls.reduce((total, call) => total + call.value, 0n);
+  const nativeValue = isNativeAssetAddress(input.execution.inputToken)
+    ? input.execution.inputAmount
+    : input.execution.calls.reduce((total, call) => total + call.value, 0n);
   const data = encodeFunctionData({
     abi: COBIA_EXECUTOR_V4_ABI,
     functionName: "execute",

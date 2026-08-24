@@ -89,7 +89,8 @@ const executionProgram: ExecutionProgramV4 = {
   pinnedBlockNumber: 124n, pinnedBlockHash: hash("b"), sourceChainId: 1n,
   owner: policy.owner, inputToken, outputToken, inputAmount: 100n, inputUsdE8: 100000000n,
   deadline: BigInt(program.deadline), nonce: hash("e"), refundTokens: [inputToken, outputToken],
-  calls: [{ adapterKey: hash("f"), target, value: 0n, gasLimit: 300_000,
+  calls: [{ adapterKey: hash("f"), target, targetRuntimeCodeHash: hash("a"),
+    value: 0n, gasLimit: 300_000,
     approvals: [], data: "0x12345678" }],
   constraints: [{ token: outputToken, kind: 1, minimum: 90n }],
 };
