@@ -54,6 +54,22 @@ describe("agent executor V4 deployment plan", () => {
     })).toThrow(/unique/i);
   });
 
+  it("builds an open execution plan without plugin permissions", () => {
+    const plan = buildAgentExecutorDeploymentPlanV4({
+      chainId: 196, deployer: address("1"), deployerNonce: 0n,
+      owner: address("2"), verifier: address("3"), canaryWallet: address("4"), registry: address("5"),
+      artifacts: { riskManager: riskArtifact, executor: executorArtifact }, adapters: [], migration,
+    });
+
+    expect(plan.adapters).toEqual([]);
+    expect(plan.proposalTransactions.map(({ label }) => label)).toEqual([
+      "propose-canary-wallet", "propose-unpause",
+    ]);
+    expect(plan.activationTransactions.map(({ label }) => label)).toEqual([
+      "activate-canary-wallet", "activate-unpause",
+    ]);
+  });
+
   it("rejects an open plan whose combined V3 and V4 budget exceeds the migration ceiling", () => {
     expect(() => buildAgentExecutorDeploymentPlanV4({ chainId: 196, deployer: address("1"), deployerNonce: 0n,
       owner: address("2"), verifier: address("3"), canaryWallet: address("4"), registry: address("5"),

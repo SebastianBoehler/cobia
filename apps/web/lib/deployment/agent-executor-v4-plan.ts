@@ -62,7 +62,7 @@ export function buildAgentExecutorDeploymentPlanV4(input: {
   adapters: readonly AdapterPermission[];
   migration: PartitionedMigrationBudgetInputV4;
 }) {
-  if (input.deployerNonce < 0n || input.adapters.length === 0) {
+  if (input.deployerNonce < 0n) {
     throw new Error("V4 deployment plan is incomplete");
   }
   const identities = input.adapters.map((adapter) =>

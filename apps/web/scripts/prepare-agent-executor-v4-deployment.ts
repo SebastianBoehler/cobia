@@ -21,7 +21,7 @@ const SELECTOR = /^0x[0-9a-f]{8}$/;
 
 function adapters(path: string): AdapterFile[] {
   const value = JSON.parse(readFileSync(path, "utf8")) as unknown;
-  if (!Array.isArray(value) || value.length === 0) throw new Error("Adapter input must be a nonempty array");
+  if (!Array.isArray(value)) throw new Error("Adapter input must be an array");
   return value.map((entry) => {
     if (!entry || typeof entry !== "object") throw new Error("Adapter input is malformed");
     const item = entry as Record<string, unknown>;

@@ -4,13 +4,13 @@ This runbook prepares and verifies V4 on Ethereum (`1`) and X Layer (`196`). The
 
 ## Required reviewed inputs
 
-For each chain, freeze a JSON adapter manifest containing only registered LI.FI, OKX, or semantic permissions:
+For each chain, freeze a JSON plugin manifest containing only optional semantic permissions for LI.FI, OKX, or another reviewed fast-path plugin:
 
 ```json
 [{"adapterId":"0x...","target":"0x...","selector":"0x12345678","runtimeCodeHash":"0x..."}]
 ```
 
-[`general-asset-v4-adapters.example.json`](./general-asset-v4-adapters.example.json) is a shape-only fixture; its placeholder identities are not production permissions.
+Use `[]` when the deployment does not need a semantic plugin. Exact-call programs do not require registry admission: their target and spender runtime hashes are pinned in the signed program and enforced by the verifier. [`general-asset-v4-adapters.example.json`](./general-asset-v4-adapters.example.json) is a shape-only fixture; its placeholder identities are not production permissions.
 
 Record the deployer and exact nonce, Safe owner, verifier, canary wallet, existing adapter registry, compiled `CobiaRiskManagerV2` and `CobiaExecutorV4` artifact hashes, and canonical RPC. Do not reuse a permission from the other chain without independently reading its target code hash.
 
@@ -45,7 +45,7 @@ pnpm executor:v4:plan -- --chain-id 1 --deployer 0x... --nonce 0 --owner 0x... -
 pnpm executor:v4:plan -- --chain-id 196 --deployer 0x... --nonce 0 --owner 0x... --verifier 0x... --canary-wallet 0x... --registry 0x... --adapters ./xlayer-adapters.json --migration ./xlayer-migration.json
 ```
 
-Independently check predicted addresses, constructor bindings, bytecode, registry permissions,
+Independently check predicted addresses, constructor bindings, bytecode, any optional plugin permissions,
 the fixed `$1,000` route and `$5,000` wallet caps, and the printed V3/V4 partition. The sum
 of maximum remaining V3 consumption and V4 rolling protocol exposure must not exceed
 `$50,000` on either chain. Stop here until deployment is explicitly approved.
@@ -55,7 +55,7 @@ of maximum remaining V3 consumption and V4 rolling protocol exposure must not ex
 Deployment transactions require separate approval and an external signer. After deployment,
 read back code and constructor bindings. Execute the printed V4 migration-cap reduction and
 any separately reviewed V3 cap reductions as distinct immediate Safe risk-reduction actions;
-never pause V3 during judging. Then separately propose adapter permissions, the canary wallet,
+never pause V3 during judging. Then separately propose any plugin permissions, the canary wallet,
 and unpause. The first 48-hour delay begins only when those proposals execute.
 
 Create a chain-specific state spec from the actual receipts and code hashes. Include the V3
