@@ -83,7 +83,7 @@ if (format === "plan") {
   process.stdout.write(`${JSON.stringify({
     proposal: batch(
       `Cobia Executor V4 chain ${chainId} proposal`,
-      "Applies the reviewed migration cap and starts the 48-hour adapter, canary, and unpause delays.",
+      "Applies the reviewed migration cap and starts the reviewed 48-hour governance delays.",
       [...plan.migrationRiskReductionTransactions, ...plan.proposalTransactions],
     ),
     activation: batch(

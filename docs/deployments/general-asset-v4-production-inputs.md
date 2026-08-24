@@ -63,7 +63,7 @@ these files are generated, committed, or uploaded.
 ## Open-execution replacement
 
 The verifier-authoritative multi-call implementation changes the Executor V4 runtime.
-The deployed executor runtime hash is
+The superseded executor runtime hash is
 `0xa844f5635fc7206cb9231d15a92f4d2519ffcb5c0f35c2cedd7ed7d2ae291a3f`; the reviewed
 replacement artifact hash is
 `0xaeb8e231f67b79e29c92c2581a11bc56667f59fcec19a01e86a00b264695afc6`.
@@ -90,6 +90,34 @@ not by registry membership. Optional semantic plugins may still be registered fo
 route construction and stronger protocol-specific verification. The replacement risk
 manager starts paused and allowlisted; a new Safe proposal, delay, canary, and separate
 public-open delay remain mandatory after deployment read-back.
+
+The replacement creations executed successfully and their transaction inputs match the
+unsigned plan byte-for-byte:
+
+- RiskManager V2: transaction
+  `0xbca00012dd5bced57772ebdcfabe2d2344c7c01e6875b7a3682eee961c3c8394`,
+  block `68825953`, input hash
+  `0xfda7d72f4e6624d0e7eb6a0e08f36596def3f9bad8f63d3e86acd8ae8e2147d6`, runtime hash
+  `0xb02d509cd26048642ee1c4eeaaba481db05e65130b90be64567f498ddddf96cb`;
+- Executor V4: transaction
+  `0xe1ecae784819b2fceb1d52473cba7022372cb8a2ee178a4e5ae25eccaf6eefbc`,
+  block `68825959`, input hash
+  `0x9e4259f1dbd2a866b3158a900bc6674fb627b942f511ee796c392f88455ce01c`, runtime hash
+  `0x93ddb1f1d2975a4e4ff8a4d118e67b8623e511e63bf20f412de6032b2b8818e1`.
+
+Read-back at block `68826127` confirmed the Safe is version `1.4.1`, threshold `1`,
+nonce `6`, and owned only by the operator. The replacement risk manager is owned by that
+Safe, bound to the replacement executor and canonical verifier, paused, allowlisted, and
+still has its default `$1,000` route, `$5,000` wallet, and `$50,000` protocol limits.
+The executor is bound to the expected registry and replacement risk manager.
+
+The uploadable replacement proposal is
+[`general-asset-v4-xlayer-replacement-safe-proposal.json`](./general-asset-v4-xlayer-replacement-safe-proposal.json)
+(SHA-256 `67bb0a701feb0fcfcb5a7baf730e14159d85cbde32d8339bdaa0fa8cabccb36f`,
+Safe checksum `0x958037f4da257b38c4306ebbb653410423a0be61884d90d9ce00a56cb2a57707`).
+It contains exactly three zero-value calls to the replacement risk manager: reduce the
+protocol cap to `$48,000`, propose the canary wallet, and propose unpause. It has not been
+executed; the replacement activation delay has not started.
 
 ## Executed initial X Layer stage
 

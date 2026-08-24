@@ -1,0 +1,30 @@
+{
+  "version": "1.0",
+  "chainId": "196",
+  "createdAt": 1787595193000,
+  "meta": {
+    "name": "Cobia Executor V4 chain 196 proposal",
+    "description": "Applies the reviewed migration cap and starts the reviewed 48-hour governance delays.",
+    "txBuilderVersion": "2.1.0",
+    "createdFromSafeAddress": "0x08eea990F0b165A20d723e59517044a519C83351",
+    "createdFromOwnerAddress": "",
+    "checksum": "0x958037f4da257b38c4306ebbb653410423a0be61884d90d9ce00a56cb2a57707"
+  },
+  "transactions": [
+    {
+      "to": "0x13B9070f2d52812bFFB7CD7358653c741AbF5F40",
+      "value": "0",
+      "data": "0x950bca37000000000000000000000000000000000000000000000000000000174876e800000000000000000000000000000000000000000000000000000000746a5288000000000000000000000000000000000000000000000000000000045d964b8000"
+    },
+    {
+      "to": "0x13B9070f2d52812bFFB7CD7358653c741AbF5F40",
+      "value": "0",
+      "data": "0xbeb7f7050000000000000000000000009afbf85e52612a9922617adda9569e13f565de31"
+    },
+    {
+      "to": "0x13B9070f2d52812bFFB7CD7358653c741AbF5F40",
+      "value": "0",
+      "data": "0xfae8a3d6"
+    }
+  ]
+}
