@@ -1,9 +1,15 @@
-import { commitment, TransactionStageV1Schema, type TransactionStageV1 } from "@cobia/domain";
+import {
+  commitment,
+  isNativeAssetAddress,
+  TransactionStageV1Schema,
+  type TransactionStageV1,
+} from "@cobia/domain";
 import {
   concatHex,
   encodeFunctionData,
   erc20Abi,
   keccak256,
+  toHex,
   type Address,
   type Hash,
   type Hex,
@@ -70,10 +76,13 @@ export function authorizeOkxSwapStageV1(raw: Pick<VerificationInputV1,
   const allowance = typeof raw.currentAllowanceAtomic === "string" &&
     /^(0|[1-9][0-9]*)$/.test(raw.currentAllowanceAtomic) && raw.currentAllowanceAtomic.length <= 78
     ? raw.currentAllowanceAtomic : undefined;
-  if (!stage || !artifact.success || !manifest.success || allowance === undefined) {
+  if (!stage || !artifact.success || !manifest.success) {
     return reject("OKX_INPUT_INVALID");
   }
   if (stage.provider !== "okx.dex@1") return reject("OKX_PROVIDER_MISMATCH");
+
+  const nativeInput = isNativeAssetAddress(stage.input.token);
+  if (!nativeInput && allowance === undefined) return reject("OKX_INPUT_INVALID");
 
   const request = artifact.data.request;
   const response = artifact.data.response.data[0]!;
@@ -99,19 +108,27 @@ export function authorizeOkxSwapStageV1(raw: Pick<VerificationInputV1,
       BigInt(tx.minReceiveAmount) < BigInt(stage.output.minimumAtomic)) errors.push("OKX_OUTPUT_MISMATCH");
   if (request.slippagePercent !== tx.slippagePercent) errors.push("OKX_SLIPPAGE_MISMATCH");
   if (tx.to !== manifest.data.router.address || tx.to !== stage.transaction.target) errors.push("OKX_ROUTER_MISMATCH");
-  if (tx.value !== stage.transaction.valueAtomic || tx.value !== "0") errors.push("OKX_VALUE_MISMATCH");
+  const expectedValue = nativeInput ? stage.input.atomic : "0";
+  if (tx.value !== stage.transaction.valueAtomic || tx.value !== expectedValue) {
+    errors.push("OKX_VALUE_MISMATCH");
+  }
   if (artifact.data.attributedData !== finalData || keccak256(finalData) !== stage.transaction.dataHash) {
     errors.push("OKX_CALLDATA_MISMATCH");
   }
   if (tx.data.slice(0, 10) !== stage.transaction.selector ||
       !manifest.data.router.selectors.includes(stage.transaction.selector)) errors.push("OKX_SELECTOR_FORBIDDEN");
-  if (!stage.approval || stage.approval.token !== stage.input.token ||
+  if (nativeInput ? stage.approval !== undefined :
+      !stage.approval || stage.approval.token !== stage.input.token ||
       stage.approval.spender !== manifest.data.approval.address ||
       stage.approval.maximumAtomic !== stage.input.atomic) errors.push("OKX_APPROVAL_MISMATCH");
   if (errors.length) return reject(...errors);
 
   const calls: UnsignedCallV1[] = [];
-  if (BigInt(allowance) > 0n) calls.push({
+  if (nativeInput) {
+    calls.push({ to: tx.to, data: finalData, value: toHex(BigInt(tx.value)) });
+    return { accepted: true, calls };
+  }
+  if (BigInt(allowance!) > 0n) calls.push({
     to: stage.approval!.token,
     data: encodeFunctionData({
       abi: erc20Abi,
@@ -143,7 +160,8 @@ export async function verifyOkxSwapStageV1(raw: VerificationInputV1): Promise<Ok
   const tx = artifact.response.data[0]!.tx;
 
   if (!await raw.confirmAnchor(anchor.data)) return reject("OKX_ANCHOR_REORGED");
-  for (const identity of [manifest.router, manifest.approval]) {
+  const identities = stage.approval ? [manifest.router, manifest.approval] : [manifest.router];
+  for (const identity of identities) {
     if (await raw.getCodeHash(196, identity.address, anchor.data.blockNumber) !== identity.runtimeCodeHash) {
       return reject("OKX_CODE_IDENTITY_CHANGED");
     }
@@ -159,7 +177,9 @@ export async function verifyOkxSwapStageV1(raw: VerificationInputV1): Promise<Ok
     return reject("OKX_OUTPUT_TOO_LOW");
   }
   if (simulation.unexpectedOwnerAssetDecreases.length) return reject("OKX_UNDECLARED_ASSET_DECREASE");
-  if (simulation.residualAllowanceAtomic !== "0") return reject("OKX_RESIDUAL_ALLOWANCE");
+  if (stage.approval && simulation.residualAllowanceAtomic !== "0") {
+    return reject("OKX_RESIDUAL_ALLOWANCE");
+  }
 
   return { accepted: true, calls: authorization.calls, evidence: {
     traceHash: simulation.traceHash,

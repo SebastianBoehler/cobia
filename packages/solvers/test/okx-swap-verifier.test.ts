@@ -1,4 +1,4 @@
-import { commitment } from "@cobia/domain";
+import { commitment, NATIVE_ASSET_ADDRESS } from "@cobia/domain";
 import { concatHex, encodeFunctionData, erc20Abi, keccak256 } from "viem";
 import { describe, expect, it, vi } from "vitest";
 import { verifyOkxSwapStageV1, XLAYER_OKX_MANIFEST_V1 } from "../src";
@@ -63,6 +63,29 @@ const verify = (overrides: Partial<Parameters<typeof verifyOkxSwapStageV1>[0]> =
     ...overrides,
   });
 
+const nativeRequest = { ...request, fromTokenAddress: NATIVE_ASSET_ADDRESS };
+const nativeResponse = { ...response, data: [{
+  ...response.data[0]!,
+  routerResult: {
+    ...response.data[0]!.routerResult,
+    fromToken: { tokenContractAddress: NATIVE_ASSET_ADDRESS, isHoneyPot: false, taxRate: "0" },
+  },
+  tx: { ...response.data[0]!.tx, value: "10" },
+}] };
+const nativeArtifact = {
+  ...artifact,
+  request: nativeRequest,
+  response: nativeResponse,
+};
+const { approval: _approval, ...stageWithoutApproval } = stage;
+const nativeStage = {
+  ...stageWithoutApproval,
+  quoteHash: commitment(nativeRequest),
+  responseHash: commitment(nativeResponse),
+  input: { token: NATIVE_ASSET_ADDRESS, atomic: "10" },
+  transaction: { ...stage.transaction, valueAtomic: "10" },
+};
+
 describe("OKX strict swap stage", () => {
   it("pins the reviewed X Layer router currently returned by OKX", () => {
     expect(XLAYER_OKX_MANIFEST_V1.router).toEqual({
@@ -93,6 +116,34 @@ describe("OKX strict swap stage", () => {
       { to: fromToken, data: encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [approval, 10n] }), value: "0x0" },
       { to: router, data: attributedData, value: "0x0" },
     ]);
+  });
+
+  it("authorizes a native OKB swap without an ERC-20 approval", async () => {
+    const getCodeHash = vi.fn().mockImplementation(async (_chainId, address) =>
+      address === router ? manifest.router.runtimeCodeHash : manifest.approval.runtimeCodeHash);
+    const result = await verify({
+      stage: nativeStage,
+      artifact: nativeArtifact,
+      getCodeHash,
+    });
+
+    expect(result.accepted).toBe(true);
+    if (!result.accepted) return;
+    expect(result.calls).toEqual([{ to: router, data: attributedData, value: "0xa" }]);
+    expect(getCodeHash).toHaveBeenCalledTimes(1);
+    expect(getCodeHash).toHaveBeenCalledWith(196, router, anchor.blockNumber);
+  });
+
+  it.each([
+    ["wrong transaction value", { transaction: { ...nativeStage.transaction, valueAtomic: "0" } }],
+    ["an ERC-20 approval", { approval: stage.approval }],
+  ])("rejects native OKB with %s", async (_label, change) => {
+    await expect(verify({
+      stage: { ...nativeStage, ...change },
+      artifact: nativeArtifact,
+    })).resolves.toEqual({ accepted: false, errorCodes: [
+      _label === "wrong transaction value" ? "OKX_VALUE_MISMATCH" : "OKX_APPROVAL_MISMATCH",
+    ] });
   });
 
   it("resets an existing allowance before the exact OKX approval", async () => {
