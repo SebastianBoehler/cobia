@@ -26,16 +26,27 @@ const DeliverySchema = z.discriminatedUnion("kind", [
   }).strict(),
 ]);
 
-export const GeneralAssetStageV1Schema = z.object({
-  stageId: NonZeroHashSchema,
-  index: z.number().int().min(0).max(7),
-  chainId: GeneralAssetChainIdSchema,
-  predecessorStageId: NonZeroHashSchema.nullable(),
+export const GeneralAssetCallV1Schema = z.object({
   adapter: AdapterSchema,
   target: CanonicalAddressSchema,
   targetRuntimeCodeHash: NonZeroHashSchema,
   calldata: z.string().regex(/^0x(?:[0-9a-f]{2}){4,8192}$/),
   nativeValueAtomic: AtomicAmountSchema,
+  gasLimit: z.number().int().min(21_000).max(1_000_000),
+  approvals: z.array(z.object({
+    token: CanonicalAddressSchema,
+    spender: CanonicalAddressSchema,
+    maximumAtomic: PositiveAtomicAmountSchema,
+  }).strict()).max(16),
+}).strict();
+export type GeneralAssetCallV1 = z.infer<typeof GeneralAssetCallV1Schema>;
+
+export const GeneralAssetStageV1Schema = z.object({
+  stageId: NonZeroHashSchema,
+  index: z.number().int().min(0).max(7),
+  chainId: GeneralAssetChainIdSchema,
+  predecessorStageId: NonZeroHashSchema.nullable(),
+  calls: z.array(GeneralAssetCallV1Schema).min(1).max(8),
   input: z.object({
     token: CanonicalAddressSchema,
     maximumAtomic: PositiveAtomicAmountSchema,
@@ -46,12 +57,7 @@ export const GeneralAssetStageV1Schema = z.object({
   outputs: z.array(StageOutputSchema.extend({
     identityEvidenceHash: NonZeroHashSchema,
   }).strict()).min(1).max(8),
-  approvals: z.array(z.object({
-    token: CanonicalAddressSchema,
-    spender: CanonicalAddressSchema,
-    maximumAtomic: PositiveAtomicAmountSchema,
-  }).strict()).max(16),
-  refundTokens: z.array(CanonicalAddressSchema).min(1).max(16),
+  refundTokens: z.array(CanonicalAddressSchema).max(16),
   finality: z.object({ confirmations: z.number().int().min(1).max(256) }).strict(),
   delivery: DeliverySchema,
 }).strict();
@@ -91,7 +97,9 @@ export const GeneralAssetProgramV1Schema = z.object({
     }
     if (!sortedUnique(stage.outputs.map(({ token }) => token)) ||
         !sortedUnique(stage.refundTokens) ||
-        !sortedUnique(stage.approvals.map(({ token, spender }) => `${token}:${spender}`))) {
+        stage.calls.some(({ approvals }) => !sortedUnique(
+          approvals.map(({ token, spender }) => `${token}:${spender}`),
+        ))) {
       context.addIssue({ code: "custom", path: ["stages", index], message: "Stage assets must be sorted and unique" });
     }
     if (!program.identityEvidenceHashes.includes(stage.input.identityEvidenceHash) ||

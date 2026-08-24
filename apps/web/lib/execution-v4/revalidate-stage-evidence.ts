@@ -44,13 +44,12 @@ interface RevalidationInput {
   stage: {
     index: number;
     chainId: ChainId;
-    adapter: { id: string; version: number };
-    target: Address;
-    targetRuntimeCodeHash: Hash;
+    calls: readonly { adapter: { id: string; version: number }; target: Address;
+      targetRuntimeCodeHash: Hash;
+      approvals: readonly { token: Address; spender: Address; maximumAtomic: string }[] }[];
     input: { token: Address; maximumAtomic: string; maximumUsdE8: string;
       identityEvidenceHash: Hash; valuationEvidenceHash: Hash };
     outputs: readonly { token: Address; identityEvidenceHash: Hash }[];
-    approvals: readonly { token: Address; spender: Address; maximumAtomic: string }[];
   };
   evidence: { identities: readonly AssetIdentityEvidenceV1[];
     valuations: readonly AssetValuationEvidenceV1[]; manifest: RegisteredAdapterManifestV1 };
@@ -91,14 +90,14 @@ function baselineValuation(input: RevalidationInput, identityHash: Hash) {
   return { evidence, hash };
 }
 
-function registeredStageEntry(input: RevalidationInput) {
+function registeredCallEntry(input: RevalidationInput, call: RevalidationInput["stage"]["calls"][number]) {
   if (commitment(input.evidence.manifest) !== input.policy.manifestHash) {
     throw new Error("Adapter manifest does not match the signed policy");
   }
   const entry = input.evidence.manifest.entries.find((candidate) =>
-    candidate.chainId === input.stage.chainId && candidate.adapter.id === input.stage.adapter.id &&
-    candidate.adapter.version === input.stage.adapter.version && candidate.target === input.stage.target);
-  if (!entry || entry.runtimeCodeHash !== input.stage.targetRuntimeCodeHash) {
+    candidate.chainId === input.stage.chainId && candidate.adapter.id === call.adapter.id &&
+    candidate.adapter.version === call.adapter.version && candidate.target === call.target);
+  if (entry && entry.runtimeCodeHash !== call.targetRuntimeCodeHash) {
     throw new Error("Stage adapter does not match the committed manifest");
   }
   return entry;
@@ -132,7 +131,6 @@ export async function revalidateStageEvidenceV4(input: RevalidationInput): Promi
   identityHash: Hash;
   valuationHash: Hash;
 }> {
-  const manifestEntry = registeredStageEntry(input);
   const baselineInput = baselineIdentity(input, input.stage.chainId, input.stage.input.token);
   const baselineValue = baselineValuation(input, baselineInput.hash);
   if (baselineInput.hash !== input.stage.input.identityEvidenceHash ||
@@ -181,18 +179,20 @@ export async function revalidateStageEvidenceV4(input: RevalidationInput): Promi
   }
 
   const pinnedBlockNumber = freshInput.identityEvidence.blockNumber;
-  const targetHash = await input.reader.codeHash(input.stage.chainId, input.stage.target,
-    BigInt(pinnedBlockNumber));
-  if (targetHash !== input.stage.targetRuntimeCodeHash) {
-    throw new Error("Execution target runtime code drifted from the committed program");
-  }
-  for (const approval of input.stage.approvals) {
-    const registered = manifestEntry.approvalSpenders.find(({ address }) => address === approval.spender);
-    if (!registered) throw new Error("Approval spender is not registered by the committed manifest");
-    const spenderHash = await input.reader.codeHash(input.stage.chainId, approval.spender,
+  for (const call of input.stage.calls) {
+    const entry = registeredCallEntry(input, call);
+    const targetHash = await input.reader.codeHash(input.stage.chainId, call.target,
       BigInt(pinnedBlockNumber));
-    if (spenderHash !== registered.runtimeCodeHash) {
-      throw new Error("Approval spender runtime code drifted from the committed manifest");
+    if (targetHash !== call.targetRuntimeCodeHash) {
+      throw new Error("Execution target runtime code drifted from the committed program");
+    }
+    for (const approval of call.approvals) {
+      const registered = entry?.approvalSpenders.find(({ address }) => address === approval.spender);
+      const spenderHash = await input.reader.codeHash(input.stage.chainId, approval.spender,
+        BigInt(pinnedBlockNumber));
+      if (registered ? spenderHash !== registered.runtimeCodeHash : spenderHash === null) {
+        throw new Error("Approval spender runtime code drifted from the committed program");
+      }
     }
   }
 

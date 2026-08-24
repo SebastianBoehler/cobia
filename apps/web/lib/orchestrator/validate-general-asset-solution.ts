@@ -45,6 +45,7 @@ export interface GeneralAssetSolutionVerdictV1 {
   authorization?: unknown;
   verificationValidUntilSec?: number;
   verificationAnchor?: unknown;
+  verificationAnchors?: unknown;
   freshEvidence?: unknown;
 }
 
@@ -58,14 +59,13 @@ function assertExecutionProgram(input: {
   policy: GeneralAssetPolicyV1;
   program: GeneralAssetProgramV1;
   replay: z.infer<typeof ReplaySchema>;
+  stageIndex: number;
   evidenceHashes: { input: Hash; output: Hash; valuation: Hash };
   validUntilSec: number;
 }): void {
   const { execution, policy, program, replay, evidenceHashes, validUntilSec } = input;
-  const stage = program.stages[0]!;
+  const stage = program.stages[input.stageIndex]!;
   const output = stage.outputs[0]!;
-  const call = execution.calls[0];
-  const expectedAdapterKey = keccak256(stringToHex(`${stage.adapter.id}@${stage.adapter.version}`));
   const fixed = execution.policyHash === program.policyHash &&
     execution.policyHash === commitment(policy) && execution.manifestHash === program.manifestHash &&
     execution.canonicalProgramHash === program.canonicalProgramHash &&
@@ -81,14 +81,23 @@ function assertExecutionProgram(input: {
     execution.inputUsdE8 === BigInt(stage.input.maximumUsdE8) &&
     execution.deadline === BigInt(validUntilSec) &&
     execution.nonce === generalAssetStageNonceV4(policy.nonce, stage);
-  const callMatches = execution.calls.length === 1 && call?.adapterKey === expectedAdapterKey &&
-    isAddressEqual(call.target, stage.target) && call.value === BigInt(stage.nativeValueAtomic) &&
-    call.data === stage.calldata && call.gasLimit <= Number(policy.limits.maxGasPerStage) &&
-    call.approvals.length === stage.approvals.length && call.approvals.every((approval, index) => {
-      const expected = stage.approvals[index]!;
-      return isAddressEqual(approval.token, expected.token) &&
-        isAddressEqual(approval.spender, expected.spender) &&
-        approval.amount === BigInt(expected.maximumAtomic);
+  const callMatches = execution.calls.length === stage.calls.length &&
+    execution.calls.every((call, callIndex) => {
+      const expectedCall = stage.calls[callIndex]!;
+      const expectedAdapterKey = keccak256(stringToHex(
+        `${expectedCall.adapter.id}@${expectedCall.adapter.version}`,
+      ));
+      return call.adapterKey === expectedAdapterKey && isAddressEqual(call.target, expectedCall.target) &&
+        call.targetRuntimeCodeHash === expectedCall.targetRuntimeCodeHash &&
+        call.value === BigInt(expectedCall.nativeValueAtomic) && call.data === expectedCall.calldata &&
+        call.gasLimit === expectedCall.gasLimit &&
+        call.approvals.length === expectedCall.approvals.length &&
+        call.approvals.every((approval, index) => {
+          const expected = expectedCall.approvals[index]!;
+          return isAddressEqual(approval.token, expected.token) &&
+            isAddressEqual(approval.spender, expected.spender) &&
+            approval.amount === BigInt(expected.maximumAtomic);
+        });
     });
   const constraintsMatch = execution.constraints.length === stage.outputs.length &&
     execution.constraints.every((constraint, index) => {
@@ -108,40 +117,49 @@ function stableIdentity(value: z.infer<typeof AssetIdentityEvidenceV1Schema>) {
 
 function validateFreshEvidence(input: { verdict: GeneralAssetSolutionVerdictV1;
   baseline: GeneralAssetEvidenceArtifactV1; program: GeneralAssetProgramV1;
-  anchor: z.infer<typeof AnchorSchema>; validUntilSec: number; nowSec: number }) {
+  anchors: z.infer<typeof AnchorSchema>[]; validUntilSec: number; nowSec: number }) {
   const fresh = FreshEvidenceSchema.parse(input.verdict.freshEvidence);
-  const { program, baseline, anchor, validUntilSec } = input;
-  const stage = program.stages[0]!;
-  const baselineInput = baseline.identities.find((value) =>
-    commitment(value) === stage.input.identityEvidenceHash);
-  const baselineOutput = baseline.identities.find((value) =>
-    commitment(value) === stage.outputs[0]!.identityEvidenceHash);
-  const freshInput = fresh.identities.find((value) => value.chainId === stage.chainId &&
-    isAddressEqual(value.token, stage.input.token));
-  const freshOutput = fresh.identities.find((value) => value.chainId === stage.chainId &&
-    isAddressEqual(value.token, stage.outputs[0]!.token));
-  const freshValuation = fresh.valuations.find((value) => freshInput &&
-    value.assetIdentityHash === commitment(freshInput) && value.inputAtomic === stage.input.maximumAtomic);
+  const { program, baseline, validUntilSec } = input;
   const evidenceBody = { identities: fresh.identities, valuations: fresh.valuations,
     anchors: fresh.anchors };
-  if (!baselineInput || !baselineOutput || !freshInput || !freshOutput || !freshValuation ||
-      fresh.hash !== commitment(evidenceBody) || stableIdentity(freshInput) !== stableIdentity(baselineInput) ||
-      stableIdentity(freshOutput) !== stableIdentity(baselineOutput) ||
-      !fresh.anchors.some((value) => commitment(value) === commitment(anchor)) ||
-      anchor.chainId !== freshInput.chainId || anchor.blockNumber !== freshInput.blockNumber ||
-      anchor.blockHash !== freshInput.blockHash || validUntilSec > program.deadline ||
+  if (fresh.hash !== commitment(evidenceBody) || validUntilSec > program.deadline ||
       validUntilSec > input.verdict.verificationValidUntilSec! ||
-      freshInput.capturedAtSec > input.nowSec || freshOutput.capturedAtSec > input.nowSec ||
-      freshValuation.capturedAtSec > input.nowSec ||
-      validUntilSec > freshInput.expiresAtSec || validUntilSec > freshOutput.expiresAtSec ||
-      validUntilSec > freshValuation.expiresAtSec ||
-      BigInt(freshValuation.conservativeValueUsdE8) > BigInt(stage.input.maximumUsdE8) ||
-      freshValuation.quotes.some(({ fetchedAtSec, expiresAtSec }) =>
-        fetchedAtSec > input.nowSec || validUntilSec > expiresAtSec)) {
+      input.anchors.some((anchor) => !fresh.anchors.some((value) =>
+        commitment(value) === commitment(anchor)))) {
     throw new Error("Fresh evidence does not authorize the exact execution window");
   }
-  return { input: commitment(freshInput) as Hash, output: commitment(freshOutput) as Hash,
-    valuation: commitment(freshValuation) as Hash };
+  return program.stages.map((stage) => {
+    const anchor = input.anchors.find(({ chainId }) => chainId === stage.chainId)!;
+    const baselineInput = baseline.identities.find((value) =>
+      commitment(value) === stage.input.identityEvidenceHash);
+    const baselineOutputs = stage.outputs.map((output) => baseline.identities.find((value) =>
+      commitment(value) === output.identityEvidenceHash));
+    const freshInput = fresh.identities.find((value) => value.chainId === stage.chainId &&
+      value.blockNumber === anchor.blockNumber && isAddressEqual(value.token, stage.input.token));
+    const freshOutputs = stage.outputs.map((output) => fresh.identities.find((value) =>
+      value.chainId === stage.chainId && value.blockNumber === anchor.blockNumber &&
+      isAddressEqual(value.token, output.token)));
+    const freshValuation = fresh.valuations.find((value) => freshInput &&
+      value.assetIdentityHash === commitment(freshInput) && value.inputAtomic === stage.input.maximumAtomic);
+    if (!baselineInput || baselineOutputs.some((value) => !value) || !freshInput ||
+        freshOutputs.some((value) => !value) || !freshValuation ||
+        stableIdentity(freshInput) !== stableIdentity(baselineInput) ||
+        freshOutputs.some((value, index) => stableIdentity(value!) !== stableIdentity(baselineOutputs[index]!)) ||
+        anchor.blockHash !== freshInput.blockHash || freshInput.capturedAtSec > input.nowSec ||
+        freshOutputs.some((value) => value!.capturedAtSec > input.nowSec) ||
+        freshValuation.capturedAtSec > input.nowSec || validUntilSec > freshInput.expiresAtSec ||
+        freshOutputs.some((value) => validUntilSec > value!.expiresAtSec) ||
+        validUntilSec > freshValuation.expiresAtSec ||
+        BigInt(freshValuation.conservativeValueUsdE8) > BigInt(stage.input.maximumUsdE8) ||
+        freshValuation.quotes.some(({ fetchedAtSec, expiresAtSec }) =>
+          fetchedAtSec > input.nowSec || validUntilSec > expiresAtSec)) {
+      throw new Error("Fresh evidence does not authorize the exact execution window");
+    }
+    const outputHashes = freshOutputs.map((value) => commitment(value!) as Hash);
+    return { input: commitment(freshInput) as Hash,
+      output: outputHashes.length === 1 ? outputHashes[0]! : commitment(outputHashes) as Hash,
+      valuation: commitment(freshValuation) as Hash };
+  });
 }
 
 export async function validateGeneralAssetSolutionV1(input: {
@@ -160,15 +178,17 @@ export async function validateGeneralAssetSolutionV1(input: {
   const replay = z.array(ReplaySchema).length(program.stages.length).parse(verdict.replay);
   const execution = parseGeneralAssetExecutionBundleV4(verdict.execution);
   const authorization = GeneralAssetAuthorizationArtifactsV4Schema.parse(verdict.authorization);
-  const anchor = AnchorSchema.parse(verdict.verificationAnchor);
+  const anchors = verdict.verificationAnchors
+    ? z.array(AnchorSchema).min(1).max(2).parse(verdict.verificationAnchors)
+    : [AnchorSchema.parse(verdict.verificationAnchor)];
   const validUntilSec = z.number().int().positive().safe().parse(verdict.verificationValidUntilSec);
-  assertGeneralAssetArtifactIntegrityV4(execution, authorization, anchor);
+  assertGeneralAssetArtifactIntegrityV4(execution, authorization, anchors);
   if (validUntilSec <= nowSec || validUntilSec > policy.deadline ||
       validUntilSec > policy.competition.closesAt) {
     throw new Error("General asset solution verification expired or exceeded signed authority");
   }
   const evidenceHashes = validateFreshEvidence({ verdict, baseline: baselineEvidence,
-    program, anchor, validUntilSec, nowSec });
+    program, anchors, validUntilSec, nowSec });
   if (execution.programId !== program.canonicalProgramHash ||
       !isAddressEqual(execution.owner, program.owner) || execution.deadline !== validUntilSec ||
       commitment(execution.finalOutput) !== commitment(program.finalOutput) ||
@@ -184,7 +204,8 @@ export async function validateGeneralAssetSolutionV1(input: {
         stageArtifact.requiredConfirmations !== stage.finality.confirmations ||
         commitment(stageArtifact.delivery) !== commitment(stage.delivery) ||
         stageReplay.stageId !== stage.stageId || stageReplay.chainId !== stage.chainId ||
-        stageReplay.blockNumber !== anchor.blockNumber || stageReplay.blockHash !== anchor.blockHash ||
+        !anchors.some((anchor) => stageReplay.chainId === anchor.chainId &&
+          stageReplay.blockNumber === anchor.blockNumber && stageReplay.blockHash === anchor.blockHash) ||
         artifact.chainId !== stage.chainId || !isAddressEqual(artifact.executor as Address, executor) ||
         !isAddressEqual(stageArtifact.transaction.to, executor)) {
       throw new Error("General asset authorization, replay, and stage artifact do not match");
@@ -199,7 +220,7 @@ export async function validateGeneralAssetSolutionV1(input: {
     const [encodedProgram, embeddedAuthorization] = decoded.args;
     const exactProgram = encodedProgram as unknown as ExecutionProgramV4;
     assertExecutionProgram({ execution: exactProgram, policy, program, replay: stageReplay,
-      evidenceHashes, validUntilSec });
+      stageIndex: index, evidenceHashes: evidenceHashes[index]!, validUntilSec });
     const expectedAuthorization = buildAuthorizationV4(exactProgram, executor);
     if (authorizationPayloadHashV4(embeddedAuthorization) !==
         authorizationPayloadHashV4(expectedAuthorization)) {
@@ -216,5 +237,5 @@ export async function validateGeneralAssetSolutionV1(input: {
       throw new Error("Verifier authorization signature has an unexpected signer");
     }
   }
-  return { replay, execution, authorization, anchor, validUntilSec };
+  return { replay, execution, authorization, anchor: anchors[0]!, anchors, validUntilSec };
 }

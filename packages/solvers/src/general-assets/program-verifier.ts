@@ -4,6 +4,7 @@ import {
   AssetValuationEvidenceV1Schema,
   commitment,
   type AssetValuationEvidenceV1,
+  type GeneralAssetCallV1,
   type GeneralAssetPolicyV1,
   type GeneralAssetProgramV1,
   type GeneralAssetStageV1,
@@ -16,17 +17,24 @@ import {
 } from "./adapter-manifest";
 import { assessGeneralAssetStageFlowV1, type GeneralAssetStageReplayV1 } from "./asset-flow";
 import { compileGenericCallV1, isGenericCallV1 } from "./generic-call";
+import { assessGeneralAssetPolicyProgramV1 } from "./program-policy";
 
-export interface CompiledGeneralAssetStageV1 {
-  stageId: Hash;
-  chainId: 1 | 196;
+export interface CompiledGeneralAssetCallV1 {
   adapterKey: Hash;
   target: Address;
   targetRuntimeCodeHash: Hash;
   data: Hex;
   valueAtomic: string;
   gasLimit: number;
-  approvals: GeneralAssetStageV1["approvals"];
+  approvals: GeneralAssetCallV1["approvals"];
+  quoteHash: Hash;
+  expiresAtSec: number;
+}
+
+export interface CompiledGeneralAssetStageV1 {
+  stageId: Hash;
+  chainId: 1 | 196;
+  calls: CompiledGeneralAssetCallV1[];
   refundTokens: Address[];
   quoteHash: Hash;
   expiresAtSec: number;
@@ -47,10 +55,11 @@ export interface GeneralAssetProgramVerificationInputV1 {
   anchors: StageAnchorV1[];
   nowSec: number;
   getCodeHash(chainId: 1 | 196, address: Address, blockNumber: string): Promise<Hash | undefined>;
-  compileStage(
+  compileCall(
+    call: GeneralAssetCallV1,
     stage: GeneralAssetStageV1,
     entry: RegisteredAdapterEntryV1,
-  ): Promise<CompiledGeneralAssetStageV1>;
+  ): Promise<CompiledGeneralAssetCallV1>;
   replayStage(
     stage: GeneralAssetStageV1,
     compiled: CompiledGeneralAssetStageV1,
@@ -88,59 +97,25 @@ function adapterKey(adapter: { id: string; version: number }): string {
 
 function sameCompilation(stage: GeneralAssetStageV1, compiled: CompiledGeneralAssetStageV1): boolean {
   return compiled.stageId === stage.stageId && compiled.chainId === stage.chainId &&
-    compiled.target === stage.target && compiled.targetRuntimeCodeHash === stage.targetRuntimeCodeHash &&
-    compiled.data === stage.calldata && compiled.valueAtomic === stage.nativeValueAtomic &&
-    commitment(compiled.approvals) === commitment(stage.approvals) &&
-    commitment(compiled.refundTokens) === commitment(stage.refundTokens);
+    commitment(compiled.refundTokens) === commitment(stage.refundTokens) &&
+    compiled.calls.length === stage.calls.length && compiled.calls.every((call, index) => {
+      const expected = stage.calls[index]!;
+      return call.target === expected.target &&
+        call.targetRuntimeCodeHash === expected.targetRuntimeCodeHash &&
+        call.data === expected.calldata && call.valueAtomic === expected.nativeValueAtomic &&
+        call.gasLimit === expected.gasLimit &&
+        commitment(call.approvals) === commitment(expected.approvals);
+    });
 }
 
-function findEntry(manifest: RegisteredAdapterManifestV1, stage: GeneralAssetStageV1) {
+function findEntry(manifest: RegisteredAdapterManifestV1, stage: GeneralAssetStageV1,
+  call: GeneralAssetCallV1) {
   return manifest.entries.find(({ adapter, chainId, target }) =>
-    adapterKey(adapter) === adapterKey(stage.adapter) && chainId === stage.chainId && target === stage.target);
+    adapterKey(adapter) === adapterKey(call.adapter) && chainId === stage.chainId && target === call.target);
 }
 
 function rejection(errors: Set<string>): GeneralAssetProgramVerdictV1 {
   return { accepted: false, errorCodes: [...errors].sort() };
-}
-
-function assetKey(chainId: number, token: string): string {
-  return `${chainId}:${token}`;
-}
-
-function assessPolicyProgram(
-  policy: GeneralAssetPolicyV1,
-  program: GeneralAssetProgramV1,
-  errors: Set<string>,
-): void {
-  const first = program.stages[0]!;
-  const final = program.stages.at(-1)!;
-  if (first.chainId !== policy.sourceChainId || first.input.token !== policy.input.token ||
-      BigInt(first.input.maximumAtomic) > BigInt(policy.input.maximumAtomic) ||
-      final.chainId !== policy.destinationChainId) errors.add("POLICY_ASSET_MISMATCH");
-  for (const expected of policy.outputs) {
-    const actual = final.outputs.find(({ token }) => token === expected.token);
-    if (expected.chainId !== final.chainId || !actual ||
-        actual.identityEvidenceHash !== expected.identityHash ||
-        BigInt(actual.minimumIncreaseAtomic) < BigInt(expected.minimumAtomic)) {
-      errors.add("POLICY_ASSET_MISMATCH");
-    }
-  }
-  const forbiddenAssets = new Set(policy.forbiddenAssets.map(({ chainId, token }) => assetKey(chainId, token)));
-  const forbiddenTargets = new Set(policy.forbiddenTargets.map(({ chainId, target }) => `${chainId}:${target}`));
-  let approvals = 0;
-  let calldataBytes = 0;
-  for (const stage of program.stages) {
-    approvals += stage.approvals.length;
-    calldataBytes += (stage.calldata.length - 2) / 2;
-    if (forbiddenTargets.has(`${stage.chainId}:${stage.target}`)) errors.add("FORBIDDEN_TARGET");
-    if (forbiddenAssets.has(assetKey(stage.chainId, stage.input.token)) ||
-        stage.outputs.some(({ token }) => forbiddenAssets.has(assetKey(stage.chainId, token)))) {
-      errors.add("FORBIDDEN_ASSET");
-    }
-  }
-  if (approvals > policy.limits.maxApprovals || calldataBytes > policy.limits.maxCalldataBytes) {
-    errors.add("LIMIT_EXCEEDED");
-  }
 }
 
 export async function verifyGeneralAssetProgramV1(
@@ -188,8 +163,9 @@ export async function verifyGeneralAssetProgramV1(
     const binding = valuations.get(stage.input.valuationEvidenceHash);
     const evidence = binding?.evidence;
     const currentInputHash = identityBindings.get(stage.input.identityEvidenceHash);
-    const currentOutputHash = identityBindings.get(stage.outputs[0]!.identityEvidenceHash);
-    if (!binding || !evidence || !currentInputHash || !currentOutputHash ||
+    const currentOutputHashes = stage.outputs.map(({ identityEvidenceHash }) =>
+      identityBindings.get(identityEvidenceHash));
+    if (!binding || !evidence || !currentInputHash || currentOutputHashes.some((hash) => !hash) ||
         binding.identityProgramHash !== stage.input.identityEvidenceHash ||
         evidence.assetIdentityHash !== currentInputHash ||
         evidence.expiresAtSec <= input.nowSec ||
@@ -200,7 +176,9 @@ export async function verifyGeneralAssetProgramV1(
       return "0";
     }
     stageInputIdentityEvidenceHashes.push(currentInputHash);
-    stageOutputIdentityEvidenceHashes.push(currentOutputHash);
+    const exactOutputHashes = currentOutputHashes as Hash[];
+    stageOutputIdentityEvidenceHashes.push(exactOutputHashes.length === 1
+      ? exactOutputHashes[0]! : commitment(exactOutputHashes) as Hash);
     stageValuationEvidenceHashes.push(commitment(evidence) as Hash);
     return evidence.conservativeValueUsdE8;
   });
@@ -211,53 +189,67 @@ export async function verifyGeneralAssetProgramV1(
     errors.add("VALUATION_EVIDENCE_MISMATCH");
   }
   if (program.stages.length > policy.limits.maxStages) errors.add("LIMIT_EXCEEDED");
-  assessPolicyProgram(policy, program, errors);
+  assessGeneralAssetPolicyProgramV1(policy, program, errors);
 
   const allowed = new Set(policy.allowedAdapters.map(adapterKey));
   const anchors = new Map(input.anchors.map((anchor) => [anchor.chainId, anchor]));
   const compiledStages: CompiledGeneralAssetStageV1[] = [];
   const replays: GeneralAssetStageReplayV1[] = [];
   for (const stage of program.stages) {
-    if (!allowed.has(adapterKey(stage.adapter))) errors.add("ADAPTER_NOT_ALLOWED");
-    const generic = isGenericCallV1(stage);
-    const entry = findEntry(manifest, stage);
-    if (!entry && !generic) {
-      errors.add("ADAPTER_UNREGISTERED");
-      continue;
-    }
-    const selector = stage.calldata.slice(0, 10);
-    if (entry && !entry.selectors.includes(selector)) errors.add("SELECTOR_UNREGISTERED");
-    if (entry && stage.targetRuntimeCodeHash !== entry.runtimeCodeHash) errors.add("TARGET_IDENTITY_MISMATCH");
-    if (stage.delivery.kind === "bridge" && (!entry ||
-        (!entry.bridgeDelivery || entry.bridgeDelivery.destinationChainId !== stage.delivery.destinationChainId))) {
-      errors.add("BRIDGE_DELIVERY_UNREGISTERED");
-    }
-    if (entry && stage.approvals.some(({ spender }) =>
-      !entry.approvalSpenders.some(({ address }) => address === spender))) {
-      errors.add("APPROVAL_SPENDER_UNREGISTERED");
-    }
     const anchor = anchors.get(stage.chainId);
     if (!anchor) {
       errors.add("ANCHOR_MISSING");
       continue;
     }
-    if (await input.getCodeHash(stage.chainId, stage.target, anchor.blockNumber) !==
-        stage.targetRuntimeCodeHash) {
-      errors.add("TARGET_CODE_DRIFT");
-    }
-    for (const approval of stage.approvals) {
-      const registered = entry?.approvalSpenders.find(({ address }) => address === approval.spender);
-      if (registered && await input.getCodeHash(stage.chainId, approval.spender, anchor.blockNumber) !==
-          registered.runtimeCodeHash) {
-        errors.add("APPROVAL_SPENDER_CODE_DRIFT");
-      } else if (!registered && generic &&
-          await input.getCodeHash(stage.chainId, approval.spender, anchor.blockNumber) === undefined) {
-        errors.add("APPROVAL_SPENDER_CODE_DRIFT");
+    const compiledCalls: CompiledGeneralAssetCallV1[] = [];
+    for (const call of stage.calls) {
+      if (!allowed.has(adapterKey(call.adapter))) errors.add("ADAPTER_NOT_ALLOWED");
+      const generic = isGenericCallV1(call);
+      const entry = findEntry(manifest, stage, call);
+      if (!entry && !generic) {
+        errors.add("ADAPTER_UNREGISTERED");
+        continue;
       }
+      const selector = call.calldata.slice(0, 10);
+      if (entry && !entry.selectors.includes(selector)) errors.add("SELECTOR_UNREGISTERED");
+      if (entry && call.targetRuntimeCodeHash !== entry.runtimeCodeHash) {
+        errors.add("TARGET_IDENTITY_MISMATCH");
+      }
+      if (entry && call.approvals.some(({ spender }) =>
+        !entry.approvalSpenders.some(({ address }) => address === spender))) {
+        errors.add("APPROVAL_SPENDER_UNREGISTERED");
+      }
+      if (await input.getCodeHash(stage.chainId, call.target, anchor.blockNumber) !==
+          call.targetRuntimeCodeHash) errors.add("TARGET_CODE_DRIFT");
+      for (const approval of call.approvals) {
+        const registered = entry?.approvalSpenders.find(({ address }) => address === approval.spender);
+        if (registered && await input.getCodeHash(stage.chainId, approval.spender, anchor.blockNumber) !==
+            registered.runtimeCodeHash) {
+          errors.add("APPROVAL_SPENDER_CODE_DRIFT");
+        } else if (!registered && generic &&
+            await input.getCodeHash(stage.chainId, approval.spender, anchor.blockNumber) === undefined) {
+          errors.add("APPROVAL_SPENDER_CODE_DRIFT");
+        }
+      }
+      compiledCalls.push(generic
+        ? compileGenericCallV1(call, stage, policy, program.deadline)
+        : await input.compileCall(call, stage, entry!));
     }
-    const compiled = generic
-      ? compileGenericCallV1(stage, policy, program.deadline)
-      : await input.compileStage(stage, entry!);
+    const destinationChainId = stage.delivery.kind === "bridge"
+      ? stage.delivery.destinationChainId : undefined;
+    if (destinationChainId !== undefined && !stage.calls.some((call) => {
+      const entry = findEntry(manifest, stage, call);
+      return entry?.bridgeDelivery?.destinationChainId === destinationChainId;
+    })) errors.add("BRIDGE_DELIVERY_UNREGISTERED");
+    if (compiledCalls.length !== stage.calls.length) continue;
+    const compiled: CompiledGeneralAssetStageV1 = {
+      stageId: stage.stageId,
+      chainId: stage.chainId,
+      calls: compiledCalls,
+      refundTokens: stage.refundTokens,
+      quoteHash: commitment(compiledCalls.map(({ quoteHash }) => quoteHash)) as Hash,
+      expiresAtSec: Math.min(...compiledCalls.map(({ expiresAtSec }) => expiresAtSec)),
+    };
     compiledStages.push(compiled);
     if (!sameCompilation(stage, compiled)) errors.add("ADAPTER_COMPILE_MISMATCH");
     if (compiled.expiresAtSec <= input.nowSec) errors.add("QUOTE_EXPIRED");

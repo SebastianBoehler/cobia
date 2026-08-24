@@ -138,11 +138,16 @@ export function createProductionBridgeDeliveryMonitorV4(input: {
   }
   const stage = input.program.stages.find(({ stageId }) => stageId === input.stageId);
   if (!stage || stage.delivery.kind !== "bridge") throw new Error("Bridge stage is unavailable");
-  const entry = manifest.entries.find((candidate) => candidate.adapter.id === stage.adapter.id &&
-    candidate.adapter.version === stage.adapter.version && candidate.chainId === stage.chainId &&
-    candidate.target === stage.target);
+  const destinationChainId = stage.delivery.destinationChainId;
+  const bridgeCall = stage.calls.find((call) => manifest.entries.some((candidate) =>
+    candidate.adapter.id === call.adapter.id && candidate.adapter.version === call.adapter.version &&
+    candidate.chainId === stage.chainId && candidate.target === call.target &&
+    candidate.bridgeDelivery?.destinationChainId === destinationChainId));
+  const entry = bridgeCall && manifest.entries.find((candidate) =>
+    candidate.adapter.id === bridgeCall.adapter.id && candidate.adapter.version === bridgeCall.adapter.version &&
+    candidate.chainId === stage.chainId && candidate.target === bridgeCall.target);
   const registration = entry?.bridgeDelivery;
-  if (!registration || registration.destinationChainId !== stage.delivery.destinationChainId) {
+  if (!registration || registration.destinationChainId !== destinationChainId) {
     throw new Error("Bridge delivery semantics are not registered");
   }
   const broker = createLifiBrokerV1({ fetcher: nodeCommerceFetchV1, dnsResolver: nodeDnsResolverV1 });
@@ -167,7 +172,7 @@ export function createProductionBridgeDeliveryMonitorV4(input: {
         deliveryTransactionHash: completed.receiving.txHash };
     },
     semantics: {
-      sourceMessageId: (receipt) => sourceMessageId(receipt, stage.target),
+      sourceMessageId: (receipt) => sourceMessageId(receipt, bridgeCall!.target),
       destinationDelivery: (receipt) => destinationDelivery(receipt, registration.destinationEmitters),
     },
     reader: monitorReader(),

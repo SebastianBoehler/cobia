@@ -71,15 +71,13 @@ function fixture(): GeneralAssetProgramVerificationInputV1 {
     index: 0,
     chainId: 196 as const,
     predecessorStageId: null,
-    adapter: { id: "lifi.route", version: 1 },
-    target,
-    targetRuntimeCodeHash: hash("a"),
-    calldata: "0x12345678" as const,
-    nativeValueAtomic: "0",
+    calls: [{ adapter: { id: "lifi.route", version: 1 }, target,
+      targetRuntimeCodeHash: hash("a"), calldata: "0x12345678" as const,
+      nativeValueAtomic: "0", gasLimit: 300_000,
+      approvals: [{ token: inputToken, spender, maximumAtomic: "100" }] }],
     input: { token: inputToken, maximumAtomic: "100", maximumUsdE8: "100000000",
       identityEvidenceHash: hash("4"), valuationEvidenceHash: commitment(valuationEvidence) },
     outputs: [{ token: outputToken, minimumIncreaseAtomic: "99", identityEvidenceHash: hash("6") }],
-    approvals: [{ token: inputToken, spender, maximumAtomic: "100" }],
     refundTokens: [inputToken, outputToken],
     finality: { confirmations: 12 },
     delivery: { kind: "none" as const },
@@ -98,20 +96,20 @@ function fixture(): GeneralAssetProgramVerificationInputV1 {
     finalOutput: { chainId: 196 as const, token: outputToken, minimumAtomic: "99" },
   };
   const program = { ...programBase, canonicalProgramHash: canonicalGeneralAssetProgramHash(programBase) };
-  const compiled = {
-    stageId: stage.stageId,
-    chainId: 196 as const,
+  const compiledCall = {
     adapterKey: hash("b"),
     target,
     targetRuntimeCodeHash: hash("a"),
-    data: stage.calldata,
+    data: stage.calls[0]!.calldata,
     valueAtomic: "0",
     gasLimit: 300_000,
-    approvals: stage.approvals,
-    refundTokens: stage.refundTokens,
+    approvals: stage.calls[0]!.approvals,
     quoteHash: hash("c"),
     expiresAtSec: 2_000_000_200,
   };
+  const compiled = { stageId: stage.stageId, chainId: 196 as const,
+    calls: [compiledCall], refundTokens: stage.refundTokens,
+    quoteHash: commitment([compiledCall.quoteHash]), expiresAtSec: compiledCall.expiresAtSec };
   const replay = {
     stageId: stage.stageId,
     chainId: 196 as const,
@@ -138,7 +136,7 @@ function fixture(): GeneralAssetProgramVerificationInputV1 {
     anchors: [{ chainId: 196, blockNumber: "123", blockHash: hash("d") }],
     nowSec,
     getCodeHash: async (_chainId, address) => address === target ? hash("a") : hash("b"),
-    compileStage: async () => compiled,
+    compileCall: async () => compiledCall,
     replayStage: async () => replay,
   };
 }
@@ -207,7 +205,7 @@ describe("general asset program verifier", () => {
     expect(await errors(unregistered)).toContain("ADAPTER_UNREGISTERED");
 
     const selector = fixture();
-    selector.program.stages[0]!.calldata = "0xdeadbeef";
+    selector.program.stages[0]!.calls[0]!.calldata = "0xdeadbeef";
     selector.program.canonicalProgramHash = canonicalGeneralAssetProgramHash(selector.program);
     expect(await errors(selector)).toContain("SELECTOR_UNREGISTERED");
 
@@ -225,13 +223,55 @@ describe("general asset program verifier", () => {
     input.policy = policy;
     input.program.manifestHash = policy.manifestHash;
     input.program.policyHash = commitment(policy);
-    input.program.stages[0]!.adapter = { id: "general.evm-call", version: 1 };
+    input.program.stages[0]!.calls[0]!.adapter = { id: "general.evm-call", version: 1 };
     input.program.canonicalProgramHash = canonicalGeneralAssetProgramHash(input.program);
     const result = await verifyGeneralAssetProgramV1(input);
 
     expect(result.errorCodes).not.toContain("ADAPTER_UNREGISTERED");
     expect(result.errorCodes).not.toContain("SELECTOR_UNREGISTERED");
     expect(result.errorCodes).not.toContain("APPROVAL_SPENDER_UNREGISTERED");
+  });
+
+  it("accepts every ordered generic call within the signed contract limits", async () => {
+    const input = fixture();
+    input.manifest.entries = [];
+    const policy = GeneralAssetPolicyV1Schema.parse({ ...GeneralAssetPolicyV1Schema.parse(input.policy),
+      manifestHash: commitment(input.manifest),
+      allowedAdapters: [{ id: "general.evm-call", version: 1 }] });
+    input.policy = policy;
+    input.program.manifestHash = policy.manifestHash;
+    input.program.policyHash = commitment(policy);
+    const first = input.program.stages[0]!.calls[0]!;
+    input.program.stages[0]!.calls = [
+      { ...first, adapter: { id: "general.evm-call", version: 1 } },
+      { ...first, adapter: { id: "general.evm-call", version: 1 }, calldata: "0x87654321" },
+    ];
+    input.program.canonicalProgramHash = canonicalGeneralAssetProgramHash(input.program);
+    const replay = input.replayStage;
+    input.replayStage = async (stage, compiled, anchor) => ({
+      ...(await replay(stage, compiled, anchor))!, compiledCallHash: commitment(compiled),
+    });
+
+    const result = await verifyGeneralAssetProgramV1(input);
+
+    expect(result).toMatchObject({ accepted: true,
+      compiledStages: [{ calls: [{ data: "0x12345678" }, { data: "0x87654321" }] }] });
+  });
+
+  it("leaves unvalued native call value to a verifier finding", async () => {
+    const input = fixture();
+    input.manifest.entries = [];
+    const policy = GeneralAssetPolicyV1Schema.parse({ ...GeneralAssetPolicyV1Schema.parse(input.policy),
+      manifestHash: commitment(input.manifest),
+      allowedAdapters: [{ id: "general.evm-call", version: 1 }] });
+    input.policy = policy;
+    input.program.manifestHash = policy.manifestHash;
+    input.program.policyHash = commitment(policy);
+    input.program.stages[0]!.calls[0] = { ...input.program.stages[0]!.calls[0]!,
+      adapter: { id: "general.evm-call", version: 1 }, nativeValueAtomic: "1" };
+    input.program.canonicalProgramHash = canonicalGeneralAssetProgramHash(input.program);
+
+    expect(await errors(input)).toContain("NATIVE_VALUE_EVIDENCE_MISSING");
   });
 
   it("rejects approval spender runtime code drift at the pinned block", async () => {
@@ -242,9 +282,9 @@ describe("general asset program verifier", () => {
 
   it("rejects approval or recipient substitutions during adapter compilation", async () => {
     const input = fixture();
-    const compile = input.compileStage;
-    input.compileStage = async (stage, entry) => ({
-      ...(await compile(stage, entry)),
+    const compile = input.compileCall;
+    input.compileCall = async (call, stage, entry) => ({
+      ...(await compile(call, stage, entry)),
       approvals: [{ token: inputToken, spender: owner, maximumAtomic: "100" }],
     });
     expect(await errors(input)).toContain("ADAPTER_COMPILE_MISMATCH");
@@ -277,8 +317,9 @@ describe("general asset program verifier", () => {
     expect(await errors(missing)).toContain("STAGE_REPLAY_MISSING");
 
     const expired = fixture();
-    const compile = expired.compileStage;
-    expired.compileStage = async (stage, entry) => ({ ...(await compile(stage, entry)), expiresAtSec: nowSec });
+    const compile = expired.compileCall;
+    expired.compileCall = async (call, stage, entry) => ({
+      ...(await compile(call, stage, entry)), expiresAtSec: nowSec });
     expect(await errors(expired)).toContain("QUOTE_EXPIRED");
 
     const diverged = fixture();

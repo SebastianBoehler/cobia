@@ -1,6 +1,6 @@
 # Open Verifier-Authoritative Solver Design
 
-Date: 2026-08-24 · Status: approved in chat; implementation checkpoint pending
+Date: 2026-08-24 · Status: approved; V3 live and corrected V4 implementation complete pending deployment
 
 ## Goal
 
@@ -9,6 +9,13 @@ Plugins provide fast typed access but never decide program admissibility.
 The deployed contract is the immutable hard execution envelope. Inside that
 envelope, the independent verifier is the per-intent authority for presenting
 exact calls to a wallet or authorizing an executor program.
+
+In concrete terms, Executor V4 fixes the non-negotiable ceilings at eight
+ordered calls, sixteen approvals, eight output constraints, sixteen refund
+tokens, 16,384 calldata bytes, 1,000,000 gas per call, and 4,000,000 total call
+gas. The solver may construct every combination inside those limits. Signed
+policy and verifier findings can narrow a particular intent; a plugin or
+reference strategy cannot.
 
 The reference solver may still fail operationally when no honest quote,
 calldata, evidence, or replay can be obtained before the signed deadline. It
@@ -174,8 +181,10 @@ V4 uses the same open candidate model and supports all
 `GeneralAssetPolicyV1` stage graphs: same-chain, multi-stage, multiple outputs,
 and asynchronous cross-chain delivery.
 
-The current one-stage same-chain OKX builder becomes one plugin, not the
-production solver boundary. V4 adds:
+The one-stage same-chain OKX builder is one fast plugin, not the production
+solver boundary. A canonical stage carries one to eight exact ordered calls,
+and the open lane may submit any schema-valid combination for independent
+verification. V4 adds:
 
 - native-gas identity, valuation, flow and replay evidence;
 - optional approvals and exact native value per call;

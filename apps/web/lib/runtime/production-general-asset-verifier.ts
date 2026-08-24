@@ -48,7 +48,7 @@ function exactEntry(input: {
   const stage = input.program?.stages[0];
   const entry = input.manifest.entries.find((value) => value.chainId === input.chainId &&
     value.adapter.id === "okx.swap" && value.adapter.version === 1 &&
-    (!stage || value.target === stage.target));
+    (!stage || stage.calls.some(({ target }) => value.target === target)));
   if (!entry || entry.selectors.length < 1) throw new Error("General asset V4 adapter is unavailable");
   return entry;
 }
@@ -91,8 +91,10 @@ export async function verifyProductionGeneralAssetDecisionV1(input: {
   const evidence = GeneralAssetEvidenceArtifactV1Schema.parse(input.evidence);
   const chainId = program.stages[0]?.chainId;
   if (!chainId) throw new Error("General asset program has no execution chain");
-  const { executionConfig, client, verifier, manifest } = context(chainId);
-  const entry = exactEntry({ chainId, manifest, program });
+  const contexts = new Map([...new Set(program.stages.map(({ chainId }) => chainId))]
+    .map((exactChainId) => [exactChainId, context(exactChainId)]));
+  const primary = contexts.get(chainId)!;
+  const { executionConfig, verifier, manifest } = primary;
   const compiler = createOkxGeneralAssetSwapCompilerV1({ credentials: readOkxCredentials() });
   const eligibility = createProductionGeneralAssetEligibilityV2();
   const stage = program.stages[0]!;
@@ -105,23 +107,33 @@ export async function verifyProductionGeneralAssetDecisionV1(input: {
     anchors, nowSec: input.nowSec }, {
     executor: executionConfig.executor,
     executorCodeHash: executionConfig.executorCodeHash,
+    executionFor: (exactChainId) => {
+      const current = contexts.get(exactChainId);
+      if (!current) throw new Error("General asset V4 execution chain is not configured");
+      return { executor: current.executionConfig.executor,
+        executorCodeHash: current.executionConfig.executorCodeHash };
+    },
     nowSec: () => Math.floor(Date.now() / 1_000),
     refreshAsset: (value) => eligibility.eligibility(value),
-    async getCodeHash(_exactChainId, address: Address, blockNumber: string) {
-      const code = await client.getCode({ address, blockNumber: BigInt(blockNumber) });
+    async getCodeHash(exactChainId, address: Address, blockNumber: string) {
+      const current = contexts.get(exactChainId);
+      if (!current) return undefined;
+      const code = await current.client.getCode({ address, blockNumber: BigInt(blockNumber) });
       return !code || code === "0x" ? undefined : keccak256(code);
     },
     compileSwap: dependencies?.compileSwap ?? compiler.compile,
     replayStage: (exactStage, compiled, exactAnchor) => replayGeneralAssetStageRemotely({
-      chainId, blockNumber: exactAnchor.blockNumber, blockHash: exactAnchor.blockHash,
-      owner: policy.owner as Address, executor: executionConfig.executor,
+      chainId: exactStage.chainId, blockNumber: exactAnchor.blockNumber, blockHash: exactAnchor.blockHash,
+      owner: policy.owner as Address,
+      executor: contexts.get(exactStage.chainId)!.executionConfig.executor,
       stage: exactStage, compiled,
     }),
     signTypedData: (typedData) => verifier.signTypedData(typedData),
-    assertReady: (freshAnchor, exactStage) => assertGeneralAssetV4Ready({
-      client: client as never, config: executionConfig, verifier: verifier.address,
-      target: entry.target, selector: exactStage.calldata.slice(0, 10) as `0x${string}`,
+    assertReady: (freshAnchor) => {
+      const current = contexts.get(freshAnchor.chainId)!;
+      return assertGeneralAssetV4Ready({
+      client: current.client as never, config: current.executionConfig, verifier: current.verifier.address,
       blockNumber: freshAnchor.blockNumber,
-    }),
+    }); },
   });
 }

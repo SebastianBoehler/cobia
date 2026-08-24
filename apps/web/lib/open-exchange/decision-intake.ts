@@ -36,7 +36,7 @@ type IntakeReceipt = {
 type Verification =
   | { accepted: true; errorCodes: readonly string[]; objective?: unknown; replay?: unknown;
       execution?: unknown; authorization?: unknown; verificationValidUntilSec?: number;
-      verificationAnchor?: unknown }
+      verificationAnchor?: unknown; verificationAnchors?: unknown }
   | { accepted: false; errorCodes: string[]; replay?: unknown };
 
 interface IntakeDependencies {
@@ -323,8 +323,10 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
         try {
           const execution = parseGeneralAssetExecutionBundleV4(verdict.execution);
           const authorization = GeneralAssetAuthorizationArtifactsV4Schema.parse(verdict.authorization);
-          const anchor = VerificationAnchorSchema.parse(verdict.verificationAnchor);
-          assertGeneralAssetArtifactIntegrityV4(execution, authorization, anchor);
+          const anchors = verdict.verificationAnchors
+            ? z.array(VerificationAnchorSchema).min(1).max(2).parse(verdict.verificationAnchors)
+            : [VerificationAnchorSchema.parse(verdict.verificationAnchor)];
+          assertGeneralAssetArtifactIntegrityV4(execution, authorization, anchors);
           const validUntilSec = z.number().int().positive().safe()
             .parse(verdict.verificationValidUntilSec);
           if (execution.programId !== decision.program.canonicalProgramHash ||
@@ -334,7 +336,7 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
               execution.deadline !== validUntilSec || validUntilSec <= dependencies.nowSec()) {
             throw new Error("General asset execution artifact mismatch");
           }
-          generalVerification = { validUntilSec, anchor };
+          generalVerification = { validUntilSec, anchor: anchors[0]! };
         } catch { generalVerification = undefined; }
       }
       if (verdict.accepted && decision.proposalKind === "general-asset-program" && !generalVerification) {

@@ -21,20 +21,22 @@ const blockHash = hash("d");
 
 const stage = {
   stageId: hash("7"), index: 0, chainId: 196 as const, predecessorStageId: null,
-  adapter: { id: "lifi.route", version: 1 }, target, targetRuntimeCodeHash: hash("a"),
-  calldata: "0x12345678" as const, nativeValueAtomic: "0",
+  calls: [{ adapter: { id: "lifi.route", version: 1 }, target, targetRuntimeCodeHash: hash("a"),
+    calldata: "0x12345678" as const, nativeValueAtomic: "0", gasLimit: 300_000,
+    approvals: [{ token: inputToken, spender, maximumAtomic: "100" }] }],
   input: { token: inputToken, maximumAtomic: "100", maximumUsdE8: "100000000",
     identityEvidenceHash: hash("4"), valuationEvidenceHash: hash("5") },
   outputs: [{ token: outputToken, minimumIncreaseAtomic: "99", identityEvidenceHash: hash("6") }],
-  approvals: [{ token: inputToken, spender, maximumAtomic: "100" }],
   refundTokens: [inputToken, outputToken], finality: { confirmations: 12 },
   delivery: { kind: "none" as const },
 } satisfies GeneralAssetStageV1;
+const compiledCall = { adapterKey: hash("b"), target,
+  targetRuntimeCodeHash: hash("a"), data: stage.calls[0]!.calldata, valueAtomic: "0", gasLimit: 300_000,
+  approvals: stage.calls[0]!.approvals, quoteHash: hash("c"), expiresAtSec: 2_000_000_200 };
 const compiled = {
-  stageId: stage.stageId, chainId: 196 as const, adapterKey: hash("b"), target,
-  targetRuntimeCodeHash: hash("a"), data: stage.calldata, valueAtomic: "0", gasLimit: 300_000,
-  approvals: stage.approvals, refundTokens: stage.refundTokens, quoteHash: hash("c"),
-  expiresAtSec: 2_000_000_200,
+  stageId: stage.stageId, chainId: 196 as const, calls: [compiledCall],
+  refundTokens: stage.refundTokens, quoteHash: commitment([compiledCall.quoteHash]),
+  expiresAtSec: compiledCall.expiresAtSec,
 } satisfies CompiledGeneralAssetStageV1;
 const simulated = {
   executedCallHash: commitment(compiled), success: true, gasUsed: "200000",
@@ -58,7 +60,7 @@ function accepted(
   replay: GeneralAssetStageReplayV1,
 ): Extract<GeneralAssetProgramVerdictV1, { accepted: true }> {
   const manifest = { version: 1 as const, entries: [{ providerFamily: "lifi" as const,
-    adapter: stage.adapter, chainId: 196 as const, target, runtimeCodeHash: hash("a"),
+    adapter: stage.calls[0]!.adapter, chainId: 196 as const, target, runtimeCodeHash: hash("a"),
     selectors: ["0x12345678"],
     approvalSpenders: [{ address: spender, runtimeCodeHash: hash("f") }] }] };
   const policy = { version: 1 as const, kind: "general-asset" as const,
@@ -69,7 +71,7 @@ function accepted(
     manifestHash: commitment(manifest), inputIdentityHash: hash("4"), inputValuationHash: hash("5"),
     input: { chainId: 196 as const, token: inputToken, maximumAtomic: "100", maximumUsdE8: "100000000" },
     outputs: [{ chainId: 196 as const, token: outputToken, minimumAtomic: "99", identityHash: hash("6") }],
-    allowedAdapters: [stage.adapter], limits: { maxStages: 2, maxCallsPerStage: 2, maxApprovals: 4,
+    allowedAdapters: [stage.calls[0]!.adapter], limits: { maxStages: 2, maxCallsPerStage: 2, maxApprovals: 4,
       maxCalldataBytes: 1024, maxGasPerStage: "1000000", maxNativeValueUsdE8: "1000000",
       maxBridgeFeeUsdE8: "1000000", maxSolverFeeUsdE8: "100000", maxConversionLossBps: 200,
       maxSlippageBps: 100 }, forbiddenTargets: [], forbiddenAssets: [] };
@@ -108,11 +110,11 @@ function execution(
     deadline: 2_000_000_200n,
     nonce: generalAssetStageNonceV4(verdict.policy.nonce, exactStage),
     refundTokens: exactCompiled.refundTokens,
-    calls: [{ adapterKey: exactCompiled.adapterKey, target: exactCompiled.target,
-      targetRuntimeCodeHash: exactCompiled.targetRuntimeCodeHash,
-      value: BigInt(exactCompiled.valueAtomic), gasLimit: exactCompiled.gasLimit,
-      approvals: exactCompiled.approvals.map(({ token, spender, maximumAtomic }) =>
-        ({ token, spender, amount: BigInt(maximumAtomic) })), data: exactCompiled.data }],
+    calls: exactCompiled.calls.map((call) => ({ adapterKey: call.adapterKey, target: call.target,
+      targetRuntimeCodeHash: call.targetRuntimeCodeHash,
+      value: BigInt(call.valueAtomic), gasLimit: call.gasLimit,
+      approvals: call.approvals.map(({ token, spender, maximumAtomic }) =>
+        ({ token, spender, amount: BigInt(maximumAtomic) })), data: call.data })),
     constraints: exactStage.outputs.map(({ token, minimumIncreaseAtomic }) =>
       ({ token, kind: 1 as const, minimum: BigInt(minimumIncreaseAtomic) })),
   };
@@ -163,6 +165,17 @@ describe("general asset V4 fork replay and attestation", () => {
       signTypedData: async () => hash("f") as `0x${string}` })).rejects.toThrow(/match/i);
   });
 
+  it("rejects a target runtime hash that differs from the verified compilation", async () => {
+    const replay = await replayGeneralAssetStageV1({
+      stage, compiled, anchor: { chainId: 196, blockNumber: "123", blockHash }, fork: fork(),
+    });
+    const verdict = accepted(replay);
+    const changed = execution(verdict);
+    changed.calls[0]!.targetRuntimeCodeHash = hash("f");
+    await expect(attestExecutionProgramV4({ verdict, stageIndex: 0, execution: changed, executor,
+      signTypedData: async () => hash("f") as `0x${string}` })).rejects.toThrow(/match/i);
+  });
+
   it("attests a destination stage against its own token evidence and USD exposure", async () => {
     const replay = await replayGeneralAssetStageV1({
       stage, compiled, anchor: { chainId: 196, blockNumber: "123", blockHash }, fork: fork(),
@@ -173,10 +186,13 @@ describe("general asset V4 fork replay and attestation", () => {
       predecessorStageId: stage.stageId, input: { token: outputToken, maximumAtomic: "99",
         maximumUsdE8: "99000000", identityEvidenceHash: hash("6"), valuationEvidenceHash: hash("8") },
       outputs: [{ token: destinationToken, minimumIncreaseAtomic: "95", identityEvidenceHash: hash("9") }],
-      approvals: [{ token: outputToken, spender, maximumAtomic: "99" }],
+      calls: stage.calls.map((call) => ({ ...call,
+        approvals: [{ token: outputToken, spender, maximumAtomic: "99" }] })),
       refundTokens: [outputToken, destinationToken].sort() as typeof stage.refundTokens };
     const destinationCompiled = { ...compiled, stageId: destinationStage.stageId,
-      approvals: destinationStage.approvals, refundTokens: destinationStage.refundTokens };
+      calls: compiled.calls.map((call) => ({ ...call,
+        approvals: destinationStage.calls[0]!.approvals })),
+      refundTokens: destinationStage.refundTokens };
     const destinationReplay = { ...replay, stageId: destinationStage.stageId,
       compiledCallHash: commitment(destinationCompiled), ownerAssetDeltas: [
         { token: outputToken, deltaAtomic: "-99" },

@@ -34,9 +34,14 @@ export interface GeneralAssetForkV1 {
 
 function matchesStage(stage: GeneralAssetStageV1, compiled: CompiledGeneralAssetStageV1): boolean {
   return compiled.stageId === stage.stageId && compiled.chainId === stage.chainId &&
-    compiled.target === stage.target && compiled.targetRuntimeCodeHash === stage.targetRuntimeCodeHash &&
-    compiled.data === stage.calldata && compiled.valueAtomic === stage.nativeValueAtomic &&
-    commitment(compiled.approvals) === commitment(stage.approvals) &&
+    compiled.calls.length === stage.calls.length && compiled.calls.every((call, index) => {
+      const expected = stage.calls[index]!;
+      return call.target === expected.target &&
+        call.targetRuntimeCodeHash === expected.targetRuntimeCodeHash &&
+        call.data === expected.calldata && call.valueAtomic === expected.nativeValueAtomic &&
+        call.gasLimit === expected.gasLimit &&
+        commitment(call.approvals) === commitment(expected.approvals);
+    }) &&
     commitment(compiled.refundTokens) === commitment(stage.refundTokens);
 }
 
@@ -55,9 +60,11 @@ export async function replayGeneralAssetStageV1(input: {
   if (await input.fork.getBlockHash(input.anchor.blockNumber) !== input.anchor.blockHash) {
     throw new Error("General asset fork anchor hash changed");
   }
-  if (await input.fork.getCodeHash(input.compiled.target, input.anchor.blockNumber) !==
-      input.compiled.targetRuntimeCodeHash) {
-    throw new Error("General asset adapter code identity changed");
+  for (const call of input.compiled.calls) {
+    if (await input.fork.getCodeHash(call.target, input.anchor.blockNumber) !==
+        call.targetRuntimeCodeHash) {
+      throw new Error("General asset adapter code identity changed");
+    }
   }
   const simulation = await input.fork.simulate(input);
   const compiledCallHash = commitment(input.compiled) as Hash;

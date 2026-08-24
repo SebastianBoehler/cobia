@@ -89,11 +89,13 @@ const BundleSchema = z.object({
     }
     const next = bundle.stages[index + 1];
     if (next) {
-      if (stage.delivery.kind !== "bridge" ||
-          stage.delivery.destinationChainId !== next.chainId ||
-          stage.delivery.recipient !== bundle.owner || stage.delivery.token !== next.inputToken) {
+      const sameChain = stage.chainId === next.chainId && stage.delivery.kind === "none";
+      const bridged = stage.delivery.kind === "bridge" && stage.chainId !== next.chainId &&
+        stage.delivery.destinationChainId === next.chainId &&
+        stage.delivery.recipient === bundle.owner && stage.delivery.token === next.inputToken;
+      if (!sameChain && !bridged) {
         context.addIssue({ code: "custom", path: ["stages", index, "delivery"],
-          message: "Bridge does not bind the next stage" });
+          message: "Stage delivery does not bind the next stage" });
       }
     } else if (stage.delivery.kind !== "none" || stage.chainId !== bundle.finalOutput.chainId) {
       context.addIssue({ code: "custom", path: ["finalOutput"], message: "Final stage is invalid" });

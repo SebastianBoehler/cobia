@@ -15,11 +15,13 @@ interface VerificationAnchorV4 {
 export function assertGeneralAssetArtifactIntegrityV4(
   execution: GeneralAssetExecutionBundleV4,
   authorizations: Authorizations,
-  anchor: VerificationAnchorV4,
+  anchorInput: VerificationAnchorV4 | readonly VerificationAnchorV4[],
 ): void {
+  const anchors = Array.isArray(anchorInput) ? anchorInput : [anchorInput];
   execution.stages.forEach((stage, index) => {
     const artifact = authorizations[index];
-    if (!artifact || stage.chainId !== anchor.chainId ||
+    const anchor = anchors.find((value) => value.chainId === stage.chainId);
+    if (!artifact || !anchor || stage.chainId !== anchor.chainId ||
         !isAddressEqual(artifact.executor as Address, stage.transaction.to) ||
         artifact.chainId !== stage.chainId || artifact.evidenceHash !== stage.evidenceHash) {
       throw new Error("Authorization does not match the exact execution stage");

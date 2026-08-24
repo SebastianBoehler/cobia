@@ -47,15 +47,16 @@ describe("general asset draft compiler", () => {
       input: { token: inputToken, maximumAtomic: base.maximumInputAtomic,
         maximumUsdE8: base.maximumInputUsdE8, identityHash: hash("1"), valuationHash: hash("2") },
       output: { token: outputToken, minimumAtomic: "900000", identityHash: hash("4") },
-      allowedAdapters: [{ id: "okx.swap", version: 1 }],
+      allowedAdapters: [{ id: "general.evm-call", version: 1 },
+        { id: "lifi.route", version: 1 }, { id: "okx.swap", version: 1 }],
     } });
   });
 
-  it("keeps the first public release on a same-chain route with verified delivery", () => {
-    expect(compileGeneralAssetDraftV1(base)).toEqual({
-      status: "clarification",
-      question: "Cross-chain general asset swaps are temporarily unavailable. Choose both tokens on the same chain.",
-    });
+  it("allows a cross-chain route for verifier-bound staged delivery", () => {
+    expect(compileGeneralAssetDraftV1(base)).toMatchObject({ status: "review", values: {
+      sourceChainId: 196, destinationChainId: 1,
+      allowedAdapters: expect.arrayContaining([{ id: "lifi.route", version: 1 }]),
+    } });
   });
 
   it("requires an exact address when a symbol is ambiguous", () => {

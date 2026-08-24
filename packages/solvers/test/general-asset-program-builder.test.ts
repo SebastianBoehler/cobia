@@ -74,10 +74,11 @@ describe("general asset program builder", () => {
       decision: "submit", proposalKind: "general-asset-program",
       program: {
         owner, manifestHash: commitment(manifest),
-        stages: [{ chainId: 196, target, calldata: "0x12345678",
+        stages: [{ chainId: 196, calls: [{ target, calldata: "0x12345678",
+          approvals: [{ token: inputToken, spender, maximumAtomic: "100" }],
+        }],
           input: { token: inputToken, maximumAtomic: "100", maximumUsdE8: "250" },
           outputs: [{ token: outputToken, minimumIncreaseAtomic: "90" }],
-          approvals: [{ token: inputToken, spender, maximumAtomic: "100" }],
           delivery: { kind: "none" },
         }],
         finalOutput: { chainId: 196, token: outputToken, minimumAtomic: "90" },
@@ -111,7 +112,7 @@ describe("general asset program builder", () => {
     });
 
     expect(decision).toMatchObject({ decision: "submit", program: { stages: [{
-      input: { token: NATIVE_ASSET_ADDRESS }, nativeValueAtomic: "100", approvals: [],
+      input: { token: NATIVE_ASSET_ADDRESS }, calls: [{ nativeValueAtomic: "100", approvals: [] }],
       refundTokens: [outputToken],
     }] } });
   });

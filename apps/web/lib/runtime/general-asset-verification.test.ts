@@ -47,13 +47,14 @@ function fixture() {
       maxNativeValueUsdE8: "1", maxBridgeFeeUsdE8: "1", maxSolverFeeUsdE8: "0",
       maxConversionLossBps: 200, maxSlippageBps: 100 }, forbiddenTargets: [], forbiddenAssets: [] };
   const stage = { stageId: hash("7"), index: 0, chainId: 196 as const,
-    predecessorStageId: null, adapter: { id: "okx.swap", version: 1 }, target,
-    targetRuntimeCodeHash: hash("a"), calldata: "0x12345678" as const, nativeValueAtomic: "0",
+    predecessorStageId: null, calls: [{ adapter: { id: "okx.swap", version: 1 }, target,
+      targetRuntimeCodeHash: hash("a"), calldata: "0x12345678" as const, nativeValueAtomic: "0",
+      gasLimit: 300_000,
+      approvals: [{ token: inputToken, spender, maximumAtomic: "100" }] }],
     input: { token: inputToken, maximumAtomic: "100", maximumUsdE8: "100000000",
       identityEvidenceHash: policy.inputIdentityHash, valuationEvidenceHash: policy.inputValuationHash },
     outputs: [{ token: outputToken, minimumIncreaseAtomic: "99",
       identityEvidenceHash: policy.outputs[0]!.identityHash }],
-    approvals: [{ token: inputToken, spender, maximumAtomic: "100" }],
     refundTokens: [inputToken, outputToken], finality: { confirmations: 12 },
     delivery: { kind: "none" as const } };
   const base = { version: 1 as const, kind: "general-asset-program" as const,
@@ -62,7 +63,7 @@ function fixture() {
     valuationEvidenceHashes: [commitment(valuation)], stages: [stage],
     finalOutput: { chainId: 196 as const, token: outputToken, minimumAtomic: "99" } };
   const program = { ...base, canonicalProgramHash: canonicalGeneralAssetProgramHash(base) };
-  const compileSwap = vi.fn(async () => ({ target, data: stage.calldata, valueAtomic: "0" as const,
+  const compileSwap = vi.fn(async () => ({ target, data: stage.calls[0]!.calldata, valueAtomic: "0" as const,
     gasLimit: 300_000, approval: { spender, maximumAtomic: "100", data: "0x095ea7b3" as const },
     quoteHash: hash("c"), fetchedAtSec: nowSec, expiresAtSec: nowSec + 30,
     source: { approveRequest: "/approve", approval: {}, swapRequest: "/swap", swap: {} } }));
@@ -148,7 +149,7 @@ describe("production general asset proposal verification", () => {
     expect(value.compileSwap).not.toHaveBeenCalled();
   });
 
-  it("fails closed before compilation for bridge or multi-stage programs", async () => {
+  it("does not impose a production-only route allowlist", async () => {
     const value = fixture();
     const input = { ...value.input, program: { ...value.input.program,
       stages: [value.stage, { ...value.stage, index: 1,
@@ -159,7 +160,35 @@ describe("production general asset proposal verification", () => {
       getCodeHash: async () => hash("e"), compileSwap: value.compileSwap,
       replayStage: vi.fn(), signTypedData: vi.fn(),
     });
-    expect(result).toEqual({ accepted: false, errorCodes: ["ROUTE_UNSUPPORTED"] });
+    expect(result).not.toMatchObject({ errorCodes: expect.arrayContaining(["ROUTE_UNSUPPORTED"]) });
+  });
+
+  it("attests a generic exact call without invoking the OKX plugin compiler", async () => {
+    const value = fixture();
+    const policy = { ...value.input.policy,
+      allowedAdapters: [{ id: "general.evm-call", version: 1 }] };
+    const call = value.stage.calls[0]!;
+    const stage = { ...value.stage, calls: [{ ...call,
+      adapter: { id: "general.evm-call", version: 1 } }] };
+    const base = { ...value.input.program, policyHash: commitment(policy), stages: [stage] };
+    const program = { ...base, canonicalProgramHash: canonicalGeneralAssetProgramHash(base) };
+    const account = privateKeyToAccount(`0x${"77".repeat(32)}`);
+    const result = await verifyRuntimeGeneralAssetProposalV1({ ...value.input, policy, program }, {
+      executor, executorCodeHash: hash("e"), refreshAsset: value.refreshAsset,
+      nowSec: () => nowSec,
+      getCodeHash: async (_chainId, address) => address === executor ? hash("e")
+        : address === target ? hash("a") : hash("b"), compileSwap: value.compileSwap,
+      replayStage: async (exactStage, compiled, anchor) => ({ stageId: exactStage.stageId,
+        chainId: exactStage.chainId, blockNumber: anchor.blockNumber, blockHash: anchor.blockHash,
+        compiledCallHash: commitment(compiled), matchesCompiledCalls: true, success: true,
+        gasUsed: "200000", ownerAssetDeltas: [{ token: inputToken, deltaAtomic: "-100" },
+          { token: outputToken, deltaAtomic: "99" }],
+        endingAllowances: [{ token: inputToken, spender, atomic: "0" }],
+        traceHash: hash("9"), stateDiffHash: hash("8") }),
+      signTypedData: (typedData) => account.signTypedData(typedData),
+    });
+
+    expect(result).toMatchObject({ accepted: true, execution: { stages: [{ chainId: 196 }] } });
     expect(value.compileSwap).not.toHaveBeenCalled();
   });
 

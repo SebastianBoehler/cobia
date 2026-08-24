@@ -11,8 +11,9 @@ function verdict() {
     input: { token: address("2"), maximumAtomic: "100", maximumUsdE8: "100000000",
       identityEvidenceHash: hash("2"), valuationEvidenceHash: hash("3") },
     outputs: [{ token: address("3"), minimumIncreaseAtomic: "90", identityEvidenceHash: hash("4") }],
-    adapter: { id: "lifi.bridge", version: 1 }, target: address("4"), targetRuntimeCodeHash: hash("5"),
-    calldata: "0x12345678", nativeValueAtomic: "0", approvals: [], refundTokens: [address("2"), address("3")],
+    calls: [{ adapter: { id: "lifi.bridge", version: 1 }, target: address("4"),
+      targetRuntimeCodeHash: hash("5"), calldata: "0x12345678", nativeValueAtomic: "0", gasLimit: 300_000,
+      approvals: [] }], refundTokens: [address("2"), address("3")],
     finality: { confirmations: 12 }, delivery: { kind: "bridge" as const, destinationChainId: 196 as const,
       recipient: owner, minimumDeliveredAtomic: "90" } };
   const second = { ...first, stageId: hash("6"), index: 1, chainId: 196 as const,
@@ -45,5 +46,21 @@ describe("general asset execution bundle", () => {
       delivery: { token: address("3"), minimumAtomic: "90" } });
     expect(bundle.stages[0]!.transaction).not.toHaveProperty("nonce");
     expect(bundle.deadline).toBe(accepted.program.deadline - 2);
+  });
+
+  it("keeps consecutive same-chain stages without inventing bridge delivery", () => {
+    const accepted = verdict();
+    const [first, second] = accepted.program.stages;
+    first!.chainId = 196;
+    first!.delivery = { kind: "none" };
+    const attestations = [first!, second!].map((stage, stageIndex) => ({ stageIndex,
+      authorization: { chainId: BigInt(stage.chainId), owner: accepted.program.owner,
+        canonicalProgramHash: accepted.program.canonicalProgramHash,
+        deadline: BigInt(accepted.program.deadline) },
+      call: { to: address("9"), data: "0x12345678" as const, value: 0n }, evidenceHash: hash("c") }));
+
+    const bundle = buildGeneralAssetExecutionBundleV4({ verdict: accepted, attestations });
+
+    expect(bundle.stages.map(({ delivery }) => delivery)).toEqual([{ kind: "none" }, { kind: "none" }]);
   });
 });
