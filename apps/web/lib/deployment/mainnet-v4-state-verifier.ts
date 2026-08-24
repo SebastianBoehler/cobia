@@ -183,8 +183,8 @@ export async function verifyMainnetV4State(input: {
   fail(!bool(await read(spec.riskManager, "walletDenied", [spec.canary]), "wallet denied"), "canary denied");
   fail(bigint(await read(spec.riskManager, "unpauseAfter"), "unpause") ===
     (mode === "proposed" ? BigInt(spec.activationAtSec) : 0n), "unpause mismatch");
-  fail(bigint(await read(spec.riskManager, "openAccessAfter"), "open access") === 0n,
-    "unexpected pending open access");
+  fail(bigint(await read(spec.riskManager, "openAccessAfter"), "open access") ===
+    (mode === "open" ? 0n : BigInt(spec.openAccessAfterSec)), "open access mismatch");
   for (const expected of spec.permissions) {
     const permission = object(await read(spec.registry, "permissions", [expected.key]), "permission");
     fail(sameHash(permission.runtimeCodeHash, expected.runtimeCodeHash) &&

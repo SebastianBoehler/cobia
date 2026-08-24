@@ -7,7 +7,7 @@
   "executor": "0xFcb59964fD41E9C097a28F02E13854Df0a26A44E",
   "canary": "0x9Afbf85e52612A9922617aDdA9569e13f565de31",
   "activationAtSec": 1787768422,
-  "openAccessAfterSec": 0,
+  "openAccessAfterSec": 1787769314,
   "codeHashes": {
     "riskManager": "0xb02d509cd26048642ee1c4eeaaba481db05e65130b90be64567f498ddddf96cb",
     "executor": "0x93ddb1f1d2975a4e4ff8a4d118e67b8623e511e63bf20f412de6032b2b8818e1"

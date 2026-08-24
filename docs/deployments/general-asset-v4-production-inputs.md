@@ -128,23 +128,33 @@ inactive until a separately confirmed activation transaction executes after that
 The signer-free proposed-state check passed at block `68826872` with zero plugin
 permissions. Its pinned inputs are
 [`general-asset-v4-xlayer-replacement-proposed-state.json`](./general-asset-v4-xlayer-replacement-proposed-state.json).
-The replacement future batches are:
+The replacement governance batches are:
 
 - [`general-asset-v4-xlayer-replacement-safe-activation.future.json`](./general-asset-v4-xlayer-replacement-safe-activation.future.json),
   SHA-256 `96c3e7647e0e760d8bfe3e3166839ef8a64dfdfe416fefa6b24e2e9092b3c1c8`,
   Safe checksum `0xa51aa2e4bc68867fecb88333d831de9fd49baf821bd5659d4098ea71781ec6a3`;
-- [`general-asset-v4-xlayer-replacement-safe-open-proposal.future.json`](./general-asset-v4-xlayer-replacement-safe-open-proposal.future.json),
+- [`general-asset-v4-xlayer-replacement-safe-open-proposal.json`](./general-asset-v4-xlayer-replacement-safe-open-proposal.json),
   SHA-256 `21577126e688f2b1ce04e1b06a0322ad2797ee2cf5269f1d95bc1a4515bf2956`,
   Safe checksum `0xd4fb3f8f34dfd1392f1d500ec1bdcbd3ceede259eace259db0fea21de8910377`;
 - [`general-asset-v4-xlayer-replacement-safe-open-activation.future.json`](./general-asset-v4-xlayer-replacement-safe-open-activation.future.json),
   SHA-256 `1ebe1f4d756b109198b11460fbebd2458eb6ab1918144c1a5eb63cb4104e1604`,
   Safe checksum `0x355bebdcceb1871c99182019ece7b75819f68f80fb16a815669c22087525b2a1`.
 
+The public proposal executed in transaction
+`0x924a23575d7c17d77db9bd0c7d3a8825ee91f7321e5854cc31b5fb18cb36e8f3`
+at block `68827478` (`2026-08-24T18:35:14Z`), advancing the Safe nonce from `7` to `8`.
+Public activation becomes eligible at `2026-08-26T18:35:14Z`, fifteen minutes after the
+canary activation gate. Public access remains off until the future open-activation batch is
+separately confirmed after a successful canary.
+An independent proposed-state read-back at block `68827821` confirmed both pending timers,
+the paused allowlist state, the canary wallet proposal, and the replacement runtime hashes.
+
 The activation file contains exactly `activateWallet(canary)` and `activateUnpause()` and
-must not execute before the first maturity time. The open files remain future-only until a
-successful canary and a second 48-hour governance window. The future application binding is
-[`general-asset-v4-xlayer-replacement-runtime-config.future.json`](./general-asset-v4-xlayer-replacement-runtime-config.future.json)
-and must not be installed before activation read-back.
+must not execute before the first maturity time. The open-activation file remains future-only.
+The application status binding is
+[`general-asset-v4-xlayer-replacement-runtime-config.json`](./general-asset-v4-xlayer-replacement-runtime-config.json);
+installing it exposes the replacement contract's real countdown but cannot bypass its
+paused or allowlist state.
 
 ## Executed initial X Layer stage
 
