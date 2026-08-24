@@ -66,6 +66,15 @@ contract CobiaExecutorV4Test is ExecutorV4TestBase {
         assert(input.balanceOf(address(adapter)) == 1_000_000);
     }
 
+    function test_nativeOnlyProgramNeedsNoFakeRefundToken() public {
+        CobiaExecutionTypesV4.ExecutionProgramV4 memory value = nativeRoundTripProgram(1_000_000);
+        uint256 beforeBalance = OWNER.balance;
+        executeAsOwner(value);
+
+        assert(OWNER.balance == beforeBalance);
+        assert(address(executor).balance == 0);
+    }
+
     function test_executionAndAuthorizationPayloadHashesMatchFrozenTypeScriptVectors() public view {
         CobiaExecutionTypesV4.ExecutionProgramV4 memory value = _interopProgram();
         CobiaExecutionTypesV4.VerifierAuthorizationV4 memory auth = _interopAuthorization(value);

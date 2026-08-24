@@ -21,7 +21,7 @@ library CobiaExecutionValidationV4 {
                 || program.pinnedBlockHash == bytes32(0) || !_allCommitmentsPresent(program)
         ) revert InvalidProgram();
         if (
-            program.refundTokens.length == 0 || program.refundTokens.length > 16 || program.calls.length == 0
+            program.refundTokens.length > 16 || program.calls.length == 0
                 || program.calls.length > 8 || program.constraints.length == 0 || program.constraints.length > 8
         ) revert InvalidProgram();
         _validateRefunds(program);

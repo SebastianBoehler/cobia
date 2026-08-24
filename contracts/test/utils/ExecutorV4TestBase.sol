@@ -36,6 +36,12 @@ contract MockAdapterV4 {
         require(success, "native output");
     }
 
+    function returnNative(uint256 amount) external payable {
+        require(msg.value == amount, "native amount");
+        (bool success,) = msg.sender.call{value: amount}("");
+        require(success, "native return");
+    }
+
     function debitWallet(MockToken token, address owner, address recipient, uint256 amount) external {
         token.transferFrom(owner, recipient, amount);
     }
@@ -204,6 +210,20 @@ abstract contract ExecutorV4TestBase {
         );
         value.refundTokens = new address[](1);
         value.refundTokens[0] = address(input);
+    }
+
+    function nativeRoundTripProgram(uint128 amount)
+        internal
+        view
+        returns (CobiaExecutionTypesV4.ExecutionProgramV4 memory value)
+    {
+        value = nativeInputProgram(amount);
+        value.outputToken = NATIVE_ASSET;
+        value.calls[0].data = abi.encodeCall(adapter.returnNative, (amount));
+        value.constraints[0] = CobiaExecutionTypesV4.BalanceConstraintV4(
+            NATIVE_ASSET, CobiaExecutionTypesV4.ConstraintKind.Increase, amount
+        );
+        value.refundTokens = new address[](0);
     }
 
     function executeAsOwner(CobiaExecutionTypesV4.ExecutionProgramV4 memory value) internal {

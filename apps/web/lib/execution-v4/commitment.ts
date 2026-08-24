@@ -109,7 +109,7 @@ export function assertExecutionProgramV4(value: ExecutionProgramV4): void {
   assertUint(value.inputUsdE8, UINT128_MAX, "inputUsdE8");
   assertUint(value.deadline, UINT64_MAX, "deadline");
   if (value.sourceChainId !== 1n && value.sourceChainId !== 196n) throw new Error("sourceChainId is unsupported");
-  if (value.refundTokens.length < 1 || value.refundTokens.length > 16 ||
+  if (value.refundTokens.length > 16 ||
       value.calls.length < 1 || value.calls.length > 8 ||
       value.constraints.length < 1 || value.constraints.length > 8) throw new Error("Program collection count is invalid");
   value.refundTokens.forEach((token) => assertAddress(token, "refund token"));
