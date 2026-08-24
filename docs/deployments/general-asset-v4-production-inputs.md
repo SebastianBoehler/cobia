@@ -60,6 +60,37 @@ proposal:
 The first delay starts when the initial Safe proposal batch executes onchain, not when
 these files are generated, committed, or uploaded.
 
+## Open-execution replacement
+
+The verifier-authoritative multi-call implementation changes the Executor V4 runtime.
+The deployed executor runtime hash is
+`0xa844f5635fc7206cb9231d15a92f4d2519ffcb5c0f35c2cedd7ed7d2ae291a3f`; the reviewed
+replacement artifact hash is
+`0xaeb8e231f67b79e29c92c2581a11bc56667f59fcec19a01e86a00b264695afc6`.
+The deployed executor and its risk manager therefore remain paused and must not be
+activated. The old activation and open-access future batches are superseded and must not
+be executed.
+
+At X Layer block `68820262`, the operator nonce was `16` and its balance was
+`60747713443335673` wei. The refreshed V3 remaining atomic capacities were `988012883`
+USDG and `987885822` USDt0. The replacement migration input is
+[`general-asset-v4-xlayer-replacement-migration.json`](./general-asset-v4-xlayer-replacement-migration.json).
+
+The signer-free replacement plan is
+[`general-asset-v4-xlayer-replacement-unsigned-plan.json`](./general-asset-v4-xlayer-replacement-unsigned-plan.json)
+(SHA-256 `28914dc61a6d813abfcf265bd898afda2aae995423c25a160fb5974545e71831`).
+Independent CREATE-address derivation predicts RiskManager V2
+`0x13B9070f2d52812bFFB7CD7358653c741AbF5F40` at nonce `16` and Executor V4
+`0xFcb59964fD41E9C097a28F02E13854Df0a26A44E` at nonce `17`.
+
+The replacement plan intentionally uses
+[`general-asset-v4-empty-plugins.json`](./general-asset-v4-empty-plugins.json): exact-call
+programs are admitted by pinned target and spender runtime hashes plus verifier policy,
+not by registry membership. Optional semantic plugins may still be registered for faster
+route construction and stronger protocol-specific verification. The replacement risk
+manager starts paused and allowlisted; a new Safe proposal, delay, canary, and separate
+public-open delay remain mandatory after deployment read-back.
+
 ## Executed initial X Layer stage
 
 The reviewed deployments executed successfully:

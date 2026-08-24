@@ -15,13 +15,13 @@ import {
 } from "../lib/deployment/mainnet-v3-deployment-console";
 import { optionalArgument } from "./executor-deployment-input";
 
-const PLAN_SHA256 = "13482d50b1ce5cead9268d6a0135c5855be40408d83894553d8d420b0c59e350";
+const PLAN_SHA256 = "28914dc61a6d813abfcf265bd898afda2aae995423c25a160fb5974545e71831";
 const OPERATOR = getAddress("0xB6da8E6d497bd3Bc5016416DA57d177085449124");
 const SAFE = getAddress("0x08eea990F0b165A20d723e59517044a519C83351");
 const REGISTRY = getAddress("0xEf955cC592346e3b4cb8c7a67f3FE6B2c4688877");
 const VERIFIER = getAddress("0x1667d3e9a37655600eb4ee56BD2F5BAddC49fed4");
-const RISK_MANAGER = getAddress("0xE399a72B7d0fEF974e868582671D4c7a23d37637");
-const EXECUTOR = getAddress("0xa3370D2719e670B46682bcC8f7Fae2f36797b66D");
+const RISK_MANAGER = getAddress("0x13B9070f2d52812bFFB7CD7358653c741AbF5F40");
+const EXECUTOR = getAddress("0xFcb59964fD41E9C097a28F02E13854Df0a26A44E");
 
 function deployment(value: unknown, label: string, nonce: string, expectedContract: Address) {
   if (!value || typeof value !== "object") throw new Error(`Malformed ${label} deployment`);
@@ -35,7 +35,7 @@ function deployment(value: unknown, label: string, nonce: string, expectedContra
 }
 
 function reviewedPlan(): MainnetDeploymentConsolePlan {
-  const path = fileURLToPath(new URL("../../../docs/deployments/general-asset-v4-xlayer-unsigned-plan.json",
+  const path = fileURLToPath(new URL("../../../docs/deployments/general-asset-v4-xlayer-replacement-unsigned-plan.json",
     import.meta.url));
   const source = readFileSync(path);
   if (createHash("sha256").update(source).digest("hex") !== PLAN_SHA256) {
@@ -44,14 +44,15 @@ function reviewedPlan(): MainnetDeploymentConsolePlan {
   const value = JSON.parse(source.toString("utf8")) as Record<string, unknown>;
   if (value.version !== 4 || value.chainId !== 196 || value.deployer !== OPERATOR ||
       value.owner !== SAFE || value.registry !== REGISTRY || value.verifier !== VERIFIER ||
+      !Array.isArray(value.adapters) || value.adapters.length !== 0 ||
       value.riskManager !== RISK_MANAGER || value.executor !== EXECUTOR ||
       !Array.isArray(value.deployments) || value.deployments.length !== 2) {
     throw new Error("Reviewed V4 plan identity mismatch");
   }
   return { version: 4, chainId: 196, deployer: OPERATOR, owner: SAFE, registry: REGISTRY,
     verifier: VERIFIER, deployments: [
-      deployment(value.deployments[0], "deploy-risk-manager-v2", "13", RISK_MANAGER),
-      deployment(value.deployments[1], "deploy-executor-v4", "14", EXECUTOR),
+      deployment(value.deployments[0], "deploy-risk-manager-v2", "16", RISK_MANAGER),
+      deployment(value.deployments[1], "deploy-executor-v4", "17", EXECUTOR),
     ] };
 }
 
@@ -67,7 +68,7 @@ async function main() {
       client.getCode({ address: RISK_MANAGER }), client.getCode({ address: EXECUTOR }),
     ]);
   if (chainId !== 196) throw new Error(`Mainnet RPC chain mismatch: ${chainId}`);
-  if (nonce !== 13) throw new Error(`Operator nonce changed: expected 13, got ${nonce}`);
+  if (nonce !== 16) throw new Error(`Operator nonce changed: expected 16, got ${nonce}`);
   if (balance === 0n) throw new Error("Operator has no deployment gas");
   if (!registryCode || registryCode === "0x") throw new Error("Committed registry has no code");
   if ((riskCode && riskCode !== "0x") || (executorCode && executorCode !== "0x")) {
