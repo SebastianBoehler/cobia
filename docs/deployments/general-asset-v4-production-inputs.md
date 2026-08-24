@@ -34,7 +34,11 @@ and Executor V4 `0x3a04e65b2edf263EAe7207DE5a5745ccF41797BF` at nonce `21`.
 The checksummed Transaction Builder artifact is
 [`general-asset-v4-xlayer-zero-delay-safe-batches.json`](./general-asset-v4-xlayer-zero-delay-safe-batches.json)
 (SHA-256 `314f6536642346082b1c707e5682b1f7e48b5223bb28150e8b364db3f4200fef`).
-Its immediate-canary batch has checksum
+The directly importable files are
+[`general-asset-v4-xlayer-zero-delay-canary-safe-batch.json`](./general-asset-v4-xlayer-zero-delay-canary-safe-batch.json)
+and
+[`general-asset-v4-xlayer-zero-delay-public-safe-batch.json`](./general-asset-v4-xlayer-zero-delay-public-safe-batch.json).
+The immediate-canary batch has checksum
 `0x794541ece3d0686a6613b531b0462608951fbce461b23bd28cc4465cd97a9b21`
 and contains `proposeWallet`, `proposeUnpause`, `activateWallet`, and
 `activateUnpause`. Its public batch has checksum
