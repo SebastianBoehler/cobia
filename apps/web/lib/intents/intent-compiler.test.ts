@@ -635,4 +635,26 @@ describe("intent compiler", () => {
     });
     expect(fetcher).not.toHaveBeenCalled();
   });
+
+  it("rejects a composed draft that replaces the exact tagged OKB input", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify({
+      status: "review", question: null, kind: "composed",
+      templateId: "exact-input-swap", inputSymbol: "OKB", outputSymbol: "USDG",
+      amount: "0.01", walletShareBps: null, minimum: "", jurisdiction: null,
+      composed: {
+        inputSymbol: "USDt0", amount: "0.01",
+        capabilityIds: ["aave-v3.supply", "curve-stableswap-ng.exact-input",
+          "uniswap-v3.exact-input"],
+        maxConversionLossBps: 100, deadlineMinutes: 5,
+      },
+      conversion: null,
+    })));
+    const compiler = createOpenAiIntentCompiler({ apiKey: "test", model: "test-model",
+      fetcher, compositionAvailable: true });
+
+    await expect(compiler.compile("0.01 @OKB into @USDG", "any")).resolves.toEqual({
+      status: "clarification",
+      question: "The draft did not preserve the exact wallet token tagged in your goal. Edit the token tag and try again.",
+    });
+  });
 });

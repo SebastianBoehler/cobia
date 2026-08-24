@@ -10,12 +10,12 @@ import {
 } from "./deterministic-intent-draft";
 import type { ActionPreference } from "./intent-controls";
 import {
-  COMPOSITION_CAPABILITY_IDS,
+  COMPOSITION_CAPABILITY_IDS, CompositionModelDraftSchema,
   resolveCompositionDraft,
   type ComposedIntentDraft,
 } from "./composition-draft";
 import { resolveRegisteredCompositionGoal } from "./registered-composition-goal";
-import { preserveExactTaggedWalletInputs } from "./exact-wallet-inputs";
+import { hasExactTaggedWalletInputs, preserveExactTaggedWalletInputs } from "./exact-wallet-inputs";
 import type { WalletBalances } from "./wallet-balance-request";
 import { INTENT_COMPILER_INSTRUCTIONS, INTENT_TEMPLATE_CONTRACTS } from "./intent-compiler-contract";
 import {
@@ -296,7 +296,11 @@ export function createOpenAiIntentCompiler(options: Options) {
       if (!options.compositionAvailable) return { status: "clarification",
         question: "No compatible multi-step solver is active yet." };
       if (!compiled.composed) throw new Error("Intent compiler omitted composed policy fields");
-      return { status: "review", values: resolveCompositionDraft(compiled.composed) };
+      const composed = CompositionModelDraftSchema.parse(compiled.composed);
+      if (!hasExactTaggedWalletInputs(goal, compiled.outputSymbol,
+        [composed.inputSymbol], walletAssets)) return { status: "clarification",
+        question: "The draft did not preserve the exact wallet token tagged in your goal. Edit the token tag and try again." };
+      return { status: "review", values: resolveCompositionDraft(composed) };
     }
     if (actionPreference !== "any" && boundedCompilation.templateId !== actionPreference) {
       return { status: "clarification",
