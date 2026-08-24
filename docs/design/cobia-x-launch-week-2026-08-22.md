@@ -206,6 +206,7 @@ candidate they replace:
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2026-08-23 20:51 | Product object model | `Three tags. Three reviewable objects.` | `marketing/remotion/output/cobia-token-evidence-x-16x9.mp4` | `$USDG`, `$USDt0`, `@XLayerOfficial` | `https://x.com/Cobia_Web3/status/2091599245006495818` | 0 replies, 0 reposts, 0 likes at verification | Not recorded | Consumed; do not reuse this edit or hook during launch week. |
 | 2026-08-24 00:10 | Community meme reply | `secret third option: signing before reading the calls` | `marketing/remotion/output/check-native-wallet.png` | None | `https://x.com/Cobia_Web3/status/2091649329568108622` | 0 replies, 0 reposts, 0 likes at verification | Reply to `https://x.com/Bybit_Official/status/2091644905000989005` | Hook and image consumed; no second meme reply on Aug 24. |
+| 2026-08-24 17:33 | Live network proof | `27 confirmed outcomes on @XLayerOfficial.` | Live viewport capture of `getcobia.com/network` | `@XLayerOfficial` | `https://x.com/Cobia_Web3/status/2091911856520589581` | 0 replies, 0 reposts, 0 likes at verification | Founder quote-post at `https://x.com/sebastianboehle/status/2091912638351421589` (17:36) | Counts, hook, and capture consumed; do not repost unchanged during launch week. |
 
 ## Distribution guardrails
 
