@@ -9,7 +9,7 @@ const address = (byte: string) => `0x${byte.repeat(40)}` as `0x${string}`;
 const hash = (byte: string) => `0x${byte.repeat(64)}` as `0x${string}`;
 const riskArtifact = { abi: [{ type: "constructor", stateMutability: "nonpayable", inputs: [
   { name: "owner", type: "address" }, { name: "executor", type: "address" },
-  { name: "verifier", type: "address" },
+  { name: "verifier", type: "address" }, { name: "changeDelay", type: "uint64" },
 ] }] as Abi, bytecode: "0x6000" as const };
 const executorArtifact = { abi: [{ type: "constructor", stateMutability: "nonpayable", inputs: [
   { name: "registry", type: "address" }, { name: "risk", type: "address" },
@@ -62,9 +62,12 @@ describe("agent executor V4 deployment plan", () => {
       chainId: 196, deployer: address("1"), deployerNonce: 0n,
       owner: address("2"), verifier: address("3"), canaryWallet: address("4"), registry: address("5"),
       artifacts: { riskManager: riskArtifact, executor: executorArtifact }, adapters: [], migration,
+      retainProtocolCap: true,
     });
 
     expect(plan.adapters).toEqual([]);
+    expect(plan.limitsUsdE8.protocol24h).toBe("5000000000000");
+    expect(plan.migrationRiskReductionTransactions).toEqual([]);
     expect(plan.proposalTransactions.map(({ label }) => label)).toEqual([
       "propose-canary-wallet", "propose-unpause",
     ]);
@@ -73,6 +76,23 @@ describe("agent executor V4 deployment plan", () => {
     ]);
     expect(safeProposalTransactionsV4(plan, { retainProtocolCap: true }).map(({ label }) => label))
       .toEqual(["propose-canary-wallet", "propose-unpause"]);
+  });
+
+  it("builds zero-delay canary and public launch transactions", () => {
+    const plan = buildAgentExecutorDeploymentPlanV4({
+      chainId: 196, deployer: address("1"), deployerNonce: 0n,
+      owner: address("2"), verifier: address("3"), canaryWallet: address("4"), registry: address("5"),
+      artifacts: { riskManager: riskArtifact, executor: executorArtifact }, adapters: [], migration,
+      changeDelaySeconds: 0,
+    });
+
+    expect(plan.activationDelaySeconds).toBe(0);
+    expect(plan.canaryLaunchTransactions.map(({ label }) => label)).toEqual([
+      "propose-canary-wallet", "propose-unpause", "activate-canary-wallet", "activate-unpause",
+    ]);
+    expect(plan.publicLaunchTransactions.map(({ label }) => label)).toEqual([
+      "propose-open-access", "activate-open-access",
+    ]);
   });
 
   it("rejects an open plan whose combined V3 and V4 budget exceeds the migration ceiling", () => {

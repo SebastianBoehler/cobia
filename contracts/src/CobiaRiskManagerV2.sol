@@ -5,7 +5,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 contract CobiaRiskManagerV2 is Ownable2Step {
-    uint64 public constant CHANGE_DELAY = 48 hours;
+    uint64 public immutable CHANGE_DELAY;
     uint8 private constant WINDOW_BUCKETS = 24;
 
     enum AccessMode {
@@ -70,10 +70,11 @@ contract CobiaRiskManagerV2 is Ownable2Step {
     uint64 public verifierActivateAfter;
     address public pendingVerifier;
 
-    constructor(address initialOwner, address executor_, address verifier_) Ownable(initialOwner) {
+    constructor(address initialOwner, address executor_, address verifier_, uint64 changeDelay_) Ownable(initialOwner) {
         if (executor_ == address(0) || verifier_ == address(0)) revert InvalidConfiguration();
         executor = executor_;
         verifierSigner = verifier_;
+        CHANGE_DELAY = changeDelay_;
     }
 
     function proposeLimits(Limits calldata proposed) external onlyOwner {

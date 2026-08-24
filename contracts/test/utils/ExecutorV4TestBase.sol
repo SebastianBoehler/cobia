@@ -64,7 +64,7 @@ contract ExecutorV4Deployer {
         returns (CobiaExecutorV4 executor, CobiaRiskManagerV2 riskManager)
     {
         address predicted = address(uint160(uint256(keccak256(abi.encodePacked(hex"d694", address(this), hex"02")))));
-        riskManager = new CobiaRiskManagerV2(owner, predicted, verifier);
+        riskManager = new CobiaRiskManagerV2(owner, predicted, verifier, 48 hours);
         executor = new CobiaExecutorV4(registry, riskManager);
         require(address(executor) == predicted, "prediction");
     }

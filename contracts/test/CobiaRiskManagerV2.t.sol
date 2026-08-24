@@ -5,6 +5,22 @@ import {CobiaRiskManagerV2} from "../src/CobiaRiskManagerV2.sol";
 import {RiskManagerV2TestBase} from "./utils/RiskManagerV2TestBase.sol";
 
 contract CobiaRiskManagerV2Test is RiskManagerV2TestBase {
+    function test_zeroDelayActivatesCanaryAndOpenAccessWithoutWarp() public {
+        manager = new CobiaRiskManagerV2(address(this), EXECUTOR, VERIFIER, 0);
+        assert(manager.CHANGE_DELAY() == 0);
+
+        manager.proposeWallet(WALLET);
+        manager.proposeUnpause();
+        manager.activateWallet(WALLET);
+        manager.activateUnpause();
+        assert(manager.walletAllowed(WALLET));
+        assert(!manager.paused());
+
+        manager.proposeOpenAccess();
+        manager.activateOpenAccess();
+        assert(uint8(manager.accessMode()) == uint8(CobiaRiskManagerV2.AccessMode.Open));
+    }
+
     function test_defaultsAreRestrictiveAndLaunchCapsAreUsdE8() public view {
         assert(manager.paused());
         assert(uint8(manager.accessMode()) == uint8(CobiaRiskManagerV2.AccessMode.Allowlist));
@@ -18,11 +34,11 @@ contract CobiaRiskManagerV2Test is RiskManagerV2TestBase {
 
     function test_constructorRejectsZeroConfiguration() public {
         vm.expectPartialRevert(bytes4(keccak256("OwnableInvalidOwner(address)")));
-        new CobiaRiskManagerV2(address(0), EXECUTOR, VERIFIER);
+        new CobiaRiskManagerV2(address(0), EXECUTOR, VERIFIER, 48 hours);
         vm.expectRevert(CobiaRiskManagerV2.InvalidConfiguration.selector);
-        new CobiaRiskManagerV2(address(this), address(0), VERIFIER);
+        new CobiaRiskManagerV2(address(this), address(0), VERIFIER, 48 hours);
         vm.expectRevert(CobiaRiskManagerV2.InvalidConfiguration.selector);
-        new CobiaRiskManagerV2(address(this), EXECUTOR, address(0));
+        new CobiaRiskManagerV2(address(this), EXECUTOR, address(0), 48 hours);
     }
 
     function test_arbitraryAssetsNeedNoRiskManagerRegistration() public {

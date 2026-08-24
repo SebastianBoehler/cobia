@@ -22,7 +22,7 @@ abstract contract RiskManagerV2TestBase {
     CobiaRiskManagerV2 internal manager;
 
     function setUp() public virtual {
-        manager = new CobiaRiskManagerV2(address(this), EXECUTOR, VERIFIER);
+        manager = new CobiaRiskManagerV2(address(this), EXECUTOR, VERIFIER, 48 hours);
     }
 
     function _advanceDelay() internal {

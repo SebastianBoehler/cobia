@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { getAddress, isAddress, type Address, type Hash, type Hex } from "viem";
 import {
   buildAgentExecutorDeploymentPlanV4,
@@ -21,6 +21,13 @@ interface AdapterFile {
 }
 const HASH = /^0x[0-9a-f]{64}$/;
 const SELECTOR = /^0x[0-9a-f]{8}$/;
+
+function emit(value: unknown) {
+  const serialized = `${JSON.stringify(value, null, 2)}\n`;
+  const output = optionalArgument("output");
+  if (output) writeFileSync(output, serialized, { mode: 0o600 });
+  else process.stdout.write(serialized);
+}
 
 function adapters(path: string): AdapterFile[] {
   const value = JSON.parse(readFileSync(path, "utf8")) as unknown;
@@ -63,6 +70,8 @@ function migration(path: string, chainId: 1 | 196): PartitionedMigrationBudgetIn
 
 const chainId = Number(argument("chain-id"));
 if (chainId !== 1 && chainId !== 196) throw new Error("--chain-id must be 1 or 196");
+const changeDelaySeconds = Number(optionalArgument("change-delay-seconds") ?? 48 * 60 * 60);
+const retainProtocolCap = process.argv.includes("--retain-protocol-cap");
 const plan = buildAgentExecutorDeploymentPlanV4({
   chainId,
   deployer: addressArgument("deployer"),
@@ -74,42 +83,49 @@ const plan = buildAgentExecutorDeploymentPlanV4({
   artifacts: executorArtifactsV4(),
   adapters: adapters(argument("adapters")),
   migration: migration(argument("migration"), chainId),
+  changeDelaySeconds,
+  retainProtocolCap,
 });
 const format = optionalArgument("format") ?? "plan";
 if (format === "plan") {
-  process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
+  emit(plan);
 } else if (format === "safe-batches") {
   const createdAt = Number(argument("created-at"));
-  const retainProtocolCap = process.argv.includes("--retain-protocol-cap");
+  const immediate = plan.activationDelaySeconds === 0;
   const batch = (name: string, description: string, transactions: readonly {
     to: Address; value: Hex; data: Hex;
   }[]) => buildSafeBatch({ chainId, safe: plan.owner, name, description, createdAt, transactions });
-  process.stdout.write(`${JSON.stringify({
+  emit({
     proposal: batch(
-      `Cobia Executor V4 chain ${chainId} proposal${retainProtocolCap ? " - retain protocol cap" : ""}`,
-      retainProtocolCap
-        ? "Retains the deployed contract limits and starts only the reviewed 48-hour governance delays."
-        : "Applies the reviewed migration cap and starts the reviewed 48-hour governance delays.",
+      `Cobia Executor V4 chain ${chainId} ${immediate ? "immediate canary" : "proposal"}` +
+        `${retainProtocolCap ? " - retain protocol cap" : ""}`,
+      immediate
+        ? "Retains the deployed contract limits and immediately activates only the canary wallet."
+        : retainProtocolCap
+          ? "Retains the deployed contract limits and starts the reviewed governance delays."
+          : "Applies the reviewed migration cap and starts the reviewed governance delays.",
       safeProposalTransactionsV4(plan, { retainProtocolCap }),
     ),
-    activation: batch(
+    ...(!immediate ? { activation: batch(
       `Cobia Executor V4 chain ${chainId} activation`,
       plan.adapters.length === 0
         ? "Activates the matured canary-wallet and unpause proposals after independent re-verification."
         : "Activates the matured plugin, canary-wallet, and unpause proposals after independent re-verification.",
       plan.activationTransactions,
-    ),
+    ) } : {}),
     openProposal: batch(
-      `Cobia Executor V4 chain ${chainId} open-access proposal`,
-      "Starts the separate 48-hour public open-access delay after canary verification.",
-      [plan.openProposalTransaction],
+      `Cobia Executor V4 chain ${chainId} ${immediate ? "immediate public access" : "open-access proposal"}`,
+      immediate
+        ? "Immediately activates public access after a successful canary."
+        : "Starts the separate public open-access delay after canary verification.",
+      plan.publicLaunchTransactions,
     ),
-    openActivation: batch(
+    ...(!immediate ? { openActivation: batch(
       `Cobia Executor V4 chain ${chainId} open-access activation`,
       "Activates public open access after the separate delay and independent re-verification.",
       [plan.openActivationTransaction],
-    ),
-  }, null, 2)}\n`);
+    ) } : {}),
+  });
 } else {
   throw new Error(`Unsupported --format ${format}`);
 }
