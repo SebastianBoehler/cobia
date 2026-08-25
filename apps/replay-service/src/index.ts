@@ -41,8 +41,8 @@ const server = createServer(async (request, response) => {
   }
   let release: (() => void) | undefined;
   try {
-    release = await capacity.acquire();
     const input = await body(request);
+    release = await capacity.acquire();
     const result = await replayAtPath(request.url!, input, config);
     return json(response, 200, result);
   } catch (error) {
