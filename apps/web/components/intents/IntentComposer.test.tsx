@@ -847,6 +847,7 @@ describe("IntentComposer", () => {
 
   it("reviews and signs exact general-asset chain/address authority", async () => {
     const hash = (byte: string) => `0x${byte.repeat(64)}` as `0x${string}`;
+    const compilationLeaseId = "550e8400-e29b-41d4-a716-446655440077";
     const inputToken = "0x2222222222222222222222222222222222222222" as const;
     const outputToken = "0x3333333333333333333333333333333333333333" as const;
     const values = {
@@ -865,7 +866,9 @@ describe("IntentComposer", () => {
         maxConversionLossBps: 400, maxSlippageBps: 200 },
     };
     const fetchMock = vi.fn().mockImplementation((url: string) => {
-      if (url === "/api/intents/compile") return Promise.resolve(Response.json({ status: "review", values }));
+      if (url === "/api/intents/compile") return Promise.resolve(Response.json({
+        status: "review", values, compilationLeaseId,
+      }));
       if (url === "/api/intents/readiness") {
         return Promise.resolve(Response.json({ missingNativeBalanceChainIds: [] }));
       }
@@ -897,6 +900,7 @@ describe("IntentComposer", () => {
       input: { token: inputToken, maximumAtomic: "100", maximumUsdE8: "50000000000" },
       outputs: [{ chainId: 1, token: outputToken, minimumAtomic: "90" }],
     });
+    expect(body.compilationLeaseId).toBe(compilationLeaseId);
     expect(state.switchChain).toHaveBeenCalledWith(196);
     expect(state.switchToXLayer).not.toHaveBeenCalled();
   });

@@ -97,6 +97,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
   const [compiling, setCompiling] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
+  const [compilationLeaseId, setCompilationLeaseId] = useState<string>();
   const [nativeBalanceReadiness, setNativeBalanceReadiness] = useState<NativeBalanceReadiness>();
   const generalAssetLaunchState = useGeneralAssetLaunchState();
   const composerContextKey = `${wallet.account ?? "disconnected"}:${wallet.targetChainId}`;
@@ -127,7 +128,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
   const stagedInputsValid = staged && values.inputs.every((item) =>
     decimalToAtomic(item.amount, item.decimals));
   const valid = Boolean(wallet.account && goal.trim() && (
-    generalAsset ? /^(?:[1-9][0-9]*)$/.test(values.input.maximumAtomic) &&
+    generalAsset ? Boolean(compilationLeaseId) && /^(?:[1-9][0-9]*)$/.test(values.input.maximumAtomic) &&
       /^(?:[1-9][0-9]*)$/.test(values.input.maximumUsdE8) &&
       BigInt(values.input.maximumUsdE8) <= 100_000_000_000n &&
       /^(?:[1-9][0-9]*)$/.test(values.output.minimumAtomic) &&
@@ -348,6 +349,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
       }
       const payload = await response.json().catch(() => undefined) as {
         status?: "review" | "clarification"; values?: ComposerValues; question?: string; message?: string;
+        compilationLeaseId?: string;
       } | undefined;
       if (!payload) throw new Error("The policy draft could not be compiled. Try again.");
       if (!response.ok) throw new Error(payload.message ?? "The policy draft could not be compiled.");
@@ -358,7 +360,11 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
       if (payload.status !== "review" || !payload.values) {
         throw new Error("The policy compiler returned an incomplete draft.");
       }
+      if (isGeneralAsset(payload.values) && !payload.compilationLeaseId) {
+        throw new Error("The general asset compilation receipt is missing. Compile a fresh policy draft.");
+      }
       setValues(payload.values);
+      setCompilationLeaseId(isGeneralAsset(payload.values) ? payload.compilationLeaseId : undefined);
       setStep("review");
     } catch (cause) { setError(errorMessage(cause)); }
     finally { setCompiling(false); }
@@ -388,7 +394,8 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
       const response = await fetch("/api/intents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ policy, ownerSignature }),
+        body: JSON.stringify({ policy, ownerSignature,
+          ...(generalAsset ? { compilationLeaseId } : {}) }),
       });
       const payload = await response.json() as { links?: { intent?: string }; message?: string };
       if (!response.ok || !payload.links?.intent) {
@@ -425,7 +432,8 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
       </> : <>
         <div className="intent-goal-summary"><div><h2>Your requested outcome</h2><p>{goal}</p></div>
           <button className="button button--secondary"
-            onClick={() => { setStep("goal"); setError(undefined); }} type="button">
+            onClick={() => { setStep("goal"); setCompilationLeaseId(undefined); setError(undefined); }}
+            type="button">
             <ArrowLeft aria-hidden="true" size={16} /> Edit goal
           </button></div>
         <IntentAssetAuthority values={values} />
