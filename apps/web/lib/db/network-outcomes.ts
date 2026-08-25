@@ -43,6 +43,13 @@ function decimals(token: string): number | null {
   return SUPPORTED_ASSETS.find(({ address }) => address.toLowerCase() === token)?.decimals ?? null;
 }
 
+export function networkAssetIdentityV1(snapshot: unknown, token: string) {
+  const open = OpenIntentSnapshotV1Schema.safeParse(snapshot);
+  const frozen = open.success ? open.data.tokenEvidence?.find(({ token: address }) =>
+    address.toLowerCase() === token.toLowerCase()) : undefined;
+  return { symbol: frozen?.symbol ?? symbol(token), decimals: frozen?.decimals ?? decimals(token) };
+}
+
 const protocolPrefixes = [
   ["aave-v3.", "Aave V3"],
   ["curve-stableswap-ng.", "Curve"],
@@ -171,6 +178,10 @@ function project(row: {
     ? capabilityPrincipal(programArtifact.payload) ?? transactionPrincipal(programArtifact.payload) : null;
   if (!principal || !snapshotArtifact) return { excluded: "INVALID_CANDIDATE" };
   const receipt = receiptArtifact ? parseNetworkReceiptV1(receiptArtifact.payload) : null;
+  const principalIdentity = networkAssetIdentityV1(snapshotArtifact.payload, principal.token);
+  const route = { ...principal.route, minimumOutputs: principal.route.minimumOutputs.map((output) => ({
+    ...output, ...networkAssetIdentityV1(snapshotArtifact.payload, output.token),
+  })) };
   const candidate: NetworkOutcomeCandidateV1 = {
     intentId: row.intentId,
     submissionId: row.submissionId,
@@ -182,8 +193,8 @@ function project(row: {
     confirmedAtSec: Math.floor(row.completedAt.getTime() / 1_000),
     transactionHash: receipt?.transactionHash ?? null,
     intentClass: principal.intentClass,
-    principal: { token: principal.token, symbol: symbol(principal.token), atomic: principal.atomic },
-    route: principal.route,
+    principal: { token: principal.token, symbol: principalIdentity.symbol, atomic: principal.atomic },
+    route,
     valuation: valuation(snapshotArtifact.payload, principal.token),
     resultLabel: principal.resultLabel,
   };
