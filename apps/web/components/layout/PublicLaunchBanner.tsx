@@ -48,7 +48,7 @@ export function PublicLaunchBanner() {
     if (v4?.state === "live") return (
       <div className="public-launch public-launch--live" role="status">
         <CheckCircle2 aria-hidden="true" size={16} strokeWidth={1.8} />
-        <span><strong>V4 live</strong> · Verified standard ERC-20 swaps on X Layer</span>
+        <span><strong>V4 + xStocks live</strong> · Verified TSLAx acquisition and standard ERC-20 swaps on X Layer</span>
       </div>
     );
     const remaining = v4 ? Math.max(0, v4.activationAt - now) : 0;

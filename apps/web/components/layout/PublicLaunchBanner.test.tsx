@@ -56,7 +56,7 @@ describe("PublicLaunchBanner", () => {
     await renderStatus({ state: "live", activationAt: 0,
       v4: { state: "live", activationAt: 0 } });
     expect(screen.getByRole("status")).toHaveTextContent(
-      "V4 live · Verified standard ERC-20 swaps on X Layer",
+      "V4 + xStocks live · Verified TSLAx acquisition and standard ERC-20 swaps on X Layer",
     );
   });
 });
