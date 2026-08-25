@@ -36,7 +36,6 @@ import { useGeneralAssetLaunchState } from "../network/useGeneralAssetLaunchStat
 import { IntentAssetAuthority } from "./IntentAssetAuthority";
 import { generalAssetRequestFromGoal } from "../../lib/intents/general-asset-goal";
 import type { IntentPolicySettingsValue } from "./IntentPolicySettings";
-import { IntentFlowGuide } from "./IntentFlowGuide";
 
 type ComposerValues = ReceiptValues | ComposedIntentDraft | StagedConversionDraft | GeneralAssetDraftV1;
 type NativeBalanceReadiness =
@@ -426,16 +425,13 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
           onExcludedProtocolsChange={setExcludedProtocols}
           onPolicySettingsChange={setPolicySettings}
           onSubmit={compileGoal} />
-        <IntentFlowGuide />
         {error ? <p className="form-alert" role="alert">{error}</p> : null}
         {!wallet.account ? <p className="intent-connect-note">Connect a signing wallet to verify control before Cobia interprets the goal.</p> : null}
       </> : <>
-        <div className="intent-goal-summary"><div><h2>Your requested outcome</h2><p>{goal}</p></div>
-          <button className="button button--secondary"
-            onClick={() => { setStep("goal"); setCompilationLeaseId(undefined); setError(undefined); }}
-            type="button">
-            <ArrowLeft aria-hidden="true" size={16} /> Edit goal
-          </button></div>
+        <div className="intent-goal-summary"><p>{goal}</p><button className="button button--secondary"
+          onClick={() => { setStep("goal"); setCompilationLeaseId(undefined); setError(undefined); }} type="button">
+          <ArrowLeft aria-hidden="true" size={16} /> Edit goal
+        </button></div>
         <IntentAssetAuthority values={values} />
         {generalAsset
           ? <GeneralAssetPolicyEditor owner={wallet.account} values={values} onChange={setValues} />

@@ -29,8 +29,8 @@ export default async function NewIntentPage({ searchParams }: {
       <AppHeader />
       <main className="intent-page" id="main-content">
         <header className="intent-page__header">
-          <h1>Create an intent</h1>
-          <p>Describe the outcome you want. Cobia turns it into an explicit policy for you to review before anything is signed.</p>
+          <h1>Describe the outcome.</h1>
+          <p>Start with the goal. Cobia turns it into explicit limits for you to review before anything is signed.</p>
         </header>
         <IntentComposer initialDraft={initialDraft} initialGoal={initialGoal} />
       </main>

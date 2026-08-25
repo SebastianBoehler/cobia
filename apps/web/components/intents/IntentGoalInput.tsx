@@ -1,12 +1,14 @@
+import { ArrowUp, AtSign, LoaderCircle, Route } from "lucide-react";
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { type ActionPreference, type ProtocolExclusionId } from "../../lib/intents/intent-controls";
-import type { AvailableIntentAsset } from "./IntentAvailableAssets";
-import { IntentGoalControls } from "./IntentGoalControls";
+import {
+  ACTION_PREFERENCES, PROTOCOL_EXCLUSIONS, type ActionPreference, type ProtocolExclusionId,
+} from "../../lib/intents/intent-controls";
+import { IntentAvailableAssets, type AvailableIntentAsset } from "./IntentAvailableAssets";
 import { IntentOptionMark } from "./IntentOptionMark";
 import { V3_INTENT_EXAMPLES } from "../../lib/intents/public-examples";
 import { tagKnownAssetSymbols } from "../../lib/intents/intent-asset-references";
 import type { AssetResolutionStatus } from "./useResolvedAssetMentions";
-import type { IntentPolicySettingsValue } from "./IntentPolicySettings";
+import { IntentPolicySettings, type IntentPolicySettingsValue } from "./IntentPolicySettings";
 
 function extractMentionQuery(value: string): string | undefined {
   return value.match(/(?:^|\s)@([A-Za-z0-9.$_-]*)$/)?.[1];
@@ -76,6 +78,7 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
   onPolicySettingsChange(value: IntentPolicySettingsValue): void;
   onSubmit(): void;
 }) {
+  const controlsRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -132,6 +135,28 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
     }
   }, [mentionQuery, onMentionMenuOpen]);
 
+  useEffect(() => {
+    function closeOnOutsideClick(event: PointerEvent) {
+      for (const details of controlsRef.current?.querySelectorAll("details[open]") ?? []) {
+        if (!details.contains(event.target as Node)) details.removeAttribute("open");
+      }
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      for (const details of controlsRef.current?.querySelectorAll("details[open]") ?? []) {
+        const restoreFocus = details.contains(document.activeElement);
+        details.removeAttribute("open");
+        if (restoreFocus) details.querySelector("summary")?.focus();
+      }
+    }
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
+
   function acceptMentionSuggestion(mention: IntentMention) {
     onMentionSuggestion(mention);
     textareaRef.current?.focus();
@@ -159,11 +184,7 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
   }
 
   return (
-    <section aria-labelledby="intent-goal-heading" className="intent-goal">
-      <header className="intent-goal__header">
-        <h2 id="intent-goal-heading">Write one clear outcome</h2>
-        <p>Include what you will spend, what you expect back, and any limits that matter.</p>
-      </header>
+    <section className="intent-goal">
       <label className="sr-only" htmlFor="intent-goal">What should happen?</label>
       <div className="intent-goal__input" ref={inputRef}>
         <div aria-hidden="true" className="intent-goal__highlight"
@@ -182,7 +203,7 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
           aria-haspopup="listbox"
           id="intent-goal"
           maxLength={500}
-          placeholder="For example: Swap 10 @USDG into at least 9.95 @USDt0 on @XLayer"
+          placeholder="Ask Cobia to do something onchain…"
           role="combobox"
           rows={3}
           value={value}
@@ -275,19 +296,68 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
           : `Choose supported tokens for ${unresolvedMentions.map((mention) => `@${mention}`).join(", ")} before review.`}
       </p> : null}
       {!value.trim() ? <div aria-label="Example intents" className="intent-examples">
-        <p>Or start with an example</p>
         {examples.map((example) => <button aria-label={`Use example: ${example}`}
           key={example} onClick={() => onChange(example)} type="button">
           {renderTaggedPrompt(example)}
         </button>)}
       </div> : null}
-      <IntentGoalControls action={action} availableAssets={availableAssets} compiling={compiling}
-        excludedProtocols={excludedProtocols} mentions={mentions} policySettings={policySettings}
-        portfolioState={portfolioState} submitEnabled={submitEnabled} value={value}
-        onActionChange={onActionChange} onAvailableAsset={addAvailableAsset}
-        onExcludedProtocolsChange={onExcludedProtocolsChange} onMention={onMention}
-        onMentionMenuOpen={onMentionMenuOpen} onPolicySettingsChange={onPolicySettingsChange}
-        onSubmit={onSubmit} />
+      <div className="intent-goal__tools">
+        <div className="intent-goal__controls" ref={controlsRef}>
+          <select aria-label="Action type" value={action}
+            onChange={(event) => onActionChange(event.target.value as ActionPreference)}>
+            {ACTION_PREFERENCES.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+          </select>
+          <details className="intent-route-control" onToggle={(event) => {
+            if (event.currentTarget.open) onMentionMenuOpen();
+          }}>
+            <summary><AtSign aria-hidden="true" size={16} />Mention</summary>
+            <div className="intent-route-control__menu intent-mention-menu">
+              {["Assets", "Networks", "Protocols", "Services"].map((group) => {
+                const options = mentions.filter((mention) => mention.group === group);
+                return options.length ? <section key={group}><strong>{group}</strong>
+                  {options.map((mention) => <button key={mention.id}
+                    onClick={(event) => {
+                      onMention(mention);
+                      event.currentTarget.closest("details")?.removeAttribute("open");
+                    }} type="button">
+                    <span aria-hidden="true" className="intent-option-mark">
+                      <IntentOptionMark group={mention.group} mention={mention.mention} />
+                    </span>
+                    <span className="intent-mention-menu__label">@{mention.mention}</span>
+                    <small>{mention.detail}</small>
+                  </button>)}</section> : null;
+              })}
+            </div>
+          </details>
+          <details className="intent-route-control">
+            <summary><Route aria-hidden="true" size={16} />Routes
+              {excludedProtocols.length ? <span>{excludedProtocols.length}</span> : null}</summary>
+            <div className="intent-route-control__menu">
+              <strong>Exclude protocols</strong>
+              <p>Excluded contract targets are written into the signed policy.</p>
+              {PROTOCOL_EXCLUSIONS.map((protocol) => <label key={protocol.id}>
+                <input checked={excludedProtocols.includes(protocol.id)} type="checkbox"
+                  onChange={(event) => onExcludedProtocolsChange(event.target.checked
+                    ? [...excludedProtocols, protocol.id]
+                    : excludedProtocols.filter((id) => id !== protocol.id))} />
+                <span aria-hidden="true" className="intent-option-mark">
+                  <IntentOptionMark group="Protocols" mention={protocol.label} />
+                </span>
+                <span>{protocol.label}</span>
+              </label>)}
+            </div>
+          </details>
+          <IntentPolicySettings value={policySettings} onChange={onPolicySettingsChange} />
+        </div>
+        <div className="intent-goal__tools-end">
+          <IntentAvailableAssets assets={availableAssets} onSelect={addAvailableAsset} state={portfolioState} />
+          <button aria-label="Review policy" className="intent-goal__send"
+            disabled={value.trim().length < 3 || compiling || !submitEnabled} onClick={onSubmit} type="button">
+            {compiling ? <LoaderCircle aria-hidden="true" className="spin" size={19} />
+              : <ArrowUp aria-hidden="true" size={20} />}
+          </button>
+        </div>
+      </div>
     </section>
   );
 }

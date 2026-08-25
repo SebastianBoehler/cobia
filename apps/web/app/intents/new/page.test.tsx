@@ -21,7 +21,7 @@ describe("new intent page", () => {
   it("frames the composer as a general onchain request", async () => {
     const page = await NewIntentPage({ searchParams: Promise.resolve({}) });
     const html = renderToStaticMarkup(page);
-    expect(html).toContain("Create an intent");
+    expect(html).toContain("Describe the outcome");
     expect(html).toContain("Intent composer");
     expect(html).not.toMatch(/Earn|Swap|Profit/);
   });

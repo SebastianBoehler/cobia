@@ -38,13 +38,10 @@ describe("IntentComposer", () => {
     render(<IntentComposer />);
 
     expect(screen.getByLabelText("What should happen?")).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Write one clear outcome" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "What happens next" })).toBeVisible();
-    expect(screen.getByText("Nothing is signed yet.")).toBeVisible();
     expect(screen.getByRole("button", { name: "Review policy" })).toBeDisabled();
     expect(screen.getByLabelText("Action type")).toHaveValue("any");
     expect(screen.getByText("Mention")).toBeVisible();
-    expect(screen.getByText("Route limits")).toBeVisible();
+    expect(screen.getByText("Routes")).toBeVisible();
     expect(screen.getByLabelText("Example intents")).toBeVisible();
     expect(screen.queryByLabelText("Verified capability")).not.toBeInTheDocument();
     expect(screen.queryByText("Unsigned draft")).not.toBeInTheDocument();
@@ -381,7 +378,7 @@ describe("IntentComposer", () => {
     render(<IntentComposer />);
     const goal = screen.getByLabelText("What should happen?");
 
-    for (const name of ["Mention", "Route limits"]) {
+    for (const name of ["Mention", "Routes"]) {
       const summary = screen.getByText(name);
       const details = summary.closest("details");
       fireEvent.click(summary);
@@ -402,7 +399,7 @@ describe("IntentComposer", () => {
       mentionMenu.querySelectorAll(".intent-option-mark").length,
     );
 
-    fireEvent.click(screen.getByText("Route limits"));
+    fireEvent.click(screen.getByText("Routes"));
     expect(document.querySelectorAll(".intent-route-control__menu label .intent-option-mark")).toHaveLength(3);
   });
 
