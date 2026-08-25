@@ -255,6 +255,9 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
               query: mentionQuery, activeIndex: index, dismissed: false,
             })}
             role="option" tabIndex={-1} type="button">
+            <span aria-hidden="true" className="intent-typeahead__mark">
+              <IntentOptionMark group={mention.group} mention={mention.mention} />
+            </span>
             <strong>@{mention.mention}</strong>
             {mention.address ? <code title={mention.address}>{shortAddress(mention.address)}</code>
               : <small>{mention.detail}</small>}

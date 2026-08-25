@@ -3,6 +3,7 @@ import type { IndexedPortfolioAnalytics } from "../../lib/portfolio/read-indexed
 import { formatAmount, formatCount, formatSignedPercent, formatSignedUsd, formatTimestamp,
   formatUsd } from "./format";
 import styles from "./PortfolioView.module.css";
+import { PortfolioAssetMark } from "./PortfolioAssetMark";
 
 function SourceLabel({ detail }: { detail: string }) {
   return <p className={styles.sectionSource}><Database aria-hidden="true" size={14} />
@@ -29,7 +30,8 @@ export function PortfolioAnalytics({ analytics }: { analytics?: IndexedPortfolio
           <p>PnL appears after OKX indexes trading activity for this address.</p></div>
           : <ul className={styles.dataRows}>{pnl.items.map((item) => <li className={styles.pnlRow}
             key={`${item.token}-${item.lastActiveAt}`}>
-            <div><strong>{item.symbol}</strong><small>{formatUsd(item.balanceUsd)} position</small></div>
+            <div className={styles.analyticsAsset}><PortfolioAssetMark size={34} symbol={item.symbol} />
+              <div><strong>{item.symbol}</strong><small>{formatUsd(item.balanceUsd)} position</small></div></div>
             <div><span className={pnlTone(item.totalPnlUsd)}>{formatSignedUsd(item.totalPnlUsd)}</span>
               <small>{formatSignedPercent(item.totalPnlPercent)} total</small></div>
             <time dateTime={item.lastActiveAt}>{formatTimestamp(item.lastActiveAt)}</time>
@@ -47,8 +49,9 @@ export function PortfolioAnalytics({ analytics }: { analytics?: IndexedPortfolio
             <span className={styles.tradeIcon} data-type={item.type}>{item.type === "buy"
               ? <ArrowDownLeft aria-hidden="true" size={17} />
               : <ArrowUpRight aria-hidden="true" size={17} />}</span>
-            <div><strong>{item.type === "buy" ? "Buy" : "Sell"} {item.symbol}</strong>
-              <small>{formatAmount(item.amount)} {item.symbol} at {formatUsd(item.priceUsd)}</small></div>
+            <div className={styles.analyticsAsset}><PortfolioAssetMark size={30} symbol={item.symbol} />
+              <div><strong>{item.type === "buy" ? "Buy" : "Sell"} {item.symbol}</strong>
+                <small>{formatAmount(item.amount)} {item.symbol} at {formatUsd(item.priceUsd)}</small></div></div>
             <div className={styles.tradeValue}><strong>{formatUsd(item.valueUsd)}</strong>
               <small className={pnlTone(item.pnlUsd)}>{formatSignedUsd(item.pnlUsd)} PnL</small></div>
             <time dateTime={item.occurredAt}>{formatTimestamp(item.occurredAt)}</time>

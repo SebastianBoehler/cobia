@@ -5,6 +5,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { AssetMark } from "./AssetMark";
 import { ProtocolMark } from "./ProtocolMark";
+import { TokenAssetMark } from "./TokenAssetMark";
 
 describe("brand marks", () => {
   it.each(["OKB", "USDG", "USDt0"] as const)("renders the %s asset identity", (asset) => {
@@ -20,8 +21,35 @@ describe("brand marks", () => {
     },
   );
 
+  it.each([
+    ["1inch", "oneinch"],
+    ["Balancer V3", "balancer"],
+    ["Compound V3", "compound"],
+    ["CowSwap", "cowswap"],
+    ["Ethena", "ethena"],
+    ["Hyperliquid", "hyperliquid"],
+    ["Jupiter", "jupiter"],
+    ["Lido", "lido"],
+    ["MakerDAO", "maker"],
+    ["PancakeSwap V3", "pancakeswap"],
+    ["QuickSwap V3", "quickswap"],
+    ["Raydium CLMM", "raydium"],
+    ["SushiSwap", "sushiswap"],
+    ["Trader Joe", "traderjoe"],
+    ["Yearn Finance", "yearn"],
+  ] as const)("uses the %s logo", (protocol, kind) => {
+    render(<ProtocolMark protocol={protocol} />);
+    expect(screen.getByRole("img", { name: protocol })).toHaveClass(`brand-mark--${kind}`);
+  });
+
   it("uses an accessible neutral mark for a future registered protocol", () => {
-    render(<ProtocolMark protocol="Stargate" />);
-    expect(screen.getByRole("img", { name: "Stargate" })).toHaveTextContent("S");
+    render(<ProtocolMark protocol="Future Protocol" />);
+    expect(screen.getByRole("img", { name: "Future Protocol" })).toHaveTextContent("F");
+  });
+
+  it("renders the official xStocks token asset for a canonical xStock symbol", () => {
+    render(<TokenAssetMark symbol="TSLAx" />);
+    expect(screen.getByRole("img", { name: "TSLAx token" }).querySelector("img"))
+      .toHaveAttribute("src", "https://xstocks-metadata.backed.fi/logos/tokens/TSLAx.png");
   });
 });

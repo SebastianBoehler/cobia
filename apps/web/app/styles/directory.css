@@ -145,6 +145,7 @@
 .competition-row__result strong, .competition-row__steps strong { font: 12px var(--font-geist-mono), monospace; }
 .competition-row__outcomes { display: grid; gap: 8px; }
 .competition-row__outcomes > div { display: grid; gap: 3px; }
+.competition-row__outcome-identity { align-items: center; display: flex; gap: 7px; }
 .competition-row__outcomes span, .competition-row__outcomes em { color: var(--muted); font-size: 12px; font-style: normal; }
 .competition-row__outcomes em { color: var(--cobalt-dark); }
 .competition-row__steps { display: grid; gap: 6px; }

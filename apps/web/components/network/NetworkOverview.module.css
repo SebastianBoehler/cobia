@@ -135,20 +135,6 @@
 .routeAsset, .routeStep { align-items: center; display: inline-flex; flex: 0 0 auto; gap: 7px; }
 .routeAsset strong { font-family: var(--font-geist-mono), monospace; font-size: 12px; margin: 0; }
 .routeStep > svg { color: var(--muted); flex: 0 0 auto; }
-.assetMark {
-  align-items: center;
-  background: var(--cobalt-wash);
-  border: 1px solid color-mix(in oklch, var(--cobalt) 24%, var(--line));
-  border-radius: 50%;
-  color: var(--cobalt);
-  display: inline-flex;
-  flex: 0 0 auto;
-  font-size: 10px;
-  font-weight: 750;
-  height: 22px;
-  justify-content: center;
-  width: 22px;
-}
 .unrecorded { color: var(--muted); font-size: 11px; line-height: 1.45; }
 .proofLinks { align-items: center; display: flex; gap: 10px; }
 .proofLinks a {

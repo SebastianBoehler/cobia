@@ -52,7 +52,8 @@ function OutcomePreview({ preview }: { preview: CompetitionProgramPreview | null
     <div className="competition-row__outcomes">{preview.outcomes.map((outcome) => {
       const change = BigInt(outcome.afterAtomic) - BigInt(outcome.beforeAtomic);
       return <div key={outcome.symbol}>
-        <strong>{change >= 0n ? "+" : ""}{formatTokenAmount(change.toString(), outcome.decimals)} {outcome.symbol}</strong>
+        <div className="competition-row__outcome-identity"><PortfolioAssetMark size={24} symbol={outcome.symbol} />
+          <strong>{change >= 0n ? "+" : ""}{formatTokenAmount(change.toString(), outcome.decimals)} {outcome.symbol}</strong></div>
         <span>{formatTokenAmount(outcome.beforeAtomic, outcome.decimals)} → {formatTokenAmount(outcome.afterAtomic, outcome.decimals)} {outcome.symbol}</span>
         {outcome.minimumAtomic ? <em>Minimum: +{formatTokenAmount(outcome.minimumAtomic, outcome.decimals)} {outcome.symbol}</em> : null}
       </div>;

@@ -33,6 +33,7 @@
 .assetAmount { font-variant-numeric: tabular-nums; text-align: end; }
 .assetAmount strong { font-size: 1.02rem; letter-spacing: -.02em; }
 .pnlRow { align-items: center; border-block-start: 1px solid var(--line); display: grid; gap: 16px; grid-template-columns: minmax(110px, 1fr) minmax(100px, auto) minmax(120px, auto); padding-block: 17px; }
+.analyticsAsset { align-items: center; display: flex; gap: 10px; min-width: 0; }
 .pnlRow strong, .pnlRow span, .pnlRow small, .tradeRow strong, .tradeRow small { display: block; }
 .pnlRow small, .tradeRow small, .pnlRow time, .tradeRow time { color: var(--muted); font-size: .72rem; margin-block-start: 4px; }
 .pnlRow > :nth-child(2) { font-variant-numeric: tabular-nums; text-align: end; }

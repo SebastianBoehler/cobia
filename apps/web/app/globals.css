@@ -155,6 +155,9 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .brand-mark > svg { display: block; }
 .brand-mark--usdg { border-color: transparent; }
 .brand-mark--usdg img { display: block; height: 100%; width: 100%; }
+.brand-mark--xstock { position: relative; }
+.brand-mark--xstock img { background: var(--surface); display: block; height: 100%; inset: 0;
+  object-fit: cover; position: absolute; width: 100%; }
 .brand-mark--other { background: var(--cobalt-wash); border-color: color-mix(in oklch, var(--cobalt) 24%, var(--line)); color: var(--cobalt); }
 
 .button {

@@ -2,8 +2,8 @@ import type { NetworkMetricsV1, PublicOutcomeV1 } from "@cobia/domain";
 import { ArrowRight, ArrowUpRight, Check, CircleAlert, Minus, Route } from "lucide-react";
 import Link from "next/link";
 import { formatUnits } from "viem";
-import { AssetMark, type AssetIdentity } from "../brand/AssetMark";
 import { ProtocolMark } from "../brand/ProtocolMark";
+import { TokenAssetMark } from "../brand/TokenAssetMark";
 import styles from "./NetworkOverview.module.css";
 
 export interface NetworkOverviewReport {
@@ -25,13 +25,6 @@ export interface NetworkSolverEvidence {
 
 function usd(value: string): string {
   return `$${formatUnits(BigInt(value), 8)}`;
-}
-
-function TokenMark({ symbol }: { symbol: string }) {
-  if (symbol === "OKB" || symbol === "USDG" || symbol === "USDt0") {
-    return <AssetMark asset={symbol as AssetIdentity} size={22} />;
-  }
-  return <span aria-label={`${symbol} token`} className={styles.assetMark} role="img">{symbol.slice(0, 1)}</span>;
 }
 
 function dateLabel(seconds: number): string {
@@ -69,12 +62,12 @@ function TokenRoute({ outcome }: { outcome: PublicOutcomeV1 }) {
   const routeLabel = output ? `${input} through ${protocolDescription} to ${output}` : `${input} through ${protocolDescription}`;
 
   return <div aria-label={routeLabel} className={styles.tokenRoute} role="img">
-    <span aria-hidden="true" className={styles.routeAsset}><TokenMark symbol={input} /><strong>{input}</strong></span>
+    <span aria-hidden="true" className={styles.routeAsset}><TokenAssetMark size={22} symbol={input} /><strong>{input}</strong></span>
     {outcome.route.protocols.map((protocol) => <span aria-hidden="true" className={styles.routeStep} key={protocol}>
       <ArrowRight size={14} /><ProtocolMark protocol={protocol} size={20} />
     </span>)}
     {output ? <span aria-hidden="true" className={styles.routeStep}>
-      <ArrowRight size={14} /><span className={styles.routeAsset}><TokenMark symbol={output} /><strong>{output}</strong></span>
+      <ArrowRight size={14} /><span className={styles.routeAsset}><TokenAssetMark size={22} symbol={output} /><strong>{output}</strong></span>
     </span> : <span className={styles.unrecorded}>No token outcome recorded</span>}
   </div>;
 }

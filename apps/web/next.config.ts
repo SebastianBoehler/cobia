@@ -3,6 +3,8 @@ import { createMDX } from "fumadocs-mdx/next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  images: { remotePatterns: [{ protocol: "https", hostname: "xstocks-metadata.backed.fi",
+    pathname: "/logos/tokens/**" }] },
   async headers() {
     return [{
       source: "/(.*)",
