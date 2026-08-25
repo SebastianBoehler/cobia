@@ -4,6 +4,10 @@
 
 Cobia lets a user state an onchain outcome, then turns the user's limits into a signed policy. Solvers may propose transaction programs, but Cobia independently reproduces each candidate before the user's wallet can approve the exact calls. The product is live on X Layer mainnet (chain 196).
 
+Current public proof includes a bounded V4 standard-token swap and a registered
+TSLAx acquisition. These are separate confirmed programs with owner-wallet
+receipts; they do not imply universal token or xStocks support.
+
 ## What Cobia does
 
 - Lets users create bounded onchain intents instead of handing a wallet to an agent.
@@ -27,7 +31,15 @@ Recurring actions need additional cancellation, renewal, and recurring-authority
 - https://getcobia.com/network — confirmed X Layer outcomes and evidence-backed performance.
 - https://getcobia.com/solvers — solver declarations and verifier-derived program results.
 - https://getcobia.com/docs — developer documentation and integration boundary.
+- https://github.com/SebastianBoehler/cobia — public source and root technical overview.
+- https://github.com/SebastianBoehler/cobia/blob/main/docs/SUBMISSION.md — canonical AI Season judging, evidence, limitation, and roadmap index.
+- https://github.com/SebastianBoehler/cobia/blob/main/docs/architecture/security-model.md — authority split, threat model, controls, and non-capabilities.
 
 ## Primary source
 
-Use the public product pages and developer documentation as the current source of truth. Do not infer production execution capability from a solver claim alone; Cobia distinguishes agent-authored proposals from independently verified outcomes.
+Use the public product pages, confirmed program receipts, root README, and
+submission brief as the current source of truth. Do not infer production
+execution capability from a solver claim, roadmap item, catalog entry, demo, or
+fork run alone. Cobia distinguishes agent-authored proposals, deterministic
+verification, historical replay evidence, owner-authorized production
+execution, and confirmed outcomes.

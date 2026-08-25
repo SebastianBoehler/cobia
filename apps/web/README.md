@@ -1,11 +1,15 @@
 # Cobia web
 
-Cobia runs deterministic and bounded agentic solvers for X Layer. A wallet
-signs an exact USDG or USDt0 policy; direct Aave V3, Curve StableSwap NG, and Uniswap V3 reads are
-captured at one pinned block; and the signed plan is independently recomputed
-before it can be selected or revealed through OKX MPP. APY remains an estimated
-pre-gas rate. Buying a route does not move principal; a fresh rehearsed V2 route
-can be executed later through separate, explicit X Layer mainnet wallet prompts.
+Cobia's web application turns an owner-signed X Layer intent into an open solver
+competition, deterministic verification, disposable fork replay, and explicit
+owner-wallet execution. Registered Aave V3, Curve StableSwap NG, Uniswap V3,
+x402, standard-token V4, and TSLAx paths each retain their own semantic and
+identity boundary. A solver proposal is never execution authority. APY and other
+future-value fields remain forecasts.
+
+Start with the root [product and evidence overview](../../README.md), the
+[AI Season submission brief](../../docs/SUBMISSION.md), and the
+[security model](../../docs/architecture/security-model.md).
 
 ## Local run
 
@@ -73,9 +77,13 @@ for the exact service and secret boundary.
   Layer mainnet execution. The browser independently verifies each server-built
   transaction and OKX Wallet asks the buyer to confirm one approval, swap,
   supply, or LP mint at a time. The server never signs or relays principal transactions.
-  `eth_estimateGas` remains gas preflight, not a profitability guarantee. No
-  A separate capped atomic-executor contract is still an undeployed, paused-by-default beta
-  foundation and is not presented as a live product action.
+  `eth_estimateGas` remains gas preflight, not a profitability guarantee. The
+  separately governed V3 and V4 executors enforce their registered policy and
+  risk boundaries; the owner wallet still authorizes every production action.
+- General Asset V4 is public for independently verified same-chain X Layer
+  standard-token routes through the configured OKX lane. Registered TSLAx has a
+  confirmed public acquisition receipt. LI.FI, bridging, Ethereum runtime,
+  unusual-token behavior, and universal xStocks liquidity are not public claims.
 - Both the product rehearsal and the opt-in acceptance lane have passed direct
   Aave, Curve/Uniswap-to-Aave, and one-sided full-range Uniswap LP-entry routes with
   exact approvals, receipts, protocol events, NFT ownership, and state checks.

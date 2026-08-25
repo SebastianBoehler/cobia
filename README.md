@@ -1,113 +1,149 @@
 # Cobia
 
-[![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-2563eb.svg)](LICENSE.md)
-[![Source available](https://img.shields.io/badge/source-available-f59e0b.svg)](LICENSE.md)
-[![Node.js 24+](https://img.shields.io/badge/Node.js-24%2B-339933.svg?logo=node.js&logoColor=white)](package.json)
-[![Live on X Layer](https://img.shields.io/badge/live-X%20Layer-111827.svg)](https://getcobia.com)
+**AI searches for the route. Cobia proves every step stays within your limits.**
+
+[![Live on X Layer](https://img.shields.io/badge/live-X%20Layer%20mainnet-111827.svg)](https://getcobia.com)
 [![CI](https://github.com/SebastianBoehler/cobia/actions/workflows/ci.yml/badge.svg)](https://github.com/SebastianBoehler/cobia/actions/workflows/ci.yml)
+[![Security](https://github.com/SebastianBoehler/cobia/actions/workflows/security.yml/badge.svg)](https://github.com/SebastianBoehler/cobia/actions/workflows/security.yml)
+[![Mainnet fork](https://github.com/SebastianBoehler/cobia/actions/workflows/fork.yml/badge.svg)](https://github.com/SebastianBoehler/cobia/actions/workflows/fork.yml)
+[![Node.js 24+](https://img.shields.io/badge/Node.js-24%2B-339933.svg?logo=node.js&logoColor=white)](package.json)
+[![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm%20Noncommercial-2563eb.svg)](LICENSE.md)
 
-Cobia is a verified intent system centered on X Layer protocols. A wallet signs
-an exact policy, Cobia captures public wallet and protocol state at pinned chain
-blocks, and independent solvers propose unsigned programs. A separate trusted
-verifier checks policy and deployment identities and reproduces each proposal
-on a fresh fork before any wallet execution is offered.
+[Try Cobia](https://getcobia.com) ·
+[AI Season evidence](https://getcobia.com/buildx) ·
+[Confirmed outcomes](https://getcobia.com/network) ·
+[Developer docs](https://getcobia.com/docs) ·
+[Competition brief](docs/SUBMISSION.md)
 
-Generation is open-world, while production authorization remains independently
-verified. The first semantic modules are USDG/USDt0 Aave V3 supply and
-registered Curve StableSwap NG or Uniswap V3 exact-input swaps. External solvers
-may also submit exact wallet-call programs; Cobia binds their code identities,
-approvals, asset deltas, events, and state diffs to a fresh fork replay before
-the owner can execute them. V1 allocation rounds remain readable as a control.
+![Current Cobia V4 intent workspace with a registered TSLAx acquisition example](apps/web/public/media/cobia-v4-xstocks-intent-2026-08-25.jpg)
 
-![Cobia intent workspace](marketing/remotion/public/ui/cobia-new-ui-desktop.png)
+Cobia is a non-custodial intent and transaction-program verifier for X Layer.
+A user describes an outcome and signs exact limits. Independent solvers can then
+research and propose programs, but they never receive the user's key or
+execution authority. Cobia verifies identities, policy bounds, calldata, state
+changes, and a fresh fork replay before the owner wallet is offered the exact
+transactions.
 
-## Current truth
+The core design choice is an authority split: **AI can propose; only the
+verifier can attest; only the owner wallet can execute.**
 
-| Capability | Status |
-|---|---|
-| Wallet connection and X Layer switching | Live |
-| Direct Aave V3 reserve/oracle, Curve swap, and Uniswap V3 quote/LP reads | Live V2 capture with pinned current and historical X Layer blocks |
-| Versioned policy, snapshot, route, and quote commitments | Implemented |
-| In-process coding-agent V2 generation | Implemented with an ephemeral Node 24 Vercel Sandbox, bounded shell loop, explicit egress, and provenance capture |
-| Independent capability verification | Implemented for typed registered Aave supply and Curve/Uniswap exact-input modules; unsupported actions fail closed |
-| Quote selection and owner signatures | Implemented |
-| MPP/EIP-3009 paid reveal | Implemented on X Layer mainnet with fixed USDt0 and one off-chain authorization per recipient |
-| PostgreSQL request/payment/purchase history | Implemented |
-| X Layer mainnet USDt0 and Aave aToken balances | Live reads |
-| Aave + Curve + Uniswap route planning | Implemented for one exact conserved leg: Aave supply, Curve/Uniswap swap-to-Aave, or one-sided full-range Uniswap LP entry |
-| Solver competition | Open signed intent intake, solver registration, immutable decision revisions, abstention, capability programs, exact wallet-call programs, and replay protection are implemented; the reference solver runs independently on the VPS |
-| Independent fork replay | Vercel verifies proposals and delegates only disposable Anvil execution to an authenticated, concurrency-capped VPS replay service |
-| Verified xStocks acquisition | Live on X Layer mainnet for registered TSLAx acquisition through V4, with a public program, receipt, and transaction; exact identity and eligibility checks remain required |
-| General Asset V4 | Public same-chain X Layer OKX lane for independently verified standard ERC-20 contracts; LI.FI, bridging, Ethereum runtime, and unusual token behavior are not public |
-| x402 resource purchase | Live for exactly pinned merchant resources on their declared payment network; the order policy binds product, price, payee, payer, deadline, and settlement evidence before wallet authorization |
-| Transaction construction/execution engine | Unit/fork-tested and wired as buyer-authenticated, one-step-at-a-time X Layer mainnet wallet execution |
-| X Layer mainnet-fork route rehearsal | Product-visible, persisted, and green for direct Aave, Curve/Uniswap-to-Aave, and full-range Uniswap LP-entry routes |
-| Verified stepwise X Layer mainnet execution | Product-wired for fresh, purchased, rehearsed V2 routes; every transaction requires an explicit buyer-wallet confirmation and durable receipt verification |
-| Capped atomic executor beta | Chain-196 registry, risk manager, and executor are active under the governance Safe; wallet, target, selector, principal, deadline, and final-balance bounds remain enforced on-chain |
-| Agent-program wallet execution | Owner-authenticated preparation, live executor preflight, exact wallet calls, and receipt attribution are implemented for both capability and wallet-call programs |
-| AI execution/calldata authority | Never granted: verifier-owned capability modules compile calldata and the owner wallet alone signs production transactions |
+## Review Cobia in three minutes
 
-APY and TVL are snapshot-derived estimates. A block-bounded capture does not
-turn an off-chain rate into an on-chain oracle. Buying a route does not move
-principal. After a paid V2 route is unlocked, its buyer can first replay the
-exact bundle at its committed snapshot block in disposable Anvil state, then
-separately authorize verified stepwise chain-196 execution while the route remains fresh.
-The browser and server independently rebuild each step; each approval, swap,
-supply, or LP mint requires its own wallet confirmation. Persisted hashes, receipts,
-events, and postconditions make reload recovery explicit. Fork evidence is
-historical and APY remains a forecast—not a profitability guarantee. LP fee
-APY is annualized from a historical fee-growth window; impermanent loss, depeg,
-future fees, and exit value are not guaranteed. The owner receives the LP NFT,
-but Cobia does not yet build collect, rebalance, decrease-liquidity, or exit steps.
+1. Open the [live product](https://getcobia.com/intents/new) and select the
+   registered TSLAx example.
+2. Inspect the [AI Season evidence page](https://getcobia.com/buildx), including
+   deployments, protocol support, solver activity, and limitations.
+3. Verify the public [TSLAx program](https://getcobia.com/programs/3ceb168b-3a54-4560-ad9a-c1614401d6db)
+   and its [X Layer transaction](https://web3.okx.com/explorer/x-layer/evm/tx/0xd8381e286f7dadde6a5ab363223b264b51f5aac4cc04cc3a41bfa979f67fcc4f).
+4. Verify the separate [V4 standard-token program](https://getcobia.com/programs/4d1ccd00-1b2d-485a-9f57-6e4416959126)
+   and its [X Layer transaction](https://web3.okx.com/explorer/x-layer/evm/tx/0x573cf9e9e0c21e4cf1585cc4a4ec36a56d4063c779bb3de4e8bf514c56e2543f).
+5. Read the [security model](docs/architecture/security-model.md), then reproduce
+   the automated checks below.
 
-## Trust boundary
+## Mainnet evidence
+
+Public evidence is the product claim boundary. Screenshots and demos explain the
+flow; programs, receipts, and chain transactions establish what actually ran.
+
+| Evidence | What it establishes |
+| --- | --- |
+| [TSLAx acquisition program](https://getcobia.com/programs/3ceb168b-3a54-4560-ad9a-c1614401d6db) | Registered TSLAx acquisition through V4, with exact identity and eligibility checks, independent evidence, receipt, and owner-wallet execution |
+| [TSLAx transaction](https://web3.okx.com/explorer/x-layer/evm/tx/0xd8381e286f7dadde6a5ab363223b264b51f5aac4cc04cc3a41bfa979f67fcc4f) | `0.002841620235604251 TSLAx` reached the owner wallet on X Layer mainnet |
+| [Full-balance TSLAx sale](https://getcobia.com/programs/88b29eb4-0e30-4108-be11-30f157fa1e70) | A separate verified program sold `0.016001666911378385 TSLAx` into `5.618001 USDG` |
+| [TSLAx sale transaction](https://web3.okx.com/explorer/xlayer/tx/0x7fc3f00d7951fdea18cd890690cd322869d113043bf2ec9fa1d362a06348e7ad) | Confirms the reverse xStocks-to-stablecoin direction and terminal balance changes |
+| [V4 standard-token program](https://getcobia.com/programs/4d1ccd00-1b2d-485a-9f57-6e4416959126) | A second wallet used the public V4 path for a bounded OKB-to-USDG swap |
+| [V4 transaction](https://web3.okx.com/explorer/x-layer/evm/tx/0x573cf9e9e0c21e4cf1585cc4a4ec36a56d4063c779bb3de4e8bf514c56e2543f) | `0.01 OKB` became `1.169308 USDG` on X Layer mainnet |
+| [Cobia Network](https://getcobia.com/network) | Verifier-derived results across solver programs, each linked to its public evidence |
+| [Production deployment evidence](https://getcobia.com/buildx#evidence) | X Layer contracts, builder attribution, source, testnet rehearsal, and current product links |
+
+Snapshot note: the Network API reported **35 confirmed outcomes and four
+winning solvers on 25 August 2026**. Use the live Network page for the
+current count.
+
+## How it works
 
 ```mermaid
 flowchart LR
-    W["Owner wallet"] --> V["Vercel: Next.js UI + Route Handlers"]
-    V --> I["Signed intent + pinned snapshot"]
-    I --> S["Independent VPS solver"]
-    S --> P["Unsigned program"]
-    P --> V
-    V --> F["VPS replay service + disposable Anvil"]
-    F --> T["Verifier attestation"]
-    T --> E["Exact owner-wallet execution"]
-    V --> D["VPS PostgreSQL over TLS"]
+    W["Owner wallet"] -->|signs limits| I["Intent + pinned evidence"]
+    I --> S["Independent solvers"]
+    S -->|unsigned programs| V["Deterministic verifier"]
+    V --> R["Disposable X Layer fork replay"]
+    R -->|accepted attestation| W
+    W -->|explicit confirmations| X["X Layer mainnet"]
+    X --> P["Public receipt + postconditions"]
 ```
 
-The agent may discover arbitrary protocols and write arbitrary research code,
-but executable calldata exists only when a verifier-owned capability module
-understands its semantics and deployment identities. Rejected programs are
-retained as evidence, never exposed as executable. Expired findings are labeled
-`Past discovery`; they require a new wallet-specific intent and fresh verification.
-First-class Aave, Curve, and Uniswap execution uses X Layer mainnet chain 196.
-Registered issuer-backed assets can execute through V4 only when their exact
-X Layer identity, route, and eligibility evidence pass verification. The first
-public proof is a confirmed USDG-to-TSLAx acquisition. A supported x402 resource
-uses the payment chain declared by its exact merchant manifest. Every
-chain remains explicit in the signed policy and evidence. The app stores
-credential hashes and receipt evidence, not raw spend-capable payment credentials.
+1. **Bound the outcome.** The policy commits owner, chain, assets, spend and
+   result limits, allowed capabilities, deadline, freshness, and nonce.
+2. **Let solvers compete.** Deterministic services, isolated coding agents, and
+   independent solver processes can research routes or abstain.
+3. **Verify independently.** Cobia re-resolves registered deployments and asset
+   identities, checks every call and approval, and replays accepted programs on
+   disposable X Layer fork state.
+4. **Keep the authority.** A passing replay is evidence, not execution. The
+   browser rebuilds the attested transactions and the owner wallet decides
+   whether to submit them.
+5. **Prove the result.** Canonical receipts, events, balance changes, program
+   commitments, and transaction links remain inspectable after execution.
 
-## Production topology
+## Current product boundary
 
-- **Vercel:** the complete Next.js application, UI, and Route Handlers. There is
-  no duplicate Next.js server on the VPS.
-- **Hetzner VPS:** PostgreSQL, the independent reference solver, the authenticated
-  replay service, disposable loopback-only Anvil forks, and Caddy.
-- **`api.getcobia.com`:** the replay-service HTTPS boundary only. The product and
-  public API remain at `getcobia.com`.
-- **Database:** Vercel connects to VPS PostgreSQL on port `15432` with TLS,
-  SCRAM, and `sslmode=verify-full`. The deleted Vercel-managed database is not a
-  migration source.
+| Surface | Current state |
+| --- | --- |
+| Plain-language, wallet-signed intents | Live on X Layer chain `196` |
+| Solver exchange | Signed intake, solver profiles, immutable revisions, abstention, ranking, and replay protection |
+| General Asset V4 | Live for independently verified standard ERC-20 swaps through the public same-chain X Layer OKX lane |
+| Registered xStocks | Live mainnet proof for TSLAx acquisition; every asset still requires exact registration, routing, and eligibility evidence |
+| Semantic DeFi capabilities | Registered Aave V3 supply and Curve/Uniswap exact-input routes, including bounded composition and fork rehearsal |
+| Commerce | Exactly pinned x402 resources with product, network, price, payee, payer, deadline, and settlement evidence |
+| Execution | Owner-authenticated, one stage at a time, with current preflight and durable receipt verification |
+| AI authority | Proposal generation only; model-authored output never becomes calldata authority or gains a production send path |
 
-The exact bootstrap, update, and rollback procedure is documented in the
-[Hetzner production runbook](docs/deployments/hetzner-production-runbook.md).
+Explicit non-capabilities matter. Cobia does not present LI.FI, bridging,
+Ethereum runtime, recurring authority, arbitrary token behavior, universal
+xStocks liquidity, or LP exit/rebalancing as live. APY, fees, and future value
+are forecasts rather than enforceable outcomes. See the full
+[intent compatibility boundary](docs/architecture/intent-compatibility.md).
+
+## AI and verification implementation
+
+- The in-process coding-agent lane runs route-search code inside an ephemeral
+  Node 24 sandbox with bounded tools, egress, runtime, and provenance capture.
+- The [open solver](examples/open-solver) runs independently, consumes public
+  signed intents, and submits typed capability or exact wallet-call programs.
+- Verifier-owned modules recompile known capabilities. Open wallet-call programs
+  must additionally prove target code, selectors, approvals, asset and event
+  coverage, state deltas, and a fresh replay.
+- The [replay service](apps/replay-service) accepts only authenticated,
+  deterministically pre-checked material, caps concurrency, starts a loopback-only
+  Anvil fork, records evidence, and destroys the fork.
+- The V4 executor, registry, risk manager, and validation contracts enforce
+  owner, target, selector, principal, deadline, and final-balance bounds onchain.
+
+The detailed guarantees, threats, and failure behavior are in the
+[security model](docs/architecture/security-model.md).
+
+## Repository map
+
+| Path | Responsibility |
+| --- | --- |
+| [`apps/web`](apps/web) | Next.js product, public APIs, intent orchestration, verification, persistence, and wallet execution |
+| [`apps/replay-service`](apps/replay-service) | Authenticated replay API and disposable Anvil lifecycle |
+| [`examples/open-solver`](examples/open-solver) | Independently deployable reference solver |
+| [`packages/domain`](packages/domain) | Canonical policies, programs, commitments, scoring, evidence, and verdicts |
+| [`packages/solvers`](packages/solvers) | Deterministic, coding-agent, capability, and general-asset solver machinery |
+| [`contracts`](contracts) | Foundry-tested executor, registry, risk manager, static guard, and V4 validation contracts |
+| [`docs`](docs) | Architecture, deployment evidence, runbooks, research, and competition documentation |
+
+Production uses Vercel for the web product and Route Handlers, plus a Hetzner
+VPS for PostgreSQL, the independent solver, authenticated replay service,
+disposable Anvil forks, and Caddy. The exact boundary is documented in the
+[production runbook](docs/deployments/hetzner-production-runbook.md).
 
 ## Run locally
 
-Requirements: Node.js 24+, pnpm 11.20.0, and PostgreSQL 16+. The isolated
-database-integration and fork-rehearsal lanes also require a running
-Docker-compatible container runtime.
+Requirements: Node.js 24+, pnpm 11.20.0, PostgreSQL 16+, and a
+Docker-compatible runtime for database integration and fork tests.
 
 ```bash
 pnpm install
@@ -117,74 +153,47 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE \
 pnpm dev
 ```
 
-`pnpm env:dev` creates an ignored, owner-readable local environment file. It
-never overwrites secrets or existing values; for an older file, it may append
-the missing non-secret `PAYMENT_REALM` and a new local
-`EXECUTION_SESSION_SECRET`. It never prints generated private keys or secrets.
-Live OKX paths require the corresponding credentials; missing configuration
-fails visibly and never substitutes sample data.
+`pnpm env:dev` creates an ignored owner-readable development environment and
+never overwrites or prints secrets. Live OKX paths require real credentials;
+missing dependencies fail visibly instead of substituting mock product data.
 
-## Verify
+## Reproduce the checks
 
 ```bash
+pnpm docs:check
+pnpm lint
+pnpm typecheck
 pnpm test
+pnpm build
 pnpm --filter @cobia/web test:integration
 pnpm --filter @cobia/web test:fork
-pnpm typecheck
-pnpm lint
-pnpm build
+pnpm contracts:test
 ```
 
-The default tests exclude the integration and fork lanes and never connect to
-PostgreSQL. Each integration suite (or standalone migration test) owns and
-closes its own disposable `postgres:16-alpine` container; the sequential
-command does not share one database for the whole run. It ignores ambient
-`DATABASE_URL` and `TEST_DATABASE_URL` values.
+- **CI** runs documentation checks, lint, type checks, unit tests, production
+  builds, isolated PostgreSQL integration tests, contract tests, and Compose
+  validation on pull requests and `main`.
+- **Mainnet fork** runs the digest-pinned X Layer rehearsal nightly and on demand.
+- **Security** audits production dependencies and runs CodeQL on every change;
+  scheduled container builds are scanned for fixed high and critical issues.
 
-The opt-in fork command starts a digest-pinned Foundry/Anvil container and forks
-the public X Layer RPC at block `67,649,362`. It requires outbound network access
-to `ghcr.io` for the image and `https://rpc.xlayer.tech` for fork state.
+## Roadmap
 
-## Continuous verification
+- Publish a new judge demo covering V4, registered xStocks, and composed
+  many-to-one, one-to-many, and many-to-many wallet programs with linked receipts.
+- Grow independently operated solvers and attributable external-wallet usage.
+- Add an independent security review and a funded disclosure or bounty process.
+- Expand assets, protocols, and chains only through explicit identity,
+  capability, replay, execution, and postcondition gates.
 
-- `CI` runs lint, type checks, unit tests, production builds, isolated database
-  integration tests, contract tests, and a rendered Compose topology on every
-  pull request and `main` update.
-- `Mainnet fork` runs the opt-in pinned-block rehearsal nightly and on demand.
-- `Security` audits production dependencies and runs CodeQL on every change;
-  weekly container scans fail on fixed high or critical vulnerabilities.
+Roadmap items are goals, not claims of current support. The competition-specific
+scorecard and evidence gaps live in the
+[X Layer AI Season brief](docs/SUBMISSION.md).
 
-Security reports belong in the private process described in
-[`SECURITY.md`](SECURITY.md), never in a public issue.
+## Security and license
 
-The wallet-confirmed X Layer Testnet deployment and independent receipt checks
-are documented in
-[`docs/deployments/xlayer-testnet-executor-v2-runbook.md`](docs/deployments/xlayer-testnet-executor-v2-runbook.md).
-
-## Workspace
-
-- `apps/web` — Next.js product, API routes, MCP endpoint, persistence, and chain reads
-- `apps/replay-service` — authenticated standalone replay API and disposable Anvil lifecycle
-- `examples/open-solver` — independently deployable reference solver
-- `packages/domain` — canonical schemas, commitments, allocation math, scoring, and verification
-- `packages/solvers` — deterministic builder and bounded agentic candidate selector
-- `deploy/hetzner` — production and local Docker Compose topology
-- `docs/architecture` — current/target architecture and intent-compatibility boundaries
-- `docs/design/cobia-brand-system.md` — canonical brand, visual, and product-language system
-- `docs/design/cobia-x-community-playbook.md` — X publishing and community voice playbook
-
-See [apps/web/README.md](apps/web/README.md) for the exact network and payment
-configuration boundary.
-
-## License
-
-Cobia is source-available under the
-[PolyForm Noncommercial License 1.0.0](LICENSE.md). You may use, modify, and
-share it only for permitted noncommercial purposes. Commercial use—including
-using Cobia or a modified version to provide a paid product or service—requires
-a separate commercial license from Sebastian Böhler.
-
-This is not an OSI-approved open-source license. Sebastian Böhler retains the
-right to use, license, and commercialize Cobia separately. The license does not
-grant rights to the Cobia name, logos, or branding. For commercial licensing,
-[contact Sebastian Böhler](https://github.com/SebastianBoehler).
+Report vulnerabilities privately through the process in
+[`SECURITY.md`](SECURITY.md); never publish exploit details or secrets in an
+issue. Cobia is source-available under the
+[PolyForm Noncommercial License 1.0.0](LICENSE.md). Commercial use requires a
+separate license from Sebastian Böhler.
