@@ -142,6 +142,32 @@ describe("IntentComposer", () => {
     expect(screen.getByLabelText("What should happen?")).toHaveValue("@USDG ");
   });
 
+  it("normalizes the same Tesla contract from the wallet, registry, and catalog into one suggestion", async () => {
+    const tesla = RWA_INTENT_ASSETS.find(({ symbol }) => symbol === "TSLAx")!;
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes("/portfolio")) return Promise.resolve(Response.json({ balances: [{
+        symbol: "TSLAx", address: tesla.address, amountAtomic: "16002000000000000", formatted: "0.016002",
+        priceUsd: "350.8502",
+      }], positions: [] }));
+      if (url === "/api/assets/resolve") {
+        const body = JSON.parse(String(init?.body));
+        return Promise.resolve(Response.json("query" in body ? { assets: [{
+          symbol: "TSLAx", name: "Tesla xStock", chainId: 196, address: tesla.address,
+          status: "catalog-backed",
+        }] } : { assets: [], unresolved: ["TS"] }));
+      }
+      return Promise.resolve(Response.json({}));
+    }));
+    render(<IntentComposer />);
+    const goal = screen.getByLabelText("What should happen?");
+
+    fireEvent.focus(goal);
+    fireEvent.change(goal, { target: { value: "@TS" } });
+
+    const suggestions = await screen.findByRole("listbox", { name: "Mention suggestions" });
+    await waitFor(() => expect(within(suggestions).getAllByRole("option", { name: /@TSLAx/ })).toHaveLength(1));
+  });
+
   it("accepts the first mention suggestion with Tab and keeps the goal focused", () => {
     render(<IntentComposer />);
     const goal = screen.getByLabelText("What should happen?");

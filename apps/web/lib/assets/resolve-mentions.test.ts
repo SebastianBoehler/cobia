@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SolverToolV1 } from "../solver-tools/types";
 import type { XStocksToolValueV1 } from "../solver-tools/xstocks";
-import { resolveAssetMentionsV1, resolveAssetSelectorsV2 } from "./resolve-mentions";
+import {
+  resolveAssetMentionsV1, resolveAssetSelectorsV2, resolveAssetSuggestionsV1,
+} from "./resolve-mentions";
 
 const aapl = {
   id: "03e9a31f-f889-4fdd-b45a-f2b30a3f824e",
@@ -84,6 +86,20 @@ describe("asset mention resolver", () => {
       symbol: "AAPLx", address: aapl.deployment.address,
       underlyingIdentifier: "US0378331005", status: "catalog-backed",
     })]);
+  });
+
+  it("suggests catalog xStocks and X Layer market tokens by a partial symbol or name", async () => {
+    const token = "0x2222222222222222222222222222222222222222" as const;
+    const result = await resolveAssetSuggestionsV1("tes", [{ ...aapl, name: "Tesla xStock", symbol: "TSLAx" }], {
+      searchXLayerToken: vi.fn(),
+      searchXLayerTokens: vi.fn(async () => [{ chainId: 196 as const, token, name: "Test Token",
+        symbol: "TEST", decimals: 18, priceUsd: "2.50", liquidityUsd: "100000" }]),
+    });
+
+    expect(result.assets).toEqual(expect.arrayContaining([
+      expect.objectContaining({ symbol: "TSLAx", status: "catalog-backed" }),
+      expect.objectContaining({ symbol: "TEST", address: token, priceUsd: "2.50" }),
+    ]));
   });
 
   it("keeps arbitrary tickers unresolved instead of inventing contracts", async () => {

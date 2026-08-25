@@ -3,7 +3,7 @@ import { SUPPORTED_ASSETS } from "../chain/supported-assets";
 import { USDG_ADDRESS } from "../chain/xlayer";
 import { INTENT_ASSETS, RWA_INTENT_ASSETS } from "../intents/capability-templates";
 import type { SolverToolV1 } from "../solver-tools/types";
-import type { XStocksToolValueV1 } from "../solver-tools/xstocks";
+import type { XStocksInstrumentV1, XStocksToolValueV1 } from "../solver-tools/xstocks";
 
 type Tool = SolverToolV1<
   { operation: "get"; symbol: string } | { operation: "list"; page: number },
@@ -21,6 +21,19 @@ interface OkxTokenLookup {
     liquidityUsd: string;
     holderCount?: string;
   } | undefined>;
+}
+
+interface OkxTokenSearch extends OkxTokenLookup {
+  searchXLayerTokens(search: string): Promise<Array<{
+    chainId: 196;
+    token: Address;
+    name: string;
+    symbol: string;
+    decimals: number;
+    priceUsd: string;
+    liquidityUsd: string;
+    holderCount?: string;
+  }>>;
 }
 
 export type GeneralAssetEligibilityV2 =
@@ -87,6 +100,58 @@ function canonicalXStockSymbol(symbol: string): string | undefined {
   return `${symbol.slice(0, -1).toUpperCase()}x`;
 }
 
+function xStockMention(asset: XStocksInstrumentV1): ResolvedAssetMentionV1 {
+  const atomicUsdG = asset.deployment.stablecoins.some(({ symbol, address, supportsAtomicSwaps }) =>
+    symbol === "USDG" && supportsAtomicSwaps && isAddressEqual(address, USDG_ADDRESS));
+  return {
+    symbol: asset.symbol, name: asset.name, chainId: 196, address: asset.deployment.address,
+    status: !asset.isTradingHalted && asset.deployment.supportsAtomicSwaps && atomicUsdG
+      ? "catalog-backed" : "research-only",
+    underlyingIdentifier: asset.underlyingIsin,
+  };
+}
+
+export async function listXStocksCatalogV1(xstocks: Tool): Promise<XStocksInstrumentV1[]> {
+  const assets: XStocksInstrumentV1[] = [];
+  for (let page = 0; page < 100; page += 1) {
+    const result = await xstocks.run({ operation: "list", page });
+    if (result.status !== "ok") throw new Error("xStocks catalog is unavailable");
+    assets.push(...result.value.assets);
+    if (!result.value.hasNextPage) break;
+  }
+  return [...new Map(assets.map((asset) => [asset.deployment.address.toLowerCase(), asset])).values()];
+}
+
+function matchesSuggestion(asset: { symbol: string; name: string }, query: string): boolean {
+  const normalized = query.toLowerCase();
+  return asset.symbol.toLowerCase().includes(normalized) || asset.name.toLowerCase().includes(normalized);
+}
+
+export async function resolveAssetSuggestionsV1(
+  query: string,
+  xStocksCatalog: readonly XStocksInstrumentV1[],
+  okx?: OkxTokenSearch,
+): Promise<{ assets: ResolvedAssetMentionV1[] }> {
+  const normalized = query.trim();
+  if (!normalized) return { assets: [] };
+  const discovered = xStocksCatalog.filter((asset) => matchesSuggestion(asset, normalized)).map(xStockMention);
+  const market = okx ? await okx.searchXLayerTokens(normalized).catch(() => []) : [];
+  const marketSymbols = new Set(market.map(({ symbol }) => symbol.toLowerCase()));
+  const xStocks = discovered.filter(({ symbol }) => !marketSymbols.has(symbol.toLowerCase()));
+  const assets = [...xStocks, ...market.map((token) => ({
+    symbol: token.symbol, name: token.name, chainId: 196 as const, address: token.token,
+    status: "research-only" as const, priceUsd: token.priceUsd, liquidityUsd: token.liquidityUsd,
+    holderCount: token.holderCount,
+  }))];
+  const unique = new Map<string, ResolvedAssetMentionV1>();
+  for (const asset of assets) unique.set(`${asset.chainId}:${asset.address.toLowerCase()}`, asset);
+  return { assets: [...unique.values()].sort((left, right) => {
+    const leftStarts = left.symbol.toLowerCase().startsWith(normalized.toLowerCase()) ? 0 : 1;
+    const rightStarts = right.symbol.toLowerCase().startsWith(normalized.toLowerCase()) ? 0 : 1;
+    return leftStarts - rightStarts || left.symbol.localeCompare(right.symbol);
+  }).slice(0, 8) };
+}
+
 async function exactXLayerPrice(
   symbol: string,
   address: Address,
@@ -141,14 +206,7 @@ export async function resolveAssetMentionsV1(
         ? result.value.assets.find((asset) => asset.symbol.toLowerCase() === canonical.toLowerCase())
         : undefined;
       if (discovered) {
-        const atomicUsdG = discovered.deployment.stablecoins.some(({ symbol, address,
-          supportsAtomicSwaps }) => symbol === "USDG" && supportsAtomicSwaps &&
-          isAddressEqual(address, USDG_ADDRESS));
-        assets.push({ symbol: discovered.symbol, name: discovered.name, chainId: 196,
-          address: discovered.deployment.address,
-          status: !discovered.isTradingHalted && discovered.deployment.supportsAtomicSwaps && atomicUsdG
-            ? "catalog-backed" : "research-only",
-          underlyingIdentifier: discovered.underlyingIsin });
+        assets.push(xStockMention(discovered));
         return;
       }
     }

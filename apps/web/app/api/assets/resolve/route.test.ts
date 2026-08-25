@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { POST, resolveAssetMentionRequest, type AssetResolution } from "./route";
 import { createTtlAsyncCache } from "../../../../lib/cache/ttl-async-cache";
+import type { XStocksInstrumentV1 } from "../../../../lib/solver-tools/xstocks";
 
 const xstocks = {
   id: "rwa.instruments" as const,
@@ -46,6 +47,36 @@ describe("POST /api/assets/resolve", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({ assets: [{ symbol: "EXAMPLE",
       address: token, priceUsd: "2.50", liquidityUsd: "100000", holderCount: "1200" }] });
+  });
+
+  it("searches the full xStocks catalog and X Layer market for autocomplete candidates", async () => {
+    const xstock = {
+      id: "rwa.instruments" as const, version: 1 as const,
+      run: vi.fn().mockResolvedValue({ status: "ok" as const, sourceHash: `0x${"11".repeat(32)}`,
+        fetchedAt: 2_000_000_000, value: { assets: [{
+          id: "96f43a87-976b-4076-ac84-394966c32a90", name: "Tesla xStock", symbol: "TSLAx",
+          isin: "CH1436219252", underlyingSymbol: "TSLA", underlyingIsin: "US88160R1014",
+          isTradingHalted: false, deployment: { address: "0x8ad3c73f833d3f9a523ab01476625f269aeb7cf0",
+            network: "XLayer" as const, supportsAtomicSwaps: true, stablecoins: [{ symbol: "USDG",
+              address: "0x4ae46a509f6b1d9056937ba4500cb143933d2dc8", decimals: 6,
+              issuance: true, redemption: true, supportsAtomicSwaps: true }] },
+        }], page: 0, hasNextPage: false } }),
+    };
+    const token = "0x2222222222222222222222222222222222222222" as const;
+    const okx = { searchXLayerTokens: vi.fn(async () => [{ chainId: 196 as const, token,
+      name: "Test Token", symbol: "TEST", decimals: 18, priceUsd: "2.50", liquidityUsd: "100000" }]) };
+    const cache = createTtlAsyncCache<AssetResolution>({ ttlMs: 60_000, maxEntries: 8 });
+    const catalog = createTtlAsyncCache<XStocksInstrumentV1[]>({ ttlMs: 60_000, maxEntries: 1 });
+    const response = await resolveAssetMentionRequest(new Request("https://getcobia.com/api/assets/resolve", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query: "tes" }),
+    }), xstock, okx, cache, undefined, catalog);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ assets: expect.arrayContaining([
+      expect.objectContaining({ symbol: "TSLAx", status: "catalog-backed" }),
+      expect.objectContaining({ symbol: "TEST", address: token }),
+    ]) });
+    expect(xstock.run).toHaveBeenCalledWith({ operation: "list", page: 0 });
   });
 
   it("reuses fresh resolution evidence for repeated requests", async () => {

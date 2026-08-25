@@ -239,14 +239,15 @@ describe("OKX Market client", () => {
 
   it("resolves one exact X Layer token symbol without guessing among partial matches", async () => {
     const token = "0x1111111111111111111111111111111111111111";
-    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(Response.json({
+    const response = {
       code: "0", msg: "", data: [{ chainIndex: "196", tokenContractAddress: token,
         tokenName: "Example Token", tokenSymbol: "EXAMPLE", decimal: "18",
         price: "2.50", liquidity: "100000", holders: "1200", tagList: {} },
       { chainIndex: "196", tokenContractAddress: "0x2222222222222222222222222222222222222222",
         tokenName: "Example Two", tokenSymbol: "EXAMPLE2", decimal: "18",
         price: "3", liquidity: "200000", holders: "900", tagList: {} }],
-    }));
+    };
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(() => Promise.resolve(Response.json(response)));
     const client = createOkxClient({ credentials, fetchImpl,
       now: () => new Date("2026-08-21T10:00:00.000Z") });
 
@@ -254,6 +255,10 @@ describe("OKX Market client", () => {
       chainId: 196, token, name: "Example Token", symbol: "EXAMPLE", decimals: 18,
       priceUsd: "2.50", liquidityUsd: "100000", holderCount: "1200",
     });
+    await expect(client.searchXLayerTokens("example")).resolves.toMatchObject([
+      { chainId: 196, token, symbol: "EXAMPLE" },
+      { chainId: 196, symbol: "EXAMPLE2" },
+    ]);
     expect(fetchImpl.mock.calls[0]![0]).toBe(
       "https://web3.okx.com/api/v6/dex/market/token/search?chains=196&search=example&limit=100",
     );

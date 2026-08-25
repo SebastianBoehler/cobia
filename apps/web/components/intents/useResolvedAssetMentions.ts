@@ -14,6 +14,11 @@ interface ResolvedAsset {
   holderCount?: string;
 }
 
+interface SuggestionState {
+  key: string;
+  assets: ResolvedAsset[];
+}
+
 export type AssetResolutionStatus = "idle" | "checking" | "ready" | "error";
 
 interface ResolutionState {
@@ -37,11 +42,16 @@ export function useResolvedAssetMentions(
   knownMentions: readonly IntentMention[],
 ): { assets: IntentMention[]; unresolved: string[]; status: AssetResolutionStatus } {
   const [resolution, setResolution] = useState<ResolutionState>();
+  const [suggestions, setSuggestions] = useState<SuggestionState>();
   const unknown = useMemo(() => {
     const known = new Set(knownMentions.map(({ mention }) => mention.toLowerCase()));
     return extractGoalMentions(goal).filter((mention) => !known.has(mention.toLowerCase())).slice(0, 8);
   }, [goal, knownMentions]);
   const key = unknown.map((mention) => mention.toLowerCase()).join("|");
+  const suggestionQuery = useMemo(() => {
+    const match = goal.match(/(?:^|\s)@([A-Za-z0-9.$_-]+)$/);
+    return match?.[1] ?? "";
+  }, [goal]);
 
   useEffect(() => {
     if (!key) return;
@@ -71,13 +81,39 @@ export function useResolvedAssetMentions(
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [key, unknown]);
 
+  useEffect(() => {
+    if (!suggestionQuery) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      fetch("/api/assets/resolve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: suggestionQuery }),
+        signal: controller.signal,
+      }).then(async (response) => {
+        if (!response.ok) throw new Error("Asset suggestions failed");
+        return response.json() as Promise<{ assets?: ResolvedAsset[] }>;
+      }).then((result) => {
+        if (!Array.isArray(result.assets)) throw new Error("Asset suggestions payload is invalid");
+        setSuggestions({ key: suggestionQuery.toLowerCase(), assets: result.assets });
+      }).catch(() => undefined);
+    }, 175);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [suggestionQuery]);
+
   const active = new Set(unknown.map((mention) => mention.toLowerCase()));
   const current = resolution?.key === key ? resolution : undefined;
+  const currentSuggestions = suggestions?.key === suggestionQuery.toLowerCase() ? suggestions.assets : [];
+  const candidates = [...(current?.assets ?? []).filter((asset) => active.has(asset.symbol.toLowerCase())),
+    ...currentSuggestions];
+  const normalized = new Map<string, ResolvedAsset>();
+  for (const asset of candidates) normalized.set(`${asset.chainId}:${asset.address.toLowerCase()}`, asset);
   return {
-    assets: (current?.assets ?? []).filter((asset) => active.has(asset.symbol.toLowerCase())).map((asset) => ({
+    assets: [...normalized.values()].map((asset) => ({
       id: `resolved-asset:${asset.chainId}:${asset.address}`,
       group: "Assets",
       mention: asset.symbol,
+      chainId: asset.chainId,
       address: asset.address,
       priceUsd: asset.priceUsd,
       detail: asset.status === "research-only"

@@ -56,6 +56,17 @@ function errorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : "The intent could not be published.";
 }
 
+function normalizeMentions(mentions: readonly IntentMention[]): IntentMention[] {
+  const unique = new Map<string, IntentMention>();
+  for (const mention of mentions) {
+    const key = mention.group === "Assets" && mention.address
+      ? `asset:${mention.chainId ?? 196}:${mention.address.toLowerCase()}`
+      : `${mention.group}:${mention.mention.toLowerCase()}`;
+    if (!unique.has(key)) unique.set(key, mention);
+  }
+  return [...unique.values()];
+}
+
 export function IntentComposer({ initialDraft, initialGoal = "" }: {
   initialDraft?: IntentComposerDraft;
   initialGoal?: string;
@@ -198,6 +209,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
 
   const mentions = useMemo<IntentMention[]>(() => [
     { id: "asset:OKB", group: "Assets" as const, mention: NATIVE_INTENT_ASSET.symbol,
+      chainId: 196 as const,
       address: NATIVE_INTENT_ASSET.address, priceUsd: assetPrices.okb,
       walletBalance: activePortfolio?.native
         ? `${Number(activePortfolio.native.formatted).toLocaleString("en-US", { maximumFractionDigits: 6 })} OKB`
@@ -210,18 +222,18 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
       const walletBalance = balance
         ? `${Number(balance.formatted).toLocaleString("en-US", { maximumFractionDigits: 6 })} ${symbol}`
         : undefined;
-      return { id: `asset:${symbol}`, group: "Assets" as const, mention: symbol, address,
+      return { id: `asset:${symbol}`, group: "Assets" as const, mention: symbol, chainId: 196 as const, address,
         priceUsd: balance?.priceUsd ?? assetPrices[symbol.toLowerCase()], walletBalance,
         detail: walletBalance ? `${walletBalance} available` : "X Layer asset" };
     }),
     ...(activePortfolio?.balances ?? []).filter(({ address }) => typeof address === "string" && !INTENT_ASSETS.some((asset) =>
       asset.address.toLowerCase() === address.toLowerCase())).map(({ symbol, address, formatted, priceUsd }) => ({
-        id: `wallet-asset:${address}`, group: "Assets" as const, mention: symbol, address, priceUsd,
+        id: `wallet-asset:${address}`, group: "Assets" as const, mention: symbol, chainId: 196 as const, address, priceUsd,
         walletBalance: `${Number(formatted).toLocaleString("en-US", { maximumFractionDigits: 6 })} ${symbol}`,
         detail: `${Number(formatted).toLocaleString("en-US", { maximumFractionDigits: 6 })} ${symbol} available`,
       })),
     ...RWA_INTENT_ASSETS.map(({ symbol, address, instrument }) => ({ id: `asset:${symbol}`, group: "Assets" as const,
-      mention: symbol, address, priceUsd: assetPrices[symbol.toLowerCase()],
+      mention: symbol, chainId: instrument.chainId, address, priceUsd: assetPrices[symbol.toLowerCase()],
       detail: `Cross-chain asset · ${instrument.chainId === 196 ? "X Layer" : "Ethereum"}` })),
     { id: "network:x-layer", group: "Networks", mention: "XLayer", detail: "Chain 196" },
     { id: "network:ethereum", group: "Networks", mention: "Ethereum", detail: "Chain 1" },
@@ -252,7 +264,8 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
       return [{ symbol: balance.symbol, amount: balance.amount, priceUsd }];
     });
   }, [activePortfolio, assetPrices]);
-  const allMentions = useMemo(() => [...mentions, ...resolvedAssetMentions], [mentions, resolvedAssetMentions]);
+  const allMentions = useMemo(() => normalizeMentions([...mentions, ...resolvedAssetMentions]),
+    [mentions, resolvedAssetMentions]);
   const assetSymbols = useMemo(() => [...new Set([
     NATIVE_INTENT_ASSET.symbol,
     ...allMentions.filter(({ group }) => group === "Assets").map(({ mention }) => mention),

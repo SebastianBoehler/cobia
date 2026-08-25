@@ -42,6 +42,7 @@ export interface IntentMention {
   group: "Assets" | "Networks" | "Protocols" | "Services";
   mention: string;
   detail: string;
+  chainId?: 1 | 196;
   address?: string;
   priceUsd?: string;
   walletBalance?: string;
