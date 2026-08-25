@@ -35,7 +35,7 @@ export function readIntentAssetPrices(
       resolved.push({ asset, token });
     }
     return Object.fromEntries(resolved.flatMap(({ asset, token }) =>
-      token && token.symbol === asset.querySymbol && isAddressEqual(token.token, asset.address)
+      token?.priceUsd && token.symbol === asset.querySymbol && isAddressEqual(token.token, asset.address)
         ? [[asset.displaySymbol, token.priceUsd]] : []));
   });
 }

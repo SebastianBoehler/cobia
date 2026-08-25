@@ -105,6 +105,18 @@ describe("OKX DeFi client", () => {
     );
   });
 
+  it("discovers product identity when search-only metrics are unavailable", async () => {
+    const client = createOkxClient({ credentials, fetchImpl: vi.fn<typeof fetch>()
+      .mockResolvedValue(Response.json({ code: "0", msg: "", data: { list: [{
+        investmentId: "9001", name: "USDG", platformName: "Aave V3",
+        chainIndex: "196", rate: null, tvl: "", productGroup: null,
+      }] } })) });
+
+    await expect(client.searchProducts({ tokenKeywordList: ["USDG"], chainIndex: "196" }))
+      .resolves.toEqual([{ investmentId: "9001", name: "USDG", platformName: "Aave V3",
+        chainIndex: "196", rate: undefined, tvl: undefined, productGroup: null }]);
+  });
+
   it("rejects OKX business errors even when HTTP succeeds", async () => {
     const client = createOkxClient({
       credentials,
@@ -185,12 +197,15 @@ describe("OKX DeFi client", () => {
 describe("OKX Market client", () => {
   it("lists non-risk X Layer wallet token contracts", async () => {
     const token = "0x1111111111111111111111111111111111111111";
+    const unpriced = "0x3333333333333333333333333333333333333333";
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ code: "0", msg: "", data: [{
       tokenAssets: [
         { chainIndex: "196", tokenContractAddress: "", symbol: "OKB", balance: "0.01",
           tokenPrice: "107.41", isRiskToken: false },
         { chainIndex: "196", tokenContractAddress: token, symbol: "EXAMPLE", balance: "2.5",
           tokenPrice: "1.25", isRiskToken: false },
+        { chainIndex: "196", tokenContractAddress: unpriced, symbol: "UNPRICED", balance: "3",
+          tokenPrice: "", isRiskToken: false },
         { chainIndex: "196", tokenContractAddress: "0x2222222222222222222222222222222222222222",
           symbol: "RISK", balance: "1", tokenPrice: "1", isRiskToken: true },
       ],
@@ -199,7 +214,10 @@ describe("OKX Market client", () => {
       now: () => new Date("2026-08-22T18:00:00.000Z") });
 
     await expect(client.listXLayerTokenBalances("0x3333333333333333333333333333333333333333"))
-      .resolves.toEqual([{ chainId: 196, token, symbol: "EXAMPLE", balance: "2.5", priceUsd: "1.25" }]);
+      .resolves.toEqual([
+        { chainId: 196, token, symbol: "EXAMPLE", balance: "2.5", priceUsd: "1.25" },
+        { chainId: 196, token: unpriced, symbol: "UNPRICED", balance: "3", priceUsd: undefined },
+      ]);
     expect(fetchImpl.mock.calls[0]![0]).toBe(
       "https://web3.okx.com/api/v6/dex/balance/all-token-balances-by-address?address=0x3333333333333333333333333333333333333333&chains=196",
     );
@@ -217,6 +235,21 @@ describe("OKX Market client", () => {
     await expect(client.searchXLayerToken("OKB")).resolves.toEqual({
       chainId: 196, token, name: "X Layer", symbol: "OKB", decimals: 18,
       priceUsd: "107.41", liquidityUsd: "86589137.50", holderCount: undefined,
+    });
+  });
+
+  it("preserves exact token identity when search metadata is unavailable", async () => {
+    const token = "0x16e0b579be45baae54ceddd52e742b6457a7fe12";
+    const client = createOkxClient({ credentials, fetchImpl: vi.fn<typeof fetch>()
+      .mockResolvedValue(Response.json({ code: "0", msg: "", data: [{
+        chainIndex: "196", tokenContractAddress: token, tokenName: "Adobe xStock",
+        tokenSymbol: "ADBEx", decimal: "18", price: "275.3457725",
+        liquidity: "", holders: null,
+      }] })) });
+
+    await expect(client.searchToken(196, token)).resolves.toEqual({
+      chainId: 196, token, name: "Adobe xStock", symbol: "ADBEx", decimals: 18,
+      priceUsd: "275.3457725", liquidityUsd: undefined, holderCount: undefined,
     });
   });
 
@@ -293,6 +326,29 @@ describe("OKX Market client", () => {
       "https://web3.okx.com/api/v6/dex/market/price-info",
       `https://web3.okx.com/api/v6/dex/market/token/holder?chainIndex=196&tokenContractAddress=${token}&limit=10`,
     ]);
+  });
+
+  it("returns identity evidence when optional valuation metadata is unavailable", async () => {
+    const token = "0x16e0b579be45baae54ceddd52e742b6457a7fe12";
+    const holder = "0x2222222222222222222222222222222222222222";
+    const fetchImpl = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json({ code: "0", msg: "", data: [{
+        chainIndex: "196", tokenContractAddress: token, tokenName: "Adobe xStock",
+        tokenSymbol: "ADBEx", decimal: "18",
+      }] }))
+      .mockResolvedValueOnce(Response.json({ code: "0", msg: "", data: [{
+        chainIndex: "196", tokenContractAddress: token, time: "1787658162578",
+        price: "275.060345", liquidity: "", holders: "",
+      }] }))
+      .mockResolvedValueOnce(Response.json({ code: "0", msg: "", data: [
+        { holderWalletAddress: holder, holdPercent: "93.176465151723822100" },
+      ] }));
+    const client = createOkxClient({ credentials, fetchImpl });
+
+    await expect(client.getTokenEvidence(196, token)).resolves.toMatchObject({
+      chainId: 196, token, symbol: "ADBEx", priceUsd: "275.060345",
+      liquidityUsd: undefined, topHolderAddresses: [holder],
+    });
   });
 
   it("returns authenticated token evidence for Ethereum with exact holder addresses", async () => {

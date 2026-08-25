@@ -19,8 +19,9 @@ function dependencies() {
   return {
     nowSec: () => nowSec,
     market: { getTokenEvidence: vi.fn(async () => ({
-      chainId: 1 as const, token, decimals: 18, priceUsd: "2.50",
-      liquidityUsd: "1000000", marketDataAt: new Date(nowSec * 1_000).toISOString(),
+      chainId: 1 as const, token, decimals: 18, priceUsd: "2.50" as string | undefined,
+      liquidityUsd: "1000000" as string | undefined,
+      marketDataAt: new Date(nowSec * 1_000).toISOString(),
       topHolderAddresses: [holder],
     })), getExecutableQuote: vi.fn(async () => ({ chainId: 1 as const,
       fromToken: token, toToken: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48" as const,
@@ -59,11 +60,29 @@ describe("OKX general asset eligibility", () => {
   });
 
   it("returns identity-only evidence for an output token", async () => {
-    const result = await createOkxGeneralAssetEligibilityV2(dependencies())
+    const deps = dependencies();
+    deps.market.getTokenEvidence.mockResolvedValue({
+      ...(await deps.market.getTokenEvidence()), liquidityUsd: undefined,
+    });
+    const result = await createOkxGeneralAssetEligibilityV2(deps)
       .eligibility({ chainId: 1, token });
 
     expect(result).toMatchObject({ status: "eligible" });
     expect("valuationHash" in result).toBe(false);
+  });
+
+  it("requires valuation metadata only when the token is spent", async () => {
+    const deps = dependencies();
+    deps.market.getTokenEvidence.mockResolvedValue({
+      ...(await deps.market.getTokenEvidence()), priceUsd: undefined, liquidityUsd: undefined,
+    });
+
+    await expect(createOkxGeneralAssetEligibilityV2(deps).eligibility({
+      chainId: 1, token, inputAtomic: "1000000000000000000",
+    })).resolves.toEqual({
+      status: "verification_pending",
+      reason: "Authenticated OKX valuation metadata is unavailable.",
+    });
   });
 
   it("fails closed for stale OKX evidence and unsupported behavior", async () => {

@@ -10,7 +10,7 @@ const hash = (byte: string) => `0x${byte.repeat(64)}` as `0x${string}`;
 function deps(status: "eligible" | "unsupported" = "eligible") {
   const searchToken = vi.fn(async (chainId: 1 | 196, search: string) => ({ chainId,
     token: search as `0x${string}`, name: "Token", symbol: search === inputToken ? "IN" : "OUT",
-    decimals: 18, priceUsd: "2.5", liquidityUsd: "1000000", holderCount: undefined }));
+    decimals: 18, priceUsd: undefined, liquidityUsd: undefined, holderCount: undefined }));
   const identity = (token: typeof inputToken | typeof outputToken) => AssetIdentityEvidenceV1Schema.parse({
     version: 1, chainId: 196, token, runtimeCodeHash: token === inputToken ? hash("1") : hash("2"),
     proxy: { kind: "none" }, decimals: 18, behaviorModule: { id: "plain-erc20", version: 1 },

@@ -18,14 +18,22 @@ export const OKX_REFERENCE_ASSETS = {
 } as const satisfies Record<1 | 196, Address>;
 
 const NumericStringSchema = z.union([z.string(), z.number()]).transform(String);
+const DecimalStringSchema = z.string().regex(/^\d+(?:\.\d+)?$/);
+const OptionalDecimalMetadataSchema = z.union([DecimalStringSchema, z.literal(""), z.null()])
+  .optional().transform((value) => value || undefined);
+const OptionalAtomicMetadataSchema = z.union([
+  z.string().regex(/^\d+$/), z.literal(""), z.null(),
+]).optional().transform((value) => value || undefined);
+const OptionalStringMetadataSchema = z.union([z.string(), z.null()])
+  .optional().transform((value) => value || undefined);
 
 export const RawProductSchema = z
   .object({
     investmentId: NumericStringSchema,
     name: z.string().min(1),
     platformName: z.string().min(1),
-    rate: z.string(),
-    tvl: z.string(),
+    rate: OptionalStringMetadataSchema,
+    tvl: OptionalStringMetadataSchema,
     productGroup: z.string().min(1).nullish(),
     chainIndex: NumericStringSchema,
   })
@@ -78,26 +86,25 @@ const ProductSearchQuerySchema = z
 
 const EvmAddressSchema = z.string().regex(/^0x[0-9a-fA-F]{40}$/)
   .transform((value) => value.toLowerCase() as Address);
-const DecimalStringSchema = z.string().regex(/^\d+(?:\.\d+)?$/);
 const TokenBasicSchema = z.object({
   chainIndex: NumericStringSchema, tokenContractAddress: EvmAddressSchema,
   tokenName: z.string().min(1), tokenSymbol: z.string().min(1),
   decimal: z.string().regex(/^\d+$/).transform(Number),
-  tagList: z.object({ communityRecognized: z.boolean().optional() }).passthrough(),
+  tagList: z.object({ communityRecognized: z.boolean().optional() })
+    .passthrough().optional().default({}),
 }).passthrough();
 const TokenPriceSchema = z.object({
   chainIndex: NumericStringSchema, tokenContractAddress: EvmAddressSchema,
-  time: z.string().regex(/^\d{13}$/), price: DecimalStringSchema,
-  liquidity: DecimalStringSchema, holders: z.string().regex(/^\d+$/),
+  time: z.string().regex(/^\d{13}$/), price: OptionalDecimalMetadataSchema,
+  liquidity: OptionalDecimalMetadataSchema, holders: OptionalAtomicMetadataSchema,
 }).passthrough();
 const TokenHolderSchema = z.object({
   holderWalletAddress: EvmAddressSchema,
   holdPercent: DecimalStringSchema,
 }).passthrough();
 const TokenSearchSchema = TokenBasicSchema.extend({
-  price: DecimalStringSchema, liquidity: DecimalStringSchema,
-  holders: z.union([z.string().regex(/^\d+$/), z.literal("")])
-    .transform((value) => value || undefined),
+  price: OptionalDecimalMetadataSchema, liquidity: OptionalDecimalMetadataSchema,
+  holders: OptionalAtomicMetadataSchema,
 }).passthrough();
 const QuoteTokenSchema = z.object({ tokenContractAddress: EvmAddressSchema,
   decimal: z.string().regex(/^\d+$/).transform(Number), isHoneyPot: z.literal(false),
@@ -111,7 +118,7 @@ const ExecutableQuoteSchema = z.object({ chainIndex: NumericStringSchema,
 const WalletTokenBalanceSchema = z.object({
   chainIndex: z.literal("196"), tokenContractAddress: z.union([EvmAddressSchema, z.literal("")]),
   symbol: z.string().min(1).max(64), balance: DecimalStringSchema,
-  tokenPrice: DecimalStringSchema, isRiskToken: z.boolean(),
+  tokenPrice: OptionalDecimalMetadataSchema, isRiskToken: z.boolean(),
 }).passthrough();
 type WalletTokenBalance = z.infer<typeof WalletTokenBalanceSchema>;
 
@@ -307,7 +314,8 @@ export function createOkxClient(options: OkxClientOptions) {
     async getXLayerNativeTokenEvidence() {
       const token = await searchToken(196, "OKB");
       if (!token || !isAddressEqual(token.token, NATIVE_ASSET_ADDRESS) ||
-          token.symbol !== "OKB" || token.decimals !== 18) {
+          token.symbol !== "OKB" || token.decimals !== 18 ||
+          !token.priceUsd || !token.liquidityUsd) {
         throw new OkxApiError("NATIVE_IDENTITY_MISMATCH",
           "Exact X Layer OKB market identity is unavailable");
       }
@@ -352,6 +360,10 @@ export function createOkxClient(options: OkxClientOptions) {
 
     async getXLayerTokenEvidence(tokenInput: string) {
       const evidence = await getTokenEvidence(196, tokenInput);
+      if (!evidence.priceUsd || !evidence.liquidityUsd || !evidence.holderCount) {
+        throw new OkxApiError("MARKET_METADATA_UNAVAILABLE",
+          "Exact X Layer token market metadata is unavailable");
+      }
       return { chainId: 196 as const, token: evidence.token, name: evidence.name,
         symbol: evidence.symbol, decimals: evidence.decimals, priceUsd: evidence.priceUsd,
         liquidityUsd: evidence.liquidityUsd, holderCount: evidence.holderCount,

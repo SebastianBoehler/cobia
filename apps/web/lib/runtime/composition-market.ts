@@ -37,7 +37,7 @@ export async function publishCapabilityComposition(
     getGasPrice: () => client.getGasPrice(),
     getNativeToken: async () => {
       const token = await okx.searchXLayerToken("OKB");
-      return token ? {
+      return token?.priceUsd ? {
         chainId: token.chainId, token: token.token, symbol: token.symbol,
         decimals: token.decimals, priceUsd: token.priceUsd,
       } : undefined;

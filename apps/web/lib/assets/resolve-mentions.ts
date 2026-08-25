@@ -17,8 +17,8 @@ interface OkxTokenLookup {
     name: string;
     symbol: string;
     decimals: number;
-    priceUsd: string;
-    liquidityUsd: string;
+    priceUsd?: string;
+    liquidityUsd?: string;
     holderCount?: string;
   } | undefined>;
 }
@@ -30,8 +30,8 @@ interface OkxTokenSearch extends OkxTokenLookup {
     name: string;
     symbol: string;
     decimals: number;
-    priceUsd: string;
-    liquidityUsd: string;
+    priceUsd?: string;
+    liquidityUsd?: string;
     holderCount?: string;
   }>>;
 }
@@ -48,8 +48,8 @@ interface GeneralTokenLookupV2 {
     name: string;
     symbol: string;
     decimals: number;
-    priceUsd: string;
-    liquidityUsd: string;
+    priceUsd?: string;
+    liquidityUsd?: string;
     holderCount?: string;
   } | undefined>;
 }

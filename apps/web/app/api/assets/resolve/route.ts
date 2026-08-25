@@ -39,15 +39,15 @@ const xStocksCatalogCache = createTtlAsyncCache<XStocksInstrumentV1[]>({ ttlMs: 
 interface AssetLookupClient {
   searchToken?(chainId: 1 | 196, search: string): Promise<{
     chainId: 1 | 196; token: `0x${string}`; name: string; symbol: string; decimals: number;
-    priceUsd: string; liquidityUsd: string; holderCount?: string;
+    priceUsd?: string; liquidityUsd?: string; holderCount?: string;
   } | undefined>;
   searchXLayerToken?(search: string): Promise<{
     chainId: 196; token: `0x${string}`; name: string; symbol: string; decimals: number;
-    priceUsd: string; liquidityUsd: string; holderCount?: string;
+    priceUsd?: string; liquidityUsd?: string; holderCount?: string;
   } | undefined>;
   searchXLayerTokens?(search: string): Promise<Array<{
     chainId: 196; token: `0x${string}`; name: string; symbol: string; decimals: number;
-    priceUsd: string; liquidityUsd: string; holderCount?: string;
+    priceUsd?: string; liquidityUsd?: string; holderCount?: string;
   }>>;
 }
 

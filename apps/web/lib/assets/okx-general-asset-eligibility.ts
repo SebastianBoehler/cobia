@@ -16,8 +16,8 @@ interface MarketEvidence {
   chainId: ChainId;
   token: Address;
   decimals: number;
-  priceUsd: string;
-  liquidityUsd: string;
+  priceUsd?: string;
+  liquidityUsd?: string;
   marketDataAt: string;
   topHolderAddresses: Address[];
 }
@@ -128,6 +128,10 @@ export function createOkxGeneralAssetEligibilityV2(deps: Dependencies) {
       const identityHash = commitment(identity.evidence) as Hash;
       if (!input.inputAtomic || !executable) {
         return { status: "eligible" as const, identityHash, identityEvidence: identity.evidence };
+      }
+      if (!market.priceUsd || !market.liquidityUsd) {
+        return { status: "verification_pending" as const,
+          reason: "Authenticated OKX valuation metadata is unavailable." };
       }
       const priceUsdE8 = decimalUsdE8(market.priceUsd, true);
       const liquidityUsdE8 = decimalUsdE8(market.liquidityUsd, false);
