@@ -66,7 +66,7 @@ export function solverCodexConfig(job: CodexJob) {
           "--intent", job.intentPath],
         cwd: repositoryRoot,
         env: routeEnvironment(),
-        enabled_tools: ["intent", "capabilities", "solve", "replay", "exact_call"],
+        enabled_tools: ["instructions", "intent", "capabilities", "solve", "plan", "replay", "exact_call"],
         default_tools_approval_mode: "approve",
         required: true,
         startup_timeout_sec: 20,
@@ -132,12 +132,22 @@ function nextPrompt(input: {
   tokensRemaining: number;
 }) {
   return `Your previous turn abstained with ${input.decision.reasonCode}. Do not stop at the ` +
-    "curated quote. Continue the same intent search now. Use web research and installed protocol " +
-    "skills to inspect alternative pools, multi-hop paths, established external protocols, and " +
-    "atomic market inefficiencies. Use the exact-call tool for any complete candidate. " +
+    "curated quote. Continue the same intent search now. Call cobia_route.instructions and use " +
+    "cobia_route.plan for a bounded multi-input, multi-output allocation. Use web research to inspect " +
+    "alternative pools, multi-hop paths, established external protocols, and atomic market inefficiencies. " +
+    "Use the exact-call tool for any complete candidate. Shell and direct file tools are unavailable. " +
     `Risk level: ${input.exploration.riskLevel}. This is turn ${input.nextTurn} of ` +
     `${input.exploration.maxTurns}; ${input.tokensRemaining} total tokens remain. Never weaken the ` +
     "signed policy or invent evidence. Return the required decisionJson envelope for this turn.";
+}
+
+function recoveryPrompt(input: { nextTurn: number; maxTurns: number }) {
+  return "Your previous turn emitted repeated progress prose without a canonical decision. " +
+    "Shell and direct file tools are unavailable; do not call bash, shell, exec, or filesystem tools. " +
+    "Call cobia_route.instructions now, then use only the attached cobia_route tools or live web search. " +
+    "Use cobia_route.plan for free allocation across signed inputs and outputs. Return a submitted tool " +
+    `decision immediately or the required decisionJson envelope. This is turn ${input.nextTurn} of ` +
+    `${input.maxTurns}.`;
 }
 
 export async function runCodexSolver(input: {
@@ -189,6 +199,8 @@ export async function runCodexSolver(input: {
     let finalMessage: string | undefined;
     let turnUsage: Usage | undefined;
     let routeDecision: SolverDecisionV1 | undefined;
+    let recoverNoncanonicalOutput = false;
+    let noncanonicalMessages = 0;
     try {
       const turn = await thread.runStreamed(prompt, { outputSchema, signal: controller.signal });
       for await (const event of turn.events) {
@@ -203,6 +215,13 @@ export async function runCodexSolver(input: {
         }
         if (event.type === "item.completed" && event.item.type === "agent_message") {
           finalMessage = event.item.text;
+          try { parseDecision(finalMessage); }
+          catch { noncanonicalMessages += 1; }
+          if (noncanonicalMessages >= 2) {
+            recoverNoncanonicalOutput = true;
+            controller.abort();
+            break;
+          }
         }
         if (event.type === "turn.completed") turnUsage = event.usage;
         if (event.type === "turn.failed") {
@@ -212,13 +231,25 @@ export async function runCodexSolver(input: {
       }
     } catch (error) {
       if (!controller.signal.aborted) throw error;
-      decision ??= { version: 1, decision: "abstain",
-        reasonCode: input.signal?.aborted ? "SOLVER_SHUTDOWN" : "SOLVER_TIMEOUT" };
-      stoppedForTimeout = true;
-      break;
+      if (!recoverNoncanonicalOutput) {
+        decision ??= { version: 1, decision: "abstain",
+          reasonCode: input.signal?.aborted ? "SOLVER_SHUTDOWN" : "SOLVER_TIMEOUT" };
+        stoppedForTimeout = true;
+        break;
+      }
     } finally {
       clearTimeout(timer);
       input.signal?.removeEventListener("abort", abortForShutdown);
+    }
+    if (recoverNoncanonicalOutput) {
+      const nextTurn = turnIndex + 2;
+      input.emit({ event: "codex-output-recovery", reason: "noncanonical-progress", nextTurn });
+      if (nextTurn > input.exploration.maxTurns) {
+        decision = { version: 1, decision: "abstain", reasonCode: "SOLVER_INVALID_OUTPUT" };
+        break;
+      }
+      prompt = recoveryPrompt({ nextTurn, maxTurns: input.exploration.maxTurns });
+      continue;
     }
     if (routeDecision) {
       usage.turns += 1;

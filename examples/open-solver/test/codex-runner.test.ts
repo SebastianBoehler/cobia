@@ -44,7 +44,7 @@ describe("Codex solver runner", () => {
     expect(config.mcp_servers.cobia_route).toMatchObject({
       required: true,
       default_tools_approval_mode: "approve",
-      enabled_tools: ["intent", "capabilities", "solve", "replay", "exact_call"],
+      enabled_tools: ["instructions", "intent", "capabilities", "solve", "plan", "replay", "exact_call"],
       args: expect.arrayContaining(["--intent", "/jobs/intent/intent.json"]),
     });
     expect(config.mcp_servers.cobia_route.env).not.toHaveProperty("REFERENCE_SOLVER_PRIVATE_KEY");
@@ -212,6 +212,58 @@ describe("Codex solver runner", () => {
     }));
     expect(result).toMatchObject({ decision: { reasonCode: "NO_ROUTE_AFTER_RESEARCH" },
       usage: { turns: 2, totalTokens: 220, stopReason: "turn-limit" } });
+  });
+
+  it("recovers repeated noncanonical progress with an allowlisted-tool turn", async () => {
+    vi.useFakeTimers();
+    try {
+      let attempt = 0;
+      const runStreamed = vi.fn(async (_prompt: string, options: { signal: AbortSignal }) => ({
+        events: (async function* () {
+          attempt += 1;
+          if (attempt === 1) {
+            yield { type: "thread.started", thread_id: "thread-tool-recovery" } as const;
+            yield { type: "item.completed", item: { id: "progress-1", type: "agent_message",
+              text: "The plugin abstained. I'll inspect the skills with bash." } } as const;
+            yield { type: "item.completed", item: { id: "progress-2", type: "agent_message",
+              text: "The shell call failed. Let me look up the schema." } } as const;
+            await new Promise<void>((_resolve, reject) => options.signal.addEventListener(
+              "abort", () => reject(new Error("aborted")), { once: true },
+            ));
+            return;
+          }
+          yield { type: "item.completed", item: { id: "recovered", type: "agent_message",
+            text: JSON.stringify({ decisionJson: JSON.stringify({ version: 1,
+              decision: "abstain", reasonCode: "NO_ROUTE_AFTER_RESEARCH",
+            }) }),
+          } } as const;
+          yield { type: "turn.completed", usage: { input_tokens: 20, cached_input_tokens: 10,
+            cache_write_input_tokens: 0, output_tokens: 4, reasoning_output_tokens: 1 } } as const;
+        })(),
+      }));
+      const observed: object[] = [];
+      const result = runCodexSolver({
+        job: { cwd: "/tmp", intentPath: "/tmp/intent.json",
+          decisionPath: "/tmp/decision.json", prompt: "solve" },
+        timeoutMs: 10_000,
+        exploration: { riskLevel: "opportunistic", maxTurns: 2, maxTotalTokens: 1_000 },
+        codex: { startThread: () => ({ runStreamed }) },
+        emit: (event) => { observed.push(event); },
+      });
+
+      await vi.advanceTimersByTimeAsync(10_000);
+      await expect(result).resolves.toMatchObject({
+        decision: { decision: "abstain", reasonCode: "NO_ROUTE_AFTER_RESEARCH" },
+        usage: { turns: 1, totalTokens: 24, stopReason: "turn-limit" },
+      });
+      expect(runStreamed).toHaveBeenCalledTimes(2);
+      expect(runStreamed.mock.calls[1]![0]).toContain("cobia_route.instructions");
+      expect(runStreamed.mock.calls[1]![0]).toContain("Shell and direct file tools are unavailable");
+      expect(observed).toContainEqual({ event: "codex-output-recovery",
+        reason: "noncanonical-progress", nextTurn: 2 });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("returns the last canonical abstention when a continuation times out", async () => {

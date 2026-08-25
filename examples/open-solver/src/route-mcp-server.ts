@@ -4,8 +4,12 @@ import { SolverDecisionV1Schema, type SolverIntentV1 } from "@cobia/solver-sdk";
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import { REFERENCE_CAPABILITY_DECLARATION } from "./route-tool";
+import { ROUTE_MCP_INSTRUCTIONS } from "./route-mcp-instructions";
 import { solve } from "./strategy";
 import { preflightXLayerTransaction } from "./transaction-decision";
+import {
+  solveTransactionAllocation, TransactionAllocationPlanV1Schema,
+} from "./transaction-allocation";
 
 function requiredOption(args: readonly string[], name: string) {
   const index = args.indexOf(name);
@@ -25,6 +29,11 @@ serveStdio(() => {
   const server = new McpServer({ name: "cobia-route", version: "1.0.0" }, {
     capabilities: { tools: {} },
   });
+  server.registerTool("instructions", {
+    title: "Cobia solver instructions",
+    description: "Return the safe tool workflow and allocation-plan invariants without shell access.",
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+  }, async () => result(ROUTE_MCP_INSTRUCTIONS));
   server.registerTool("capabilities", {
     title: "Cobia supported capabilities",
     description: "List curated semantic adapters. This is not a protocol allowlist.",
@@ -40,6 +49,14 @@ serveStdio(() => {
     description: "Construct a canonical decision for this MCP server's immutable signed intent.",
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   }, async () => result(SolverDecisionV1Schema.parse(await solve(intent))));
+  server.registerTool("plan", {
+    title: "Build a Cobia allocation plan",
+    description: "Quote and construct a bounded free allocation across signed inputs and outputs.",
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+    inputSchema: TransactionAllocationPlanV1Schema,
+  }, async (plan) => result(SolverDecisionV1Schema.parse(
+    await solveTransactionAllocation(intent, plan),
+  )));
   server.registerTool("replay", {
     title: "Preflight a Cobia transaction candidate",
     description: "Optionally fork-replay a complete transaction candidate before submission.",

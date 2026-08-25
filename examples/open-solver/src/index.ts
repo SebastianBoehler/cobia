@@ -5,7 +5,7 @@ import {
   createSolverExchangeClient, watchSolverIntents, type SolverIntentV1,
 } from "@cobia/solver-sdk";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { keccak256, toHex, type Hash, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -18,7 +18,9 @@ import { competitionWorkTimeoutMs } from "./intent-deadline";
 import { IntentAttempts, SolverJobStateSchema, WorkLimiter, type SolverJobState } from "./job-control";
 import { writeHeartbeat } from "./heartbeat";
 import { REFERENCE_CAPABILITIES } from "./route-tool";
-import { readReferenceSolverConfig, type ReferenceSolverConfig } from "./solver-config";
+import {
+  readReferenceSolverConfig, solverOperatingConfigPath, type ReferenceSolverConfig,
+} from "./solver-config";
 import { announceSolverRun, submitSolverDecision } from "./solver-run";
 import { solve as solveReferenceIntent } from "./strategy";
 import { handleIntentError } from "./worker-error";
@@ -143,10 +145,11 @@ async function processIntent(input: {
 
 const privateKey = z.string().regex(/^0x[0-9a-fA-F]{64}$/)
   .parse(process.env.REFERENCE_SOLVER_PRIVATE_KEY) as Hex;
-const configPath = process.env.CODEX_HOME
-  ? join(process.env.CODEX_HOME, "config.toml")
-  : fileURLToPath(new URL("../codex/config.toml", import.meta.url));
+const configPath = solverOperatingConfigPath();
 const config = await readReferenceSolverConfig(configPath);
+output({ event: "operating-config", configPath, turnTimeoutMs: config.turn_timeout_ms,
+  maxTurns: config.max_codex_turns_per_intent,
+  maxTotalTokens: config.max_total_tokens_per_intent });
 const account = privateKeyToAccount(privateKey);
 const client = createSolverExchangeClient({
   baseUrl: config.exchange_url,

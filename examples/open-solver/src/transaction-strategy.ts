@@ -17,6 +17,9 @@ import {
   buildCurveAddLiquidityStage,
   buildCurveRemoveOneCoinStage,
 } from "./curve-liquidity-strategy";
+import { solveTransactionAllocation } from "./transaction-allocation";
+
+export { solveTransactionAllocation } from "./transaction-allocation";
 
 interface FinalizeInput {
   intent: SolverIntentV1;
@@ -68,8 +71,13 @@ export async function solveTransactionIntent(
   const policy = intent.policy;
   const input = policy.inputs[0];
   const outcome = policy.outcomes[0];
-  if (!input || policy.inputs.length !== 1 || policy.outcomes.length !== 1 ||
+  if (!input || policy.outcomes.length !== 1 ||
       input.chainId !== 196 || outcome?.kind !== "minimum-increase" || outcome.chainId !== 196) return;
+  if (policy.inputs.length > 1) {
+    return solveTransactionAllocation(intent, { routes: policy.inputs.map((item) => ({
+      inputToken: item.token, outputToken: outcome.token, inputAtomic: item.maximumAtomic,
+    })) }, dependencies);
+  }
   const nowSec = dependencies.nowSec();
   const finalize = (candidate: Omit<FinalizeInput, "intent" | "nowSec">) => {
     const count = candidate.stages.length;

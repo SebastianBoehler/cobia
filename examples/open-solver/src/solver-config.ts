@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { parse } from "smol-toml";
 import { z } from "zod";
 
@@ -25,6 +26,15 @@ const ReferenceSolverConfigSchema = z.object({
 }).passthrough();
 
 export type ReferenceSolverConfig = z.infer<typeof ReferenceSolverConfigSchema>["cobia"];
+
+export function solverOperatingConfigPath(input: {
+  env?: Readonly<Record<string, string | undefined>>;
+  bundledPath?: string;
+} = {}) {
+  const env = input.env ?? process.env;
+  return env.COBIA_SOLVER_CONFIG_PATH ?? input.bundledPath ??
+    fileURLToPath(new URL("../codex/config.toml", import.meta.url));
+}
 
 export async function readReferenceSolverConfig(path: string): Promise<ReferenceSolverConfig> {
   const document = parse(await readFile(path, "utf8"));

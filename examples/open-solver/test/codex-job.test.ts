@@ -31,6 +31,10 @@ describe("Codex solver job", () => {
     expect(job.prompt).toContain("entire final response");
     expect(job.prompt).toContain("Do not call MCP resource-discovery tools");
     expect(guidance).toContain("route MCP tools");
+    expect(guidance).toContain("Shell and direct file-reading tools are unavailable");
+    expect(guidance).toContain("cobia_route.instructions");
+    expect(guidance).toContain("cobia_route.plan");
+    expect(guidance).toContain("split signed input budgets across multiple outputs");
     expect(guidance).toContain("optional protocol plugin");
     expect(guidance).toContain("not an allowlist");
     expect(guidance).toContain("Use live web research");
@@ -38,6 +42,8 @@ describe("Codex solver job", () => {
     expect(guidance).toContain("wallet-transaction stages");
     expect(guidance).not.toContain("return that canonical abstention immediately");
     expect(job.prompt).toContain("Use live web research");
+    expect(job.prompt).toContain("cobia_route.instructions");
+    expect(job.prompt).toContain("cobia_route.plan");
     expect(job.prompt).not.toContain("return its canonical abstention immediately");
     expect(guidance).toContain("opportunistic");
     expect(guidance).not.toContain("PRIVATE_KEY");

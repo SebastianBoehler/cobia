@@ -8,6 +8,7 @@ export type SolverCodexEvent =
   | { event: "solver-phase"; phase: "researching" | "constructing" | "validating" }
   | { event: "codex-exploration-continued"; reasonCode: string; nextTurn: number;
       turnsRemaining: number; tokensRemaining: number }
+  | { event: "codex-output-recovery"; reason: "noncanonical-progress"; nextTurn: number }
   | { event: "codex-turn-completed"; usage: {
       inputTokens: number; cachedInputTokens: number;
       outputTokens: number; reasoningOutputTokens: number;

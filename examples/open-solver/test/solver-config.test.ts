@@ -2,9 +2,21 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { readReferenceSolverConfig } from "../src/solver-config";
+import {
+  readReferenceSolverConfig, solverOperatingConfigPath,
+} from "../src/solver-config";
 
 describe("reference solver config", () => {
+  it("keeps worker limits independent from the Codex provider home", () => {
+    const bundledPath = "/app/examples/open-solver/codex/config.toml";
+
+    expect(solverOperatingConfigPath({ env: { CODEX_HOME: "/auth/codex" }, bundledPath }))
+      .toBe(bundledPath);
+    expect(solverOperatingConfigPath({ env: { CODEX_HOME: "/auth/codex",
+      COBIA_SOLVER_CONFIG_PATH: "/run/cobia/solver.toml" }, bundledPath }))
+      .toBe("/run/cobia/solver.toml");
+  });
+
   it("loads worker limits from the same TOML Codex uses", async () => {
     const root = await mkdtemp(join(tmpdir(), "cobia-solver-config-"));
     const path = join(root, "config.toml");

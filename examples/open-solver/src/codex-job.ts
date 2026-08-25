@@ -19,8 +19,10 @@ function guidance(exploration: ExplorationSettings) {
 Solve only the signed intent in \`intent.json\`.
 
 - You are running as a non-interactive Codex worker inside Docker.
-- Use the installed Cobia skills when relevant.
-- The Cobia route MCP tools are already attached. Call \`cobia_route.intent\`, then \`cobia_route.capabilities\`, and use \`cobia_route.solve\` as an optional protocol plugin for a fast canonical candidate. You may call \`cobia_route.replay\` when you want optional solver-side preflight diagnostics. For a complete independently researched candidate, use \`cobia_route.exact_call\`. Do not call MCP resource-discovery tools.
+- Shell and direct file-reading tools are unavailable. Do not call bash, shell, exec, or filesystem tools.
+- The Cobia route MCP tools are already attached. Call \`cobia_route.instructions\`, then \`cobia_route.intent\` and \`cobia_route.capabilities\`. Use \`cobia_route.solve\` as an optional protocol plugin for a fast canonical candidate.
+- If the fast solve abstains, use \`cobia_route.plan\` to split signed input budgets across multiple outputs. One input may fund several routes, but its aggregate amount must remain within its signed cap and every signed output floor must be covered.
+- You may call \`cobia_route.replay\` for optional solver-side preflight diagnostics. For a complete independently researched candidate, use \`cobia_route.exact_call\`. Do not call MCP resource-discovery tools.
 - The optional protocol plugin is a construction shortcut, not a gate or authority. If it submits, immediately return that exact canonical decision and stop calling tools. If it abstains, continue independently. The verifier always performs the authoritative replay.
 - Explicitly supported protocols have semantic skills and adapters. These operator-declared capabilities are useful construction hints, not an allowlist and not proof that a transaction is safe.
 - Use live web research when the declared capabilities do not produce a complete route. Research only public protocol contracts, interfaces, and market state needed to construct this intent.
@@ -55,14 +57,16 @@ export async function prepareCodexJob(input: {
     cwd,
     intentPath,
     decisionPath,
-    prompt: "Solve the immutable signed intent as a non-interactive worker. Do not call MCP resource-discovery tools. " +
-      "First call cobia_route.intent, then cobia_route.capabilities for construction hints. Call " +
+    prompt: "Solve the immutable signed intent as a non-interactive worker. Shell, bash, exec, and direct " +
+      "file-reading tools are unavailable. Do not call MCP resource-discovery tools. First call " +
+      "cobia_route.instructions, then cobia_route.intent and cobia_route.capabilities. Call " +
       "cobia_route.solve as an optional protocol plugin for a fast canonical candidate. You may call " +
       "cobia_route.replay for optional preflight diagnostics. If solve submits, immediately return that exact " +
       "decision and stop calling tools; if it abstains, independently " +
       "research and construct a complete candidate. Your entire final response must be " +
       '`{"decisionJson":"<canonical SolverDecisionV1 serialized as a JSON string>"}`. ' +
-      `Risk level is ${input.exploration.risk_level}. If the supported solve abstains, do not treat ` +
+      `Risk level is ${input.exploration.risk_level}. If the supported solve abstains, use cobia_route.plan ` +
+      "to split signed input budgets across multiple outputs and construct a quote-backed candidate. Do not treat " +
       "the declared capabilities as an allowlist. Use live web research within the configured budget to " +
       "find public protocol contracts, interfaces, and market state for a complete candidate. Do not call " +
       "MCP resource-discovery tools. Call exact_call only for a complete researched candidate. Never invent evidence. " +

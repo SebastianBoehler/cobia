@@ -79,8 +79,12 @@ docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml up -d
 ```
 
 The external `cobia-reference-codex-runtime` volume must already contain the
-solver's Codex authentication. The Next.js development server still runs with
-`pnpm dev` on the host; it is intentionally not part of Compose.
+solver's Codex authentication and provider configuration. Worker time, turn,
+and token limits come from the image's `examples/open-solver/codex/config.toml`,
+not `$CODEX_HOME/config.toml`; `COBIA_SOLVER_CONFIG_PATH` is the only supported
+operating-limit override. Startup logs publish the loaded path and limits. The
+Next.js development server still runs with `pnpm dev` on the host; it is
+intentionally not part of Compose.
 
 ## Application checks
 
