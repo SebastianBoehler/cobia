@@ -33,18 +33,28 @@ describe("confirmed balance changes", () => {
     expect(readBalance).not.toHaveBeenCalled();
   });
 
-  it("measures canonical transaction-program simulation deltas", async () => {
-    const readBalance = vi.fn(async () => 1_171_680n);
+  it("reports both sides of a confirmed swap and omits a settled intermediate balance", async () => {
+    const source = "0x3333333333333333333333333333333333333333" as const;
+    const intermediate = "0x4444444444444444444444444444444444444444" as const;
+    const readBalance = vi.fn(async (asset: string) => asset === token ? 1_171_680n
+      : asset === source ? 0n : 500n);
     await expect(readConfirmedBalanceChanges({
       evidence: { simulations: [{ assetDeltas: [{
         token, account: owner, beforeAtomic: "0", afterAtomic: "1171695",
       }, {
-        token: "0x3333333333333333333333333333333333333333", account: owner,
+        token: source, account: owner,
         beforeAtomic: "1000000", afterAtomic: "0",
+      }, {
+        token: intermediate, account: owner, beforeAtomic: "500", afterAtomic: "1000000",
+      }] }, { assetDeltas: [{
+        token: intermediate, account: owner, beforeAtomic: "1000000", afterAtomic: "500",
       }] }] },
       owner,
       blockNumber: 68851188n,
       readBalance,
-    })).resolves.toEqual([{ token, beforeAtomic: "0", afterAtomic: "1171680" }]);
+    })).resolves.toEqual([
+      { token, beforeAtomic: "0", afterAtomic: "1171680" },
+      { token: source, beforeAtomic: "1000000", afterAtomic: "0" },
+    ]);
   });
 });

@@ -1,10 +1,13 @@
 import { getAddress, isAddressEqual, type Address, type Hash, type Hex } from "viem";
 import { z } from "zod";
+import { verifiedWalletCallMatchV1 } from "./wallet-call-match";
 
 const HashSchema = z.string().regex(/^0x[0-9a-fA-F]{64}$/).transform((value) => value.toLowerCase() as Hash);
 const BatchSchema = z.object({
   version: z.literal(1), kind: z.literal("wallet-call-batch"), owner: z.string(),
-  deadline: z.number().int().positive(), assurance: z.literal("exact-call-fork-replay"),
+  deadline: z.number().int().positive(), assurance: z.enum([
+    "exact-call-fork-replay", "exact-execution-flexible-approval",
+  ]),
   stages: z.array(z.object({ stageId: z.string(), chainId: z.union([
     z.literal(1), z.literal(196), z.literal(8453),
   ]),
@@ -37,12 +40,14 @@ export async function verifyOpenWalletBatchReceiptsV1(input: {
       input.readTransaction(hash), input.readReceipt(hash),
     ]);
     const block = await input.readCanonicalBlock(receipt.blockNumber);
+    const callMatch = verifiedWalletCallMatchV1({ to: getAddress(expected.to),
+      data: expected.data as Hex, value: expected.value as `0x${string}` }, input.owner, {
+      from: transaction.from, to: transaction.to, input: transaction.input,
+      value: `0x${transaction.value.toString(16)}`,
+    }, { allowSufficientApproval: batch.assurance === "exact-execution-flexible-approval" });
     if (transaction.hash !== receipt.transactionHash || transaction.hash !== hash ||
       receipt.status !== "success" || !transaction.to ||
-      !isAddressEqual(transaction.from, input.owner) ||
-      !isAddressEqual(transaction.to, getAddress(expected.to)) ||
-      transaction.input.toLowerCase() !== expected.data.toLowerCase() ||
-      transaction.value !== BigInt(expected.value) || block.number !== receipt.blockNumber ||
+      !callMatch || block.number !== receipt.blockNumber ||
       block.hash?.toLowerCase() !== receipt.blockHash.toLowerCase() ||
       input.latestBlockNumber < receipt.blockNumber + 1n) {
       throw new Error(`Wallet batch receipt ${index + 1} does not match the verified call`);

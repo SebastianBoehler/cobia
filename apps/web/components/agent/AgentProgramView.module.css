@@ -20,7 +20,9 @@
 .resultHeading { font-size: 15px; letter-spacing: -.02em; margin: 0; }
 .balanceList { display: grid; gap: 18px; list-style: none; margin: 18px 0 0; padding: 0; }
 .balanceList li { display: grid; gap: 7px; }
+.balanceIdentity { align-items: center; display: flex; gap: 12px; min-width: 0; }
 .balanceList strong { color: var(--verified); font-size: clamp(2rem, 4.2vw, 3.5rem); font-variant-numeric: tabular-nums; letter-spacing: -.055em; line-height: 1; overflow-wrap: anywhere; }
+.balanceList .decrease strong { color: var(--rejected); }
 .balanceList span { color: var(--muted); font: 13px/1.5 var(--font-geist-mono), monospace; font-variant-numeric: tabular-nums; }
 .balanceList small { color: var(--cobalt); font-size: 13px; font-weight: 650; }
 .disclaimer, .empty { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 18px 0 0; }

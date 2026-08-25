@@ -6,6 +6,7 @@ export interface PreparedSequence {
   execution?: SequenceCall;
   transactions?: (SequenceCall & { stageId: string })[];
   chainId?: 1 | 196 | 8453;
+  approvalPolicy?: "exact" | "at-least-required";
 }
 
 function sameCall(left: SequenceCall | undefined, right: SequenceCall | undefined) {
@@ -17,15 +18,16 @@ export async function runWalletSequence(input: {
   initial: PreparedSequence;
   refresh(): Promise<PreparedSequence>;
   switchChain(chainId: 1 | 196 | 8453): Promise<void>;
-  send(call: SequenceCall, confirmations: number): Promise<Hash>;
+  send(call: SequenceCall, confirmations: number, allowSufficientApproval: boolean): Promise<Hash>;
   onApproval(index: number): void;
   onTransaction(index: number, hashes: Hash[]): void;
 }) {
   if (input.initial.chainId) await input.switchChain(input.initial.chainId);
   const hashes: Hash[] = [];
+  const initialFlexibleApproval = input.initial.approvalPolicy === "at-least-required";
   for (const [index, approval] of input.initial.approvals.entries()) {
     input.onApproval(index);
-    hashes.push(await input.send(approval, 0));
+    hashes.push(await input.send(approval, 0, initialFlexibleApproval));
     input.onApproval(index + 1);
   }
   let ready = await input.refresh();
@@ -37,7 +39,8 @@ export async function runWalletSequence(input: {
   if (calls.length === 0) throw new Error("No verified execution call is available.");
   for (let index = 0; index < calls.length; ++index) {
     input.onTransaction(index, [...hashes]);
-    hashes.push(await input.send(calls[index]!, 1));
+    hashes.push(await input.send(calls[index]!, 1,
+      ready.approvalPolicy === "at-least-required"));
     input.onTransaction(index + 1, [...hashes]);
     if (index + 1 >= calls.length) continue;
     ready = await input.refresh();

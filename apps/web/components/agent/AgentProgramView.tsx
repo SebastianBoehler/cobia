@@ -22,7 +22,8 @@ import styles from "./AgentProgramView.module.css";
 
 interface TransactionCall { to: Address; data: Hex; value: "0x0" }
 interface Prepared { approvals: TransactionCall[]; execution?: TransactionCall;
-  transactions?: (TransactionCall & { stageId: string })[]; chainId?: 1 | 196 | 8453 }
+  transactions?: (TransactionCall & { stageId: string })[]; chainId?: 1 | 196 | 8453;
+  approvalPolicy?: "exact" | "at-least-required" }
 interface ExecutionAccess { value: AgentExecutionAccessProof; signature: Hex }
 interface PendingReceipt { ready: Prepared; hashes: Hash[]; transactionHash: Hash }
 function message(value: unknown, fallback: string) {
@@ -171,7 +172,8 @@ export function AgentProgramView({ programId }: { programId: string }) {
     } finally { setPending(false); }
   }
 
-  async function send(call: TransactionCall, confirmations = 0): Promise<Hash> {
+  async function send(call: TransactionCall, confirmations = 0,
+    allowSufficientApproval = false): Promise<Hash> {
     if (!wallet.account) throw new Error("Connect the owner wallet.");
     const hash = await wallet.request({
       method: "eth_sendTransaction",
@@ -187,7 +189,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
         if (receipt.status !== "0x1") throw new Error("Wallet transaction reverted.");
         const transaction = await wallet.request({ method: "eth_getTransactionByHash", params: [hash] }) as
           { from?: string; to?: string | null; input?: string; value?: string } | null;
-        assertWalletCallIntegrity(call, wallet.account, transaction);
+        assertWalletCallIntegrity(call, wallet.account, transaction, { allowSufficientApproval });
         if (confirmations === 0) return hash as Hash;
         if (!receipt.blockNumber) throw new Error("Wallet receipt omitted its block number.");
         const latestBlock = await wallet.request({ method: "eth_blockNumber" });
@@ -204,7 +206,8 @@ export function AgentProgramView({ programId }: { programId: string }) {
     setPending(true); setError(undefined);
     try {
       if (prepared.chainId) await wallet.switchChain(prepared.chainId);
-      await send(prepared.approvals[approvalIndex]!);
+      await send(prepared.approvals[approvalIndex]!, 0,
+        prepared.approvalPolicy === "at-least-required");
       setApprovalIndex((value) => value + 1);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Approval failed."); }
     finally { setPending(false); }
@@ -261,7 +264,8 @@ export function AgentProgramView({ programId }: { programId: string }) {
       if (ready.chainId) await wallet.switchChain(ready.chainId);
       const direct = ready.transactions?.[transactionIndex];
       if (!ready.execution && !direct) throw new Error("No verified execution call is available.");
-      const transactionHash = await send((ready.execution ?? direct)!, 1);
+      const transactionHash = await send((ready.execution ?? direct)!, 1,
+        ready.approvalPolicy === "at-least-required");
       const hashes = [...transactionHashes, transactionHash];
       setTransactionHashes(hashes);
       if (direct && transactionIndex + 1 < prepared.transactions!.length) {
@@ -315,7 +319,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
         : executionLabel(program, prepared, transactionIndex)}
     </button> : null}
     {directApproval ? <p>
-      Cobia requests this exact amount. Cancel if your wallet shows Unlimited.
+      Cobia requests the required amount. You may approve more, but any unused allowance remains active until used or revoked.
     </p> : null}
   </>;
   return <AgentProgramSummary program={program} action={submission.executable || error ? action : undefined} />;

@@ -7,6 +7,7 @@ import { shortAddress } from "../../lib/wallet/eip1193";
 import { AgentProgramDetails } from "./AgentProgramDetails";
 import type { ProgramView } from "./agent-program-types";
 import styles from "./AgentProgramView.module.css";
+import { TokenAssetMark } from "../brand/TokenAssetMark";
 
 const readableCode = (value: string) => value.toLowerCase().replaceAll("_", " ");
 
@@ -49,11 +50,21 @@ export function AgentProgramSummary({ program, action }: {
   const receipt = artifacts.receipt?.payload;
   const constraints = artifacts.program?.payload?.balanceConstraints ?? [];
   const evidence = artifacts.evidence?.payload;
-  const simulatedChanges = evidence?.balanceDeltas ?? evidence?.simulations
-    ?.flatMap(({ assetDeltas }) => assetDeltas)
-    .filter(({ account, beforeAtomic, afterAtomic }) =>
-      (!submission.owner || account.toLowerCase() === submission.owner.toLowerCase()) &&
-      BigInt(afterAtomic) > BigInt(beforeAtomic)) ?? [];
+  // A multi-stage route can receive an intermediate asset and spend it in the next stage.
+  // Show its net wallet effect rather than presenting each stage's inflow as a final receipt.
+  const simulatedChanges = evidence?.balanceDeltas ?? (() => {
+    const finalByToken = new Map<string, { token: string; beforeAtomic: string; afterAtomic: string }>();
+    for (const { assetDeltas } of evidence?.simulations ?? []) for (const delta of assetDeltas) {
+      if (submission.owner && delta.account.toLowerCase() !== submission.owner.toLowerCase()) continue;
+      const key = delta.token.toLowerCase();
+      const previous = finalByToken.get(key);
+      finalByToken.set(key, previous
+        ? { ...previous, afterAtomic: delta.afterAtomic }
+        : { token: delta.token, beforeAtomic: delta.beforeAtomic, afterAtomic: delta.afterAtomic });
+    }
+    return [...finalByToken.values()].filter(({ beforeAtomic, afterAtomic }) =>
+      BigInt(beforeAtomic) !== BigInt(afterAtomic));
+  })();
   const balanceChanges = receipt?.balanceChanges ?? simulatedChanges;
   const completed = Boolean(receipt?.transactionHash);
   const generalAsset = artifacts.execution?.payload?.version === 4 &&
@@ -81,8 +92,9 @@ export function AgentProgramSummary({ program, action }: {
           const change = BigInt(delta.afterAtomic) - BigInt(delta.beforeAtomic);
           const label = tokenLabel(delta.token);
           const constraint = constraints.find((item) => item.token.toLowerCase() === delta.token.toLowerCase());
-          return <li key={delta.token}>
-            <strong>{change >= 0n ? "+" : ""}{formatTokenAmount(change.toString(), tokenDecimals(delta.token))} {label}</strong>
+          return <li className={change < 0n ? styles.decrease : styles.increase} key={delta.token}>
+            <div className={styles.balanceIdentity}><TokenAssetMark size={38} symbol={label} />
+              <strong>{change >= 0n ? "+" : ""}{formatTokenAmount(change.toString(), tokenDecimals(delta.token))} {label}</strong></div>
             <span>{formatTokenAmount(delta.beforeAtomic, tokenDecimals(delta.token))} → {formatTokenAmount(delta.afterAtomic, tokenDecimals(delta.token))} {label}</span>
             {!completed && constraint ? <small>Minimum signed outcome: +{formatTokenAmount(
               constraint.atomic, tokenDecimals(delta.token),
@@ -109,7 +121,7 @@ export function AgentProgramSummary({ program, action }: {
           <p>{submission.executable
             ? generalAsset
               ? "Cobia waives the solver fee. Review the exact ordered stages; every wallet transaction remains separately confirmed and reconciled."
-              : "Cobia currently waives the solver fee. A bounded token approval appears only if needed; execution still needs one final confirmation."
+              : "Cobia currently waives the solver fee. Token approval appears only if needed; surplus allowance remains active until used or revoked."
             : "Create a fresh intent to capture current state and verify it again."}</p></div>
         {action ?? <Link className="button button--primary" href="/intents/new">Create fresh intent <ArrowRight aria-hidden="true" size={16} /></Link>}
       </div>}

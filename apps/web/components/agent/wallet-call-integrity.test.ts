@@ -3,13 +3,16 @@ import { assertWalletCallIntegrity } from "./wallet-call-integrity";
 
 const owner = "0x1111111111111111111111111111111111111111" as const;
 const token = "0x2222222222222222222222222222222222222222" as const;
-const exactApproval = `0x095ea7b3${"00".repeat(64)}` as const;
+const spender = "3333333333333333333333333333333333333333";
+const approval = (amount: bigint) => `0x095ea7b3${spender.padStart(64, "0")}${amount
+  .toString(16).padStart(64, "0")}` as const;
+const exactApproval = approval(1_000_000n);
 
 describe("wallet call integrity", () => {
-  it("rejects a wallet-broadened approval before the next verified call", () => {
+  it("accepts a wallet-broadened approval when sufficient approval is allowed", () => {
     expect(() => assertWalletCallIntegrity({ to: token, data: exactApproval, value: "0x0" }, owner, {
-      from: owner, to: token, input: `0x095ea7b3${"ff".repeat(64)}`, value: "0x0",
-    })).toThrow(/changed the exact token approval/i);
+      from: owner, to: token, input: approval(2_000_000n), value: "0x0",
+    }, { allowSufficientApproval: true })).not.toThrow();
   });
 
   it("accepts the exact mined owner call", () => {

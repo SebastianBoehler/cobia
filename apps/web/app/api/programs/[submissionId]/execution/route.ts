@@ -122,7 +122,9 @@ export async function POST(
         throw new Error("Composition execution requires an attested capability program");
       }
       const batch = z.object({ version: z.literal(1), kind: z.literal("wallet-call-batch"),
-        owner: z.string(), deadline: z.number().int(), assurance: z.literal("exact-call-fork-replay"),
+        owner: z.string(), deadline: z.number().int(), assurance: z.enum([
+          "exact-call-fork-replay", "exact-execution-flexible-approval",
+        ]),
         stages: z.array(z.object({ stageId: z.string(), chainId: z.union([
           z.literal(1), z.literal(196), z.literal(8453),
         ]),
@@ -134,6 +136,8 @@ export async function POST(
         throw new Error("Open transaction batch is not executable by this owner");
       }
       execution = { chainId: batch.stages[0]!.chainId, programVersion: 1, approvals: [],
+        approvalPolicy: batch.assurance === "exact-execution-flexible-approval"
+          ? "at-least-required" : "exact",
         transactions: batch.stages.flatMap((stage) => stage.calls.map((call) =>
           ({ ...call, stageId: stage.stageId }))),
       };
@@ -213,6 +217,7 @@ export async function POST(
       execution = {
         chainId: 196,
         programVersion: 3,
+        approvalPolicy: "at-least-required",
         owner: proof.owner,
         approvals: exactApprovalCalls({
           token: prepared.approval.to,

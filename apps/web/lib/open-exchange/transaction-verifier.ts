@@ -124,6 +124,6 @@ export async function verifyOpenStagedProposalV1(input: {
     kind: "wallet-call-batch" as const, owner: policy.owner,
     deadline: Math.min(policy.deadline, input.nowSec + policy.maxEvidenceAgeSec),
     stages: verification.stageAuthorizations,
-    assurance: "exact-call-fork-replay" as const },
+    assurance: "exact-execution-flexible-approval" as const },
   };
 }

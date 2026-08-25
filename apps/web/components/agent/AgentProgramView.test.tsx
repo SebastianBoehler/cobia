@@ -74,6 +74,51 @@ describe("AgentProgramView", () => {
     expect(screen.queryByRole("button", { name: /prepare execution/i })).not.toBeInTheDocument();
   });
 
+  it("shows signed net changes instead of counting an intermediate asset twice", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({
+      submission: {
+        id: "550e8400-e29b-41d4-a716-446655440000", state: "current", executable: true,
+        owner: "0x1111111111111111111111111111111111111111", solverId: "cobia-reference",
+        revision: 2, programHash: `0x${"11".repeat(32)}`, validUntil: "2033-05-18T03:35:00Z",
+        blockNumber: "123", blockHash: `0x${"22".repeat(32)}`,
+        displayGoal: "Sell all aXlrUSDT0 into USDG", failureCodes: [],
+      },
+      artifacts: {
+        snapshot: { payload: { tokenEvidence: [{
+          token: "0x2222222222222222222222222222222222222222", symbol: "aXlrUSDT0", decimals: 6,
+        }, {
+          token: "0x3333333333333333333333333333333333333333", symbol: "USDt0", decimals: 6,
+        }, {
+          token: "0x4444444444444444444444444444444444444444", symbol: "USDG", decimals: 6,
+        }] } },
+        evidence: { payload: { simulations: [{ assetDeltas: [{
+          token: "0x2222222222222222222222222222222222222222",
+          account: "0x1111111111111111111111111111111111111111",
+          beforeAtomic: "1000465", afterAtomic: "9983",
+        }, {
+          token: "0x3333333333333333333333333333333333333333",
+          account: "0x1111111111111111111111111111111111111111",
+          beforeAtomic: "9983", afterAtomic: "1000465",
+        }] }, { assetDeltas: [{
+          token: "0x3333333333333333333333333333333333333333",
+          account: "0x1111111111111111111111111111111111111111",
+          beforeAtomic: "1000465", afterAtomic: "9983",
+        }, {
+          token: "0x4444444444444444444444444444444444444444",
+          account: "0x1111111111111111111111111111111111111111",
+          beforeAtomic: "324768", afterAtomic: "1314646",
+        }] }] } },
+        replay: { payload: { reproduced: true } },
+      },
+    })));
+
+    render(<AgentProgramView programId="550e8400-e29b-41d4-a716-446655440000" />);
+
+    expect(await screen.findByText("-0.990482 aXlrUSDT0")).toBeVisible();
+    expect(screen.getByText("+0.989878 USDG")).toBeVisible();
+    expect(screen.queryByText(/USDt0$/)).not.toBeInTheDocument();
+  });
+
   it("marks a long signed goal for a compact program heading", async () => {
     const longGoal = "Use 1 USDG to enter the best verified stablecoin-yield route ending in USDt0 on X Layer. Only use Aave V3, Curve or Uniswap. Allow no more than 1% conversion loss, require a minimum receipt-token balance, and expire in ten minutes.";
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({

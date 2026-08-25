@@ -29,16 +29,12 @@ export async function readConfirmedBalanceChanges(input: {
   if (deltas.length === 0) return [];
   const ownerDeltas = new Map<Address, (typeof deltas)[number]>();
   for (const delta of deltas) {
-    if (!isAddressEqual(getAddress(delta.account), input.owner) ||
-        BigInt(delta.afterAtomic) <= BigInt(delta.beforeAtomic)) continue;
+    if (!isAddressEqual(getAddress(delta.account), input.owner)) continue;
     const token = getAddress(delta.token);
     if (!ownerDeltas.has(token)) ownerDeltas.set(token, delta);
   }
-  return Promise.all([...ownerDeltas.entries()].map(async ([token, { beforeAtomic }]) => ({
-    token,
-    beforeAtomic,
-    afterAtomic: (await input.readBalance(
-      token, input.owner, input.blockNumber,
-    )).toString(),
+  const changes = await Promise.all([...ownerDeltas.entries()].map(async ([token, { beforeAtomic }]) => ({
+    token, beforeAtomic, afterAtomic: (await input.readBalance(token, input.owner, input.blockNumber)).toString(),
   })));
+  return changes.filter(({ beforeAtomic, afterAtomic }) => BigInt(beforeAtomic) !== BigInt(afterAtomic));
 }
