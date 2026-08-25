@@ -1,10 +1,8 @@
 import type { TokenMarketEvidenceV1 } from "@cobia/domain";
-import { TokenUSDT } from "@web3icons/react";
 import { ArrowRight, ChevronDown, CircleCheck, CircleDot, Clock3, History, ShieldCheck } from "lucide-react";
 import Link from "next/link";
-import type { CSSProperties } from "react";
-import { AssetMark } from "../brand/AssetMark";
 import { ProtocolMark } from "../brand/ProtocolMark";
+import { PortfolioAssetMark } from "../portfolio/PortfolioAssetMark";
 import {
   IntentCompetitionActivity, type CompetitionSolverRun,
 } from "./IntentCompetitionActivity";
@@ -135,18 +133,7 @@ function usd(value: string): string {
 }
 
 function TokenEvidenceMark({ symbol, size = 34 }: { symbol: string; size?: number }) {
-  const normalized = symbol.toUpperCase();
-  if (normalized === "USDG") return <AssetMark asset="USDG" size={size} />;
-  return <span
-    aria-label={`${symbol} token`}
-    className="token-evidence-mark"
-    role="img"
-    style={{ "--token-evidence-mark-size": `${size}px` } as CSSProperties}
-  >
-    {normalized === "USDT" || normalized === "USDT0"
-      ? <TokenUSDT aria-hidden="true" size="100%" variant="background" />
-      : <span aria-hidden="true">{normalized.slice(0, 1)}</span>}
-  </span>;
+  return <PortfolioAssetMark size={size} symbol={symbol} />;
 }
 
 function TokenEvidence({ items }: { items: TokenMarketEvidenceV1[] }) {

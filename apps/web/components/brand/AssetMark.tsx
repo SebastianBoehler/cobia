@@ -1,5 +1,7 @@
 import { TokenUSDT } from "@web3icons/react";
+import Image from "next/image";
 import type { CSSProperties } from "react";
+import { USDG_TOKEN_LOGO_DATA_URL } from "./official-token-art";
 
 export type AssetIdentity = "USDG" | "USDt0";
 
@@ -13,7 +15,8 @@ export function AssetMark({ asset, size = 40 }: { asset: AssetIdentity; size?: n
     >
       {asset === "USDt0"
         ? <TokenUSDT aria-hidden="true" size="100%" variant="background" />
-        : <span aria-hidden="true">$</span>}
+        : <Image alt="" aria-hidden="true" height={size} src={USDG_TOKEN_LOGO_DATA_URL}
+          unoptimized width={size} />}
     </span>
   );
 }

@@ -184,7 +184,7 @@ describe("IntentCompetitionView", () => {
     expect(html).toContain("OKX Market API v6");
   });
 
-  it("uses Cobia's existing USDG mark in frozen evidence", () => {
+  it("uses the official USDG token logo in frozen evidence", () => {
     const html = renderToStaticMarkup(<IntentCompetitionView
       goal="Supply bounded USDG"
       closesAt={closesAt}
@@ -198,6 +198,7 @@ describe("IntentCompetitionView", () => {
     />);
 
     expect(html).toContain("brand-mark--usdg");
+    expect(html).toContain("data:image/png;base64");
   });
 
   it("renders native OKB evidence without contract-holder fields", () => {
@@ -215,6 +216,8 @@ describe("IntentCompetitionView", () => {
 
     expect(html).toContain("Native asset");
     expect(html).toContain("$110.25");
+    expect(html).toContain('aria-label="OKB token"');
+    expect(html).toContain("web3icons");
     expect(html).not.toContain("Holders");
   });
 
