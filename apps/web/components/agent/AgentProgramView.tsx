@@ -24,6 +24,7 @@ interface TransactionCall { to: Address; data: Hex; value: "0x0" }
 interface Prepared { approvals: TransactionCall[]; execution?: TransactionCall;
   transactions?: (TransactionCall & { stageId: string })[]; chainId?: 1 | 196 | 8453 }
 interface ExecutionAccess { value: AgentExecutionAccessProof; signature: Hex }
+interface PendingReceipt { ready: Prepared; hashes: Hash[]; transactionHash: Hash }
 function message(value: unknown, fallback: string) {
   return typeof value === "object" && value && "message" in value && typeof value.message === "string"
     ? value.message
@@ -82,6 +83,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   const [confirmed, setConfirmed] = useState<Hash>();
+  const [pendingReceipt, setPendingReceipt] = useState<PendingReceipt>();
 
   useEffect(() => {
     let active = true;
@@ -156,6 +158,8 @@ export function AgentProgramView({ programId }: { programId: string }) {
         },
       });
       setPrepared(completed.ready);
+      setPendingReceipt({ ready: completed.ready, hashes: completed.hashes,
+        transactionHash: completed.transactionHash });
       await attributeReceipt(completed.ready, access, completed.hashes, completed.transactionHash);
     } catch (cause) {
       const failure = cause instanceof Error ? cause.message : "Execution preflight failed.";
@@ -222,6 +226,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
     });
     const body = await response.json();
     if (!response.ok) throw new Error(message(body, "Receipt attribution failed."));
+    setPendingReceipt(undefined);
     setConfirmed(transactionHash);
     setProgram((current) => current ? {
       ...current,
@@ -229,6 +234,19 @@ export function AgentProgramView({ programId }: { programId: string }) {
       artifacts: { ...current.artifacts, receipt: { payload: body.receipt } },
     } : current);
     load(programId).then(setProgram).catch(() => undefined);
+  }
+
+  async function retryReceipt() {
+    if (!pendingReceipt) return;
+    setPending(true); setError(undefined);
+    try {
+      const access = await accessProof();
+      setExecutionAccess(access);
+      await attributeReceipt(pendingReceipt.ready, access, pendingReceipt.hashes,
+        pendingReceipt.transactionHash);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Receipt attribution failed.");
+    } finally { setPending(false); }
   }
 
   async function execute() {
@@ -250,6 +268,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
         setTransactionIndex((value) => value + 1);
         return;
       }
+      setPendingReceipt({ ready, hashes, transactionHash });
       await attributeReceipt(ready, access, hashes, transactionHash);
     } catch (cause) {
       const failure = cause instanceof Error ? cause.message : "Execution failed.";
@@ -282,13 +301,16 @@ export function AgentProgramView({ programId }: { programId: string }) {
   );
   const action = <>
     {error ? <p role="alert" className="form-alert">{error}</p> : null}
-    {submission.executable && !prepared ? <button className="button button--primary" disabled={pending} onClick={prepare}>
+    {pendingReceipt && !confirmed ? <button className="button button--primary" disabled={pending} onClick={retryReceipt}>
+      {pending ? "Verifying confirmed transaction…" : "Retry receipt verification"}
+    </button> : null}
+    {submission.executable && !prepared && !pendingReceipt ? <button className="button button--primary" disabled={pending} onClick={prepare}>
       {pending ? "Checking live bounds…" : "Prepare execution"}
     </button> : null}
-    {prepared && !approvalsDone ? <button className="button button--primary" disabled={pending} onClick={approve}>
+    {prepared && !approvalsDone && !pendingReceipt ? <button className="button button--primary" disabled={pending} onClick={approve}>
       {pending ? "Waiting for approval…" : approvalLabel(program, approvalIndex, prepared.approvals.length)}
     </button> : null}
-    {prepared && approvalsDone && !confirmed ? <button className="button button--primary" disabled={pending} onClick={execute}>
+    {prepared && approvalsDone && !confirmed && !pendingReceipt ? <button className="button button--primary" disabled={pending} onClick={execute}>
       {pending ? `Confirming: ${executionLabel(program, prepared, transactionIndex)}`
         : executionLabel(program, prepared, transactionIndex)}
     </button> : null}

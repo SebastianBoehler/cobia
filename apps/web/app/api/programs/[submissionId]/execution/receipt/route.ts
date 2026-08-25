@@ -1,5 +1,7 @@
-import { commitment, OpenIntentPolicyV3Schema } from "@cobia/domain";
-import { TransactionProgramEvidenceV1Schema } from "@cobia/solvers";
+import {
+  CapabilityCompositionPolicyV1Schema, commitment, OpenIntentPolicyV3Schema,
+} from "@cobia/domain";
+import { CapabilityProgramV2Schema, TransactionProgramEvidenceV1Schema } from "@cobia/solvers";
 import { NextResponse } from "next/server";
 import { createPublicClient, erc20Abi, http, isAddressEqual, type Hash, type Hex } from "viem";
 import { base, mainnet } from "viem/chains";
@@ -13,6 +15,7 @@ import {
 } from "../../../../../../lib/coding-agent-sandbox/execution-receipt-v3";
 import { readCodingAgentV3ExecutionConfig } from "../../../../../../lib/env";
 import { deriveCapabilityAuthorityV2 } from "../../../../../../lib/open-exchange/capability-authority";
+import { deriveCompositionAuthorityV1 } from "../../../../../../lib/open-exchange/composition-authority";
 import { verifyOpenWalletBatchReceiptsV1 } from "../../../../../../lib/open-exchange/wallet-batch-receipt";
 import { finalizeSolverSuccessFee } from "../../../../../../lib/payments/launch-solver-success-fee";
 import {
@@ -37,8 +40,15 @@ export async function POST(
   context: RouteContext<"/api/programs/[submissionId]/execution/receipt">,
 ) {
   const { submissionId } = await context.params;
+  let body: z.infer<typeof BodySchema>;
   try {
-    const body = BodySchema.parse(await request.json());
+    body = BodySchema.parse(await request.json());
+  } catch {
+    return NextResponse.json({
+      code: "INVALID_REQUEST", message: "Execution receipt is invalid.",
+    }, { status: 400 });
+  }
+  try {
     const nowSec = Math.floor(Date.now() / 1_000);
     const proof = await verifyAgentExecutionAccessProof({
       proof: body.proof, signature: body.ownerSignature as Hex, nowSec,
@@ -112,7 +122,19 @@ export async function POST(
       if (block.number === null) throw new Error("Execution receipt block metadata is unavailable");
       assertCanonicalAgentExecutionReceipt({ receipt,
         canonicalBlock: { number: block.number, hash: block.hash }, latestBlockNumber: latestBlock.number });
-      const authority = deriveCapabilityAuthorityV2(stored.policy, stored.snapshot);
+      const authority = stored.policy.kind === "capability-composition"
+        ? (() => {
+          const policy = CapabilityCompositionPolicyV1Schema.parse(stored.policy);
+          const programArtifact = stored.artifacts.find(({ kind }) => kind === "program");
+          if (!programArtifact) throw new Error("Verified composition program is unavailable");
+          const program = CapabilityProgramV2Schema.parse(programArtifact.payload);
+          return deriveCompositionAuthorityV1(policy, stored.snapshot, {
+            inputAtomic: program.input.atomic,
+            actions: program.actions,
+            balanceConstraints: program.balanceConstraints,
+          });
+        })()
+        : deriveCapabilityAuthorityV2(stored.policy, stored.snapshot);
       const prepared = prepareAgentExecutionV3({
         context: { ...stored, policy: authority.policy, snapshot: authority.snapshot,
           policyHash: commitment(authority.policy), snapshotHash: commitment(authority.snapshot),
@@ -155,11 +177,9 @@ export async function POST(
     const successFee = await finalizeSolverSuccessFee({ submissionId,
       repository: getSolverSuccessFeeRepository(), nowSec: Math.floor(Date.now() / 1_000) });
     return NextResponse.json({ state: "confirmed", receipt: attributed, successFee });
-  } catch (error) {
-    const invalid = error instanceof z.ZodError;
+  } catch {
     return NextResponse.json({
-      code: invalid ? "INVALID_REQUEST" : "RECEIPT_UNAVAILABLE",
-      message: invalid ? "Execution receipt is invalid." : "Could not attribute execution receipt.",
-    }, { status: invalid ? 400 : 409 });
+      code: "RECEIPT_UNAVAILABLE", message: "Could not attribute execution receipt.",
+    }, { status: 409 });
   }
 }

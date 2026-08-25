@@ -289,4 +289,77 @@ describe("AgentProgramView", () => {
       ([request]) => request.method === "eth_sendTransaction",
     )).toHaveLength(2);
   });
+
+  it("retries receipt attribution without broadcasting the confirmed transaction again", async () => {
+    const transactionHash = `0x${"55".repeat(32)}`;
+    const current = {
+      submission: {
+        id: "550e8400-e29b-41d4-a716-446655440000", state: "current", executable: true,
+        owner: "0x1111111111111111111111111111111111111111", solverId: "cobia-reference",
+        revision: 2, programHash: `0x${"11".repeat(32)}`, validUntil: "2033-05-18T03:35:00Z",
+        blockNumber: "123", blockHash: `0x${"22".repeat(32)}`, displayGoal: "Swap USDG",
+        failureCodes: [],
+      },
+      artifacts: {
+        program: { payload: { actions: [{ capabilityId: "curve-stableswap-ng.exact-input",
+          parameters: { tokenIn: "0x3333333333333333333333333333333333333333",
+            tokenOut: "0x2222222222222222222222222222222222222222" } }] } },
+        replay: { payload: { reproduced: true } },
+      },
+    };
+    let receiptAttempts = 0;
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/execution/receipt")) {
+        receiptAttempts += 1;
+        return receiptAttempts === 1
+          ? new Response(JSON.stringify({ message: "Could not attribute execution receipt." }), { status: 409 })
+          : new Response(JSON.stringify({ state: "confirmed", receipt: {
+            version: 3, transactionHash, blockNumber: "124",
+          } }));
+      }
+      if (url.endsWith("/execution")) return new Response(JSON.stringify({
+        chainId: 196, approvals: [],
+        execution: { to: "0x2222222222222222222222222222222222222222", data: "0x1234", value: "0x0" },
+      }));
+      return new Response(JSON.stringify(receiptAttempts > 1 ? {
+        ...current,
+        submission: { ...current.submission, state: "executed", executable: false },
+        artifacts: { ...current.artifacts, receipt: { payload: {
+          version: 3, transactionHash, blockNumber: "124",
+        } } },
+      } : current));
+    });
+    let lastTransaction: Record<string, string> | undefined;
+    wallet.request.mockImplementation(async ({ method, params }: { method: string; params?: unknown[] }) => {
+      if (method === "personal_sign") return `0x${"33".repeat(65)}`;
+      if (method === "eth_sendTransaction") {
+        lastTransaction = (params?.[0] ?? {}) as Record<string, string>;
+        return transactionHash;
+      }
+      if (method === "eth_getTransactionReceipt") return { status: "0x1", blockNumber: "0x7b" };
+      if (method === "eth_getTransactionByHash") return {
+        from: lastTransaction?.from, to: lastTransaction?.to,
+        input: lastTransaction?.data, value: lastTransaction?.value,
+      };
+      if (method === "eth_blockNumber") return "0x7c";
+      throw new Error(`Unexpected wallet method ${method}`);
+    });
+
+    render(<AgentProgramView programId="550e8400-e29b-41d4-a716-446655440000" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Prepare execution" }));
+
+    const retry = await screen.findByRole("button", { name: "Retry receipt verification" });
+    expect(wallet.request.mock.calls.filter(
+      ([request]) => request.method === "eth_sendTransaction",
+    )).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Swap now" })).not.toBeInTheDocument();
+    fireEvent.click(retry);
+
+    expect(await screen.findByText("Swap complete")).toBeVisible();
+    expect(receiptAttempts).toBe(2);
+    expect(wallet.request.mock.calls.filter(
+      ([request]) => request.method === "eth_sendTransaction",
+    )).toHaveLength(1);
+  });
 });
