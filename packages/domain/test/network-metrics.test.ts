@@ -77,6 +77,31 @@ describe("public network outcomes", () => {
     });
   });
 
+  it("values every input principal in a multi-asset outcome", () => {
+    expect(outcome({
+      additionalPrincipals: [{
+        token: "0x4444444444444444444444444444444444444444",
+        symbol: "USDG",
+        atomic: "2000000",
+        valuation: { decimals: 6, priceUsdE8: "100000000", blockNumber: "76543210" },
+      }],
+    })).toMatchObject({
+      volumeUsdE8: "300000000",
+      additionalPrincipals: [{ atomic: "2000000", symbol: "USDG" }],
+    });
+  });
+
+  it("does not report partial volume when one input has no price evidence", () => {
+    expect(outcome({
+      additionalPrincipals: [{
+        token: "0x4444444444444444444444444444444444444444",
+        symbol: "UNKNOWN",
+        atomic: "2000000",
+        valuation: null,
+      }],
+    }).volumeUsdE8).toBeNull();
+  });
+
   it("aggregates valued principal once per unique winning submission", () => {
     const second = outcome({
       intentId: "33333333-3333-4333-8333-333333333333",

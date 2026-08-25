@@ -13,6 +13,16 @@ const PublicRouteSchema = z.object({
   protocols: z.array(z.string().trim().min(1).max(32)).max(8),
   minimumOutputs: z.array(PublicAssetSchema).max(8),
 }).strict();
+const CandidateValuationSchema = z.object({
+  decimals: z.number().int().min(0).max(36),
+  priceUsdE8: AtomicSchema.refine((value) => value !== "0"),
+  blockNumber: AtomicSchema.refine((value) => value !== "0"),
+}).strict();
+const CandidatePrincipalSchema = z.object({
+  token: AddressSchema,
+  symbol: z.string().trim().min(1).max(32),
+  atomic: AtomicSchema.refine((value) => value !== "0"),
+}).strict();
 
 const NetworkOutcomeCandidateV1Schema = z.object({
   intentId: z.string().uuid(),
@@ -25,17 +35,12 @@ const NetworkOutcomeCandidateV1Schema = z.object({
   confirmedAtSec: z.number().int().positive().safe(),
   transactionHash: HashSchema.nullable(),
   intentClass: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(64),
-  principal: z.object({
-    token: AddressSchema,
-    symbol: z.string().trim().min(1).max(32),
-    atomic: AtomicSchema.refine((value) => value !== "0"),
-  }).strict(),
+  principal: CandidatePrincipalSchema,
+  additionalPrincipals: z.array(CandidatePrincipalSchema.extend({
+    valuation: CandidateValuationSchema.nullable(),
+  }).strict()).max(7).default([]),
   route: PublicRouteSchema,
-  valuation: z.object({
-    decimals: z.number().int().min(0).max(36),
-    priceUsdE8: AtomicSchema.refine((value) => value !== "0"),
-    blockNumber: AtomicSchema.refine((value) => value !== "0"),
-  }).strict().nullable(),
+  valuation: CandidateValuationSchema.nullable(),
   resultLabel: z.string().trim().min(1).max(160),
 }).strict();
 
@@ -48,6 +53,14 @@ export type NetworkExclusionReason =
   | "UNSUPPORTED_CHAIN"
   | "RECEIPT_MISSING";
 
+const PublicPrincipalSchema = z.object({
+  token: AddressSchema,
+  symbol: z.string(),
+  atomic: AtomicSchema,
+  decimals: z.number().int().min(0).max(36).nullable(),
+  valuationBlockNumber: AtomicSchema.nullable(),
+}).strict();
+
 const PublicOutcomeV1Schema = z.object({
   version: z.literal(1),
   intentId: z.string().uuid(),
@@ -58,13 +71,8 @@ const PublicOutcomeV1Schema = z.object({
   confirmedAtSec: z.number().int().positive(),
   transactionHash: HashSchema,
   intentClass: z.string(),
-  principal: z.object({
-    token: AddressSchema,
-    symbol: z.string(),
-    atomic: AtomicSchema,
-    decimals: z.number().int().min(0).max(36).nullable(),
-    valuationBlockNumber: AtomicSchema.nullable(),
-  }).strict(),
+  principal: PublicPrincipalSchema,
+  additionalPrincipals: z.array(PublicPrincipalSchema).max(7),
   route: PublicRouteSchema,
   volumeUsdE8: AtomicSchema.nullable(),
   resultLabel: z.string(),
@@ -103,9 +111,14 @@ export function projectPublicOutcomeV1(input: NetworkOutcomeCandidateV1):
   if (value.chainId !== 196) return { excluded: "UNSUPPORTED_CHAIN" };
   if (!value.transactionHash) return { excluded: "RECEIPT_MISSING" };
 
-  const volumeUsdE8 = value.valuation
-    ? (BigInt(value.principal.atomic) * BigInt(value.valuation.priceUsdE8) /
-      10n ** BigInt(value.valuation.decimals)).toString()
+  const valuedPrincipals = [
+    { ...value.principal, valuation: value.valuation },
+    ...value.additionalPrincipals,
+  ];
+  const volumeUsdE8 = valuedPrincipals.every(({ valuation }) => valuation !== null)
+    ? valuedPrincipals.reduce((total, principal) => total +
+      BigInt(principal.atomic) * BigInt(principal.valuation!.priceUsdE8) /
+      10n ** BigInt(principal.valuation!.decimals), 0n).toString()
     : null;
   return { outcome: PublicOutcomeV1Schema.parse({
     version: 1,
@@ -124,6 +137,13 @@ export function projectPublicOutcomeV1(input: NetworkOutcomeCandidateV1):
       decimals: value.valuation?.decimals ?? null,
       valuationBlockNumber: value.valuation?.blockNumber ?? null,
     },
+    additionalPrincipals: value.additionalPrincipals.map((principal) => ({
+      token: principal.token,
+      symbol: principal.symbol,
+      atomic: principal.atomic,
+      decimals: principal.valuation?.decimals ?? null,
+      valuationBlockNumber: principal.valuation?.blockNumber ?? null,
+    })),
     route: value.route,
     volumeUsdE8,
     resultLabel: value.resultLabel,

@@ -132,8 +132,9 @@
 }
 .mono { font-family: var(--font-geist-mono), monospace; font-variant-numeric: tabular-nums; }
 .tokenRoute { align-items: center; display: flex; gap: 8px; min-width: 0; }
-.routeAsset, .routeStep { align-items: center; display: inline-flex; flex: 0 0 auto; gap: 7px; }
+.routeAssets, .routeAsset, .routeStep { align-items: center; display: inline-flex; flex: 0 0 auto; gap: 7px; }
 .routeAsset strong { font-family: var(--font-geist-mono), monospace; font-size: 12px; margin: 0; }
+.routeJoin { color: var(--muted); font-size: 11px; font-style: normal; }
 .routeStep > svg { color: var(--muted); flex: 0 0 auto; }
 .unrecorded { color: var(--muted); font-size: 11px; line-height: 1.45; }
 .proofLinks { align-items: center; display: flex; gap: 10px; }

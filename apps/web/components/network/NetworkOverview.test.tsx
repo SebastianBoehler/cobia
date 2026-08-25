@@ -27,6 +27,7 @@ const report: NetworkOverviewReport = {
     intentClass: "stablecoin-swap",
     principal: { token: "0x2222222222222222222222222222222222222222",
       symbol: "USDt0", atomic: "1000000", decimals: 6, valuationBlockNumber: "70000000" },
+    additionalPrincipals: [],
     route: {
       protocols: ["Curve"],
       minimumOutputs: [{ token: "0x3333333333333333333333333333333333333333",
@@ -105,6 +106,34 @@ describe("NetworkOverview", () => {
     expect(html).toContain(
       'aria-label="OKB token" class="brand-mark brand-mark--asset brand-mark--okb"',
     );
+  });
+
+  it("renders every input in a multi-asset route", () => {
+    const multiAssetReport = {
+      ...report,
+      outcomes: [{
+        ...report.outcomes[0]!,
+        additionalPrincipals: [{
+          token: "0x4444444444444444444444444444444444444444",
+          symbol: "USDG",
+          atomic: "2000000",
+          decimals: 6,
+          valuationBlockNumber: "70000000",
+        }],
+        route: {
+          ...report.outcomes[0]!.route,
+          minimumOutputs: [...report.outcomes[0]!.route.minimumOutputs, {
+            token: "0x5555555555555555555555555555555555555555",
+            symbol: "OKB",
+            atomic: "1000000000000000000",
+            decimals: 18,
+          }],
+        },
+      }],
+    };
+    const html = renderToStaticMarkup(<NetworkOverview report={multiAssetReport} solvers={solvers} />);
+
+    expect(html).toContain('aria-label="USDt0 + USDG through Curve to USDG + OKB"');
   });
 
   it("shows an honest empty state without sample activity", () => {

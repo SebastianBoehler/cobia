@@ -3,16 +3,18 @@ import {
   CapabilityCompositionSnapshotV1Schema,
   OpenIntentSnapshotV1Schema,
   projectPublicOutcomeV1,
-  TransactionProgramV1Schema,
   type NetworkExclusionReason,
   type NetworkOutcomeCandidateV1,
   type PublicOutcomeV1,
 } from "@cobia/domain";
-import { CapabilityProgramV2Schema } from "@cobia/solvers";
 import { and, desc, eq, gte, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { SUPPORTED_ASSETS } from "../chain/supported-assets";
 import type { CobiaDatabase } from "./client";
+import {
+  capabilityNetworkPrincipalV1,
+  transactionNetworkPrincipalV1,
+} from "./network-outcome-program";
 import { cobiaIntents, cobiaProgramArtifactsV2, cobiaSolverSubmissions } from "./schema";
 
 const HashSchema = z.string().regex(/^0x[0-9a-f]{64}$/);
@@ -50,89 +52,12 @@ export function networkAssetIdentityV1(snapshot: unknown, token: string) {
   return { symbol: frozen?.symbol ?? symbol(token), decimals: frozen?.decimals ?? decimals(token) };
 }
 
-const protocolPrefixes = [
-  ["aave-v3.", "Aave V3"],
-  ["curve-stableswap-ng.", "Curve"],
-  ["uniswap-v3.", "Uniswap V3"],
-  ["okx-dex-api", "OKX DEX"],
-] as const;
-
 export function parseNetworkReceiptV1(payload: unknown) {
   const receipt = ReceiptSchema.safeParse(payload);
   return receipt.success ? receipt.data : null;
 }
 
-function protocols(ids: readonly string[]): string[] {
-  const matched = ids.flatMap((id) => {
-    const protocol = protocolPrefixes.find(([prefix]) => id.startsWith(prefix))?.[1];
-    return protocol ? [protocol] : [];
-  });
-  return matched.filter((protocol, index) => matched.indexOf(protocol) === index);
-}
-
-function routeOutput(token: string, atomic: string) {
-  return { token, symbol: symbol(token), atomic, decimals: decimals(token) };
-}
-
-function capabilityPrincipal(payload: unknown) {
-  const parsed = CapabilityProgramV2Schema.safeParse(payload);
-  if (!parsed.success) return null;
-  const ids = parsed.data.actions.map(({ capabilityId }) => capabilityId);
-  const hasSwap = ids.some((id) => id.includes("exact-input"));
-  const hasSupply = ids.some((id) => id.includes("supply"));
-  return {
-    chainId: parsed.data.chainId,
-    token: parsed.data.input.token,
-    atomic: parsed.data.input.atomic,
-    intentClass: hasSwap && hasSupply ? "yield-composition"
-      : hasSwap ? "stablecoin-swap" : hasSupply ? "protocol-supply" : "onchain-outcome",
-    resultLabel: hasSwap && hasSupply ? "Swap and supply"
-      : hasSwap ? "Token swap" : hasSupply ? "Protocol supply"
-        : "X Layer outcome",
-    route: {
-      protocols: protocols(ids),
-      minimumOutputs: parsed.data.balanceConstraints.map(({ token, atomic }) => routeOutput(token, atomic)),
-    },
-  };
-}
-
-function transactionPrincipal(payload: unknown) {
-  const parsed = TransactionProgramV1Schema.safeParse(payload);
-  if (!parsed.success) return null;
-  const roots = parsed.data.stages.filter(({ dependsOn, kind }) =>
-    dependsOn.length === 0 && ["wallet-transaction", "cobia-v3", "x402-authorization"].includes(kind));
-  if (roots.length !== 1) return null;
-  const stage = roots[0]!;
-  if (stage.kind === "wallet-transaction") return {
-    chainId: stage.chainId,
-    token: stage.input.token,
-    atomic: stage.input.atomic,
-    intentClass: "wallet-transaction",
-    resultLabel: "Transaction",
-    route: {
-      protocols: protocols(stage.tools),
-      minimumOutputs: [routeOutput(stage.output.token, stage.output.minimumAtomic)],
-    },
-  };
-  if (stage.kind === "cobia-v3") return {
-    chainId: stage.chainId,
-    token: stage.input.token,
-    atomic: stage.input.atomic,
-    intentClass: "cobia-v3",
-    resultLabel: "Atomic outcome",
-    route: { protocols: [], minimumOutputs: stage.minimumOutcomes.map(({ token, minimumAtomic }) =>
-      routeOutput(token, minimumAtomic)), },
-  };
-  if (stage.kind === "x402-authorization") return {
-    chainId: stage.chainId,
-    token: stage.asset,
-    atomic: stage.exactAtomic,
-    intentClass: "x402-payment",
-    resultLabel: "x402 settlement",
-    route: { protocols: [], minimumOutputs: [] },
-  };
-  return null;
-}
+export { transactionNetworkPrincipalV1 } from "./network-outcome-program";
 
 function decimalUsdE8(value: string): string | null {
   const match = /^(\d+)(?:\.(\d+))?$/.exec(value);
@@ -174,11 +99,15 @@ function project(row: {
   const programArtifact = artifacts.find(({ kind }) => kind === "program");
   const snapshotArtifact = artifacts.find(({ kind }) => kind === "snapshot");
   const receiptArtifact = artifacts.find(({ kind }) => kind === "receipt");
-  const principal = programArtifact
-    ? capabilityPrincipal(programArtifact.payload) ?? transactionPrincipal(programArtifact.payload) : null;
+  const principal = programArtifact ? capabilityNetworkPrincipalV1(programArtifact.payload)
+    ?? transactionNetworkPrincipalV1(programArtifact.payload) : null;
   if (!principal || !snapshotArtifact) return { excluded: "INVALID_CANDIDATE" };
   const receipt = receiptArtifact ? parseNetworkReceiptV1(receiptArtifact.payload) : null;
-  const principalIdentity = networkAssetIdentityV1(snapshotArtifact.payload, principal.token);
+  const principals = principal.principals.map((value) => ({
+    ...value,
+    ...networkAssetIdentityV1(snapshotArtifact.payload, value.token),
+    valuation: valuation(snapshotArtifact.payload, value.token),
+  }));
   const route = { ...principal.route, minimumOutputs: principal.route.minimumOutputs.map((output) => ({
     ...output, ...networkAssetIdentityV1(snapshotArtifact.payload, output.token),
   })) };
@@ -193,9 +122,10 @@ function project(row: {
     confirmedAtSec: Math.floor(row.completedAt.getTime() / 1_000),
     transactionHash: receipt?.transactionHash ?? null,
     intentClass: principal.intentClass,
-    principal: { token: principal.token, symbol: principalIdentity.symbol, atomic: principal.atomic },
+    principal: { token: principals[0]!.token, symbol: principals[0]!.symbol, atomic: principals[0]!.atomic },
+    additionalPrincipals: principals.slice(1),
     route,
-    valuation: valuation(snapshotArtifact.payload, principal.token),
+    valuation: principals[0]!.valuation,
     resultLabel: principal.resultLabel,
   };
   return projectPublicOutcomeV1(candidate);

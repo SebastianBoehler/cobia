@@ -55,19 +55,30 @@ function OverviewMetrics({ report }: { report: NetworkOverviewReport }) {
 }
 
 function TokenRoute({ outcome }: { outcome: PublicOutcomeV1 }) {
+  const inputs = [outcome.principal, ...outcome.additionalPrincipals];
   const outputs = outcome.route.minimumOutputs;
-  const input = outcome.principal.symbol;
-  const output = outputs[0]?.symbol;
   const protocolDescription = outcome.route.protocols.length ? outcome.route.protocols.join(", then ") : "an unrecorded protocol";
-  const routeLabel = output ? `${input} through ${protocolDescription} to ${output}` : `${input} through ${protocolDescription}`;
+  const inputDescription = inputs.map(({ symbol }) => symbol).join(" + ");
+  const outputDescription = outputs.map(({ symbol }) => symbol).join(" + ");
+  const routeLabel = outputDescription
+    ? `${inputDescription} through ${protocolDescription} to ${outputDescription}`
+    : `${inputDescription} through ${protocolDescription}`;
 
   return <div aria-label={routeLabel} className={styles.tokenRoute} role="img">
-    <span aria-hidden="true" className={styles.routeAsset}><TokenAssetMark size={22} symbol={input} /><strong>{input}</strong></span>
+    <span aria-hidden="true" className={styles.routeAssets}>{inputs.map(({ token, symbol }, index) =>
+      <span className={styles.routeAsset} key={token}>
+        {index ? <i className={styles.routeJoin}>+</i> : null}
+        <TokenAssetMark size={22} symbol={symbol} /><strong>{symbol}</strong>
+      </span>)}</span>
     {outcome.route.protocols.map((protocol) => <span aria-hidden="true" className={styles.routeStep} key={protocol}>
       <ArrowRight size={14} /><ProtocolMark protocol={protocol} size={20} />
     </span>)}
-    {output ? <span aria-hidden="true" className={styles.routeStep}>
-      <ArrowRight size={14} /><span className={styles.routeAsset}><TokenAssetMark size={22} symbol={output} /><strong>{output}</strong></span>
+    {outputs.length ? <span aria-hidden="true" className={styles.routeStep}>
+      <ArrowRight size={14} /><span className={styles.routeAssets}>{outputs.map(({ token, symbol }, index) =>
+        <span className={styles.routeAsset} key={token}>
+          {index ? <i className={styles.routeJoin}>+</i> : null}
+          <TokenAssetMark size={22} symbol={symbol} /><strong>{symbol}</strong>
+        </span>)}</span>
     </span> : <span className={styles.unrecorded}>No token outcome recorded</span>}
   </div>;
 }
