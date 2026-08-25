@@ -22,6 +22,7 @@ describe("AgentProgramView", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    window.history.replaceState({}, "", "/");
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
       submission: {
         id: "550e8400-e29b-41d4-a716-446655440000", state: "expired",
@@ -72,6 +73,28 @@ describe("AgentProgramView", () => {
     expect(screen.getByText("cobia-reference")).not.toBeVisible();
     expect(screen.queryByRole("heading", { name: "Research footprint" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /prepare execution/i })).not.toBeInTheDocument();
+  });
+
+  it("recovers a confirmed batch from receipt hashes in the program URL", async () => {
+    const hashes = [`0x${"44".repeat(32)}`, `0x${"55".repeat(32)}`];
+    window.history.replaceState({}, "", `/?receiptHashes=${hashes.join(",")}`);
+    wallet.request.mockImplementation(async ({ method }: { method: string }) => {
+      if (method === "personal_sign") return `0x${"33".repeat(65)}`;
+      throw new Error(`Unexpected wallet request: ${method}`);
+    });
+    render(<AgentProgramView programId="550e8400-e29b-41d4-a716-446655440000" />);
+    const retry = await screen.findByRole("button", { name: "Retry receipt verification" });
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ state: "confirmed", receipt: {
+      transactionHash: hashes[1], blockNumber: "456",
+    } })));
+
+    fireEvent.click(retry);
+
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls).toContainEqual([
+      "/api/programs/550e8400-e29b-41d4-a716-446655440000/execution/receipt",
+      expect.objectContaining({ body: expect.stringContaining(hashes[0]!) }),
+    ]));
+    expect(wallet.request).toHaveBeenCalledWith(expect.objectContaining({ method: "personal_sign" }));
   });
 
   it("shows signed net changes instead of counting an intermediate asset twice", async () => {

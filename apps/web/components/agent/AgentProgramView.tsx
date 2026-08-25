@@ -26,6 +26,15 @@ interface Prepared { approvals: TransactionCall[]; execution?: TransactionCall;
   approvalPolicy?: "exact" | "at-least-required" }
 interface ExecutionAccess { value: AgentExecutionAccessProof; signature: Hex }
 interface PendingReceipt { ready: Prepared; hashes: Hash[]; transactionHash: Hash }
+
+function recoveryHashesFromLocation() {
+  if (typeof window === "undefined") return [];
+  const raw = new URLSearchParams(window.location.search).get("receiptHashes");
+  if (!raw) return [];
+  const hashes = raw.split(",");
+  return hashes.every((hash) => /^0x[0-9a-fA-F]{64}$/.test(hash)) ? hashes as Hash[] : [];
+}
+
 function message(value: unknown, fallback: string) {
   return typeof value === "object" && value && "message" in value && typeof value.message === "string"
     ? value.message
@@ -87,6 +96,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
   const [error, setError] = useState<string>();
   const [confirmed, setConfirmed] = useState<Hash>();
   const [pendingReceipt, setPendingReceipt] = useState<PendingReceipt>();
+  const [recoveryHashes, setRecoveryHashes] = useState<Hash[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -94,6 +104,11 @@ export function AgentProgramView({ programId }: { programId: string }) {
       .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : "Load failed."); });
     return () => { active = false; };
   }, [programId]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setRecoveryHashes(recoveryHashesFromLocation()));
+    return () => window.clearTimeout(timeout);
+  }, []);
 
   async function accessProof() {
     const owner = program?.submission.owner;
@@ -163,7 +178,9 @@ export function AgentProgramView({ programId }: { programId: string }) {
       setPrepared(completed.ready);
       setPendingReceipt({ ready: completed.ready, hashes: completed.hashes,
         transactionHash: completed.transactionHash });
-      await attributeReceipt(completed.ready, access, completed.hashes, completed.transactionHash);
+      await attributeReceipt(access, completed.ready.execution
+        ? { transactionHash: completed.transactionHash }
+        : { transactionHashes: completed.hashes });
     } catch (cause) {
       const failure = cause instanceof Error ? cause.message : "Execution preflight failed.";
       try {
@@ -215,24 +232,21 @@ export function AgentProgramView({ programId }: { programId: string }) {
     finally { setPending(false); }
   }
 
-  async function attributeReceipt(
-    ready: Prepared,
-    access: ExecutionAccess,
-    hashes: Hash[],
-    transactionHash: Hash,
-  ) {
+  async function attributeReceipt(access: ExecutionAccess, receipt: {
+    transactionHash: Hash;
+  } | {
+    transactionHashes: Hash[];
+  }) {
     const response = await fetch(`/api/programs/${programId}/execution/receipt`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        proof: access.value,
-        ownerSignature: access.signature,
-        ...(ready.execution ? { transactionHash } : { transactionHashes: hashes }),
-      }),
+      body: JSON.stringify({ proof: access.value, ownerSignature: access.signature, ...receipt }),
     });
     const body = await response.json();
     if (!response.ok) throw new Error(message(body, "Receipt attribution failed."));
     setPendingReceipt(undefined);
-    setConfirmed(transactionHash);
+    setRecoveryHashes([]);
+    setConfirmed("transactionHash" in receipt ? receipt.transactionHash
+      : receipt.transactionHashes[receipt.transactionHashes.length - 1]!);
     setProgram((current) => current ? {
       ...current,
       submission: { ...current.submission, state: "executed", executable: false },
@@ -242,13 +256,18 @@ export function AgentProgramView({ programId }: { programId: string }) {
   }
 
   async function retryReceipt() {
-    if (!pendingReceipt) return;
+    if (!pendingReceipt && recoveryHashes.length === 0) return;
     setPending(true); setError(undefined);
     try {
       const access = await accessProof();
       setExecutionAccess(access);
-      await attributeReceipt(pendingReceipt.ready, access, pendingReceipt.hashes,
-        pendingReceipt.transactionHash);
+      if (pendingReceipt) {
+        await attributeReceipt(access, pendingReceipt.ready.execution
+          ? { transactionHash: pendingReceipt.transactionHash }
+          : { transactionHashes: pendingReceipt.hashes });
+      } else {
+        await attributeReceipt(access, { transactionHashes: recoveryHashes });
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Receipt attribution failed.");
     } finally { setPending(false); }
@@ -275,7 +294,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
         return;
       }
       setPendingReceipt({ ready, hashes, transactionHash });
-      await attributeReceipt(ready, access, hashes, transactionHash);
+      await attributeReceipt(access, ready.execution ? { transactionHash } : { transactionHashes: hashes });
     } catch (cause) {
       const failure = cause instanceof Error ? cause.message : "Execution failed.";
       setPrepared(undefined);
@@ -309,7 +328,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
   const errorNotice = error ? <p role="alert" className="form-alert">{error}</p> : null;
   const action = <>
     {errorNotice}
-    {pendingReceipt && !confirmed ? <button className="button button--primary" disabled={pending} onClick={retryReceipt}>
+    {(pendingReceipt || recoveryHashes.length > 0) && !confirmed ? <button className="button button--primary" disabled={pending} onClick={retryReceipt}>
       {pending ? "Verifying confirmed transaction…" : "Retry receipt verification"}
     </button> : null}
     {submission.executable && !prepared && !pendingReceipt ? <button className="button button--primary" disabled={pending} onClick={prepare}>
@@ -327,6 +346,6 @@ export function AgentProgramView({ programId }: { programId: string }) {
       that covers this transaction; unused allowance remains active until used or revoked.
     </p> : null}
   </>;
-  return <AgentProgramSummary program={program} action={submission.executable ? action : undefined}
+  return <AgentProgramSummary program={program} action={submission.executable || recoveryHashes.length > 0 ? action : undefined}
     notice={errorNotice} />;
 }

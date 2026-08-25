@@ -1,5 +1,5 @@
 import {
-  CapabilityCompositionPolicyV1Schema, commitment, OpenIntentPolicyV3Schema,
+  CapabilityCompositionPolicyV1Schema, commitment, isNativeAssetAddress, OpenIntentPolicyV3Schema,
 } from "@cobia/domain";
 import { CapabilityProgramV2Schema, TransactionProgramEvidenceV1Schema } from "@cobia/solvers";
 import { NextResponse } from "next/server";
@@ -105,8 +105,10 @@ export async function POST(
         const baseline = evidence.simulations.flatMap(({ assetDeltas }) => assetDeltas)
           .find(({ token, account }) => isAddressEqual(token, outcome.token) && isAddressEqual(account, proof.owner));
         if (!baseline) throw new Error("Open execution outcome baseline is unavailable");
-        const balance = await client.readContract({ address: outcome.token, abi: erc20Abi,
-          functionName: "balanceOf", args: [proof.owner], blockNumber: latestBlock.number });
+        const balance = isNativeAssetAddress(outcome.token)
+          ? await client.getBalance({ address: proof.owner, blockNumber: latestBlock.number })
+          : await client.readContract({ address: outcome.token, abi: erc20Abi,
+            functionName: "balanceOf", args: [proof.owner], blockNumber: latestBlock.number });
         const required = outcome.kind === "minimum-final" ? BigInt(outcome.atomic)
           : BigInt(baseline.beforeAtomic) + BigInt(outcome.kind === "registered-instrument"
             ? outcome.minimumIncreaseAtomic : outcome.atomic);
