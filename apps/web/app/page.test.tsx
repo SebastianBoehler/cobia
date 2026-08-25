@@ -25,7 +25,9 @@ describe("home conversion path", () => {
     expect(html).toContain("@Aave");
     expect(html).toContain("State the outcome. Keep the keys.");
     expect(html).toContain("AI solvers compete to produce the best transaction plan");
-    expect(html).toContain("25+ confirmed outcomes");
+    expect(html).toContain("V4 live on X Layer mainnet");
+    expect(html).toContain("30 confirmed outcomes");
+    expect(html).toContain("4 winning solvers");
     expect(html).not.toContain("home-eyebrow");
     expect(html).not.toContain("home-mode-tabs");
     expect(html).not.toContain("Policy receipt");

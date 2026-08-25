@@ -20,7 +20,7 @@ export function GeneralIntentHero() {
           <Link className="text-link" href="/buildx#evidence">See mainnet proof</Link>
         </div>
         <p className="general-hero__note">
-          Live on X Layer mainnet · 25+ confirmed outcomes · 3 signed solver profiles · public source
+          V4 live on X Layer mainnet · 30 confirmed outcomes · 4 winning solvers · public source
         </p>
       </div>
 

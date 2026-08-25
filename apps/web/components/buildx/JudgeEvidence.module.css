@@ -32,9 +32,11 @@
 .proofStrip li::before { background: var(--verified); border-radius: 50%; content: ""; display: inline-block; height: 6px; margin-inline-end: 9px; vertical-align: .08em; width: 6px; }
 .scrollCue { align-items: center; color: var(--muted); display: flex; font-size: 13px; gap: 8px; margin: clamp(56px, 8vw, 102px) auto 0; max-width: 1192px; position: relative; width: 100%; }
 .productProof { align-items: center; background: var(--wash); display: grid; gap: clamp(48px, 7vw, 96px); grid-template-columns: minmax(260px, .65fr) minmax(420px, 1fr); padding: clamp(86px, 9vw, 132px) max(24px, calc((100vw - 1192px) / 2)); }
-.productProof h2, .boundary h2, .sectionHeader h2, .protocols h2, .close h2 { font-size: clamp(44px, 5vw, 72px); font-weight: 610; letter-spacing: -.07em; line-height: .96; margin: 0; text-wrap: balance; }
+.productProof h2, .boundary h2, .sectionHeader h2, .protocols h2, .capabilities h2, .close h2 { font-size: clamp(44px, 5vw, 72px); font-weight: 610; letter-spacing: -.07em; line-height: .96; margin: 0; text-wrap: balance; }
 .productProof p { color: var(--muted); font-size: 16px; line-height: 1.65; margin: 26px 0 24px; max-width: 60ch; text-wrap: pretty; }
+.productProof figure { margin: 0; min-width: 0; }
 .productProof video { aspect-ratio: 16 / 9; background: var(--surface); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow-soft); display: block; height: auto; width: 100%; }
+.productProof figcaption { color: var(--muted); font-size: 11px; line-height: 1.5; margin-top: 12px; }
 .boundary { background: var(--ink); color: var(--paper); display: grid; gap: clamp(70px, 10vw, 160px); grid-template-columns: minmax(260px, .72fr) minmax(0, 1fr); padding: clamp(86px, 10vw, 144px) max(24px, calc((100vw - 1192px) / 2)); }
 .boundary ol { list-style: none; margin: 0; padding: 0; }
 .boundary li { border-top: 1px solid color-mix(in oklch, var(--paper) 14%, transparent); padding: 27px 0 30px; }
@@ -42,7 +44,7 @@
 .boundary li p { color: color-mix(in oklch, var(--paper) 62%, transparent); font-size: 13px; line-height: 1.6; margin: 9px 0 0; max-width: 54ch; }
 .protocols { align-items: end; display: grid; gap: clamp(54px, 8vw, 110px); grid-template-columns: minmax(0, 1.2fr) minmax(460px, .9fr); margin: 0 auto; max-width: 1328px; padding: clamp(88px, 10vw, 148px) clamp(24px, 5.1vw, 68px); }
 .protocols > div > p { color: var(--muted); font-size: 16px; line-height: 1.65; margin: 26px 0 0; max-width: 66ch; }
-.protocols ul { border-block: 1px solid var(--line); display: grid; grid-template-columns: repeat(4, 1fr); list-style: none; margin: 0; padding: 0; }
+.protocols ul { border-block: 1px solid var(--line); display: grid; grid-template-columns: repeat(5, 1fr); list-style: none; margin: 0; padding: 0; }
 .protocols li { align-items: center; display: flex; flex-direction: column; gap: 15px; padding: 26px 10px; text-align: center; }
 .protocols li + li { border-inline-start: 1px solid var(--line); }
 .protocols li > div { display: grid; gap: 4px; }
@@ -61,6 +63,16 @@
 .evidenceList article > a { align-items: center; color: var(--cobalt-dark); display: flex; font-size: 13px; font-weight: 650; gap: 8px; justify-self: end; min-height: 32px; padding-block: 6px; }
 .evidenceList article > a svg, .sectionHeader > a svg, .closeActions a svg { transition: transform 150ms ease-out; }
 .evidenceList article > a:hover svg, .sectionHeader > a:hover svg, .closeActions a:hover svg { transform: translate(2px, -2px); }
+.capabilities { background: var(--ink); color: var(--paper); padding: clamp(88px, 10vw, 148px) max(24px, calc((100vw - 1192px) / 2)); }
+.capabilities > header { display: grid; gap: 30px; grid-template-columns: minmax(0, 1.4fr) minmax(280px, .6fr); }
+.capabilities > header p { color: color-mix(in oklch, var(--paper) 64%, transparent); font-size: 15px; line-height: 1.65; margin: 0; max-width: 52ch; }
+.capabilities dl { border-top: 1px solid color-mix(in oklch, var(--paper) 18%, transparent); margin: 64px 0 0; }
+.capabilities dl > div { border-bottom: 1px solid color-mix(in oklch, var(--paper) 14%, transparent); display: grid; gap: 42px; grid-template-columns: minmax(210px, .75fr) minmax(0, 1.5fr); padding: 24px 0; }
+.capabilities dt { display: grid; gap: 8px; }
+.capabilities dt span { color: var(--verified); font: 11px var(--font-geist-mono), monospace; letter-spacing: .04em; text-transform: uppercase; }
+.capabilities dt strong { font-size: 18px; letter-spacing: -.025em; }
+.capabilities dd { color: color-mix(in oklch, var(--paper) 64%, transparent); font-size: 15px; line-height: 1.6; margin: 0; max-width: 72ch; }
+.forecastNote { color: color-mix(in oklch, var(--paper) 48%, transparent); font-size: 12px; line-height: 1.6; margin: 22px 0 0 auto; max-width: 72ch; }
 .foundations { background: var(--wash); max-width: none; padding-inline: max(24px, calc((100vw - 1192px) / 2)); }
 .vision { align-items: center; background: var(--paper); border: 1px solid var(--line); border-radius: 26px; display: grid; gap: clamp(42px, 7vw, 92px); grid-template-columns: minmax(0, .9fr) minmax(360px, .78fr); margin-top: 64px; overflow: hidden; padding: clamp(30px, 4.5vw, 62px); }
 .visionCopy h3 { font-size: clamp(34px, 4vw, 56px); font-weight: 610; letter-spacing: -.06em; line-height: 1; margin: 0; max-width: 16ch; text-wrap: balance; }
@@ -89,6 +101,7 @@
   .productProof { align-items: start; grid-template-columns: 1fr; }
   .boundary { grid-template-columns: 1fr; }
   .protocols { align-items: start; grid-template-columns: 1fr; }
+  .capabilities > header { grid-template-columns: 1fr; }
   .vision { align-items: start; grid-template-columns: 1fr; }
   .evidenceList article { grid-template-columns: 130px minmax(0, 1fr); }
   .evidenceList article > a { grid-column: 2; justify-self: start; }
@@ -118,6 +131,8 @@
   .vision { border-radius: 20px; margin-top: 48px; padding: 28px 20px; }
   .visionPost iframe { height: 288px; }
   .foundations dl > div { gap: 10px; grid-template-columns: 1fr; }
+  .capabilities { padding-inline: 20px; }
+  .capabilities dl > div { gap: 12px; grid-template-columns: 1fr; }
   .close { grid-template-columns: 1fr; padding-inline: 20px; }
   .closeActions { align-items: stretch; }
 }

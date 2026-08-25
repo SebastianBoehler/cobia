@@ -4,7 +4,7 @@ import { createPageMetadata } from "../site-metadata";
 
 export const metadata = createPageMetadata({
   title: "Cobia for X Layer AI Season",
-  description: "See how Cobia independently verifies AI-authored transaction plans before owner approval on X Layer.",
+  description: "See V4 standard-token swaps, multi-step onchain programs, and public proof of Cobia's independently verified X Layer execution.",
   path: "/buildx",
 });
 

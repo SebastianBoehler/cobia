@@ -13,7 +13,7 @@ describe("Build X project page", () => {
     const boundaryIndex = html.indexOf('id="boundary"');
     const evidenceIndex = html.indexOf('id="evidence"');
 
-    expect(text).toContain("AI finds the route. Cobia proves it stays within your limits.");
+    expect(text).toContain("AI finds the route. Cobia proves every step stays within your limits.");
     expect(productProofIndex).toBeGreaterThan(-1);
     expect(evidenceIndex).toBeGreaterThan(productProofIndex);
     expect(boundaryIndex).toBeGreaterThan(evidenceIndex);
@@ -38,10 +38,31 @@ describe("Build X project page", () => {
 
     expect(html).toContain("Build X · General Hackathon");
     expect(html).toContain("without handing it control of your wallet");
-    expect(html).toContain("25+ confirmed outcomes");
-    expect(html).toContain("3 signed solver profiles");
+    expect(html).toContain("30 confirmed outcomes");
+    expect(html).toContain("4 winning solvers");
+    expect(html).toContain("Multiple owner wallets");
     expect(html).toContain('/media/cobia-live-intent-flow-x-layer.mp4');
     expect(html).toContain("Why Cobia matters to X Layer.");
+  });
+
+  it("makes the open V4 result and bounded transaction breadth explicit", () => {
+    const html = renderToStaticMarkup(<BuildXEvidencePage />);
+    const text = html.replace(/<[^>]+>/g, "");
+
+    expect(text).toContain("V4 is open on X Layer mainnet.");
+    expect(text).toContain("0.01 OKB into 1.169308 USDG");
+    expect(text).toContain("Existing product-flow demo · Recorded before V4 opened");
+    expect(text).toContain("public program and transaction are the V4 proof");
+    expect(html).toContain('/programs/4d1ccd00-1b2d-485a-9f57-6e4416959126');
+    expect(html).toContain("0x573cf9e9e0c21e4cf1585cc4a4ec36a56d4063c779bb3de4e8bf514c56e2543f");
+    expect(text).toContain("Standard-token exchange");
+    expect(text).toContain("Lending");
+    expect(text).toContain("Liquidity provision");
+    expect(text).toContain("x402 payments");
+    expect(text).toContain("Multi-step portfolio goals");
+    expect(text).toContain("unknown assets, calls, and unsupported combinations fail closed");
+    expect(text).toContain("forecasts, not guaranteed PnL");
+    expect(html).not.toContain("any onchain transaction");
   });
 
   it("connects Cobia to X Layer's every-asset endgame without implying unfinished deployment", () => {
@@ -79,6 +100,7 @@ describe("Build X project page", () => {
     expect(html).not.toContain(">Why Cobia<");
     expect(html).not.toContain(">Product surface<");
     expect(html).toContain('aria-label="Aave V3"');
+    expect(html).toContain('aria-label="OKX DEX"');
     expect(html).toContain('aria-label="Curve StableSwap"');
     expect(html).toContain('aria-label="Uniswap V3"');
     expect(html).toContain('aria-label="xStocks"');

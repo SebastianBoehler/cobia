@@ -16,6 +16,8 @@ const MAINNET_DEPLOYMENT_TX = "0x2278a9241529becaf1baac9a3de7777fd5ab6051e0e65b3
 const TESTNET_DEPLOYMENT_TX = "0x68cff1d6bbba6b436d0be39cd91e772a811027519487a7fefe91d5bef81521a6";
 const BUILDER_REGISTRATION_TX = "0xf9ee439cbc68a652f92c8d7522d8c76a54e6c3888ffde7468eb7ed32c6318ffa";
 const FIRST_VERIFIED_INTENT_TX = "0x83500273bbdaf6f2ad5e27f3d6807b7555383599ea537eca0206f9c18ab0d210";
+const V4_VERIFIED_INTENT_TX = "0x573cf9e9e0c21e4cf1585cc4a4ec36a56d4063c779bb3de4e8bf514c56e2543f";
+const V4_PROGRAM_ID = "4d1ccd00-1b2d-485a-9f57-6e4416959126";
 const XLAYER_ENDGAME_POST = "https://x.com/XLayerOfficial/status/2091166000142012900";
 
 const boundary = [
@@ -30,6 +32,12 @@ const evidence = [
     title: "Try Cobia on X Layer", status: "Live product",
     detail: "Create an intent, compare solver proposals, and review a verified plan before your wallet approves it.",
     href: "https://getcobia.com", link: "Try Cobia",
+  },
+  {
+    title: "Verified V4 standard-token result", status: "V4 · Mainnet proof",
+    detail: "A second wallet used Cobia V4 to turn 0.01 OKB into 1.169308 USDG. The public program includes the exact verified route, receipt, and X Layer transaction.",
+    href: `https://web3.okx.com/explorer/x-layer/evm/tx/${V4_VERIFIED_INTENT_TX}`,
+    link: "Verify V4 transaction",
   },
   {
     title: "First verified mainnet result", status: "Proven on mainnet",
@@ -64,6 +72,7 @@ const evidence = [
 ] as const;
 
 const supportedIntegrations = [
+  { label: "OKX DEX", detail: "V4 exchange · Live", kind: "protocol" },
   { label: "Aave V3", detail: "Lending", kind: "protocol" },
   { label: "Curve StableSwap", detail: "Exchange", kind: "protocol" },
   { label: "Uniswap V3", detail: "Exchange", kind: "protocol" },
@@ -73,10 +82,18 @@ const supportedIntegrations = [
 const foundations = [
   ["Useful AI, bounded risk", "Solvers can research and test many routes, but they cannot bypass your limits or approve a transaction."],
   ["A better trust model", "Cobia separates creative planning from permission to execute, so more capable AI does not require weaker wallet safety."],
-  ["Working today", "Create an intent on the live product and inspect 25+ confirmed outcomes, solver histories, receipts, and mainnet transactions."],
+  ["Working today", "Create an intent on the live product and inspect 30 confirmed outcomes from four winning solvers, with public programs, receipts, and mainnet transactions."],
   ["Your keys stay yours", "No solver receives your private key, wallet connection, or a way to send a production transaction."],
   ["Built around X Layer", "Live contracts, protocol integrations, public receipts, and builder attribution make X Layer the product’s execution home."],
   ["More choice without blind trust", "New solvers, merchants, and protocols can join the same competition and independent verification model."],
+] as const;
+
+const capabilities = [
+  ["Live · V4", "Standard-token exchange", "Route verified standard ERC-20s on X Layer through bounded OKX DEX calls, pinned by exact chain and contract address."],
+  ["Live", "Lending", "Supply to Aave V3 with a signed spend ceiling, minimum receipt balance, fresh replay, and final wallet approval."],
+  ["Verified path", "Liquidity provision", "Build and replay a one-sided, full-range Uniswap V3 LP entry before stepwise wallet execution."],
+  ["Live · Bounded", "x402 payments", "Purchase an exactly pinned merchant resource on its declared payment network, with product, price, payee, payer, and deadline bound."],
+  ["Implemented", "Multi-step portfolio goals", "Compose registered swap → supply actions and rank proposals by expected terminal portfolio value after forecast yield, gas, and solver fees."],
 ] as const;
 
 function EvidenceLink({ item }: { item: typeof evidence[number] }) {
@@ -92,8 +109,8 @@ export function JudgeEvidence() {
       <div className={styles.heroInner}>
         <div className={styles.heroCopy}>
           <p className={styles.eyebrow}>Build X · General Hackathon</p>
-          <h1>AI finds the route. <span>Cobia proves it stays within your limits.</span></h1>
-          <p className={styles.lede}>Use AI for onchain transactions without handing it control of your wallet. Competing solvers search for a plan, Cobia independently tests every call, and you decide whether the verified result is worth approving.</p>
+          <h1>AI finds the route. <span>Cobia proves every step stays within your limits.</span></h1>
+          <p className={styles.lede}>Use AI for onchain transactions without handing it control of your wallet. Solvers can search across swaps, lending, liquidity, and payments; Cobia independently tests every supported call before you decide whether to approve it.</p>
           <div className={styles.actions}>
             <Link className="button button--primary" href="/intents/new">
               Describe an outcome <ArrowUpRight aria-hidden="true" size={16} />
@@ -121,22 +138,25 @@ export function JudgeEvidence() {
       </div>
       <ul className={styles.proofStrip} aria-label="Cobia live proof summary">
         <li>Live on chain 196</li>
-        <li>25+ confirmed outcomes</li>
-        <li>3 signed solver profiles</li>
-        <li>Public programs, receipts, and source</li>
+        <li>30 confirmed outcomes</li>
+        <li>4 winning solvers</li>
+        <li>Multiple owner wallets</li>
       </ul>
       <a className={styles.scrollCue} href="#product-proof">Watch the product proof <ArrowDown aria-hidden="true" size={15} /></a>
     </section>
 
     <section className={styles.productProof} id="product-proof" aria-labelledby="product-proof-title">
       <div>
-        <h2 id="product-proof-title">From one sentence to a verified result.</h2>
-        <p>Watch Cobia turn a goal into clear limits, compare solver proposals, test the winning plan, and hand the final decision back to the wallet.</p>
-        <a className="text-link" href="#evidence">Verify the mainnet result</a>
+        <h2 id="product-proof-title">V4 is open on X Layer mainnet.</h2>
+        <p>The linked public V4 program proves 0.01 OKB became 1.169308 USDG. The recording shows the complete intent flow; inspect the program and its confirmed transaction yourself.</p>
+        <Link className="text-link" href={`/programs/${V4_PROGRAM_ID}`}>Inspect the V4 result</Link>
       </div>
-      <video controls playsInline poster="/media/cobia-intent-proof-poster.jpg" preload="metadata">
-        <source src="/media/cobia-live-intent-flow-x-layer.mp4" type="video/mp4" />
-      </video>
+      <figure>
+        <video controls playsInline poster="/media/cobia-intent-proof-poster.jpg" preload="metadata">
+          <source src="/media/cobia-live-intent-flow-x-layer.mp4" type="video/mp4" />
+        </video>
+        <figcaption>Existing product-flow demo · Recorded before V4 opened. The linked public program and transaction are the V4 proof.</figcaption>
+      </figure>
     </section>
 
     <section className={styles.evidence} id="evidence">
@@ -163,7 +183,7 @@ export function JudgeEvidence() {
     <section className={styles.protocols} aria-labelledby="protocols-title">
       <div>
         <h2 id="protocols-title">Move, earn, and diversify through plans Cobia can verify.</h2>
-        <p>Aave supply and Curve and Uniswap swaps are live on X Layer. xStocks support is staged and will use the same identity checks and wallet-controlled approval.</p>
+        <p>V4 standard-token exchange, Aave supply, and Curve and Uniswap swaps are live on X Layer. xStocks remains staged and will use the same identity checks and wallet-controlled approval.</p>
       </div>
       <ul>{supportedIntegrations.map((integration) => <li key={integration.label}>
         {integration.kind === "protocol"
@@ -171,6 +191,18 @@ export function JudgeEvidence() {
           : <XStocksMark size={58} />}
         <div><strong>{integration.label}</strong><small>{integration.detail}</small></div>
       </li>)}</ul>
+    </section>
+
+    <section className={styles.capabilities} id="capabilities" aria-labelledby="capabilities-title">
+      <header>
+        <h2 id="capabilities-title">Build multi-step outcomes from registered onchain actions.</h2>
+        <p>Cobia supports several execution lanes. Where a lane permits composition, solvers can combine typed actions across wallet stages; unknown assets, calls, and unsupported combinations fail closed.</p>
+      </header>
+      <dl>{capabilities.map(([status, title, detail]) => <div key={title}>
+        <dt><span>{status}</span><strong>{title}</strong></dt>
+        <dd>{detail}</dd>
+      </div>)}</dl>
+      <p className={styles.forecastNote}>Portfolio objectives use forecasts, not guaranteed PnL. Every executable plan remains bounded by fresh evidence and owner approval.</p>
     </section>
 
     <section className={styles.foundations} aria-labelledby="foundations-title">
