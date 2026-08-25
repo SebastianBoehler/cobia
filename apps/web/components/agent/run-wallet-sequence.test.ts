@@ -13,7 +13,7 @@ describe("wallet call sequence", () => {
     const send = vi.fn().mockResolvedValueOnce(approvalHash);
     await expect(runWalletSequence({
       initial: { chainId: 196, approvals: [approval], transactions: [execution] },
-      refresh: vi.fn(async () => ({ chainId: 196, approvals: [approval], transactions: [execution] })),
+      refresh: vi.fn(async () => ({ chainId: 196 as const, approvals: [approval], transactions: [execution] })),
       switchChain: vi.fn(), send, onApproval: vi.fn(), onTransaction: vi.fn(),
     })).rejects.toThrow(/exact verified amount/i);
     expect(send).toHaveBeenCalledTimes(1);
@@ -23,7 +23,7 @@ describe("wallet call sequence", () => {
     const send = vi.fn().mockResolvedValueOnce(approvalHash).mockResolvedValueOnce(executionHash);
     await expect(runWalletSequence({
       initial: { chainId: 196, approvals: [approval], transactions: [execution] },
-      refresh: vi.fn(async () => ({ chainId: 196, approvals: [], transactions: [execution] })),
+      refresh: vi.fn(async () => ({ chainId: 196 as const, approvals: [], transactions: [execution] })),
       switchChain: vi.fn(), send, onApproval: vi.fn(), onTransaction: vi.fn(),
     })).resolves.toMatchObject({ hashes: [approvalHash, executionHash], transactionHash: executionHash });
   });
