@@ -346,6 +346,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
       that covers this transaction; unused allowance remains active until used or revoked.
     </p> : null}
   </>;
-  return <AgentProgramSummary program={program} action={submission.executable || recoveryHashes.length > 0 ? action : undefined}
-    notice={errorNotice} />;
+  const showAction = submission.executable || recoveryHashes.length > 0;
+  return <AgentProgramSummary program={program} action={showAction ? action : undefined}
+    notice={showAction ? undefined : errorNotice} />;
 }

@@ -12,6 +12,7 @@ const BalanceEvidenceSchema = z.object({
   balanceDeltas: z.array(DeltaSchema).max(32),
 }).passthrough();
 const SimulationEvidenceSchema = z.object({ simulations: z.array(z.object({
+  blockNumber: z.string().regex(/^(0|[1-9][0-9]*)$/).optional(),
   assetDeltas: z.array(DeltaSchema).max(32),
 }).passthrough()).max(32) }).passthrough();
 
@@ -24,9 +25,12 @@ export async function readConfirmedBalanceChanges(input: {
 }) {
   const balances = BalanceEvidenceSchema.safeParse(input.evidence);
   const simulations = SimulationEvidenceSchema.safeParse(input.evidence);
-  const deltas = balances.success ? balances.data.balanceDeltas
+  const deltas = balances.success ? balances.data.balanceDeltas.map((delta) => ({ ...delta,
+    baselineBlockNumber: undefined as string | undefined }))
     : simulations.success
-      ? simulations.data.simulations.flatMap(({ assetDeltas }) => assetDeltas)
+      ? simulations.data.simulations.flatMap(({ assetDeltas, blockNumber }) => assetDeltas.map((delta) => ({
+        ...delta, baselineBlockNumber: blockNumber,
+      })))
       : [];
   if (deltas.length === 0) return [];
   const ownerDeltas = new Map<Address, (typeof deltas)[number]>();
@@ -35,15 +39,16 @@ export async function readConfirmedBalanceChanges(input: {
     const token = getAddress(delta.token);
     if (!ownerDeltas.has(token)) ownerDeltas.set(token, delta);
   }
-  const changes = await Promise.all([...ownerDeltas.entries()].map(async ([token, { beforeAtomic }]) => ({
-    token,
-    beforeAtomic,
-    afterAtomic: (await (isNativeAssetAddress(token)
-      ? (() => {
-        if (!input.readNativeBalance) throw new Error("Native balance reader is unavailable");
-        return input.readNativeBalance(input.owner, input.blockNumber);
-      })()
-      : input.readBalance(token, input.owner, input.blockNumber))).toString(),
-  })));
+  const changes = await Promise.all([...ownerDeltas.entries()].map(async ([token, delta]) => {
+    const native = isNativeAssetAddress(token);
+    if (native && !input.readNativeBalance) throw new Error("Native balance reader is unavailable");
+    const beforeAtomic = native && delta.baselineBlockNumber
+      ? (await input.readNativeBalance!(input.owner, BigInt(delta.baselineBlockNumber))).toString()
+      : delta.beforeAtomic;
+    const afterAtomic = (await (native
+      ? input.readNativeBalance!(input.owner, input.blockNumber)
+      : input.readBalance(token, input.owner, input.blockNumber))).toString();
+    return { token, beforeAtomic, afterAtomic };
+  }));
   return changes.filter(({ beforeAtomic, afterAtomic }) => BigInt(beforeAtomic) !== BigInt(afterAtomic));
 }

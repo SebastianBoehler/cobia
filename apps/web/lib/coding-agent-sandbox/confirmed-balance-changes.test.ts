@@ -82,4 +82,21 @@ describe("confirmed balance changes", () => {
     expect(readBalance).not.toHaveBeenCalled();
     expect(readNativeBalance).toHaveBeenCalledWith(owner, 456n);
   });
+
+  it("replaces a fork-funded native baseline with the pinned onchain balance", async () => {
+    const readNativeBalance = vi.fn(async (_owner: string, blockNumber: bigint) =>
+      blockNumber === 123n ? 11_425_894_199_927_389n : 60_483_415_784_538_725n);
+
+    await expect(readConfirmedBalanceChanges({
+      evidence: { simulations: [{ blockNumber: "123", assetDeltas: [{
+        token: NATIVE_ASSET_ADDRESS, account: owner,
+        beforeAtomic: "100000000000000000000", afterAtomic: "100048604094915184516",
+      }] }] },
+      owner, blockNumber: 456n, readBalance: vi.fn(async () => 0n), readNativeBalance,
+    })).resolves.toEqual([{
+      token: getAddress(NATIVE_ASSET_ADDRESS),
+      beforeAtomic: "11425894199927389",
+      afterAtomic: "60483415784538725",
+    }]);
+  });
 });

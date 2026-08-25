@@ -1,5 +1,5 @@
 import {
-  CapabilityCompositionPolicyV1Schema, commitment, isNativeAssetAddress, OpenIntentPolicyV3Schema,
+  CapabilityCompositionPolicyV1Schema, commitment, OpenIntentPolicyV3Schema,
 } from "@cobia/domain";
 import { CapabilityProgramV2Schema, TransactionProgramEvidenceV1Schema } from "@cobia/solvers";
 import { NextResponse } from "next/server";
@@ -16,6 +16,7 @@ import {
 import { readCodingAgentV3ExecutionConfig } from "../../../../../../lib/env";
 import { deriveCapabilityAuthorityV2 } from "../../../../../../lib/open-exchange/capability-authority";
 import { deriveCompositionAuthorityV1 } from "../../../../../../lib/open-exchange/composition-authority";
+import { assertConfirmedOutcomeBalances } from "../../../../../../lib/open-exchange/confirmed-outcome-balances";
 import { verifyOpenWalletBatchReceiptsV1 } from "../../../../../../lib/open-exchange/wallet-batch-receipt";
 import { finalizeSolverSuccessFee } from "../../../../../../lib/payments/launch-solver-success-fee";
 import {
@@ -99,21 +100,13 @@ export async function POST(
       const policy = OpenIntentPolicyV3Schema.parse(stored.policy);
       const evidenceArtifact = stored.artifacts.find(({ kind }) => kind === "evidence");
       const evidence = TransactionProgramEvidenceV1Schema.parse(evidenceArtifact?.payload);
-      for (const outcome of policy.outcomes) {
-        if (outcome.kind !== "minimum-final" && outcome.kind !== "minimum-increase" &&
-            outcome.kind !== "registered-instrument") continue;
-        const baseline = evidence.simulations.flatMap(({ assetDeltas }) => assetDeltas)
-          .find(({ token, account }) => isAddressEqual(token, outcome.token) && isAddressEqual(account, proof.owner));
-        if (!baseline) throw new Error("Open execution outcome baseline is unavailable");
-        const balance = isNativeAssetAddress(outcome.token)
-          ? await client.getBalance({ address: proof.owner, blockNumber: latestBlock.number })
-          : await client.readContract({ address: outcome.token, abi: erc20Abi,
-            functionName: "balanceOf", args: [proof.owner], blockNumber: latestBlock.number });
-        const required = outcome.kind === "minimum-final" ? BigInt(outcome.atomic)
-          : BigInt(baseline.beforeAtomic) + BigInt(outcome.kind === "registered-instrument"
-            ? outcome.minimumIncreaseAtomic : outcome.atomic);
-        if (balance < required) throw new Error("Confirmed execution did not satisfy the signed outcome");
-      }
+      await assertConfirmedOutcomeBalances({
+        outcomes: policy.outcomes,
+        evidence, owner: proof.owner, finalBlockNumber: attributedBlockNumber,
+        readBalance: (token, owner, blockNumber) => client.readContract({ address: token,
+          abi: erc20Abi, functionName: "balanceOf", args: [owner], blockNumber }),
+        readNativeBalance: (owner, blockNumber) => client.getBalance({ address: owner, blockNumber }),
+      });
     } else {
       const transactionHash = body.transactionHash as Hash;
       const [transaction, receipt] = await Promise.all([
