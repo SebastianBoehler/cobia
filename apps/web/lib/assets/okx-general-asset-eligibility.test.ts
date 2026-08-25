@@ -59,6 +59,36 @@ describe("OKX general asset eligibility", () => {
       blockNumber: "1000", probeAtomic: "1" });
   });
 
+  it("values the trusted X Layer reference token without requesting a self-swap", async () => {
+    const deps = dependencies();
+    const reference = "0x779ded0c9e1022225f8e0630b35a9b54be713736" as const;
+    const nowSec = deps.nowSec();
+    const reader: VerifyAssetEvidenceInput["reader"] = {
+      latestBlockNumber: async () => 1_000n,
+      blockHash: async () => hash("2"),
+      runtimeCodeHash: async () => hash("1"),
+      proxy: async () => ({ kind: "none" }),
+      decimals: async () => 6,
+    };
+    deps.market.getTokenEvidence.mockResolvedValue({
+      chainId: 196, token: reference, decimals: 6, priceUsd: "1", liquidityUsd: "1000000",
+      marketDataAt: new Date(nowSec * 1_000).toISOString(), topHolderAddresses: [holder],
+    } as never);
+    deps.captureIdentity.mockResolvedValue({
+      anchor: { blockNumber: "1000", blockHash: hash("2"), capturedAtSec: nowSec,
+        expiresAtSec: nowSec + 60, maximumBlockAge: 8 },
+      claimedIdentity: { runtimeCodeHash: hash("1"), proxy: { kind: "none" }, decimals: 6 }, reader,
+    });
+
+    const result = await createOkxGeneralAssetEligibilityV2(deps).eligibility({
+      chainId: 196, token: reference, inputAtomic: "2000000",
+    });
+
+    expect(result).toMatchObject({ status: "eligible",
+      valuationEvidence: { conservativeValueUsdE8: "200000000" } });
+    expect(deps.market.getExecutableQuote).not.toHaveBeenCalled();
+  });
+
   it("returns identity-only evidence for an output token", async () => {
     const deps = dependencies();
     deps.market.getTokenEvidence.mockResolvedValue({

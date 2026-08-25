@@ -222,6 +222,35 @@ describe("authenticated intent compiler API", () => {
     }));
   });
 
+  it.each(["admission", "verification", "persistence"] as const)(
+    "fails stalled exact-asset %s before the serverless runtime timeout",
+    async (stage) => {
+      vi.useFakeTimers();
+      if (stage === "admission") {
+        mocks.beginCompilation.mockImplementationOnce(() => new Promise(() => undefined));
+      } else if (stage === "verification") {
+        mocks.compileGeneralAsset.mockImplementationOnce(() => new Promise(() => undefined));
+      } else {
+        mocks.completeCompilation.mockImplementationOnce(() => new Promise(() => undefined));
+      }
+
+      const completion = POST(generalAssetRequest()).then(async (response) => ({
+        status: response.status,
+        body: await response.json() as { code?: string; message?: string },
+      }));
+      await vi.advanceTimersByTimeAsync(12_001);
+
+      await expect(Promise.race([completion, Promise.resolve("still-pending")])).resolves.toEqual({
+        status: 503,
+        body: {
+          code: "GENERAL_ASSET_COMPILATION_TIMEOUT",
+          message: "Token verification did not finish within 12 seconds. Try again.",
+        },
+      });
+      vi.useRealTimers();
+    },
+  );
+
   it("compiles a registered xStock through the standard solver intent path", async () => {
     const compiled = { status: "review" as const, values: {
       templateId: "rwa-acquisition" as const,

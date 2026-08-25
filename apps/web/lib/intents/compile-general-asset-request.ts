@@ -27,26 +27,31 @@ export async function compileGeneralAssetRequestV1(input: Input, dependencies?: 
   const deps = dependencies ?? { lookup: createOkxClient({ credentials: readOkxCredentials() }),
     verifier: createProductionGeneralAssetEligibilityV2(),
     manifest: readGeneralAssetManifest() };
-  const inputToken = await deps.lookup.searchToken(input.input.chainId, input.input.address);
-  const outputToken = await deps.lookup.searchToken(input.output.chainId, input.output.address);
+  const [inputToken, outputToken] = await Promise.all([
+    deps.lookup.searchToken(input.input.chainId, input.input.address),
+    deps.lookup.searchToken(input.output.chainId, input.output.address),
+  ]);
   if (!inputToken || inputToken.token !== input.input.address ||
       !outputToken || outputToken.token !== input.output.address) {
     return { status: "clarification" as const,
       question: "Select exact token contracts that OKX can resolve on each chain." };
   }
-  const inputEvidence = await deps.verifier.eligibility({ chainId: input.input.chainId,
+  const sameAsset = input.input.chainId === input.output.chainId &&
+    input.input.address === input.output.address;
+  const inputEvidencePromise = deps.verifier.eligibility({ chainId: input.input.chainId,
     token: input.input.address, inputAtomic: input.input.maximumAtomic });
+  const outputEvidencePromise = sameAsset ? inputEvidencePromise : deps.verifier.eligibility({
+    chainId: input.output.chainId, token: input.output.address,
+  });
+  const [inputEvidence, outputEvidence] = await Promise.all([
+    inputEvidencePromise, outputEvidencePromise,
+  ]);
   if (inputEvidence.status !== "eligible" || !inputEvidence.valuationHash ||
       !inputEvidence.valuationEvidence) {
     return { status: "clarification" as const,
       question: inputEvidence.status === "eligible"
         ? "Verified input valuation is unavailable." : inputEvidence.reason };
   }
-  const sameAsset = input.input.chainId === input.output.chainId &&
-    input.input.address === input.output.address;
-  const outputEvidence = sameAsset ? inputEvidence : await deps.verifier.eligibility({
-    chainId: input.output.chainId, token: input.output.address,
-  });
   if (outputEvidence.status !== "eligible") {
     return { status: "clarification" as const, question: outputEvidence.reason };
   }

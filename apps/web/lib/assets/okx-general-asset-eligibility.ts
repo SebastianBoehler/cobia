@@ -82,9 +82,11 @@ export function createOkxGeneralAssetEligibilityV2(deps: Dependencies) {
         return { status: "unsupported" as const, reason: "Input amount must be a positive atomic value." };
       }
       const asset = { chainId: input.chainId, token: input.token };
+      const referenceAsset = { chainId: input.chainId, token: OKX_REFERENCE_ASSETS[input.chainId] };
+      const alreadyReferenceDenominated = asset.token === referenceAsset.token;
       const [market, captured, executable] = await Promise.all([
         deps.market.getTokenEvidence(input.chainId, input.token), deps.captureIdentity(asset),
-        input.inputAtomic
+        input.inputAtomic && !alreadyReferenceDenominated
           ? deps.market.getExecutableQuote(input.chainId, input.token, input.inputAtomic)
           : Promise.resolve(undefined),
       ]);
@@ -126,37 +128,40 @@ export function createOkxGeneralAssetEligibilityV2(deps: Dependencies) {
         return { status: "unsupported" as const, reason: unsupportedReason(initialErrors) };
       }
       const identityHash = commitment(identity.evidence) as Hash;
-      if (!input.inputAtomic || !executable) {
+      if (!input.inputAtomic) {
         return { status: "eligible" as const, identityHash, identityEvidence: identity.evidence };
       }
+      const inputAtomic = input.inputAtomic;
       if (!market.priceUsd || !market.liquidityUsd) {
         return { status: "verification_pending" as const,
           reason: "Authenticated OKX valuation metadata is unavailable." };
       }
       const priceUsdE8 = decimalUsdE8(market.priceUsd, true);
       const liquidityUsdE8 = decimalUsdE8(market.liquidityUsd, false);
-      const referenceAsset = { chainId: input.chainId, token: OKX_REFERENCE_ASSETS[input.chainId] };
-      const executableValueUsdE8 = (BigInt(executable.outputAtomic) * 100_000_000n +
-        10n ** BigInt(executable.outputDecimals) - 1n) / 10n ** BigInt(executable.outputDecimals);
-      const executableUnitPriceUsdE8 = (executableValueUsdE8 *
-        10n ** BigInt(market.decimals) + BigInt(input.inputAtomic) - 1n) / BigInt(input.inputAtomic);
+      const executableQuote = executable ? (() => {
+        const executableValueUsdE8 = (BigInt(executable.outputAtomic) * 100_000_000n +
+          10n ** BigInt(executable.outputDecimals) - 1n) / 10n ** BigInt(executable.outputDecimals);
+        const executableUnitPriceUsdE8 = (executableValueUsdE8 *
+          10n ** BigInt(market.decimals) + BigInt(inputAtomic) - 1n) / BigInt(inputAtomic);
+        return { adapter: { id: "okx.swap", version: 1 }, outputAtomic: executable.outputAtomic,
+          assetDecimals: market.decimals, unitPriceUsdE8: executableUnitPriceUsdE8.toString(),
+          liquidityUsdE8: liquidityUsdE8.toString(),
+          priceImpactBps: executable.priceImpactBps, fetchedAtSec: executableSec, expiresAtSec,
+          quoteHash: commitment({ provider: "okx.swap@1", executable }) as Hash };
+      })() : undefined;
       const valuation = verifyExecutableValuationV1(asset, {
-        asset, assetIdentityHash: identityHash, inputAtomic: input.inputAtomic,
+        asset, assetIdentityHash: identityHash, inputAtomic,
         referenceAsset, trustedReferenceAssets: [referenceAsset],
         minimumLiquidityUsdE8: deps.minimumLiquidityUsdE8 ?? DEFAULT_MINIMUM_LIQUIDITY_USD_E8,
         maximumDisagreementBps: 500,
         quotes: [{ adapter: { id: "okx.market", version: 1 },
-          outputAtomic: ((BigInt(input.inputAtomic) * priceUsdE8 +
+          outputAtomic: ((BigInt(inputAtomic) * priceUsdE8 +
             10n ** BigInt(market.decimals) - 1n) / 10n ** BigInt(market.decimals)).toString(),
           assetDecimals: market.decimals, unitPriceUsdE8: priceUsdE8.toString(),
           liquidityUsdE8: liquidityUsdE8.toString(), priceImpactBps: 0,
           fetchedAtSec: marketSec, expiresAtSec,
-          quoteHash: commitment({ provider: "okx.market@1", market, inputAtomic: input.inputAtomic }) as Hash },
-        { adapter: { id: "okx.swap", version: 1 }, outputAtomic: executable.outputAtomic,
-          assetDecimals: market.decimals, unitPriceUsdE8: executableUnitPriceUsdE8.toString(),
-          liquidityUsdE8: liquidityUsdE8.toString(), priceImpactBps: executable.priceImpactBps,
-          fetchedAtSec: executableSec, expiresAtSec,
-          quoteHash: commitment({ provider: "okx.swap@1", executable }) as Hash }],
+          quoteHash: commitment({ provider: "okx.market@1", market, inputAtomic }) as Hash },
+        ...(executableQuote ? [executableQuote] : [])],
       }, captured.anchor.capturedAtSec, expiresAtSec, nowSec);
       if (valuation.errorCodes.length || !valuation.evidence) {
         return { status: "unsupported" as const, reason: unsupportedReason(valuation.errorCodes) };

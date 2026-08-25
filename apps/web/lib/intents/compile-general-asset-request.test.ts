@@ -64,6 +64,40 @@ describe("general asset compile request", () => {
     expect(dependencies.lookup.searchToken).toHaveBeenNthCalledWith(2, 196, outputToken);
   });
 
+  it("starts independent token lookups and evidence checks in parallel", async () => {
+    const dependencies = deps();
+    const eligibility = (dependencies as unknown as {
+      verifier: { eligibility: ReturnType<typeof vi.fn> };
+    }).verifier.eligibility;
+    const originalSearch = dependencies.lookup.searchToken.getMockImplementation()!;
+    const originalEligibility = eligibility.getMockImplementation() as
+      (request: { inputAtomic?: string }) => Promise<unknown>;
+    let releaseInputSearch: () => void = () => undefined;
+    let releaseInputEvidence: () => void = () => undefined;
+    const inputSearchGate = new Promise<void>((resolve) => { releaseInputSearch = resolve; });
+    const inputEvidenceGate = new Promise<void>((resolve) => { releaseInputEvidence = resolve; });
+    dependencies.lookup.searchToken.mockImplementation(async (chainId, search) => {
+      if (search === inputToken) await inputSearchGate;
+      return originalSearch(chainId, search);
+    });
+    eligibility.mockImplementation(async (request: { inputAtomic?: string }) => {
+      if (request.inputAtomic) await inputEvidenceGate;
+      return originalEligibility(request);
+    });
+
+    const compilation = compileGeneralAssetRequestV1(input, dependencies);
+    try {
+      await vi.waitFor(() => expect(dependencies.lookup.searchToken).toHaveBeenCalledTimes(2));
+      releaseInputSearch();
+      await vi.waitFor(() => expect(eligibility).toHaveBeenCalledTimes(2));
+      releaseInputEvidence();
+      await expect(compilation).resolves.toMatchObject({ status: "review" });
+    } finally {
+      releaseInputSearch();
+      releaseInputEvidence();
+    }
+  });
+
   it("returns the explicit verifier reason for an unsupported input", async () => {
     await expect(compileGeneralAssetRequestV1(input, deps("unsupported"))).resolves.toEqual({
       status: "clarification", question: "Token behavior is unsupported.",
