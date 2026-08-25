@@ -67,7 +67,7 @@ export default function MediaKitPage() {
         <header className={styles.sectionHeader}>
           <div><Film aria-hidden="true" size={20} /><span>Motion</span></div>
           <h2 id="product-proof">Product proof</h2>
-          <p>One intent, competing solvers, exact verification, wallet-authorized execution, and a public X Layer receipt.</p>
+          <p>Intent flow, wallet-authorized execution, public X Layer receipts, and indexed xStocks portfolio activity.</p>
         </header>
         <div className={styles.proofGallery}>
           <article className={styles.proofFeature}>
@@ -91,6 +91,16 @@ export default function MediaKitPage() {
               <a className="button button--quiet" download href="/media/cobia-mainnet-outcome.jpg"><Download aria-hidden="true" size={17} />Download outcome image</a>
             </article>
           </div>
+          <article className={styles.proofFeature}>
+            <div className={styles.proofLabel}><span>04</span><h3>xStocks portfolio activity</h3></div>
+            <Image
+              alt="Cobia portfolio showing indexed TSLAx buy and sell activity"
+              height={993}
+              src="/media/cobia-xstocks-portfolio-activity-2026-08-25.png"
+              width={1920}
+            />
+            <a className="button button--quiet" download href="/media/cobia-xstocks-portfolio-activity-2026-08-25.png"><Download aria-hidden="true" size={17} />Download portfolio image</a>
+          </article>
         </div>
       </section>
 
