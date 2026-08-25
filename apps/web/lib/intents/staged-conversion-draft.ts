@@ -5,7 +5,10 @@ import {
   stablecoinDefaultMinimum, type IntentReceiptValues,
 } from "./capability-templates";
 import type { WalletBalances } from "./wallet-balance-request";
-import { deriveMarketMinimum, formatAtomicAmount } from "./market-minimum";
+import { requestedInputAmount } from "./deterministic-intent-draft";
+import {
+  deriveMarketInputForMinimum, deriveMarketMinimum, formatAtomicAmount,
+} from "./market-minimum";
 
 export interface StagedConversionInputDraft {
   kind: "native" | "erc20";
@@ -74,6 +77,45 @@ function canonicalBalance(symbol: string, balances: WalletBalances): string | un
 
 function walletAsset(symbol: string, assets: readonly WalletIntentAsset[]): WalletIntentAsset | undefined {
   return assets.find((item) => item.symbol.toLowerCase() === symbol.toLowerCase());
+}
+
+function explicitGoalAmount(goal: string, symbol: string, decimals: number): string | undefined {
+  const escaped = symbol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const amount = goal.match(new RegExp(
+    `(\\d+(?:\\.\\d+)?)\\s*@?${escaped}(?=$|[^A-Za-z0-9])`, "i",
+  ))?.[1];
+  return amount && decimalToAtomic(amount, decimals) ? amount : undefined;
+}
+
+export function bindOutputTargetInput(
+  goal: string,
+  draft: ConversionModelDraft,
+  prices: Readonly<Record<string, string>> = {},
+  balances: WalletBalances = {},
+  walletAssets: readonly WalletIntentAsset[] = INTENT_ASSETS,
+): ConversionModelDraft | { question: string } {
+  if (draft.inputs.length !== 1 || !draft.minimumOutput) return draft;
+  const output = CONVERSION_INTENT_ASSETS.find(({ symbol }) =>
+    symbol.toLowerCase() === draft.outputSymbol.toLowerCase());
+  const requestedOutput = output && explicitGoalAmount(goal, output.symbol, output.decimals);
+  if (!output || !requestedOutput ||
+      decimalToAtomic(requestedOutput, output.decimals) !==
+      decimalToAtomic(draft.minimumOutput, output.decimals)) return draft;
+  const requested = draft.inputs[0]!;
+  const input = requested.symbol.toLowerCase() === NATIVE_INTENT_ASSET.symbol.toLowerCase()
+    ? NATIVE_INTENT_ASSET : walletAsset(requested.symbol, walletAssets);
+  if (!input || requestedInputAmount({ goal, symbol: input.symbol,
+    decimals: input.decimals, balances })) return draft;
+  const amount = deriveMarketInputForMinimum({ minimumOutput: requestedOutput,
+    inputDecimals: input.decimals, inputPriceUsd: prices[input.symbol] ?? "",
+    outputDecimals: output.decimals, outputPriceUsd: prices[output.symbol] ?? "" });
+  if (!amount) return { question: "A fresh price is unavailable for the requested output target." };
+  const available = canonicalBalance(input.symbol, balances);
+  if (available && BigInt(decimalToAtomic(amount, input.decimals)!) >
+      BigInt(decimalToAtomic(available, input.decimals) ?? "0")) return {
+    question: `Your ${input.symbol} wallet balance cannot cover the requested ${requestedOutput} ${output.symbol}.`,
+  };
+  return { ...draft, inputs: [{ symbol: requested.symbol, amount, walletShareBps: null }] };
 }
 
 function resolveAmount(

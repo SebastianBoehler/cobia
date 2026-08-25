@@ -133,13 +133,14 @@ describe("intent compiler", () => {
     });
   });
 
-  it("caps an enough-input conversion by the wallet balance and preserves the requested output", async () => {
+  it("derives enough input for a requested output without spending the wallet balance", async () => {
     const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(conversion([
       { symbol: "USDt0", amount: "", walletShareBps: 10_000 },
     ], "USDG", "1"))));
     const compiler = createOpenAiIntentCompiler({
       apiKey: "test", model: "test-model", fetcher,
       walletBalances: { USDt0: "1.206141" },
+      assetPricesUsd: { USDt0: "1", USDG: "1" },
     });
 
     await expect(compiler.compile(
@@ -148,7 +149,26 @@ describe("intent compiler", () => {
       status: "review",
       values: {
         templateId: "exact-input-swap",
-        amount: "1.206141",
+        amount: "1.010102",
+        minimum: "1",
+      },
+    });
+  });
+
+  it("derives a tight input cap when the goal specifies only an output amount", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(conversion([
+      { symbol: "OKB", amount: "", walletShareBps: 10_000 },
+    ], "USDG", "1"))));
+    const compiler = createOpenAiIntentCompiler({
+      apiKey: "test", model: "test-model", fetcher,
+      walletBalances: { OKB: "0.060483415784538725" },
+      assetPricesUsd: { OKB: "100", USDG: "1" },
+    });
+
+    await expect(compiler.compile("swap @OKB into 1 @USDG", "any")).resolves.toMatchObject({
+      status: "review",
+      values: {
+        inputs: [{ symbol: "OKB", amount: "0.010101010101010102" }],
         minimum: "1",
       },
     });

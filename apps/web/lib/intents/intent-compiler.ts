@@ -20,7 +20,7 @@ import { preservesRequestedAssetFlow } from "./intent-asset-references";
 import type { WalletBalances } from "./wallet-balance-request";
 import { INTENT_COMPILER_INSTRUCTIONS, INTENT_TEMPLATE_CONTRACTS } from "./intent-compiler-contract";
 import {
-  ConversionModelDraftSchema, resolveConversionDraft, type StagedConversionDraft,
+  bindOutputTargetInput, ConversionModelDraftSchema, resolveConversionDraft, type StagedConversionDraft,
   type WalletIntentAsset,
 } from "./staged-conversion-draft";
 
@@ -294,7 +294,10 @@ export function createOpenAiIntentCompiler(options: Options) {
       }, assetSymbols)) {
         return { status: "clarification", question: ASSET_IDENTITY_MISMATCH };
       }
-      const resolved = resolveConversionDraft({ ...conversion, inputs: exactInputs }, options.assetPricesUsd,
+      const bounded = bindOutputTargetInput(goal, { ...conversion, inputs: exactInputs },
+        options.assetPricesUsd, options.walletBalances, walletAssets);
+      if ("question" in bounded) return { status: "clarification", question: bounded.question };
+      const resolved = resolveConversionDraft(bounded, options.assetPricesUsd,
         options.walletBalances, walletAssets);
       if ("kind" in resolved && resolved.kind === "clarification") {
         return { status: "clarification", question: resolved.question };

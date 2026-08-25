@@ -35,3 +35,22 @@ export function deriveMarketMinimum(input: {
   const minimum = numerator / denominator;
   return minimum > 0n ? formatAtomicAmount(minimum, input.outputDecimals) : undefined;
 }
+
+export function deriveMarketInputForMinimum(input: {
+  minimumOutput: string;
+  inputDecimals: number;
+  inputPriceUsd: string;
+  outputDecimals: number;
+  outputPriceUsd: string;
+}): string | undefined {
+  const minimumOutput = decimalToAtomic(input.minimumOutput, input.outputDecimals);
+  const inputPrice = decimalRatio(input.inputPriceUsd);
+  const outputPrice = decimalRatio(input.outputPriceUsd);
+  if (!minimumOutput || !inputPrice || !outputPrice) return undefined;
+  const numerator = BigInt(minimumOutput) * 10n ** BigInt(input.inputDecimals) *
+    inputPrice.scale * outputPrice.coefficient * 10_000n;
+  const denominator = inputPrice.coefficient * outputPrice.scale *
+    10n ** BigInt(input.outputDecimals) * MARKET_FLOOR_BPS;
+  const maximumInput = (numerator + denominator - 1n) / denominator;
+  return maximumInput > 0n ? formatAtomicAmount(maximumInput, input.inputDecimals) : undefined;
+}
