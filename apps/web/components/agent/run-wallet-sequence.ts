@@ -32,7 +32,7 @@ export async function runWalletSequence(input: {
   }
   let ready = await input.refresh();
   if (ready.approvals.length > 0) {
-    throw new Error("Wallet did not establish the exact verified amount. Cobia stopped before execution.");
+    throw new Error("Wallet allowance does not cover the verified input amount. Cobia stopped before execution.");
   }
   if (ready.chainId) await input.switchChain(ready.chainId);
   let calls = ready.transactions ?? (ready.execution ? [ready.execution] : []);
@@ -45,7 +45,7 @@ export async function runWalletSequence(input: {
     if (index + 1 >= calls.length) continue;
     ready = await input.refresh();
     if (ready.approvals.length > 0) {
-      throw new Error("Wallet approval no longer matches the exact verified amount.");
+      throw new Error("Wallet allowance no longer covers the verified input amount.");
     }
     if (ready.chainId) await input.switchChain(ready.chainId);
     const refreshed = ready.transactions ?? (ready.execution ? [ready.execution] : []);

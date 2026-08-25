@@ -9,13 +9,13 @@ const approvalHash = `0x${"11".repeat(32)}` as const;
 const executionHash = `0x${"22".repeat(32)}` as const;
 
 describe("wallet call sequence", () => {
-  it("stops before execution when exact approval was not established", async () => {
+  it("stops before execution when sufficient approval was not established", async () => {
     const send = vi.fn().mockResolvedValueOnce(approvalHash);
     await expect(runWalletSequence({
       initial: { chainId: 196, approvals: [approval], transactions: [execution] },
       refresh: vi.fn(async () => ({ chainId: 196 as const, approvals: [approval], transactions: [execution] })),
       switchChain: vi.fn(), send, onApproval: vi.fn(), onTransaction: vi.fn(),
-    })).rejects.toThrow(/exact verified amount/i);
+    })).rejects.toThrow(/does not cover the verified input amount/i);
     expect(send).toHaveBeenCalledTimes(1);
   });
 

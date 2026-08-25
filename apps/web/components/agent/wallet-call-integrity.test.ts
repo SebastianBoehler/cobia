@@ -9,9 +9,9 @@ const approval = (amount: bigint) => `0x095ea7b3${spender.padStart(64, "0")}${am
 const exactApproval = approval(1_000_000n);
 
 describe("wallet call integrity", () => {
-  it("accepts a wallet-broadened approval when sufficient approval is allowed", () => {
+  it("accepts a wallet-selected unlimited approval when sufficient approval is allowed", () => {
     expect(() => assertWalletCallIntegrity({ to: token, data: exactApproval, value: "0x0" }, owner, {
-      from: owner, to: token, input: approval(2_000_000n), value: "0x0",
+      from: owner, to: token, input: approval((1n << 256n) - 1n), value: "0x0",
     }, { allowSufficientApproval: true })).not.toThrow();
   });
 

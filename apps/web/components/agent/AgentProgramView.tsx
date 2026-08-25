@@ -16,7 +16,7 @@ import { GeneralAssetExecutionView } from "../intents/GeneralAssetExecutionView"
 import { AgentProgramSummary } from "./AgentProgramSummary";
 import type { ProgramView } from "./agent-program-types";
 import { assertWalletCallIntegrity } from "./wallet-call-integrity";
-import { exactApprovalLabel } from "./wallet-call-label";
+import { approvalCallLabel } from "./wallet-call-label";
 import { runWalletSequence } from "./run-wallet-sequence";
 import styles from "./AgentProgramView.module.css";
 
@@ -48,8 +48,10 @@ function approvalLabel(program: ProgramView, index: number, count: number) {
 function executionLabel(program: ProgramView, prepared: Prepared, transactionIndex: number) {
   if (prepared.transactions) {
     const call = prepared.transactions[transactionIndex];
-    const approval = call && exactApprovalLabel(call,
-      program.artifacts.snapshot?.payload?.tokenEvidence ?? []);
+    const approval = call && approvalCallLabel(call,
+      program.artifacts.snapshot?.payload?.tokenEvidence ?? [], {
+        allowSufficientApproval: prepared.approvalPolicy === "at-least-required",
+      });
     return approval?.label ?? `Submit verified call ${transactionIndex + 1}/${prepared.transactions.length}`;
   }
   const action = program.artifacts.program?.payload?.actions?.[0];
@@ -300,8 +302,9 @@ export function AgentProgramView({ programId }: { programId: string }) {
   }
   const { submission } = program;
   const approvalsDone = approvalIndex >= (prepared?.approvals.length ?? 0);
-  const directApproval = prepared?.transactions?.[transactionIndex] && exactApprovalLabel(
+  const directApproval = prepared?.transactions?.[transactionIndex] && approvalCallLabel(
     prepared.transactions[transactionIndex]!, program.artifacts.snapshot?.payload?.tokenEvidence ?? [],
+    { allowSufficientApproval: prepared.approvalPolicy === "at-least-required" },
   );
   const action = <>
     {error ? <p role="alert" className="form-alert">{error}</p> : null}
@@ -319,7 +322,8 @@ export function AgentProgramView({ programId }: { programId: string }) {
         : executionLabel(program, prepared, transactionIndex)}
     </button> : null}
     {directApproval ? <p>
-      Cobia requests the required amount. You may approve more, but any unused allowance remains active until used or revoked.
+      Choose Max or Unlimited in your wallet instead of typing the exact amount. Cobia accepts any allowance
+      that covers this transaction; unused allowance remains active until used or revoked.
     </p> : null}
   </>;
   return <AgentProgramSummary program={program} action={submission.executable || error ? action : undefined} />;
