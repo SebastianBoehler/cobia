@@ -86,9 +86,9 @@ function capabilityPrincipal(payload: unknown) {
     atomic: parsed.data.input.atomic,
     intentClass: hasSwap && hasSupply ? "yield-composition"
       : hasSwap ? "stablecoin-swap" : hasSupply ? "protocol-supply" : "onchain-outcome",
-    resultLabel: hasSwap && hasSupply ? "Verified swap and supply"
-      : hasSwap ? "Verified token swap" : hasSupply ? "Verified protocol supply"
-        : "Verified X Layer outcome",
+    resultLabel: hasSwap && hasSupply ? "Swap and supply"
+      : hasSwap ? "Token swap" : hasSupply ? "Protocol supply"
+        : "X Layer outcome",
     route: {
       protocols: protocols(ids),
       minimumOutputs: parsed.data.balanceConstraints.map(({ token, atomic }) => routeOutput(token, atomic)),
@@ -108,7 +108,7 @@ function transactionPrincipal(payload: unknown) {
     token: stage.input.token,
     atomic: stage.input.atomic,
     intentClass: "wallet-transaction",
-    resultLabel: "Verified wallet transaction",
+    resultLabel: "Transaction",
     route: {
       protocols: protocols(stage.tools),
       minimumOutputs: [routeOutput(stage.output.token, stage.output.minimumAtomic)],
@@ -119,7 +119,7 @@ function transactionPrincipal(payload: unknown) {
     token: stage.input.token,
     atomic: stage.input.atomic,
     intentClass: "cobia-v3",
-    resultLabel: "Verified atomic outcome",
+    resultLabel: "Atomic outcome",
     route: { protocols: [], minimumOutputs: stage.minimumOutcomes.map(({ token, minimumAtomic }) =>
       routeOutput(token, minimumAtomic)), },
   };
@@ -128,7 +128,7 @@ function transactionPrincipal(payload: unknown) {
     token: stage.asset,
     atomic: stage.exactAtomic,
     intentClass: "x402-payment",
-    resultLabel: "Verified x402 settlement",
+    resultLabel: "x402 settlement",
     route: { protocols: [], minimumOutputs: [] },
   };
   return null;

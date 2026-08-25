@@ -33,7 +33,7 @@ const report: NetworkOverviewReport = {
         symbol: "USDG", atomic: "999000", decimals: 6 }],
     },
     volumeUsdE8: "99912234",
-    resultLabel: "Verified token swap",
+    resultLabel: "Token swap",
   }],
   nextCursor: null,
   exclusions: {},
@@ -70,7 +70,7 @@ describe("NetworkOverview", () => {
     expect(html).toContain('href="/programs/22222222-2222-4222-8222-222222222222"');
     expect(html).toContain('href="/solvers/alpha-solver"');
     expect(html).toContain(`href="https://web3.okx.com/explorer/x-layer/evm/tx/${transactionHash}"`);
-    expect(html).toContain("Transaction for Verified token swap (opens in new tab)");
+    expect(html).toContain("Transaction for Token swap (opens in new tab)");
     expect(html).toContain("Tx hash");
     expect(html).not.toContain("stablecoin swap");
     expect(html).not.toContain("$0.99912234 principal");
