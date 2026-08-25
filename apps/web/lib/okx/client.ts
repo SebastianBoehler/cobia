@@ -12,7 +12,7 @@ const TOKEN_HOLDER_PATH = "/api/v6/dex/market/token/holder";
 const TOKEN_SEARCH_PATH = "/api/v6/dex/market/token/search";
 const TOKEN_BALANCES_PATH = "/api/v6/dex/balance/all-token-balances-by-address";
 const DEX_QUOTE_PATH = "/api/v6/dex/aggregator/quote";
-export const OKX_REFERENCE_ASSETS = {
+export const OKX_USD_VALUATION_ASSETS = {
   1: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
   196: "0x779ded0c9e1022225f8e0630b35a9b54be713736",
 } as const satisfies Record<1 | 196, Address>;
@@ -283,7 +283,7 @@ export function createOkxClient(options: OkxClientOptions) {
       if (!/^[1-9][0-9]*$/.test(inputAtomic)) {
         throw new OkxApiError("QUOTE_AMOUNT_INVALID", "OKX quote amount is invalid");
       }
-      const toToken = OKX_REFERENCE_ASSETS[chainId];
+      const toToken = OKX_USD_VALUATION_ASSETS[chainId];
       const query = new URLSearchParams({ amount: inputAtomic, chainIndex: String(chainId),
         fromTokenAddress: fromToken, toTokenAddress: toToken, swapMode: "exactIn",
         priceImpactProtectionPercent: "5" });

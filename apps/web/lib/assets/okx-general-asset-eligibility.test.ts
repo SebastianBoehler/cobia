@@ -59,7 +59,20 @@ describe("OKX general asset eligibility", () => {
       blockNumber: "1000", probeAtomic: "1" });
   });
 
-  it("values the trusted X Layer reference token without requesting a self-swap", async () => {
+  it("defers behavior replay while compiling a reviewable policy draft", async () => {
+    const deps = dependencies();
+    deps.replayProbe.mockRejectedValue(new Error("replay service is intentionally unavailable"));
+
+    const result = await createOkxGeneralAssetEligibilityV2(deps, {
+      behaviorVerification: "deferred",
+    }).eligibility({ chainId: 1, token, inputAtomic: "1000000000000000000" });
+
+    expect(result).toMatchObject({ status: "eligible",
+      valuationEvidence: { conservativeValueUsdE8: "250000000" } });
+    expect(deps.replayProbe).not.toHaveBeenCalled();
+  });
+
+  it("values the X Layer USD unit without requesting a self-swap", async () => {
     const deps = dependencies();
     const reference = "0x779ded0c9e1022225f8e0630b35a9b54be713736" as const;
     const nowSec = deps.nowSec();
@@ -99,6 +112,22 @@ describe("OKX general asset eligibility", () => {
 
     expect(result).toMatchObject({ status: "eligible" });
     expect("valuationHash" in result).toBe(false);
+  });
+
+  it("does not require market freshness or a holder for deferred output identity", async () => {
+    const deps = dependencies();
+    deps.market.getTokenEvidence.mockResolvedValue({
+      ...(await deps.market.getTokenEvidence()),
+      marketDataAt: new Date((deps.nowSec() - 121) * 1_000).toISOString(),
+      topHolderAddresses: [],
+    });
+
+    const result = await createOkxGeneralAssetEligibilityV2(deps, {
+      behaviorVerification: "deferred",
+    }).eligibility({ chainId: 1, token });
+
+    expect(result).toMatchObject({ status: "eligible" });
+    expect(deps.replayProbe).not.toHaveBeenCalled();
   });
 
   it("requires valuation metadata only when the token is spent", async () => {

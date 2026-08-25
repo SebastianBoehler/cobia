@@ -9,7 +9,7 @@ import {
   type PlainErc20ProbeV1,
 } from "@cobia/solvers";
 import type { Address, Hash } from "viem";
-import { OKX_REFERENCE_ASSETS } from "../okx/client";
+import { OKX_USD_VALUATION_ASSETS } from "../okx/client";
 
 type ChainId = 1 | 196;
 interface MarketEvidence {
@@ -39,6 +39,10 @@ interface Dependencies {
   replayProbe(input: { chainId: ChainId; token: Address; source: Address;
     blockNumber: string; probeAtomic: string }): Promise<PlainErc20ProbeV1>;
   minimumLiquidityUsdE8?: string;
+}
+
+export interface OkxGeneralAssetEligibilityOptions {
+  behaviorVerification?: "required" | "deferred";
 }
 
 export type OkxGeneralAssetEligibilityV2 =
@@ -74,19 +78,23 @@ function unsupportedReason(errorCodes: readonly string[]): string {
   return `Token behavior is unsupported (${errorCodes.join(", ")}).`;
 }
 
-export function createOkxGeneralAssetEligibilityV2(deps: Dependencies) {
+export function createOkxGeneralAssetEligibilityV2(deps: Dependencies,
+  options: OkxGeneralAssetEligibilityOptions = {}) {
   return { async eligibility(input: { chainId: ChainId; token: Address; inputAtomic?: string }) {
     try {
       const nowSec = deps.nowSec();
+      const behaviorVerification = options.behaviorVerification ?? "required";
+      const requiresFreshMarket = input.inputAtomic !== undefined || behaviorVerification === "required";
       if (input.inputAtomic !== undefined && !/^[1-9][0-9]*$/.test(input.inputAtomic)) {
         return { status: "unsupported" as const, reason: "Input amount must be a positive atomic value." };
       }
       const asset = { chainId: input.chainId, token: input.token };
-      const referenceAsset = { chainId: input.chainId, token: OKX_REFERENCE_ASSETS[input.chainId] };
-      const alreadyReferenceDenominated = asset.token === referenceAsset.token;
+      const usdValuationAsset = { chainId: input.chainId,
+        token: OKX_USD_VALUATION_ASSETS[input.chainId] };
+      const alreadyUsdDenominated = asset.token === usdValuationAsset.token;
       const [market, captured, executable] = await Promise.all([
         deps.market.getTokenEvidence(input.chainId, input.token), deps.captureIdentity(asset),
-        input.inputAtomic && !alreadyReferenceDenominated
+        input.inputAtomic && !alreadyUsdDenominated
           ? deps.market.getExecutableQuote(input.chainId, input.token, input.inputAtomic)
           : Promise.resolve(undefined),
       ]);
@@ -95,22 +103,25 @@ export function createOkxGeneralAssetEligibilityV2(deps: Dependencies) {
         return { status: "unsupported" as const, reason: "Token chain, address, or decimals do not match." };
       }
       const marketSec = Math.floor(new Date(market.marketDataAt).getTime() / 1_000);
-      if (!Number.isSafeInteger(marketSec) || marketSec > nowSec || nowSec - marketSec > MARKET_MAX_AGE_SEC) {
+      if (requiresFreshMarket && (!Number.isSafeInteger(marketSec) || marketSec > nowSec ||
+          nowSec - marketSec > MARKET_MAX_AGE_SEC)) {
         return { status: "verification_pending" as const, reason: "Authenticated OKX evidence is stale." };
       }
-      if (!market.topHolderAddresses[0]) {
+      if (behaviorVerification === "required" && !market.topHolderAddresses[0]) {
         return { status: "verification_pending" as const, reason: "No token holder is available for behavior replay." };
       }
       const executableSec = executable
         ? Math.floor(new Date(executable.fetchedAt).getTime() / 1_000) : nowSec;
       if (executable && (!Number.isSafeInteger(executableSec) || executableSec > nowSec ||
           nowSec - executableSec > 30 || executable.chainId !== input.chainId ||
-          executable.fromToken !== input.token || executable.toToken !== OKX_REFERENCE_ASSETS[input.chainId] ||
+          executable.fromToken !== input.token ||
+          executable.toToken !== OKX_USD_VALUATION_ASSETS[input.chainId] ||
           executable.inputAtomic !== input.inputAtomic)) {
         return { status: "verification_pending" as const, reason: "Authenticated OKX quote is stale or mismatched." };
       }
       const expiresAtSec = Math.min(captured.anchor.expiresAtSec,
-        marketSec + MARKET_MAX_AGE_SEC, executable ? executableSec + 30 : Number.MAX_SAFE_INTEGER);
+        requiresFreshMarket ? marketSec + MARKET_MAX_AGE_SEC : Number.MAX_SAFE_INTEGER,
+        executable ? executableSec + 30 : Number.MAX_SAFE_INTEGER);
       if (expiresAtSec <= nowSec) {
         return { status: "verification_pending" as const, reason: "Authenticated OKX evidence is stale." };
       }
@@ -118,10 +129,12 @@ export function createOkxGeneralAssetEligibilityV2(deps: Dependencies) {
       const [identity, behaviorErrors] = await Promise.all([
         verifyAssetIdentityV1({ asset, anchor, claimedIdentity: captured.claimedIdentity,
           reader: captured.reader, nowSec }),
-        verifyPlainErc20BehaviorV1({ probePlainErc20: () => deps.replayProbe({
-          chainId: input.chainId, token: input.token, source: market.topHolderAddresses[0]!,
-          blockNumber: anchor.blockNumber, probeAtomic: "1",
-        }) }, asset, anchor),
+        behaviorVerification === "required"
+          ? verifyPlainErc20BehaviorV1({ probePlainErc20: () => deps.replayProbe({
+            chainId: input.chainId, token: input.token, source: market.topHolderAddresses[0]!,
+            blockNumber: anchor.blockNumber, probeAtomic: "1",
+          }) }, asset, anchor)
+          : Promise.resolve([]),
       ]);
       const initialErrors = [...new Set([...identity.errorCodes, ...behaviorErrors])].sort();
       if (initialErrors.length || !identity.evidence) {
@@ -151,7 +164,7 @@ export function createOkxGeneralAssetEligibilityV2(deps: Dependencies) {
       })() : undefined;
       const valuation = verifyExecutableValuationV1(asset, {
         asset, assetIdentityHash: identityHash, inputAtomic,
-        referenceAsset, trustedReferenceAssets: [referenceAsset],
+        referenceAsset: usdValuationAsset, trustedReferenceAssets: [usdValuationAsset],
         minimumLiquidityUsdE8: deps.minimumLiquidityUsdE8 ?? DEFAULT_MINIMUM_LIQUIDITY_USD_E8,
         maximumDisagreementBps: 500,
         quotes: [{ adapter: { id: "okx.market", version: 1 },

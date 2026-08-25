@@ -25,7 +25,7 @@ interface Dependencies {
 
 export async function compileGeneralAssetRequestV1(input: Input, dependencies?: Dependencies) {
   const deps = dependencies ?? { lookup: createOkxClient({ credentials: readOkxCredentials() }),
-    verifier: createProductionGeneralAssetEligibilityV2(),
+    verifier: createProductionGeneralAssetEligibilityV2({ behaviorVerification: "deferred" }),
     manifest: readGeneralAssetManifest() };
   const [inputToken, outputToken] = await Promise.all([
     deps.lookup.searchToken(input.input.chainId, input.input.address),
