@@ -308,9 +308,10 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
         await authenticateIntentCompiler({ owner: wallet.account, request: wallet.request });
         response = await request();
       }
-      const payload = await response.json() as {
+      const payload = await response.json().catch(() => undefined) as {
         status?: "review" | "clarification"; values?: ComposerValues; question?: string; message?: string;
-      };
+      } | undefined;
+      if (!payload) throw new Error("The policy draft could not be compiled. Try again.");
       if (!response.ok) throw new Error(payload.message ?? "The policy draft could not be compiled.");
       if (payload.status === "clarification") {
         setError(payload.question ?? "Add the missing spend and outcome bounds to your goal.");

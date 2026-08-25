@@ -403,6 +403,27 @@ describe("IntentComposer", () => {
     expect(screen.getByRole("button", { name: "Edit goal" })).toBeVisible();
   });
 
+  it("does not expose a JSON parser error when compilation returns plain text", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string) => {
+      if (url.includes("/portfolio")) return Promise.resolve(Response.json({ balances: [], positions: [] }));
+      if (url === "/api/assets/resolve") return Promise.resolve(Response.json({ assets: [] }));
+      if (url === "/api/intents/compile") {
+        return Promise.resolve(new Response("An error occurred", { status: 502,
+          headers: { "content-type": "text/plain" } }));
+      }
+      return Promise.resolve(Response.json({}));
+    }));
+    render(<IntentComposer />);
+
+    fireEvent.change(screen.getByLabelText("What should happen?"), { target: { value:
+      "Acquire at least 0.01 @TSLAx with at most 10 @USDG on @XLayer" } });
+    fireEvent.click(screen.getByRole("button", { name: "Review policy" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The policy draft could not be compiled. Try again.",
+    );
+  });
+
   it("requires a connected signing wallet before interpretation", () => {
     state.account = null;
     render(<IntentComposer />);

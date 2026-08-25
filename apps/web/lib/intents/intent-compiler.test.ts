@@ -558,7 +558,7 @@ describe("intent compiler", () => {
   it("resolves an xStock to its exact registered X Layer token", async () => {
     const fetcher = vi.fn().mockResolvedValue(response(JSON.stringify(simple({
       status: "review", question: null, templateId: "rwa-acquisition",
-      inputSymbol: "USDG", outputSymbol: "TSLAx", amount: "10", minimum: "0.01",
+      inputSymbol: "USDG", outputSymbol: "TSLAx", amount: "0.01", minimum: "0.01",
       jurisdiction: "DE",
     }))));
     const compiler = createOpenAiIntentCompiler({ apiKey: "test", model: "test-model", fetcher });
@@ -572,6 +572,7 @@ describe("intent compiler", () => {
         templateId: "rwa-acquisition",
         inputToken: "0x4ae46a509F6b1D9056937BA4500cb143933D2dc8",
         outputToken: "0x8ad3c73f833d3f9a523ab01476625f269aeb7cf0",
+        amount: "10",
         minimum: "0.01",
         jurisdiction: "DE",
       },

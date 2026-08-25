@@ -51,9 +51,10 @@ export function requestedInputAmount(input: {
   const exact = input.goal.match(new RegExp(
     `(\\d+(?:\\.\\d+)?)\\s*@?${input.symbol}(?=$|[^A-Za-z0-9])`, "i",
   ))?.[1];
+  if (exact && decimalToAtomic(exact, input.decimals)) return exact;
   const modelAmount = input.compiled?.conversion?.inputs.find((item) =>
     item.symbol.toLowerCase() === input.symbol.toLowerCase())?.amount ||
-    input.compiled?.amount || exact || "";
+    input.compiled?.amount || "";
   return decimalToAtomic(modelAmount, input.decimals) ? modelAmount : undefined;
 }
 

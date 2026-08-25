@@ -14,9 +14,6 @@ import { readPortfolio } from "../../../../lib/portfolio/read-portfolio";
 import { readIntentAssetPrices } from "../../../../lib/intents/intent-asset-prices";
 import { RWA_INTENT_ASSETS } from "../../../../lib/intents/capability-templates";
 import { compileGeneralAssetRequestV1 } from "../../../../lib/intents/compile-general-asset-request";
-import { resolveXStockIntentRequestV1 } from "../../../../lib/intents/xstock-intent-request";
-import { createXStocksInstrumentToolV1 } from "../../../../lib/solver-tools/xstocks";
-import { USDG_ADDRESS } from "../../../../lib/chain/xlayer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -74,19 +71,7 @@ export async function POST(request: Request): Promise<Response> {
     let walletAssets: Array<{ address: Address; symbol: string; decimals: number }> | undefined;
     let walletPortfolio: Awaited<ReturnType<typeof readPortfolio>> | undefined;
     let admissionGoal = goal;
-    let effectiveGeneralAsset = generalAsset;
-    if (actionPreference === "any" && !effectiveGeneralAsset) {
-      const xStock = await resolveXStockIntentRequestV1({ goal,
-        tool: createXStocksInstrumentToolV1(), usdgAddress: USDG_ADDRESS });
-      if (xStock.status === "clarification") {
-        return NextResponse.json({ status: "clarification", question: xStock.question },
-          { headers: { "Cache-Control": "no-store" } });
-      }
-      if (xStock.status === "resolved") {
-        effectiveGeneralAsset = { input: xStock.input, output: xStock.output };
-        admissionGoal = `${goal}\n[xstocks:${xStock.symbol}:${xStock.sourceHash}]`;
-      }
-    }
+    const effectiveGeneralAsset = generalAsset;
     if (actionPreference === "any" && !effectiveGeneralAsset) {
       walletPortfolio = await readPortfolio(session.owner, 196).catch(() => undefined);
       if (!walletPortfolio) {
