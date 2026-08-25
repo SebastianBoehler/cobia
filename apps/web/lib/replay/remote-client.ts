@@ -44,7 +44,7 @@ export function replayTransactionRemotely(input: {
   chainId: 1 | 196 | 8453;
   blockNumber: string;
   program: unknown;
-  evidence: unknown;
+  evidence?: unknown;
   providerArtifacts: unknown;
   snapshot: unknown;
 }) {

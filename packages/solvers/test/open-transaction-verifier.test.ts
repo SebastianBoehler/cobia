@@ -97,6 +97,25 @@ describe("open transaction-program verifier", () => {
     });
   });
 
+  it("uses the verifier replay as canonical evidence when the solver skips preflight", async () => {
+    const result = await verifyOpenTransactionProgramV1(dependencies({ evidence: undefined,
+      replay: vi.fn(async () => ({ simulations: [simulation] })),
+    }));
+    expect(result).toMatchObject({ accepted: true, evidence: {
+      programHash: commitment(program), simulations: [simulation],
+    } });
+  });
+
+  it("does not reject safe economics because preflight trace metadata differs", async () => {
+    const canonical = { ...simulation, traceHash: hash("c"), stateDiffHash: hash("d") };
+    const result = await verifyOpenTransactionProgramV1(dependencies({
+      replay: vi.fn(async () => ({ reproduced: false, simulations: [canonical] })),
+    }));
+    expect(result).toMatchObject({ accepted: true, evidence: {
+      simulations: [expect.objectContaining({ traceHash: hash("c"), stateDiffHash: hash("d") })],
+    } });
+  });
+
   it("rejects missing or independently rejected provider artifacts", async () => {
     expect(await verifyOpenTransactionProgramV1(dependencies({
       providerArtifacts: { version: 1, artifacts: [] },

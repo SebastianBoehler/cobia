@@ -18,7 +18,7 @@ const TransactionReplaySchema = z.object({
   chainId: ChainIdSchema,
   blockNumber: z.string().regex(/^[1-9][0-9]*$/),
   program: z.unknown(),
-  evidence: z.unknown(),
+  evidence: z.unknown().optional(),
   providerArtifacts: z.unknown(),
   snapshot: z.unknown(),
 });

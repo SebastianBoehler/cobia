@@ -35,7 +35,7 @@ type IntakeReceipt = {
 
 type Verification =
   | { accepted: true; errorCodes: readonly string[]; objective?: unknown; replay?: unknown;
-      execution?: unknown; authorization?: unknown; verificationValidUntilSec?: number;
+      evidence?: unknown; execution?: unknown; authorization?: unknown; verificationValidUntilSec?: number;
       verificationAnchor?: unknown; verificationAnchors?: unknown }
   | { accepted: false; errorCodes: string[]; replay?: unknown };
 
@@ -64,7 +64,7 @@ interface IntakeDependencies {
   };
   verify(value: { runId: string;
     proposalKind: "capability-v2" | "transaction-program" | "general-asset-program";
-    policy: unknown; snapshot: unknown | null; program: unknown; evidence: unknown;
+    policy: unknown; snapshot: unknown | null; program: unknown; evidence?: unknown;
     providerArtifacts?: unknown; manifest?: unknown; valuationEvidence?: unknown[];
     identityEvidence?: unknown[];
     anchors?: { chainId: 1 | 196; blockNumber: string; blockHash: string }[];
@@ -128,7 +128,8 @@ function assertDecisionAuthority(input: {
   }
   if (input.decision.program.requestId !== input.policy.requestId ||
       !isAddressEqual(input.decision.program.owner, input.policy.owner) ||
-      input.decision.evidence.programHash !== commitment(input.decision.program)) {
+      (input.decision.evidence &&
+        input.decision.evidence.programHash !== commitment(input.decision.program))) {
     throw new InvalidSolverDecisionError("Solver program does not match signed intent authority");
   }
   if (input.decision.proposalKind === "transaction-program") {
@@ -265,10 +266,11 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
         return { intentId: claim.intentId, solverId: claim.solverId,
           revision: claim.revision, state: "abstained" };
       }
-      const artifacts: [string, unknown][] = [
-        ["program", decision.program], ["evidence", decision.evidence],
-        ["provenance", decision.provenance],
-      ];
+      const artifacts: [string, unknown][] = [["program", decision.program]];
+      if (decision.proposalKind !== "transaction-program") {
+        artifacts.push(["evidence", decision.evidence]);
+      }
+      artifacts.push(["provenance", decision.provenance]);
       if (snapshot) artifacts.unshift(["snapshot", snapshot]);
       if (decision.proposalKind === "transaction-program") {
         artifacts.splice(2, 0, ["provider", decision.providerArtifacts]);
@@ -316,6 +318,9 @@ export function createOpenDecisionIntakeV1(dependencies: IntakeDependencies) {
         throw new SolverDecisionUnavailableError("Independent verifier failed");
       }
       await dependencies.submissions.appendArtifact(submission.id, "verdict", verdict);
+      if ("evidence" in verdict && verdict.evidence) {
+        await dependencies.submissions.appendArtifact(submission.id, "evidence", verdict.evidence);
+      }
       if (verdict.replay) await dependencies.submissions.appendArtifact(submission.id, "replay", verdict.replay);
       let generalVerification: { validUntilSec: number;
         anchor: z.infer<typeof VerificationAnchorSchema> } | undefined;

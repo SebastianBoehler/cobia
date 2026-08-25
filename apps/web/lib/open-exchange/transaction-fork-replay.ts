@@ -180,9 +180,10 @@ export async function captureOpenTransactionProgramSimulationsV1(input: {
 }
 
 export async function replayOpenTransactionProgramV1(input: {
-  program: unknown; evidence: unknown; providerArtifacts: unknown; snapshot: unknown; rpc: Rpc;
+  program: unknown; evidence?: unknown; providerArtifacts: unknown; snapshot: unknown; rpc: Rpc;
 }) {
-  const supplied = TransactionProgramEvidenceV1Schema.parse(input.evidence);
+  const supplied = input.evidence === undefined
+    ? undefined : TransactionProgramEvidenceV1Schema.parse(input.evidence);
   const simulations = await captureOpenTransactionProgramSimulationsV1(input);
-  return { reproduced: commitment(simulations) === commitment(supplied.simulations), simulations };
+  return { reproduced: !supplied || commitment(simulations) === commitment(supplied.simulations), simulations };
 }

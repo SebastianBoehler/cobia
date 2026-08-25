@@ -329,6 +329,7 @@ export function submitOpenSolverDecision(value: {
         if (input.proposalKind !== "general-asset-program") {
           return { accepted: false as const, errorCodes: ["POLICY_MISMATCH"] };
         }
+        if (!input.evidence) return { accepted: false as const, errorCodes: ["EVIDENCE_INVALID"] };
         return verifyProductionGeneralAssetDecisionV1({ runId: input.runId,
           policy: input.policy, program: input.program, evidence: input.evidence,
           nowSec: input.nowSec });
@@ -338,7 +339,9 @@ export function submitOpenSolverDecision(value: {
         if (input.proposalKind !== "capability-v2") {
           return { accepted: false as const, errorCodes: ["POLICY_MISMATCH"] };
         }
-        return verifyRuntimeCompositionProposal(input, { client, config, verifier });
+        if (!input.evidence) return { accepted: false as const, errorCodes: ["EVIDENCE_INVALID"] };
+        return verifyRuntimeCompositionProposal({ ...input, evidence: input.evidence },
+          { client, config, verifier });
       }
       if (input.proposalKind === "transaction-program") {
         return verifyOpenStagedProposalV1({ ...input,
@@ -361,8 +364,9 @@ export function submitOpenSolverDecision(value: {
           },
         });
       }
+      if (!input.evidence) return { accepted: false as const, errorCodes: ["EVIDENCE_INVALID"] };
       const policy = OpenIntentPolicyV3Schema.parse(input.policy);
-      return verifyOpenCapabilityProposalV1({ ...input, policy }, {
+      return verifyOpenCapabilityProposalV1({ ...input, policy, evidence: input.evidence }, {
         client,
         executor: config.COBIA_EXECUTOR_V3_ADDRESS,
         attestor: verifier.address,

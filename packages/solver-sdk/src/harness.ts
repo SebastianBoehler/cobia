@@ -81,7 +81,8 @@ export async function runSolverCycle(input: {
           decision.program.policyHash === intent.policyHash
         : decision.program.requestId === intent.id &&
           decision.program.owner === intent.policy.owner &&
-          decision.evidence.programHash === commitment(decision.program) &&
+          (!decision.evidence ||
+            decision.evidence.programHash === commitment(decision.program)) &&
           (decision.proposalKind !== "transaction-program" ||
             decision.program.policyHash === intent.policyHash);
       if (!matches) {

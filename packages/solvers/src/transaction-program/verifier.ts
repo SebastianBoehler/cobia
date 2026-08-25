@@ -29,7 +29,7 @@ type ProviderVerificationV1 =
   | { accepted: false; errorCodes: string[] };
 
 interface VerifiedReplayV1 {
-  reproduced: boolean;
+  reproduced?: boolean;
   simulations: TransactionProgramEvidenceV1["simulations"];
 }
 
@@ -49,7 +49,7 @@ export async function verifyOpenTransactionProgramV1(input: {
   policy: unknown;
   snapshot: unknown;
   program: unknown;
-  evidence: unknown;
+  evidence?: unknown;
   providerArtifacts: unknown;
   nowSec: number;
   confirmAnchor(anchor: { chainId: 1 | 196 | 8453; blockNumber: string; blockHash: Hash }): Promise<boolean>;
@@ -62,20 +62,21 @@ export async function verifyOpenTransactionProgramV1(input: {
   }): Promise<ProviderVerificationV1>;
   replay(input: {
     program: unknown;
-    evidence: TransactionProgramEvidenceV1;
+    evidence?: TransactionProgramEvidenceV1;
     providerArtifacts: ReturnType<typeof ProviderArtifactsV1Schema.parse>;
   }): Promise<VerifiedReplayV1>;
 }) {
   let policy: ReturnType<typeof OpenIntentPolicyV3Schema.parse>;
   let snapshot: ReturnType<typeof OpenIntentSnapshotV1Schema.parse>;
   let program: ReturnType<typeof TransactionProgramV1Schema.parse>;
-  let evidence: TransactionProgramEvidenceV1;
+  let submittedEvidence: TransactionProgramEvidenceV1 | undefined;
   let providerArtifacts: ReturnType<typeof ProviderArtifactsV1Schema.parse>;
   try {
     policy = OpenIntentPolicyV3Schema.parse(input.policy);
     snapshot = OpenIntentSnapshotV1Schema.parse(input.snapshot);
     program = TransactionProgramV1Schema.parse(input.program);
-    evidence = TransactionProgramEvidenceV1Schema.parse(input.evidence);
+    submittedEvidence = input.evidence === undefined
+      ? undefined : TransactionProgramEvidenceV1Schema.parse(input.evidence);
     providerArtifacts = ProviderArtifactsV1Schema.parse(input.providerArtifacts);
   } catch {
     return rejection(new Set(["PROGRAM_INVALID"]));
@@ -88,11 +89,13 @@ export async function verifyOpenTransactionProgramV1(input: {
   }
   const expectedChains = commitment(policy.executionChainIds);
   if (commitment(snapshot.anchors.map(({ chainId }) => chainId)) !== expectedChains) errors.add("ANCHOR_MISMATCH");
-  if (evidence.programHash !== commitment(program)) errors.add("EVIDENCE_INVALID");
+  if (submittedEvidence && submittedEvidence.programHash !== commitment(program)) {
+    errors.add("EVIDENCE_INVALID");
+  }
   const capturedAt = Math.floor(Date.parse(snapshot.capturedAt) / 1_000);
-  if (input.nowSec >= program.deadline || evidence.capturedAt > input.nowSec ||
-      input.nowSec - evidence.capturedAt > policy.maxEvidenceAgeSec ||
-      input.nowSec - capturedAt > policy.maxEvidenceAgeSec) errors.add("STALE_EVIDENCE");
+  if (input.nowSec >= program.deadline || input.nowSec - capturedAt > policy.maxEvidenceAgeSec) {
+    errors.add("STALE_EVIDENCE");
+  }
 
   const walletStages = program.stages.filter((stage) => stage.kind === "wallet-transaction");
   if (program.stages.some((stage) => !["wallet-transaction", "research"].includes(stage.kind))) {
@@ -137,6 +140,17 @@ export async function verifyOpenTransactionProgramV1(input: {
     if ((nativeValues.get(bound.chainId) ?? 0n) > BigInt(bound.atomic)) errors.add("LIMIT_EXCEEDED");
   }
 
+  let evidence: TransactionProgramEvidenceV1 | undefined;
+  try {
+    const replay = await input.replay({ program, evidence: submittedEvidence, providerArtifacts });
+    evidence = TransactionProgramEvidenceV1Schema.parse({
+      version: 1, programHash: commitment(program), capturedAt: input.nowSec,
+      simulations: replay.simulations,
+    });
+  } catch {
+    errors.add("REPLAY_MISMATCH");
+  }
+  if (!evidence) return rejection(errors);
   const simulationByStage = new Map(evidence.simulations.map((item) => [item.stageId, item]));
   const aggregateDeltas = new Map<string, bigint>();
   const finalBalances = new Map<string, bigint>();
@@ -218,13 +232,9 @@ export async function verifyOpenTransactionProgramV1(input: {
   for (const anchor of snapshot.anchors) {
     if (!(await input.confirmAnchor(anchor))) errors.add("ANCHOR_MISMATCH");
   }
-  const replay = await input.replay({ program, evidence, providerArtifacts });
-  if (!replay.reproduced || commitment(replay.simulations) !== commitment(evidence.simulations)) {
-    errors.add("REPLAY_MISMATCH");
-  }
   if (errors.size) return rejection(errors);
   return { accepted: true as const, errorCodes: [], programHash: evidence.programHash,
-    stageAuthorizations, objective,
+    stageAuthorizations, objective, evidence,
     outcomeEvidenceHash: commitment({
       program, providerArtifacts, simulations: evidence.simulations, stageAuthorizations, objective,
     }) as Hash };

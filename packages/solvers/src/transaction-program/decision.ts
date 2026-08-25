@@ -47,7 +47,7 @@ const TransactionProposalSchema = z.object({
   decision: z.literal("submit"),
   proposalKind: z.literal("transaction-program"),
   program: TransactionProgramV1Schema,
-  evidence: TransactionProgramEvidenceV1Schema,
+  evidence: TransactionProgramEvidenceV1Schema.optional(),
   providerArtifacts: ProviderArtifactsV1Schema,
   provenance: SolverProvenanceV1Schema,
 }).strict();

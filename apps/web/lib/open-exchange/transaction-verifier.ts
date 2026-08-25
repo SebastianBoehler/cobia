@@ -1,7 +1,7 @@
 import { OpenIntentPolicyV3Schema, OpenIntentSnapshotV1Schema } from "@cobia/domain";
 import {
-  TransactionProgramEvidenceV1Schema, XLAYER_OKX_MANIFEST_V1,
-  verifyOkxSwapStageV1, verifyOpenTransactionProgramV1, verifyRawWalletStageV1,
+  XLAYER_OKX_MANIFEST_V1, authorizeOkxSwapStageV1,
+  verifyOpenTransactionProgramV1, verifyRawWalletStageV1,
   type OkxSwapSimulationV1, type TransactionProgramEvidenceV1,
 } from "@cobia/solvers";
 import { isAddressEqual, keccak256, type Address, type Hash, type Hex } from "viem";
@@ -57,16 +57,15 @@ export function okxSimulationFromEvidenceV1(
 }
 
 export async function verifyOpenStagedProposalV1(input: {
-  policy: unknown; snapshot: unknown; program: unknown; evidence: unknown;
+  policy: unknown; snapshot: unknown; program: unknown; evidence?: unknown;
   providerArtifacts: unknown; nowSec: number;
 }, dependencies: {
   clients: Readonly<Partial<Record<1 | 196 | 8453, OpenProposalVerificationClientV1>>>;
-  replay(input: { program: unknown; evidence: unknown; providerArtifacts: unknown; snapshot: unknown }):
+  replay(input: { program: unknown; evidence?: unknown; providerArtifacts: unknown; snapshot: unknown }):
     Promise<{ reproduced: boolean; simulations: TransactionProgramEvidenceV1["simulations"] }>;
 }) {
   const policy = OpenIntentPolicyV3Schema.parse(input.policy);
   const snapshot = OpenIntentSnapshotV1Schema.parse(input.snapshot);
-  const suppliedEvidence = TransactionProgramEvidenceV1Schema.safeParse(input.evidence);
   const client = (chainId: 1 | 196 | 8453) => {
     const value = dependencies.clients[chainId];
     if (!value) throw new Error(`Chain ${chainId} verifier client is unavailable`);
@@ -113,20 +112,8 @@ export async function verifyOpenStagedProposalV1(input: {
       if (stage.provider === "evm.raw@1") {
         return verifyRawWalletStageV1({ stage, artifact: artifact.payload, currentAllowanceAtomic });
       }
-      const simulation = suppliedEvidence.success
-        ? okxSimulationFromEvidenceV1(stage, suppliedEvidence.data) : undefined;
-      if (!simulation) return { accepted: false as const, errorCodes: ["OKX_EVIDENCE_MISSING"] };
-      return verifyOkxSwapStageV1({ stage, artifact: artifact.payload,
-        manifest: XLAYER_OKX_MANIFEST_V1, anchor, nowSec: input.nowSec,
-        currentAllowanceAtomic,
-        confirmAnchor: async (candidate) => {
-          const block = await client(196).getBlock({ blockNumber: BigInt(candidate.blockNumber) });
-          return block.hash?.toLowerCase() === candidate.blockHash.toLowerCase();
-        },
-        getCodeHash: async (chainId, address, blockNumber) =>
-          codeHash(chainId, address, BigInt(blockNumber)),
-        simulate: async () => simulation,
-      });
+      return authorizeOkxSwapStageV1({ stage, artifact: artifact.payload,
+        manifest: XLAYER_OKX_MANIFEST_V1, nowSec: input.nowSec, currentAllowanceAtomic });
     },
     replay: ({ program, evidence, providerArtifacts }) => dependencies.replay({
       program, evidence, providerArtifacts, snapshot,
