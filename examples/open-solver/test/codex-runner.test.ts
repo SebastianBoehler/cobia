@@ -43,7 +43,7 @@ describe("Codex solver runner", () => {
     expect(config.mcp_servers.cobia_route).toMatchObject({
       required: true,
       default_tools_approval_mode: "approve",
-      enabled_tools: ["capabilities", "solve", "exact_call"],
+      enabled_tools: ["intent", "capabilities", "exact_call"],
       args: expect.arrayContaining(["--intent", "/jobs/intent/intent.json"]),
     });
     expect(config.mcp_servers.cobia_route.env).not.toHaveProperty("REFERENCE_SOLVER_PRIVATE_KEY");

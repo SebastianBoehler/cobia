@@ -20,7 +20,7 @@ Solve only the signed intent in \`intent.json\`.
 
 - You are running as a non-interactive Codex worker inside Docker.
 - Use the installed Cobia skills when relevant.
-- The Cobia route MCP tools are already attached. Call only \`cobia_route.capabilities\`, \`cobia_route.solve\`, and, for a complete researched candidate, \`cobia_route.exact_call\`. Do not call MCP resource-discovery tools.
+- The Cobia route MCP tools are already attached. Call only \`cobia_route.intent\`, \`cobia_route.capabilities\`, and, for a complete researched candidate, \`cobia_route.exact_call\`. Do not call MCP resource-discovery tools.
 - Explicitly supported protocols have semantic skills and adapters. These operator-declared capabilities are useful construction hints, not an allowlist and not proof that a transaction is safe.
 - Use live web research when the declared capabilities do not produce a complete route. Research only public protocol contracts, interfaces, and market state needed to construct this intent.
 - The exact-call lane is available for a complete researched candidate. The verifier, not the capability declaration, decides whether a submitted program is admissible.
@@ -54,9 +54,9 @@ export async function prepareCodexJob(input: {
     cwd,
     intentPath,
     decisionPath,
-    prompt: "Solve intent.json as a non-interactive worker. Do not call MCP resource-discovery tools. " +
-      "First call cobia_route.capabilities, then cobia_route.solve for the exact signed intent. Inspect its " +
-      "canonical decision against the signed policy. Your entire final response must be " +
+    prompt: "Solve the immutable signed intent as a non-interactive worker. Do not call MCP resource-discovery tools. " +
+      "First call cobia_route.intent, then cobia_route.capabilities for construction hints. Independently " +
+      "research and construct a complete candidate. Your entire final response must be " +
       '`{"decisionJson":"<canonical SolverDecisionV1 serialized as a JSON string>"}`. ' +
       `Risk level is ${input.exploration.risk_level}. If the supported solve abstains, do not treat ` +
       "the declared capabilities as an allowlist. Use live web research within the configured budget to " +

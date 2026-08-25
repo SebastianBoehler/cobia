@@ -115,17 +115,13 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       COBIA_MODEL: ${COBIA_MODEL}
       REFERENCE_SOLVER_PRIVATE_KEY: ${REFERENCE_SOLVER_PRIVATE_KEY}
-      OKX_API_KEY: ${OKX_API_KEY}
-      OKX_SECRET_KEY: ${OKX_SECRET_KEY}
-      OKX_PASSPHRASE: ${OKX_PASSPHRASE}
       COBIA_EXECUTOR_V3_ADDRESS: ${COBIA_EXECUTOR_V3_ADDRESS}
-      GENERAL_ASSET_V4_CONFIG_JSON: ${GENERAL_ASSET_V4_CONFIG_JSON}
       XLAYER_RPC_URL: ${XLAYER_RPC_URL}
       ETHEREUM_RPC_URL: ${ETHEREUM_RPC_URL}
     volumes:
       - codex-auth:/auth/codex
       - ./config.production.toml:/auth/codex/config.toml:ro
-      - solver-state:/var/lib/cobia-solver
+      - solver-agentic-state:/var/lib/cobia-solver
     healthcheck:
       test: ["CMD", "node", "-e", "require('node:fs').stat('/var/lib/cobia-solver/heartbeat',(error,stat)=>{if(error||Date.now()-stat.mtimeMs>180000)process.exit(1)})"]
       interval: 30s
@@ -134,6 +130,35 @@ services:
       start_period: 60s
     cpus: 1.5
     mem_limit: 1280m
+    pids_limit: 256
+
+  solver-reference:
+    build:
+      context: ../..
+      dockerfile: examples/open-solver/Dockerfile
+    init: true
+    restart: unless-stopped
+    environment:
+      CODEX_HOME: /auth/codex
+      REFERENCE_SOLVER_PRIVATE_KEY: ${REFERENCE_SOLVER_PRIVATE_KEY}
+      OKX_API_KEY: ${OKX_API_KEY}
+      OKX_SECRET_KEY: ${OKX_SECRET_KEY}
+      OKX_PASSPHRASE: ${OKX_PASSPHRASE}
+      COBIA_EXECUTOR_V3_ADDRESS: ${COBIA_EXECUTOR_V3_ADDRESS}
+      GENERAL_ASSET_V4_CONFIG_JSON: ${GENERAL_ASSET_V4_CONFIG_JSON}
+      XLAYER_RPC_URL: ${XLAYER_RPC_URL}
+      ETHEREUM_RPC_URL: ${ETHEREUM_RPC_URL}
+    volumes:
+      - ./config.production.reference.toml:/auth/codex/config.toml:ro
+      - solver-state:/var/lib/cobia-solver
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('node:fs').stat('/var/lib/cobia-solver/heartbeat',(error,stat)=>{if(error||Date.now()-stat.mtimeMs>180000)process.exit(1)})"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    cpus: 1
+    mem_limit: 768m
     pids_limit: 256
 
   caddy:
@@ -162,4 +187,5 @@ volumes:
   caddy-data:
   caddy-config:
   codex-auth:
+  solver-agentic-state:
   solver-state:

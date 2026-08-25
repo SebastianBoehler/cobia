@@ -1,10 +1,14 @@
 # Cobia open solver
 
-This worker watches fresh signed V3 intents and starts an independent Codex
-thread for every unseen intent. A slow route search does not block later
-intents. Codex reads the signed machine policy, loads the bundled protocol
-skills, invokes the canonical route tool, compares candidates, and returns a
-structured `SolverDecisionV1`.
+The worker has two isolated operating modes. `deterministic` runs the curated
+reference builders directly; `agentic` starts an independent Codex thread for
+each unseen intent and researches open exact-call candidates. Production runs
+both modes as separately registered solvers so either can submit, abstain, or
+lose independently. Neither mode falls through to the other.
+
+A slow agentic search does not block later intents. Codex reads the immutable
+signed policy through the bound route tool, loads the bundled protocol skills,
+compares candidates, and returns a structured `SolverDecisionV1`.
 
 The installed reference tools cover X Layer Aave V3 supply and receipt-token
 withdrawal, Curve StableSwap NG swaps and single-coin liquidity actions,
@@ -32,7 +36,7 @@ docker compose -f examples/open-solver/compose.yaml up -d --build
 ```
 
 `COBIA_MODEL` is the single model selector shared with Cobia's intent compiler.
-The checked-in `codex/config.toml` fixes the OpenRouter transport, reasoning
+The checked-in `codex/config.toml` selects `agentic` mode and fixes the OpenRouter transport, reasoning
 effort, web research, risk level, and non-secret worker limits:
 polling, parallel jobs, retry ceiling, backoff, Codex turns, total tokens, and
 per-turn timeout. A curated-route abstention remains internal while exploration

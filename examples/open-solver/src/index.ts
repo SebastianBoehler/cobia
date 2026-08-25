@@ -13,13 +13,14 @@ import { z } from "zod";
 import { prepareCodexJob } from "./codex-job";
 import { readExistingCodexDecision } from "./codex-output";
 import { runCodexSolver } from "./codex-runner";
-import { decideAgentic } from "./decision-source";
+import { decideSolver } from "./decision-source";
 import { competitionWorkTimeoutMs } from "./intent-deadline";
 import { IntentAttempts, SolverJobStateSchema, WorkLimiter, type SolverJobState } from "./job-control";
 import { writeHeartbeat } from "./heartbeat";
 import { REFERENCE_CAPABILITIES } from "./route-tool";
 import { readReferenceSolverConfig, type ReferenceSolverConfig } from "./solver-config";
 import { announceSolverRun, submitSolverDecision } from "./solver-run";
+import { solve as solveReferenceIntent } from "./strategy";
 import { handleIntentError } from "./worker-error";
 
 function nonce(): Hash {
@@ -73,9 +74,11 @@ async function processIntent(input: {
   await announceSolverRun({ client: input.client, account: input.account,
     solverId: input.solverId, intent: input.intent, revision: input.revision });
   output({ event: "run-started", intentId: input.intent.id, revision: input.revision });
-  const selected = await decideAgentic({
+  const selected = await decideSolver({
+    mode: input.config.mode,
     schedule: (work) => input.limiter.run(work),
-    async solve() {
+    solveReference: () => solveReferenceIntent(input.intent),
+    async solveAgentic() {
       const timeoutMs = competitionWorkTimeoutMs({
         competitionClosesAt: input.intent.competitionClosesAt,
         maximumMs: input.config.turn_timeout_ms,
@@ -116,8 +119,12 @@ async function processIntent(input: {
         decision: result.decision.decision, exploration: result.usage });
       return result.decision;
     },
-    onOpenError(error) {
+    onAgenticError(error) {
       output({ event: "open-error", intentId: input.intent.id,
+        message: error instanceof Error ? error.message : String(error) });
+    },
+    onReferenceError(error) {
+      output({ event: "reference-error", intentId: input.intent.id,
         message: error instanceof Error ? error.message : String(error) });
     },
   });

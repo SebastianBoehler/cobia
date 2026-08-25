@@ -17,9 +17,10 @@ skill_mcp_dependency_install = false
 
 # Non-secret worker and spend controls. Docker supplies only credentials and RPCs.
 [cobia]
+mode = "agentic"
 exchange_url = "https://getcobia.com"
-solver_id = "cobia-reference"
-display_name = "Cobia Reference Solver"
+solver_id = "cobia-agentic"
+display_name = "Cobia Agentic Solver"
 poll_interval_ms = 10000
 job_root = "/var/lib/cobia-solver/jobs"
 state_file = "/var/lib/cobia-solver/state.json"

@@ -1,6 +1,6 @@
 import type { SolverDecisionV1 } from "@cobia/solver-sdk";
 import { describe, expect, it, vi } from "vitest";
-import { decideAgentic } from "../src/decision-source";
+import { decideAgentic, decideSolver } from "../src/decision-source";
 import { WorkLimiter } from "../src/job-control";
 
 const abstain = { version: 1, decision: "abstain",
@@ -37,5 +37,26 @@ describe("agentic solver decisions", () => {
 
     await Promise.all([first, second]);
     expect(order).toEqual(["first-open", "second-open"]);
+  });
+});
+
+describe("solver mode isolation", () => {
+  it("runs only the deterministic lane in reference mode", async () => {
+    const submit = { version: 1, decision: "submit" } as unknown as SolverDecisionV1;
+    const solveAgentic = vi.fn(async () => abstain);
+
+    await expect(decideSolver({ mode: "deterministic", solveReference: async () => submit,
+      solveAgentic })).resolves.toEqual({ decision: submit, source: "reference" });
+    expect(solveAgentic).not.toHaveBeenCalled();
+  });
+
+  it("runs only the open lane in agentic mode", async () => {
+    const submit = { version: 1, decision: "submit" } as unknown as SolverDecisionV1;
+    const solveReference = vi.fn(async () => abstain);
+
+    await expect(decideSolver({ mode: "agentic", solveReference,
+      solveAgentic: async () => submit }))
+      .resolves.toEqual({ decision: submit, source: "codex" });
+    expect(solveReference).not.toHaveBeenCalled();
   });
 });

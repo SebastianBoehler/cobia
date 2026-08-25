@@ -29,6 +29,11 @@ serveStdio(() => {
     description: "List curated semantic adapters. This is not a protocol allowlist.",
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   }, async () => result(REFERENCE_CAPABILITY_DECLARATION));
+  server.registerTool("intent", {
+    title: "Read the signed Cobia intent",
+    description: "Return this agentic solver's immutable signed intent and frozen evidence.",
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+  }, async () => result(intent));
   server.registerTool("solve", {
     title: "Build a supported Cobia candidate",
     description: "Construct a canonical decision for this MCP server's immutable signed intent.",

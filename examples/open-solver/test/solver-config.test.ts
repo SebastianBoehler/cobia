@@ -10,6 +10,7 @@ describe("reference solver config", () => {
     const path = join(root, "config.toml");
     await writeFile(path, `model = "gpt-test"
 [cobia]
+mode = "agentic"
 exchange_url = "https://example.com"
 solver_id = "solver-one"
 display_name = "Solver One"
@@ -26,7 +27,7 @@ max_total_tokens_per_intent = 400000
 `);
 
     await expect(readReferenceSolverConfig(path)).resolves.toMatchObject({
-      solver_id: "solver-one", max_parallel_jobs: 3, turn_timeout_ms: 120000,
+      mode: "agentic", solver_id: "solver-one", max_parallel_jobs: 3, turn_timeout_ms: 120000,
       risk_level: "balanced", max_codex_turns_per_intent: 3,
       max_total_tokens_per_intent: 400000,
     });
