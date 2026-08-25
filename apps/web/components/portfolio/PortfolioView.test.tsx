@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Eip6963ProviderDetail } from "../../lib/wallet/eip1193";
 import { WalletButton } from "../wallet/WalletButton";
@@ -102,10 +102,11 @@ describe("PortfolioView", () => {
       `/api/wallets/${owner}/portfolio?chainId=196`,
     );
     expect(screen.queryByText(/payment rehearsal/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Wallet balances" })).toBeVisible();
+    const walletBalances = screen.getByRole("heading", { name: "Wallet balances" }).closest("section");
+    expect(walletBalances).not.toBeNull();
     expect(screen.getByRole("heading", { name: "Protocol positions" })).toBeVisible();
     expect(screen.getByRole("img", { name: "OKB token" })).toBeVisible();
-    expect(screen.getByRole("img", { name: "USDG token" })).toBeVisible();
+    expect(within(walletBalances!).getByRole("img", { name: "USDG token" })).toBeVisible();
     expect(screen.getByRole("img", { name: "Aave V3" })).toBeVisible();
     expect(screen.getByText("12.5 USDG")).toBeVisible();
     expect(screen.getByText("4.25 aUSDG")).toBeVisible();
