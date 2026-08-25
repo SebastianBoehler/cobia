@@ -1,16 +1,19 @@
-.intent-page { margin: 0 auto; max-width: 1380px; padding: 58px clamp(24px, 4vw, 56px) 112px; width: 100%; }
-.intent-page__header { margin-bottom: 34px; max-width: 840px; }
-.intent-page__header h1 { font-size: clamp(48px, 5.5vw, 68px); font-weight: 630; letter-spacing: -.07em; line-height: .96; margin: 0; }
-.intent-page__header p { color: var(--muted); font-size: 17px; line-height: 1.6; margin: 22px 0 0; }
+.intent-page { margin: 0 auto; max-width: 1240px; padding: 44px clamp(24px, 4vw, 52px) 96px; width: 100%; }
+:root[data-theme="dark"] .intent-page .button--primary { color: var(--paper); }
+.intent-page__header { margin-bottom: 32px; max-width: 760px; }
+.intent-page__header h1 { font-size: clamp(44px, 5vw, 62px); font-weight: 640; letter-spacing: -.065em; line-height: .98; margin: 0; text-wrap: balance; }
+.intent-page__header p { color: var(--muted); font-size: 17px; line-height: 1.55; margin: 18px 0 0; max-width: 680px; text-wrap: pretty; }
 .intent-composer { align-items: start; display: grid; gap: 18px 24px; grid-template-columns: minmax(0, 1.08fr) minmax(380px, .92fr); }
-.intent-composer--goal { grid-template-columns: minmax(0, 820px); }
+.intent-composer--goal { gap: 24px 44px; grid-template-columns: minmax(0, 2fr) minmax(280px, .78fr); }
 .intent-goal { grid-column: 1; grid-row: 1; min-width: 0; }
 .policy-editor { grid-column: 2; grid-row: 1 / span 4; position: sticky; top: 96px; }
-.intent-goal, .policy-editor { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: clamp(20px, 3vw, 30px); }
-.intent-goal { border-color: var(--line-strong); border-radius: 28px; box-shadow: 0 18px 50px color-mix(in oklch, var(--ink) 10%, transparent); padding: 12px 14px 12px 22px; transition: border-color 120ms ease-out, box-shadow 120ms ease-out; }
-.intent-goal:focus-within { border-color: var(--cobalt); box-shadow: 0 0 0 3px color-mix(in oklch, var(--cobalt) 18%, transparent), 0 18px 50px color-mix(in oklch, var(--ink) 10%, transparent); }
-.intent-goal__input { min-height: 112px; position: relative; }
-.intent-goal textarea, .intent-goal__highlight, .intent-caret-mirror { border: 0; font: inherit; font-size: 20px; line-height: 1.45; min-height: 112px; padding: 12px 4px; white-space: pre-wrap; width: 100%; }
+.intent-goal, .policy-editor { background: var(--surface); border: 1px solid var(--line); border-radius: 24px; padding: clamp(22px, 3vw, 30px); }
+.intent-goal { box-shadow: 0 16px 42px color-mix(in oklch, var(--ink) 7%, transparent); }
+.intent-goal__header h2 { font-size: 24px; letter-spacing: -.035em; line-height: 1.1; margin: 0; }
+.intent-goal__header p { color: var(--muted); font-size: 14px; line-height: 1.5; margin: 8px 0 0; max-width: 570px; }
+.intent-goal__input { background: var(--wash); border: 1px solid var(--line); border-radius: 16px; margin-top: 18px; min-height: 116px; position: relative; transition: border-color 120ms ease-out, box-shadow 120ms ease-out; }
+.intent-goal__input:focus-within { border-color: var(--cobalt); box-shadow: 0 0 0 3px color-mix(in oklch, var(--cobalt) 18%, transparent); }
+.intent-goal textarea, .intent-goal__highlight, .intent-caret-mirror { border: 0; font: inherit; font-size: 18px; line-height: 1.5; min-height: 116px; padding: 15px 16px; white-space: pre-wrap; width: 100%; }
 .intent-goal textarea { background: transparent; caret-color: var(--ink); color: transparent; position: relative; resize: none; z-index: 1; }
 .intent-goal__highlight { color: var(--ink); inset: 0; overflow: hidden; pointer-events: none; position: absolute; word-break: break-word; }
 .intent-goal__highlight strong { background: color-mix(in oklch, var(--cobalt) 10%, transparent); border-radius: 5px; box-decoration-break: clone; color: var(--cobalt); font-weight: inherit; -webkit-box-decoration-break: clone; }
@@ -18,8 +21,8 @@
 .intent-caret-mirror { inset: 0; overflow: hidden; pointer-events: none; position: absolute; visibility: hidden; word-break: break-word; }
 .intent-caret-anchor { display: inline-block; height: 1lh; width: 0; }
 .intent-goal textarea:focus { outline: 0; }
-.intent-goal textarea::placeholder { color: var(--muted); }
-.intent-token-status { color: var(--muted); font-size: 11px; line-height: 1.4; margin: -2px 4px 10px; }
+.intent-goal textarea::placeholder { color: var(--muted); opacity: .82; }
+.intent-token-status { color: var(--muted); font-size: 12px; line-height: 1.45; margin: 8px 2px 0; }
 .intent-token-status--error { color: var(--rejected); }
 .intent-typeahead { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); display: grid; gap: 2px; max-height: 280px; overflow-y: auto; padding: 6px; position: absolute; z-index: 6; }
 .intent-typeahead button { align-items: center; background: transparent; border: 0; border-radius: 9px; color: var(--ink); display: grid; gap: 12px; grid-template-columns: 20px auto minmax(0, 1fr) auto; min-height: 38px; padding: 9px 10px; text-align: left; }
@@ -32,27 +35,29 @@
 .intent-typeahead b { color: var(--ink); font-size: 11px; font-weight: 560; white-space: nowrap; }
 .intent-typeahead__evidence small { color: var(--muted); font-size: 10px; grid-column: auto; white-space: nowrap; }
 .intent-typeahead code { color: var(--muted); font-family: var(--font-geist-mono), monospace; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.intent-examples { display: grid; gap: 8px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0 0 14px; }
-.intent-examples button { background: var(--wash); border: 1px solid transparent; border-radius: 14px; color: var(--muted); font-size: 12px; line-height: 1.45; min-height: 54px; padding: 10px 12px; text-align: left; transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out, transform 120ms ease-out; }
+.intent-examples { display: grid; gap: 8px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 20px; }
+.intent-examples > p { color: var(--muted); font-size: 12px; grid-column: 1 / -1; margin: 0 0 2px; }
+.intent-examples button { background: var(--wash); border: 1px solid transparent; border-radius: 13px; color: var(--muted); font-size: 12px; line-height: 1.45; min-height: 58px; padding: 9px 11px; text-align: left; transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out, transform 120ms ease-out; }
 .intent-examples button strong { color: var(--cobalt); font-family: var(--font-geist-mono), monospace; font-weight: 600; }
 .intent-examples button:hover { background: color-mix(in oklch, var(--cobalt) 6%, var(--wash)); color: var(--ink); }
 .intent-examples button:focus-visible { border-color: var(--cobalt); outline: 2px solid color-mix(in oklch, var(--cobalt) 28%, transparent); outline-offset: 2px; }
 .intent-examples button:active { transform: scale(.96); }
-.intent-goal__tools { align-items: center; display: flex; gap: 12px; justify-content: space-between; }
-.intent-goal__controls { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
-.intent-goal__tools-end { align-items: center; display: flex; gap: 10px; margin-left: auto; min-width: 0; }
-.intent-goal__controls > select, .intent-route-control > summary { align-items: center; appearance: none; background: var(--wash); border: 1px solid transparent; border-radius: 999px; color: var(--ink); display: inline-flex; font-size: 12px; min-height: 36px; padding: 0 14px; }
-.intent-goal__controls > select { padding-right: 28px; }
+.intent-goal__footer { border-top: 1px solid var(--line); display: grid; gap: 16px; margin-top: 18px; padding-top: 17px; }
+.intent-goal__controls { align-items: end; display: flex; flex-wrap: wrap; gap: 8px; }
+.intent-action-field { display: grid; gap: 6px; }
+.intent-action-field > span { color: var(--muted); font-size: 11px; line-height: 1; }
+.intent-action-field > select, .intent-route-control > summary { align-items: center; appearance: none; background: var(--wash); border: 1px solid transparent; border-radius: 12px; color: var(--ink); display: inline-flex; font-size: 12px; min-height: 40px; padding: 0 13px; }
+.intent-action-field > select { min-width: 116px; padding-right: 28px; }
 .intent-route-control { position: relative; }
 .intent-route-control > summary { cursor: pointer; gap: 7px; list-style: none; }
 .intent-route-control > summary::-webkit-details-marker { display: none; }
 .intent-route-control > summary span { align-items: center; background: var(--cobalt); border-radius: 999px; color: white; display: inline-flex; font-size: 10px; height: 18px; justify-content: center; min-width: 18px; }
-.intent-route-control__menu { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; bottom: calc(100% + 10px); box-shadow: 0 18px 50px color-mix(in oklch, var(--ink) 14%, transparent); display: grid; gap: 10px; left: 0; min-width: 250px; padding: 16px; position: absolute; z-index: 4; }
+.intent-route-control__menu { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 18px 50px color-mix(in oklch, var(--ink) 14%, transparent); display: grid; gap: 10px; left: 0; min-width: 250px; padding: 16px; position: absolute; top: calc(100% + 8px); z-index: 4; }
 .intent-route-control__menu strong { font-size: 13px; }
 .intent-route-control__menu p { color: var(--muted); font-size: 11px; line-height: 1.45; margin: 0 0 2px; }
 .intent-route-control__menu label { align-items: center; color: var(--ink); display: grid; font-size: 13px; gap: 9px; grid-template-columns: 14px 20px minmax(0, 1fr); }
 .intent-route-control__menu input { accent-color: var(--cobalt); }
-.intent-settings__trigger { align-items: center; background: var(--wash); border: 1px solid transparent; border-radius: 999px; color: var(--ink); display: inline-flex; font-size: 12px; gap: 7px; min-height: 36px; padding: 0 10px; }
+.intent-settings__trigger { align-items: center; background: var(--wash); border: 1px solid transparent; border-radius: 12px; color: var(--ink); display: inline-flex; font-size: 12px; gap: 7px; min-height: 40px; padding: 0 10px; }
 .intent-settings__trigger:focus-visible { border-color: var(--cobalt); outline: 2px solid color-mix(in oklch, var(--cobalt) 28%, transparent); outline-offset: 2px; }
 .intent-settings__trigger:active { transform: scale(.96); }
 .intent-settings__trigger .intent-settings__tag { align-items: center; background: color-mix(in oklch, var(--cobalt) 9%, transparent); border-radius: 999px; color: var(--cobalt); display: inline-flex; font-size: 10px; font-variant-numeric: tabular-nums; height: 18px; padding-inline: 6px; }
@@ -73,12 +78,14 @@
 .intent-mention-menu button:hover { background: var(--wash); }
 .intent-mention-menu__label { font-family: var(--font-geist-mono), monospace; font-size: 12px; }
 .intent-mention-menu button small { color: var(--muted); font-size: 10px; margin-left: 18px; }
-.intent-goal__send { align-items: center; background: var(--ink); border: 0; border-radius: 50%; color: var(--surface); display: inline-flex; flex: 0 0 42px; height: 42px; justify-content: center; }
-.intent-goal__send:disabled { cursor: not-allowed; opacity: .34; }
-.intent-goal__send:not(:disabled):hover { transform: translateY(-1px); }
-.intent-availability { align-items: center; display: flex; flex: 0 1 370px; justify-content: end; min-width: 0; }
+.intent-goal__review { align-items: end; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) auto; }
+.intent-goal__review-action { align-items: end; display: grid; gap: 7px; justify-items: end; }
+.intent-goal__review-action > span { color: var(--muted); font-size: 11px; }
+.intent-goal__send { border-radius: 12px; min-height: 44px; min-width: 164px; }
+.intent-goal__send:disabled { cursor: not-allowed; opacity: .42; }
+.intent-availability { align-items: center; display: flex; min-width: 0; }
 .intent-availability__status { color: var(--muted); font-size: 11px; line-height: 1.45; margin: 0; }
-.intent-availability > ul { display: flex; flex: 1 1 auto; flex-wrap: wrap; gap: 5px; justify-content: end; list-style: none; margin: 0; padding: 0; }
+.intent-availability > ul { display: flex; flex: 1 1 auto; flex-wrap: wrap; gap: 5px; list-style: none; margin: 0; padding: 0; }
 .intent-availability li { min-width: 0; }
 .intent-availability > ul > li:not(.intent-availability__overflow) { max-width: 184px; }
 .intent-availability button, .intent-availability__overflow summary { align-items: center; background: var(--wash); border: 1px solid transparent; border-radius: 999px; color: var(--ink); display: grid; gap: 4px; grid-template-columns: 16px minmax(0, 1fr) auto; max-width: 100%; min-height: 36px; padding: 5px 9px 5px 7px; transition: background-color 120ms ease-out, border-color 120ms ease-out, transform 120ms ease-out; }
@@ -94,6 +101,13 @@
 .intent-availability__asset-mark .brand-mark { height: 18px; width: 18px; }
 .intent-availability__asset-name { font-family: var(--font-geist-sans), sans-serif; font-size: 12px; font-weight: 700; letter-spacing: -.01em; line-height: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .intent-availability__asset-value { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; font-weight: 600; line-height: 1; white-space: nowrap; }
+.intent-flow-guide { border-left: 1px solid var(--line); grid-column: 2; grid-row: 1 / span 3; padding: 8px 0 8px 32px; }
+.intent-flow-guide h2 { font-size: 22px; letter-spacing: -.035em; margin: 0; }
+.intent-flow-guide ol { display: grid; gap: 24px; list-style: none; margin: 26px 0 0; padding: 0; }
+.intent-flow-guide li { display: grid; gap: 13px; grid-template-columns: 38px minmax(0, 1fr); }
+.intent-flow-guide li > span { align-items: center; background: color-mix(in oklch, var(--cobalt) 9%, var(--wash)); border-radius: 12px; color: var(--cobalt); display: inline-flex; height: 38px; justify-content: center; width: 38px; }
+.intent-flow-guide strong { font-size: 14px; font-weight: 620; }
+.intent-flow-guide p { color: var(--muted); font-size: 12px; line-height: 1.55; margin: 5px 0 0; text-wrap: pretty; }
 .policy-editor > header { align-items: start; display: flex; justify-content: space-between; }
 .policy-editor h2 { font-size: 25px; letter-spacing: -.04em; margin: 0; }
 .policy-editor header p { color: var(--muted); font-size: 13px; line-height: 1.45; margin: 7px 0 0; }
@@ -103,6 +117,7 @@
 .composition-capabilities strong { font-size: 13px; font-weight: 560; }
 .composition-capabilities small { color: var(--approved); font-size: 10px; }
 .intent-goal-summary { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; display: grid; gap: 20px; padding: 22px; }
+.intent-goal-summary h2 { font-size: 15px; letter-spacing: -.015em; margin: 0 0 10px; }
 .intent-goal-summary p { font-size: 20px; line-height: 1.45; margin: 0; }
 .intent-goal-summary .button { justify-self: start; }
 .intent-asset-authority { align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; display: grid; gap: 12px; grid-column: 1; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); padding: 18px 20px; }
@@ -131,19 +146,26 @@
 .form-alert { background: color-mix(in oklch, var(--rejected) 8%, var(--surface)); border: 1px solid color-mix(in oklch, var(--rejected) 28%, var(--line)); border-radius: 12px; color: var(--rejected); font-size: 12px; margin: 0; padding: 13px 15px; }
 
 @media (max-width: 720px) {
-  .intent-page { padding: 48px 20px 80px; }
-  .intent-page__header { margin-bottom: 30px; }
-  .intent-page__header h1 { font-size: 48px; }
-  .intent-goal, .policy-editor { border-radius: 18px; padding: 18px; }
+  .intent-page { padding: 34px 16px 72px; }
+  .intent-page__header { margin-bottom: 26px; }
+  .intent-page__header h1 { font-size: 42px; }
+  .intent-page__header p { font-size: 16px; margin-top: 14px; }
+  .intent-goal, .policy-editor { border-radius: 18px; padding: 20px; }
+  .intent-goal__header h2 { font-size: 22px; }
   .intent-goal textarea, .intent-goal__highlight, .intent-caret-mirror { font-size: 16px; }
   .intent-typeahead button { gap: 8px; }
-  .intent-examples { display: flex; margin-inline: -4px; overflow-x: auto; padding: 2px 4px 8px; scrollbar-width: none; }
-  .intent-examples::-webkit-scrollbar { display: none; }
-  .intent-examples button { flex: 0 0 220px; }
-  .intent-goal__tools { align-items: flex-start; flex-wrap: wrap; }
-  .intent-goal__tools-end { margin-left: 0; width: 100%; }
-  .intent-availability { flex: 1 1 auto; justify-content: start; overflow: visible; }
-  .intent-availability > ul { justify-content: start; }
+  .intent-examples { grid-template-columns: 1fr; }
+  .intent-examples button { min-height: 52px; }
+  .intent-goal__controls { align-items: stretch; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .intent-action-field { grid-column: 1 / -1; }
+  .intent-action-field > select, .intent-route-control > summary, .intent-settings__trigger { justify-content: center; width: 100%; }
+  .intent-route-control__menu { min-width: 0; width: min(310px, calc(100vw - 52px)); }
+  .intent-settings__menu { left: 0; right: auto; }
+  .intent-goal__review { align-items: stretch; grid-template-columns: 1fr; }
+  .intent-goal__review-action { align-items: stretch; justify-items: stretch; }
+  .intent-goal__review-action > span { text-align: left; }
+  .intent-goal__send { width: 100%; }
+  .intent-availability { overflow: visible; }
   .intent-settings__number input { font-size: 16px; }
   .policy-fields, .policy-summary { grid-template-columns: 1fr; }
   .intent-asset-authority { align-items: start; grid-template-columns: 1fr; }
@@ -154,8 +176,20 @@
   .intent-connect-note { text-align: left; }
 }
 
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .intent-page .button--primary { color: var(--paper); }
+}
+
 @media (max-width: 1000px) {
   .intent-composer { grid-template-columns: 1fr; }
   .intent-goal, .intent-goal-summary, .intent-asset-authority, .policy-editor, .intent-submit, .intent-connect-note, .form-alert { grid-column: 1; grid-row: auto; }
   .policy-editor { position: static; }
+  .intent-flow-guide { border-left: 0; border-top: 1px solid var(--line); grid-column: 1; grid-row: auto; padding: 26px 0 0; }
+  .intent-flow-guide ol { gap: 18px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .intent-flow-guide li { grid-template-columns: 34px minmax(0, 1fr); }
+  .intent-flow-guide li > span { border-radius: 10px; height: 34px; width: 34px; }
+}
+
+@media (max-width: 720px) {
+  .intent-flow-guide ol { grid-template-columns: 1fr; }
 }
