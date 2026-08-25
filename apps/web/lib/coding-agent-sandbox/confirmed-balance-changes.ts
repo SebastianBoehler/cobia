@@ -1,3 +1,4 @@
+import { isNativeAssetAddress } from "@cobia/domain";
 import { getAddress, isAddressEqual, type Address } from "viem";
 import { z } from "zod";
 
@@ -19,6 +20,7 @@ export async function readConfirmedBalanceChanges(input: {
   owner: Address;
   blockNumber: bigint;
   readBalance(token: Address, owner: Address, blockNumber: bigint): Promise<bigint>;
+  readNativeBalance?(owner: Address, blockNumber: bigint): Promise<bigint>;
 }) {
   const balances = BalanceEvidenceSchema.safeParse(input.evidence);
   const simulations = SimulationEvidenceSchema.safeParse(input.evidence);
@@ -34,7 +36,14 @@ export async function readConfirmedBalanceChanges(input: {
     if (!ownerDeltas.has(token)) ownerDeltas.set(token, delta);
   }
   const changes = await Promise.all([...ownerDeltas.entries()].map(async ([token, { beforeAtomic }]) => ({
-    token, beforeAtomic, afterAtomic: (await input.readBalance(token, input.owner, input.blockNumber)).toString(),
+    token,
+    beforeAtomic,
+    afterAtomic: (await (isNativeAssetAddress(token)
+      ? (() => {
+        if (!input.readNativeBalance) throw new Error("Native balance reader is unavailable");
+        return input.readNativeBalance(input.owner, input.blockNumber);
+      })()
+      : input.readBalance(token, input.owner, input.blockNumber))).toString(),
   })));
   return changes.filter(({ beforeAtomic, afterAtomic }) => BigInt(beforeAtomic) !== BigInt(afterAtomic));
 }

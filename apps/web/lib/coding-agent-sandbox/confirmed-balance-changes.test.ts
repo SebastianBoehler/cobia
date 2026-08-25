@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { NATIVE_ASSET_ADDRESS } from "@cobia/domain";
+import { getAddress } from "viem";
 import { readConfirmedBalanceChanges } from "./confirmed-balance-changes";
 
 const owner = "0x1111111111111111111111111111111111111111" as const;
@@ -56,5 +58,28 @@ describe("confirmed balance changes", () => {
       { token, beforeAtomic: "0", afterAtomic: "1171680" },
       { token: source, beforeAtomic: "1000000", afterAtomic: "0" },
     ]);
+  });
+
+  it("reads native output with the chain balance reader instead of ERC-20 balanceOf", async () => {
+    const readBalance = vi.fn(async () => 0n);
+    const readNativeBalance = vi.fn(async () => 100_048_604_094_915_184_516n);
+
+    await expect(readConfirmedBalanceChanges({
+      evidence: { balanceDeltas: [{
+        token: NATIVE_ASSET_ADDRESS, account: owner,
+        beforeAtomic: "100000000000000000000", afterAtomic: "100048604094915184516",
+      }] },
+      owner,
+      blockNumber: 456n,
+      readBalance,
+      readNativeBalance,
+    })).resolves.toEqual([{
+      token: getAddress(NATIVE_ASSET_ADDRESS),
+      beforeAtomic: "100000000000000000000",
+      afterAtomic: "100048604094915184516",
+    }]);
+
+    expect(readBalance).not.toHaveBeenCalled();
+    expect(readNativeBalance).toHaveBeenCalledWith(owner, 456n);
   });
 });

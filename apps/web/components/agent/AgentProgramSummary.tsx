@@ -35,9 +35,10 @@ function status(program: ProgramView) {
     detail: "Historical research only. Generate a current route before execution." } as const;
 }
 
-export function AgentProgramSummary({ program, action }: {
+export function AgentProgramSummary({ program, action, notice }: {
   program: ProgramView;
   action?: React.ReactNode;
+  notice?: React.ReactNode;
 }) {
   const { submission, artifacts } = program;
   const state = status(program);
@@ -123,6 +124,7 @@ export function AgentProgramSummary({ program, action }: {
               ? "Cobia waives the solver fee. Review the exact ordered stages; every wallet transaction remains separately confirmed and reconciled."
               : "Cobia currently waives the solver fee. Token approval appears only if needed; surplus allowance remains active until used or revoked."
             : "Create a fresh intent to capture current state and verify it again."}</p></div>
+        {notice}
         {action ?? <Link className="button button--primary" href="/intents/new">Create fresh intent <ArrowRight aria-hidden="true" size={16} /></Link>}
       </div>}
     </section>

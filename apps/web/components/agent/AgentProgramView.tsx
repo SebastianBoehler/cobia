@@ -169,7 +169,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
       try {
         const refreshed = await load(programId);
         setProgram(refreshed);
-        setError(refreshed.submission.executable ? failure : undefined);
+        setError(failure);
       } catch { setError(failure); }
     } finally { setPending(false); }
   }
@@ -306,8 +306,9 @@ export function AgentProgramView({ programId }: { programId: string }) {
     prepared.transactions[transactionIndex]!, program.artifacts.snapshot?.payload?.tokenEvidence ?? [],
     { allowSufficientApproval: prepared.approvalPolicy === "at-least-required" },
   );
+  const errorNotice = error ? <p role="alert" className="form-alert">{error}</p> : null;
   const action = <>
-    {error ? <p role="alert" className="form-alert">{error}</p> : null}
+    {errorNotice}
     {pendingReceipt && !confirmed ? <button className="button button--primary" disabled={pending} onClick={retryReceipt}>
       {pending ? "Verifying confirmed transaction…" : "Retry receipt verification"}
     </button> : null}
@@ -326,5 +327,6 @@ export function AgentProgramView({ programId }: { programId: string }) {
       that covers this transaction; unused allowance remains active until used or revoked.
     </p> : null}
   </>;
-  return <AgentProgramSummary program={program} action={submission.executable || error ? action : undefined} />;
+  return <AgentProgramSummary program={program} action={submission.executable ? action : undefined}
+    notice={errorNotice} />;
 }

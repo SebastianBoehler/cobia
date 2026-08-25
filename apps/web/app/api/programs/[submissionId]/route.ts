@@ -44,6 +44,7 @@ async function enrichReceipt(
       readBalance: (token, owner, blockNumber) => client.readContract({
         address: token, abi: erc20Abi, functionName: "balanceOf", args: [owner], blockNumber,
       }),
+      readNativeBalance: (owner, blockNumber) => client.getBalance({ address: owner, blockNumber }),
     });
     return balanceChanges.length > 0 ? { ...parsed.data, blockNumber, balanceChanges } : receipt?.payload;
   } catch {

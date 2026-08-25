@@ -169,6 +169,7 @@ export async function POST(
         readBalance: (token, owner, blockNumber) => client.readContract({
           address: token, abi: erc20Abi, functionName: "balanceOf", args: [owner], blockNumber,
         }),
+        readNativeBalance: (owner, blockNumber) => client.getBalance({ address: owner, blockNumber }),
       });
       if (balanceChanges.length > 0) attributed = { ...(attributed as object), balanceChanges };
     }

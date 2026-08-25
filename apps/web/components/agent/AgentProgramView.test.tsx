@@ -249,6 +249,7 @@ describe("AgentProgramView", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Prepare execution" }));
 
     expect(await screen.findByText("Verified history")).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent("Execution reverted.");
     expect(screen.getByRole("link", { name: /create fresh intent/i })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Swap now" })).not.toBeInTheDocument();
   });
