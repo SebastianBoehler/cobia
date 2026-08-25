@@ -31,7 +31,7 @@ const response = { code: "0", data: [{
 }], msg: "" };
 const artifact = {
   version: 1, provider: "okx.dex@1", stageId: "01-okx-swap",
-  fetchedAt: 1_786_900_000, expiresAt: 1_786_900_030, request, response,
+  fetchedAt: 1_786_900_000, expiresAt: 1_786_900_120, request, response,
   attributedData,
 };
 const stage = {
@@ -116,6 +116,14 @@ describe("OKX strict swap stage", () => {
       { to: fromToken, data: encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [approval, 10n] }), value: "0x0" },
       { to: router, data: attributedData, value: "0x0" },
     ]);
+  });
+
+  it("rejects a quote window beyond the verifier maximum", async () => {
+    const tooLongArtifact = { ...artifact, expiresAt: artifact.fetchedAt + 121 };
+    await expect(verify({
+      artifact: tooLongArtifact,
+      stage: { ...stage, expiresAt: tooLongArtifact.expiresAt },
+    })).resolves.toEqual({ accepted: false, errorCodes: ["OKX_QUOTE_STALE"] });
   });
 
   it("authorizes a native OKB swap without an ERC-20 approval", async () => {

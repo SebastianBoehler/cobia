@@ -65,7 +65,7 @@ export function solverCodexConfig(job: CodexJob) {
           "--intent", job.intentPath],
         cwd: repositoryRoot,
         env: routeEnvironment(),
-        enabled_tools: ["intent", "capabilities", "exact_call"],
+        enabled_tools: ["intent", "capabilities", "solve", "exact_call"],
         default_tools_approval_mode: "approve",
         required: true,
         startup_timeout_sec: 20,

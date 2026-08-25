@@ -60,7 +60,7 @@ describe("OKX route construction", () => {
       now: () => new Date("2026-08-23T08:00:00.000Z"), fetchImpl,
     })).resolves.toMatchObject({
       provider: "okx.dex@1", stageId: "01-okx-swap",
-      fetchedAt: 1_787_472_000, expiresAt: 1_787_472_030,
+      fetchedAt: 1_787_472_000, expiresAt: 1_787_472_120,
       request, response, attributedData,
     });
   });

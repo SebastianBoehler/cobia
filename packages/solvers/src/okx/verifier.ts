@@ -22,6 +22,8 @@ import {
   type OkxSwapArtifactV1,
 } from "./wire";
 
+export const OKX_MAX_QUOTE_VALIDITY_SEC = 120;
+
 export interface OkxSwapSimulationV1 {
   reproduced: boolean;
   transactionSuccess: boolean;
@@ -92,7 +94,8 @@ export function authorizeOkxSwapStageV1(raw: Pick<VerificationInputV1,
   const errors: string[] = [];
   if (artifact.data.stageId !== stage.id) errors.push("OKX_STAGE_MISMATCH");
   if (artifact.data.fetchedAt !== stage.fetchedAt || artifact.data.expiresAt !== stage.expiresAt ||
-      raw.nowSec < stage.fetchedAt || raw.nowSec >= stage.expiresAt || stage.expiresAt - stage.fetchedAt > 30) {
+      raw.nowSec < stage.fetchedAt || raw.nowSec >= stage.expiresAt ||
+      stage.expiresAt - stage.fetchedAt > OKX_MAX_QUOTE_VALIDITY_SEC) {
     errors.push("OKX_QUOTE_STALE");
   }
   if (commitment(request) !== stage.quoteHash || commitment(artifact.data.response) !== stage.responseHash) {

@@ -31,6 +31,7 @@ describe("Codex solver job", () => {
     expect(job.prompt).toContain("entire final response");
     expect(job.prompt).toContain("Do not call MCP resource-discovery tools");
     expect(guidance).toContain("route MCP tools");
+    expect(guidance).toContain("optional protocol plugin");
     expect(guidance).toContain("not an allowlist");
     expect(guidance).toContain("Use live web research");
     expect(guidance).toContain("minimumStages");
