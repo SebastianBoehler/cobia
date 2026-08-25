@@ -1,4 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Address } from "viem";
+
+interface RecentPnlItem {
+  token: Address;
+  symbol: string;
+  lastActiveAt: string;
+  totalPnlUsd: string;
+  totalPnlPercent: string;
+  realizedPnlUsd: string;
+  unrealizedPnlUsd: string;
+  balanceUsd: string;
+}
+
+interface DexHistoryItem {
+  type: "buy" | "sell";
+  token: Address;
+  symbol: string;
+  valueUsd: string;
+  amount: string;
+  priceUsd: string;
+  pnlUsd: string;
+  occurredAt: string;
+}
 
 const getBalance = vi.fn(async () => 0n);
 const getBlockNumber = vi.fn(async () => 123n);
@@ -6,9 +29,29 @@ const readContract = vi.fn<(request: { address: string; functionName?: string })
 const listXLayerTokenBalances = vi.fn<(address: string) => Promise<Array<{
   chainId: 196; token: `0x${string}`; symbol: string; balance: string; priceUsd: string;
 }>>>(async () => []);
+const getXLayerTotalValue = vi.fn(async () => ({
+  totalValueUsd: "0", fetchedAt: "2026-08-25T10:00:00.000Z",
+}));
+const getXLayerRecentPnl = vi.fn<() => Promise<RecentPnlItem[]>>(async () => []);
+const getXLayerDexHistory = vi.fn<() => Promise<{
+  beginAt: string;
+  endAt: string;
+  transactions: DexHistoryItem[];
+}>>(async () => ({
+  beginAt: "2026-07-26T10:00:00.000Z",
+  endAt: "2026-08-25T10:00:00.000Z",
+  transactions: [],
+}));
 
 vi.mock("../okx/client", () => ({
   createOkxClient: vi.fn(() => ({ listXLayerTokenBalances })),
+}));
+vi.mock("../okx/portfolio-analytics", () => ({
+  createOkxPortfolioAnalyticsClient: vi.fn(() => ({
+    getXLayerTotalValue,
+    getXLayerRecentPnl,
+    getXLayerDexHistory,
+  })),
 }));
 vi.mock("../env", () => ({ readOkxCredentials: vi.fn(() => ({})) }));
 
@@ -33,6 +76,15 @@ beforeEach(() => {
   getBlockNumber.mockResolvedValue(123n);
   readContract.mockResolvedValue(0n);
   listXLayerTokenBalances.mockResolvedValue([]);
+  getXLayerTotalValue.mockResolvedValue({
+    totalValueUsd: "0", fetchedAt: "2026-08-25T10:00:00.000Z",
+  });
+  getXLayerRecentPnl.mockResolvedValue([]);
+  getXLayerDexHistory.mockResolvedValue({
+    beginAt: "2026-07-26T10:00:00.000Z",
+    endAt: "2026-08-25T10:00:00.000Z",
+    transactions: [],
+  });
 });
 
 afterEach(() => {
@@ -40,6 +92,61 @@ afterEach(() => {
 });
 
 describe("mainnet portfolio", () => {
+  it("adds independently sourced OKX value, PnL, and DEX activity", async () => {
+    getXLayerTotalValue.mockResolvedValue({
+      totalValueUsd: "1450.25", fetchedAt: "2026-08-25T10:00:00.000Z",
+    });
+    getXLayerRecentPnl.mockResolvedValue([{ token: usdt0.toLowerCase() as Address, symbol: "USDt0",
+      lastActiveAt: "2026-08-25T09:50:00.000Z", totalPnlUsd: "18.25",
+      totalPnlPercent: "2.30", realizedPnlUsd: "12.50", unrealizedPnlUsd: "5.75",
+      balanceUsd: "1060.00" }]);
+    getXLayerDexHistory.mockResolvedValue({
+      beginAt: "2026-07-26T10:00:00.000Z",
+      endAt: "2026-08-25T10:00:00.000Z",
+      transactions: [{ type: "buy" as const, token: usdt0.toLowerCase() as Address, symbol: "USDt0",
+        valueUsd: "250.00", amount: "250", priceUsd: "1.00", pnlUsd: "4.50",
+        occurredAt: "2026-08-25T09:50:00.000Z" }],
+    });
+
+    const snapshot = await readPortfolio(owner, 196, "https://rpc.invalid");
+
+    expect(snapshot.analytics).toEqual({
+      status: "available",
+      source: "okx-indexed",
+      totalValue: { status: "available", totalValueUsd: "1450.25",
+        fetchedAt: "2026-08-25T10:00:00.000Z" },
+      recentPnl: { status: "available", items: expect.arrayContaining([
+        expect.objectContaining({ symbol: "USDt0", totalPnlUsd: "18.25" }),
+      ]) },
+      dexHistory: { status: "available", beginAt: "2026-07-26T10:00:00.000Z",
+        endAt: "2026-08-25T10:00:00.000Z", items: expect.arrayContaining([
+          expect.objectContaining({ type: "buy", symbol: "USDt0", valueUsd: "250.00" }),
+        ]) },
+    });
+  });
+
+  it("keeps independent analytics sources visible when one OKX read fails", async () => {
+    getXLayerTotalValue.mockRejectedValueOnce(new Error("total value unavailable"));
+    getXLayerRecentPnl.mockResolvedValueOnce([{ token: usdt0.toLowerCase() as Address, symbol: "USDt0",
+      lastActiveAt: "2026-08-25T09:50:00.000Z", totalPnlUsd: "18.25",
+      totalPnlPercent: "2.30", realizedPnlUsd: "12.50", unrealizedPnlUsd: "5.75",
+      balanceUsd: "1060.00" }]);
+
+    const snapshot = await readPortfolio(owner, 196, "https://rpc.invalid");
+
+    expect(snapshot.analytics.status).toBe("available");
+    if (snapshot.analytics.status !== "available") throw new Error("Expected mainnet analytics");
+    expect(snapshot.analytics.totalValue).toEqual({
+      status: "unavailable",
+      message: "Indexed portfolio value is temporarily unavailable.",
+    });
+    expect(snapshot.analytics.recentPnl).toMatchObject({
+      status: "available",
+      items: [expect.objectContaining({ symbol: "USDt0", totalPnlUsd: "18.25" })],
+    });
+    expect(snapshot.balances).toBeDefined();
+  });
+
   it("adds each verified wallet ERC-20 discovered by the X Layer balance index", async () => {
     const token = "0x1111111111111111111111111111111111111111" as const;
     listXLayerTokenBalances.mockResolvedValue([{ chainId: 196, token, symbol: "EXAMPLE",

@@ -41,6 +41,33 @@ describe("PortfolioView", () => {
         amountAtomic: "4250000",
         formatted: "4.25",
       }],
+      analytics: {
+        status: "available",
+        source: "okx-indexed",
+        totalValue: { status: "available", totalValueUsd: "1450.25",
+          fetchedAt: "2026-08-25T10:00:00.000Z" },
+        recentPnl: { status: "available", items: [{
+          token: "0x2222222222222222222222222222222222222222",
+          symbol: "USDG",
+          lastActiveAt: "2026-08-25T09:50:00.000Z",
+          totalPnlUsd: "18.25",
+          totalPnlPercent: "2.30",
+          realizedPnlUsd: "12.50",
+          unrealizedPnlUsd: "5.75",
+          balanceUsd: "1060.00",
+        }] },
+        dexHistory: { status: "available", beginAt: "2026-07-26T10:00:00.000Z",
+          endAt: "2026-08-25T10:00:00.000Z", items: [{
+            type: "buy",
+            token: "0x2222222222222222222222222222222222222222",
+            symbol: "USDG",
+            valueUsd: "250.00",
+            amount: "250",
+            priceUsd: "1.00",
+            pnlUsd: "4.50",
+            occurredAt: "2026-08-25T09:50:00.000Z",
+          }] },
+      },
     })));
     const detail: Eip6963ProviderDetail = {
       info: {
@@ -82,6 +109,14 @@ describe("PortfolioView", () => {
     expect(screen.getByRole("img", { name: "Aave V3" })).toBeVisible();
     expect(screen.getByText("12.5 USDG")).toBeVisible();
     expect(screen.getByText("4.25 aUSDG")).toBeVisible();
+    expect(screen.getByText("$1,450.25")).toBeVisible();
+    expect(screen.getByText("Aug 25, 10:00 AM UTC")).toBeVisible();
+    expect(screen.getAllByText(/OKX-indexed/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "PnL by asset" })).toBeVisible();
+    expect(screen.getByText("+$18.25")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Recent DEX activity" })).toBeVisible();
+    expect(screen.getByText("Buy USDG")).toBeVisible();
+    expect(screen.getByText("$250.00")).toBeVisible();
   });
 
   it("reads chain 1952 on the testnet host and omits unsupported protocol positions", async () => {

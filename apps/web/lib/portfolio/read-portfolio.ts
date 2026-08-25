@@ -2,8 +2,11 @@ import { createPublicClient, erc20Abi, formatUnits, http, type Address } from "v
 import { SUPPORTED_ASSETS } from "../chain/supported-assets";
 import { readOkxCredentials } from "../env";
 import { createOkxClient } from "../okx/client";
+import { createOkxPortfolioAnalyticsClient } from "../okx/portfolio-analytics";
 import { xLayerTestnet } from "../chain/xlayer-testnet";
 import { USDT_A_TOKEN, USDG_A_TOKEN, xLayer } from "../chain/xlayer";
+import { readIndexedPortfolioAnalytics, type IndexedPortfolioAnalytics } from
+  "./read-indexed-analytics";
 
 export type PortfolioChainId = 196 | 1952;
 
@@ -22,6 +25,7 @@ export interface PortfolioSnapshot {
     amountAtomic: string;
     formatted: string;
   }>;
+  analytics: IndexedPortfolioAnalytics;
 }
 
 export async function readPortfolio(
@@ -45,8 +49,14 @@ export async function readPortfolio(
     native: { symbol: "OKB", amountAtomic: native.toString(), formatted: formatUnits(native, 18) },
     balances: [],
     positions: [],
+    analytics: { status: "not_applicable", source: "okx-indexed",
+      message: "Indexed analytics are available on X Layer Mainnet only." },
   };
-  const listed = await createOkxClient({ credentials: readOkxCredentials() }).listXLayerTokenBalances(address);
+  const credentials = readOkxCredentials();
+  const [listed, analytics] = await Promise.all([
+    createOkxClient({ credentials }).listXLayerTokenBalances(address),
+    readIndexedPortfolioAnalytics(createOkxPortfolioAnalyticsClient({ credentials }), address),
+  ]);
   const known = new Map(SUPPORTED_ASSETS.map((asset) => [asset.address.toLowerCase(), asset]));
   const tokens = [...new Map<string, { address: Address; symbol: string; decimals?: number }>([
     ...SUPPORTED_ASSETS.map((asset) => [asset.address.toLowerCase(), { address: asset.address,
@@ -105,5 +115,6 @@ export async function readPortfolio(
         formatted: formatUnits(aUsdT0, 6),
       },
     ],
+    analytics,
   };
 }

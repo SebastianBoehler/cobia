@@ -167,7 +167,7 @@ export class OkxApiError extends Error {
   }
 }
 
-function readEnvelope(input: unknown): { code: string; msg: string; data: unknown } {
+export function readEnvelope(input: unknown): { code: string; msg: string; data: unknown } {
   const parsed = z
     .object({
       code: NumericStringSchema,

@@ -24,8 +24,8 @@ export async function GET(request: Request, context: RouteContext<"/api/wallets/
     });
   } catch {
     return NextResponse.json({
-      code: "RPC_UNAVAILABLE",
-      message: "X Layer portfolio is temporarily unavailable.",
+      code: "PORTFOLIO_UNAVAILABLE",
+      message: "Portfolio sources are temporarily unavailable.",
     }, { status: 503 });
   }
 }

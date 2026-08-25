@@ -24,7 +24,7 @@ describe("wallet portfolio API", () => {
       .toBe("public, max-age=0, s-maxage=10, stale-while-revalidate=20");
   });
 
-  it("returns a stable error without leaking the RPC failure", async () => {
+  it("returns a stable error without leaking an upstream portfolio failure", async () => {
     mocks.readPortfolio.mockRejectedValueOnce(new Error("upstream endpoint with secret query failed"));
 
     const response = await GET(
@@ -33,8 +33,8 @@ describe("wallet portfolio API", () => {
     );
 
     await expect(response.json()).resolves.toEqual({
-      code: "RPC_UNAVAILABLE",
-      message: "X Layer portfolio is temporarily unavailable.",
+      code: "PORTFOLIO_UNAVAILABLE",
+      message: "Portfolio sources are temporarily unavailable.",
     });
   });
 });
