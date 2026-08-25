@@ -37,6 +37,7 @@ describe("OkxAgentPaymentLookup", () => {
     render(<OkxAgentPaymentLookup />);
 
     expect(screen.getByText("Read only")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Payment ID or link" })).toHaveAttribute("name", "payment-reference");
     fireEvent.change(screen.getByLabelText("Payment ID or link"), {
       target: { value: "a2a_01HZX8Q9RK3JWYV7M2N5T8P4AB" },
     });

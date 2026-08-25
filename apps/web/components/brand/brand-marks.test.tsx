@@ -47,6 +47,14 @@ describe("brand marks", () => {
     expect(screen.getByRole("img", { name: "Future Protocol" })).toHaveTextContent("F");
   });
 
+  it("hides a protocol mark when adjacent text already names it", () => {
+    const { container } = render(<ProtocolMark decorative protocol="Curve" />);
+    const mark = container.querySelector(".brand-mark");
+    expect(mark).toHaveAttribute("aria-hidden", "true");
+    expect(mark).not.toHaveAttribute("aria-label");
+    expect(mark).not.toHaveAttribute("role");
+  });
+
   it("renders the official xStocks token asset for a canonical xStock symbol", () => {
     render(<TokenAssetMark symbol="TSLAx" />);
     expect(screen.getByRole("img", { name: "TSLAx token" }).querySelector("img"))

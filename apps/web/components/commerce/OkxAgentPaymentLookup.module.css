@@ -6,9 +6,9 @@
 .mode { border: 1px solid var(--line-strong); border-radius: 999px; color: var(--muted); font-size: 11px; padding: 5px 8px; }
 .form { display: grid; gap: 7px; margin-top: 16px; }
 .form label { color: var(--muted); font-size: 11px; }
-.form > div { display: flex; gap: 8px; }
+.fields { display: flex; gap: 8px; }
 .form input { background: var(--surface); border: 1px solid var(--line); border-radius: 11px; color: var(--ink); flex: 1; font-size: 13px; min-width: 0; padding: 10px 12px; }
-.form input:focus { border-color: var(--cobalt); outline: 0; }
+.form input:focus-visible { border-color: var(--cobalt); }
 .form button { flex: 0 0 auto; }
 .result { background: var(--surface); border: 1px solid var(--line); border-radius: 13px; margin-top: 14px; padding: 15px; }
 .resultHeading { align-items: start; display: flex; gap: 16px; justify-content: space-between; }
@@ -25,6 +25,7 @@
 @media (max-width: 720px) {
   .header { grid-template-columns: auto minmax(0, 1fr); }
   .mode { grid-column: 2; width: max-content; }
-  .form > div { align-items: stretch; flex-direction: column; }
+  .fields { align-items: stretch; flex-direction: column; }
+  .form input { font-size: 16px; }
   .result dl { grid-template-columns: repeat(2, 1fr); }
 }

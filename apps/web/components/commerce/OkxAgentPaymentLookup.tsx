@@ -9,11 +9,12 @@ function labelForStatus(status: string): string {
   return status.slice(0, 1).toUpperCase() + status.slice(1);
 }
 
-export function OkxAgentPaymentLookup() {
+export function OkxAgentPaymentLookup({ headingLevel = 2 }: { headingLevel?: 2 | 3 }) {
   const [reference, setReference] = useState("");
   const [payment, setPayment] = useState<OkxAgentPaymentSnapshotV1>();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
+  const Heading = headingLevel === 3 ? "h3" : "h2";
 
   async function inspect(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,22 +40,24 @@ export function OkxAgentPaymentLookup() {
     <header className={styles.header}>
       <span aria-hidden="true" className={styles.mark}><ReceiptText size={20} /></span>
       <div>
-        <h2 id="okx-agent-payment-title">Inspect an OKX Agent Payment</h2>
+        <Heading id="okx-agent-payment-title">Inspect an OKX Agent Payment</Heading>
         <p>Read payment and settlement evidence without creating or signing a payment.</p>
       </div>
       <span className={styles.mode}>Read only</span>
     </header>
     <form className={styles.form} onSubmit={inspect}>
-      <label>Payment ID or link
-        <div>
-          <input value={reference} onChange={(event) => setReference(event.target.value)} />
-          <button className="button button--secondary" disabled={pending} type="submit">
-            {pending ? "Inspecting…" : "Inspect payment"}
-          </button>
-        </div>
-      </label>
+      <label htmlFor="okx-payment-reference">Payment ID or link</label>
+      <div className={styles.fields}>
+        <input aria-describedby={error ? "okx-payment-error" : undefined} aria-invalid={Boolean(error)}
+          autoComplete="off" id="okx-payment-reference" name="payment-reference"
+          onChange={(event) => setReference(event.target.value)} placeholder="a2a_… or payment link"
+          spellCheck={false} value={reference} />
+        <button className="button button--secondary" disabled={pending} type="submit">
+          {pending ? "Inspecting…" : "Inspect payment"}
+        </button>
+      </div>
     </form>
-    {error ? <p className={styles.failure} role="alert">{error}</p> : null}
+    {error ? <p className={styles.failure} id="okx-payment-error" role="alert">{error}</p> : null}
     {payment ? <article aria-label="Payment evidence" className={styles.result}>
       <div className={styles.resultHeading}>
         <div><h3>{payment.provider.displayName}</h3><code>{payment.paymentId}</code></div>

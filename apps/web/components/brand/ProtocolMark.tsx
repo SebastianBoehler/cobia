@@ -62,14 +62,19 @@ function identity(protocol: string) {
   return protocolMarks.find(({ names }) => names.some((name) => value.includes(name)));
 }
 
-export function ProtocolMark({ protocol, size = 40 }: { protocol: string; size?: number }) {
+export function ProtocolMark({ protocol, size = 40, decorative = false }: {
+  protocol: string;
+  size?: number;
+  decorative?: boolean;
+}) {
   const match = identity(protocol);
   const Mark = match?.Mark;
   return (
     <span
-      aria-label={protocol}
+      aria-hidden={decorative || undefined}
+      aria-label={decorative ? undefined : protocol}
       className={`brand-mark brand-mark--protocol brand-mark--${match?.kind ?? "other"}`}
-      role="img"
+      role={decorative ? undefined : "img"}
       style={{ "--brand-mark-size": `${size}px` } as CSSProperties}
     >
       {Mark ? <Mark aria-hidden="true" size="100%" variant="background" /> : <span aria-hidden="true">{protocol.trim().slice(0, 1).toUpperCase()}</span>}
