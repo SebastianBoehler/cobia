@@ -34,6 +34,7 @@ import { GeneralAssetPolicyEditor } from "./GeneralAssetPolicyEditor";
 import { publicIntentExamples } from "../../lib/intents/public-examples";
 import { useGeneralAssetLaunchState } from "../network/useGeneralAssetLaunchState";
 import { IntentAssetAuthority } from "./IntentAssetAuthority";
+import { generalAssetRequestFromGoal } from "../../lib/intents/general-asset-goal";
 
 type ComposerValues = ReceiptValues | ComposedIntentDraft | StagedConversionDraft | GeneralAssetDraftV1;
 type NativeBalanceReadiness =
@@ -210,30 +211,31 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
   const mentions = useMemo<IntentMention[]>(() => [
     { id: "asset:OKB", group: "Assets" as const, mention: NATIVE_INTENT_ASSET.symbol,
       chainId: 196 as const,
-      address: NATIVE_INTENT_ASSET.address, priceUsd: assetPrices.okb,
+      address: NATIVE_INTENT_ASSET.address, decimals: NATIVE_INTENT_ASSET.decimals, priceUsd: assetPrices.okb,
       walletBalance: activePortfolio?.native
         ? `${Number(activePortfolio.native.formatted).toLocaleString("en-US", { maximumFractionDigits: 6 })} OKB`
         : undefined,
       detail: activePortfolio?.native
         ? `${Number(activePortfolio.native.formatted).toLocaleString("en-US", { maximumFractionDigits: 6 })} OKB available`
         : "X Layer native asset" },
-    ...INTENT_ASSETS.map(({ symbol, address }) => {
+    ...INTENT_ASSETS.map(({ symbol, address, decimals }) => {
       const balance = activePortfolio?.balances?.find((item) => item.symbol === symbol);
       const walletBalance = balance
         ? `${Number(balance.formatted).toLocaleString("en-US", { maximumFractionDigits: 6 })} ${symbol}`
         : undefined;
       return { id: `asset:${symbol}`, group: "Assets" as const, mention: symbol, chainId: 196 as const, address,
-        priceUsd: balance?.priceUsd ?? assetPrices[symbol.toLowerCase()], walletBalance,
+        decimals, priceUsd: balance?.priceUsd ?? assetPrices[symbol.toLowerCase()], walletBalance,
         detail: walletBalance ? `${walletBalance} available` : "X Layer asset" };
     }),
     ...(activePortfolio?.balances ?? []).filter(({ address }) => typeof address === "string" && !INTENT_ASSETS.some((asset) =>
-      asset.address.toLowerCase() === address.toLowerCase())).map(({ symbol, address, formatted, priceUsd }) => ({
-        id: `wallet-asset:${address}`, group: "Assets" as const, mention: symbol, chainId: 196 as const, address, priceUsd,
+      asset.address.toLowerCase() === address.toLowerCase())).map(({ symbol, address, decimals, formatted, priceUsd }) => ({
+        id: `wallet-asset:${address}`, group: "Assets" as const, mention: symbol, chainId: 196 as const, address, decimals, priceUsd,
         walletBalance: `${Number(formatted).toLocaleString("en-US", { maximumFractionDigits: 6 })} ${symbol}`,
         detail: `${Number(formatted).toLocaleString("en-US", { maximumFractionDigits: 6 })} ${symbol} available`,
       })),
-    ...RWA_INTENT_ASSETS.map(({ symbol, address, instrument }) => ({ id: `asset:${symbol}`, group: "Assets" as const,
+    ...RWA_INTENT_ASSETS.map(({ symbol, address, decimals, instrument }) => ({ id: `asset:${symbol}`, group: "Assets" as const,
       mention: symbol, chainId: instrument.chainId, address, priceUsd: assetPrices[symbol.toLowerCase()],
+      decimals,
       detail: `Cross-chain asset · ${instrument.chainId === 196 ? "X Layer" : "Ethereum"}` })),
     { id: "network:x-layer", group: "Networks", mention: "XLayer", detail: "Chain 196" },
     { id: "network:ethereum", group: "Networks", mention: "Ethereum", detail: "Chain 1" },
@@ -272,6 +274,11 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
   ])], [allMentions]);
   const assetResolutionBlocksReview = assetResolutionStatus === "checking" ||
     assetResolutionStatus === "error" || unresolvedAssetMentions.length > 0;
+  const generalAssetRequest = useMemo(() => generalAssetRequestFromGoal(goal,
+    allMentions.flatMap(({ group, mention, chainId, address, decimals }) => group === "Assets" && chainId &&
+      address && decimals !== undefined ? [{ symbol: mention, chainId, address: address as `0x${string}`, decimals }] : []),
+    [NATIVE_INTENT_ASSET.symbol, ...INTENT_ASSETS.map(({ symbol }) => symbol),
+      ...RWA_INTENT_ASSETS.map(({ symbol }) => symbol)]), [allMentions, goal]);
   const selectedMentions = useMemo(() => {
     const selected = allMentions.filter(({ mention }) => {
     const escaped = mention.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -305,6 +312,10 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
       setError("Resolve every token identity before reviewing the policy.");
       return;
     }
+    if (generalAssetRequest.status === "clarification") {
+      setError(generalAssetRequest.question);
+      return;
+    }
     if (action === "service-purchase") {
       if (selectedService) router.push(`/commerce/offers/${selectedService}`);
       else setError("Tag one Cobia-supported service from the @ menu.");
@@ -315,7 +326,10 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
     try {
       const request = () => fetch("/api/intents/compile", { method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ owner: wallet.account, goal: goal.trim(), actionPreference: action }) });
+        body: JSON.stringify({ owner: wallet.account, goal: goal.trim(), actionPreference: action,
+          ...(generalAssetRequest.status === "request" ? { generalAsset: {
+            input: generalAssetRequest.input, output: generalAssetRequest.output,
+          } } : {}) }) });
       let response = await request();
       if (response.status === 401) {
         await authenticateIntentCompiler({ owner: wallet.account, request: wallet.request });

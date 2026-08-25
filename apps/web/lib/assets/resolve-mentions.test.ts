@@ -84,7 +84,7 @@ describe("asset mention resolver", () => {
     expect(xstocks.run).toHaveBeenCalledWith({ operation: "get", symbol: "AAPLx" });
     expect(result.assets).toEqual([expect.objectContaining({
       symbol: "AAPLx", address: aapl.deployment.address,
-      underlyingIdentifier: "US0378331005", status: "catalog-backed",
+      decimals: 18, underlyingIdentifier: "US0378331005", status: "catalog-backed",
     })]);
   });
 
@@ -119,7 +119,7 @@ describe("asset mention resolver", () => {
 
     expect(okx.searchXLayerToken).toHaveBeenCalledWith("example");
     expect(result.assets).toEqual([{ symbol: "EXAMPLE", name: "Example Token", chainId: 196,
-      address: token, status: "research-only", priceUsd: "2.50",
+      address: token, decimals: 18, status: "research-only", priceUsd: "2.50",
       liquidityUsd: "100000", holderCount: "1200" }]);
     expect(result.unresolved).toEqual([]);
   });

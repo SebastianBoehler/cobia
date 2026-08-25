@@ -8,6 +8,7 @@ interface ResolvedAsset {
   name: string;
   chainId: 1 | 196;
   address: string;
+  decimals: number;
   status: "supported" | "registered" | "catalog-backed" | "research-only";
   priceUsd?: string;
   liquidityUsd?: string;
@@ -115,6 +116,7 @@ export function useResolvedAssetMentions(
       mention: asset.symbol,
       chainId: asset.chainId,
       address: asset.address,
+      decimals: asset.decimals,
       priceUsd: asset.priceUsd,
       detail: asset.status === "research-only"
         ? `${asset.name} · ${shortAddress(asset.address)} · research only`

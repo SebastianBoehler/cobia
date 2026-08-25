@@ -88,6 +88,7 @@ export interface ResolvedAssetMentionV1 {
   name: string;
   chainId: 196 | 1;
   address: Address;
+  decimals: number;
   status: "supported" | "registered" | "catalog-backed" | "research-only";
   underlyingIdentifier?: string;
   priceUsd?: string;
@@ -105,6 +106,7 @@ function xStockMention(asset: XStocksInstrumentV1): ResolvedAssetMentionV1 {
     symbol === "USDG" && supportsAtomicSwaps && isAddressEqual(address, USDG_ADDRESS));
   return {
     symbol: asset.symbol, name: asset.name, chainId: 196, address: asset.deployment.address,
+    decimals: 18,
     status: !asset.isTradingHalted && asset.deployment.supportsAtomicSwaps && atomicUsdG
       ? "catalog-backed" : "research-only",
     underlyingIdentifier: asset.underlyingIsin,
@@ -140,6 +142,7 @@ export async function resolveAssetSuggestionsV1(
   const xStocks = discovered.filter(({ symbol }) => !marketSymbols.has(symbol.toLowerCase()));
   const assets = [...xStocks, ...market.map((token) => ({
     symbol: token.symbol, name: token.name, chainId: 196 as const, address: token.token,
+    decimals: token.decimals,
     status: "research-only" as const, priceUsd: token.priceUsd, liquidityUsd: token.liquidityUsd,
     holderCount: token.holderCount,
   }))];
@@ -184,7 +187,7 @@ export async function resolveAssetMentionsV1(
       const canonical = SUPPORTED_ASSETS.find((asset) =>
         isAddressEqual(asset.address, supported.address));
       assets.push({ symbol: supported.symbol, name: supported.symbol, chainId: 196,
-        address: supported.address, status: "supported",
+        address: supported.address, decimals: supported.decimals, status: "supported",
         priceUsd: await exactXLayerPrice(canonical?.symbol ?? supported.symbol,
           supported.address, okx) });
       return;
@@ -193,7 +196,8 @@ export async function resolveAssetMentionsV1(
       asset.symbol.toLowerCase() === symbol.toLowerCase());
     if (registered) {
       assets.push({ symbol: registered.symbol, name: registered.instrument.displayName,
-        chainId: registered.instrument.chainId, address: registered.address, status: "registered",
+        chainId: registered.instrument.chainId, address: registered.address, decimals: registered.decimals,
+        status: "registered",
         priceUsd: registered.instrument.chainId === 196
           ? await exactXLayerPrice(registered.symbol, registered.address, okx) : undefined,
         underlyingIdentifier: registered.instrument.underlyingIdentifier });
@@ -217,7 +221,7 @@ export async function resolveAssetMentionsV1(
     const token = await okx.searchXLayerToken(symbol);
     if (!token) { unresolved.push(symbol); return; }
     assets.push({ symbol: token.symbol, name: token.name, chainId: 196,
-      address: token.token, status: "research-only", priceUsd: token.priceUsd,
+      address: token.token, decimals: token.decimals, status: "research-only", priceUsd: token.priceUsd,
       liquidityUsd: token.liquidityUsd, holderCount: token.holderCount });
   }));
 

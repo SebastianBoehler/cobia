@@ -429,6 +429,49 @@ describe("IntentComposer", () => {
     expect(screen.getByRole("button", { name: "Edit goal" })).toBeVisible();
   });
 
+  it("routes a resolved ERC-20 or xStock through exact V4 asset authority", async () => {
+    const adbe = "0x1111111111111111111111111111111111111111";
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url.includes("/portfolio")) return Promise.resolve(Response.json({ balances: [], positions: [] }));
+      if (url === "/api/assets/resolve") return Promise.resolve(Response.json({ assets: [{
+        symbol: "ADBEx", name: "Adobe xStock", chainId: 196, address: adbe, decimals: 18,
+        status: "catalog-backed",
+      }], unresolved: [] }));
+      if (url === "/api/intents/compile") {
+        return Promise.resolve(Response.json({ status: "review", values: {
+          kind: "general-asset-draft", templateId: "general-asset", displayGoal: "Buy ADBEx",
+          sourceChainId: 196, destinationChainId: 196, manifestHash: `0x${"11".repeat(32)}`,
+          evidenceExpiresAtSec: 2_000_000_300,
+          input: { token: INTENT_ASSETS[0].address, symbol: "USDG", decimals: 6,
+            maximumAtomic: "20000", maximumUsdE8: "200000000", identityHash: `0x${"12".repeat(32)}`,
+            valuationHash: `0x${"13".repeat(32)}` },
+          output: { token: adbe, symbol: "ADBEx", decimals: 18, minimumAtomic: "100000000000000",
+            identityHash: `0x${"14".repeat(32)}` },
+          allowedAdapters: [], limits: { maxStages: 8, maxCallsPerStage: 8, maxApprovals: 16,
+            maxCalldataBytes: 16384, maxGasPerStage: "4000000", maxNativeValueUsdE8: "1000000000",
+            maxBridgeFeeUsdE8: "5000000000", maxSolverFeeUsdE8: "0", maxConversionLossBps: 500,
+            maxSlippageBps: 300 },
+        } }));
+      }
+      return Promise.resolve(Response.json({}));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<IntentComposer />);
+
+    fireEvent.change(screen.getByLabelText("What should happen?"), { target: {
+      value: "Buy at least 0.0001 @ADBEx with 0.02 @USDG",
+    } });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Review policy" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Review policy" }));
+
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => url === "/api/intents/compile")).toBe(true));
+    const compile = fetchMock.mock.calls.find(([url]) => url === "/api/intents/compile")!;
+    expect(JSON.parse(String(compile[1].body))).toMatchObject({ generalAsset: {
+      input: { chainId: 196, address: INTENT_ASSETS[0].address, maximumAtomic: "20000" },
+      output: { chainId: 196, address: adbe, minimumAtomic: "100000000000000" },
+    } });
+  });
+
   it("does not expose a JSON parser error when compilation returns plain text", async () => {
     vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string) => {
       if (url.includes("/portfolio")) return Promise.resolve(Response.json({ balances: [], positions: [] }));

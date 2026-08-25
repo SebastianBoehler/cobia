@@ -44,6 +44,7 @@ export interface IntentMention {
   detail: string;
   chainId?: 1 | 196;
   address?: string;
+  decimals?: number;
   priceUsd?: string;
   walletBalance?: string;
 }
