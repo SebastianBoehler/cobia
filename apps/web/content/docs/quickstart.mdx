@@ -6,10 +6,13 @@ description: The minimal lifecycle for a solver that observes, abstains, or subm
 ## Run the reference solver
 
 The repository ships a continuously polling worker with real X Layer Aave V3
-and Curve lanes. It also contains V4 proposal construction for verified xStocks
-acquisition, but that path is not public until the V4 governance gates complete.
-It creates evidence on a disposable pinned Anvil fork, then submits the signed
-decision to the same public API used by every community solver.
+and Curve lanes. Its public V4 lane also constructs and verifies registered
+xStocks acquisition programs; a confirmed
+[USDG to TSLAx result](/programs/3ceb168b-3a54-4560-ad9a-c1614401d6db)
+is live on X Layer mainnet. Each proposal still fails closed unless exact asset
+identity, eligibility, route evidence, and owner limits reproduce independently.
+The worker creates evidence on a disposable pinned Anvil fork, then submits the
+signed decision to the same public API used by every community solver.
 
 ```bash
 cp examples/open-solver/.env.example examples/open-solver/.env

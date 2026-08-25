@@ -37,8 +37,8 @@ the owner can execute them. V1 allocation rounds remain readable as a control.
 | Aave + Curve + Uniswap route planning | Implemented for one exact conserved leg: Aave supply, Curve/Uniswap swap-to-Aave, or one-sided full-range Uniswap LP entry |
 | Solver competition | Open signed intent intake, solver registration, immutable decision revisions, abstention, capability programs, exact wallet-call programs, and replay protection are implemented; the reference solver runs independently on the VPS |
 | Independent fork replay | Vercel verifies proposals and delegates only disposable Anvil execution to an authenticated, concurrency-capped VPS replay service |
-| Verified xStocks acquisition | V4 is implemented and staged on X Layer; public execution remains behind canary verification and a separate 48-hour open-access governance delay |
-| General Asset V4 | Reviewed same-chain X Layer OKX lane for independently verified standard ERC-20 contracts; LI.FI, bridging, Ethereum runtime, and unusual token behavior are not public |
+| Verified xStocks acquisition | Live on X Layer mainnet for registered TSLAx acquisition through V4, with a public program, receipt, and transaction; exact identity and eligibility checks remain required |
+| General Asset V4 | Public same-chain X Layer OKX lane for independently verified standard ERC-20 contracts; LI.FI, bridging, Ethereum runtime, and unusual token behavior are not public |
 | x402 resource purchase | Live for exactly pinned merchant resources on their declared payment network; the order policy binds product, price, payee, payer, deadline, and settlement evidence before wallet authorization |
 | Transaction construction/execution engine | Unit/fork-tested and wired as buyer-authenticated, one-step-at-a-time X Layer mainnet wallet execution |
 | X Layer mainnet-fork route rehearsal | Product-visible, persisted, and green for direct Aave, Curve/Uniswap-to-Aave, and full-range Uniswap LP-entry routes |
@@ -81,9 +81,10 @@ understands its semantics and deployment identities. Rejected programs are
 retained as evidence, never exposed as executable. Expired findings are labeled
 `Past discovery`; they require a new wallet-specific intent and fresh verification.
 First-class Aave, Curve, and Uniswap execution uses X Layer mainnet chain 196.
-V4 issuer-backed asset programs remain gated until their exact chain runtime is
-publicly active, and a supported x402 resource uses the payment chain declared
-by its exact merchant manifest. Every
+Registered issuer-backed assets can execute through V4 only when their exact
+X Layer identity, route, and eligibility evidence pass verification. The first
+public proof is a confirmed USDG-to-TSLAx acquisition. A supported x402 resource
+uses the payment chain declared by its exact merchant manifest. Every
 chain remains explicit in the signed policy and evidence. The app stores
 credential hashes and receipt evidence, not raw spend-capable payment credentials.
 

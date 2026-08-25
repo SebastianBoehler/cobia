@@ -8,6 +8,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import Link from "next/link";
+import { CONFIRMED_OUTCOME_LABEL, PUBLIC_PROOF } from "../../lib/public-proof";
 import { ProtocolMark } from "../brand/ProtocolMark";
 import { XStocksMark } from "../brand/XStocksMark";
 import styles from "./JudgeEvidence.module.css";
@@ -18,6 +19,8 @@ const BUILDER_REGISTRATION_TX = "0xf9ee439cbc68a652f92c8d7522d8c76a54e6c3888ffde
 const FIRST_VERIFIED_INTENT_TX = "0x83500273bbdaf6f2ad5e27f3d6807b7555383599ea537eca0206f9c18ab0d210";
 const V4_VERIFIED_INTENT_TX = "0x573cf9e9e0c21e4cf1585cc4a4ec36a56d4063c779bb3de4e8bf514c56e2543f";
 const V4_PROGRAM_ID = "4d1ccd00-1b2d-485a-9f57-6e4416959126";
+const XSTOCKS_PROGRAM_ID = PUBLIC_PROOF.xStocks.programId;
+const XSTOCKS_VERIFIED_INTENT_TX = PUBLIC_PROOF.xStocks.transactionHash;
 const XLAYER_ENDGAME_POST = "https://x.com/XLayerOfficial/status/2091166000142012900";
 
 const boundary = [
@@ -38,6 +41,12 @@ const evidence = [
     detail: "A second wallet used Cobia V4 to turn 0.01 OKB into 1.169308 USDG. The public program includes the exact verified route, receipt, and X Layer transaction.",
     href: `https://web3.okx.com/explorer/x-layer/evm/tx/${V4_VERIFIED_INTENT_TX}`,
     link: "Verify V4 transaction",
+  },
+  {
+    title: "Verified xStocks acquisition", status: "xStocks · Mainnet proof",
+    detail: "Cobia acquired 0.002841620235604251 TSLAx with USDG on X Layer mainnet. The confirmed transaction proves the registered token reached the owner wallet.",
+    href: `https://web3.okx.com/explorer/x-layer/evm/tx/${XSTOCKS_VERIFIED_INTENT_TX}`,
+    link: "Verify TSLAx transaction",
   },
   {
     title: "First verified mainnet result", status: "Proven on mainnet",
@@ -76,13 +85,13 @@ const supportedIntegrations = [
   { label: "Aave V3", detail: "Lending", kind: "protocol" },
   { label: "Curve StableSwap", detail: "Exchange", kind: "protocol" },
   { label: "Uniswap V3", detail: "Exchange", kind: "protocol" },
-  { label: "xStocks", detail: "Tokenized equities · Staged", kind: "asset-rail" },
+  { label: "xStocks", detail: "TSLAx acquisition · Live", kind: "asset-rail" },
 ] as const;
 
 const foundations = [
   ["Useful AI, bounded risk", "Solvers can research and test many routes, but they cannot bypass your limits or approve a transaction."],
   ["A better trust model", "Cobia separates creative planning from permission to execute, so more capable AI does not require weaker wallet safety."],
-  ["Working today", "Create an intent on the live product and inspect 30 confirmed outcomes from four winning solvers, with public programs, receipts, and mainnet transactions."],
+  ["Working today", `Inspect ${CONFIRMED_OUTCOME_LABEL} from four winning solvers, including confirmed TSLAx acquisition, with public programs, receipts, and mainnet transactions.`],
   ["Your keys stay yours", "No solver receives your private key, wallet connection, or a way to send a production transaction."],
   ["Built around X Layer", "Live contracts, protocol integrations, public receipts, and builder attribution make X Layer the product’s execution home."],
   ["More choice without blind trust", "New solvers, merchants, and protocols can join the same competition and independent verification model."],
@@ -90,6 +99,7 @@ const foundations = [
 
 const capabilities = [
   ["Live · V4", "Standard-token exchange", "Route verified standard ERC-20s on X Layer through bounded OKX DEX calls, pinned by exact chain and contract address."],
+  ["Live · Mainnet proof", "Registered xStocks acquisition", "Acquire registered TSLAx through exact-identity V4 swaps with signed limits, fresh replay, and final wallet approval."],
   ["Live", "Lending", "Supply to Aave V3 with a signed spend ceiling, minimum receipt balance, fresh replay, and final wallet approval."],
   ["Verified path", "Liquidity provision", "Build and replay a one-sided, full-range Uniswap V3 LP entry before stepwise wallet execution."],
   ["Live · Bounded", "x402 payments", "Purchase an exactly pinned merchant resource on its declared payment network, with product, price, payee, payer, and deadline bound."],
@@ -138,24 +148,27 @@ export function JudgeEvidence() {
       </div>
       <ul className={styles.proofStrip} aria-label="Cobia live proof summary">
         <li>Live on chain 196</li>
-        <li>30 confirmed outcomes</li>
-        <li>4 winning solvers</li>
-        <li>Multiple owner wallets</li>
+        <li>{CONFIRMED_OUTCOME_LABEL}</li>
+        <li>{PUBLIC_PROOF.winningSolvers} winning solvers</li>
+        <li>TSLAx mainnet proof</li>
       </ul>
       <a className={styles.scrollCue} href="#product-proof">Watch the product proof <ArrowDown aria-hidden="true" size={15} /></a>
     </section>
 
     <section className={styles.productProof} id="product-proof" aria-labelledby="product-proof-title">
       <div>
-        <h2 id="product-proof-title">V4 is open on X Layer mainnet.</h2>
-        <p>The linked public V4 program proves 0.01 OKB became 1.169308 USDG. The recording shows the complete intent flow; inspect the program and its confirmed transaction yourself.</p>
-        <Link className="text-link" href={`/programs/${V4_PROGRAM_ID}`}>Inspect the V4 result</Link>
+        <h2 id="product-proof-title">V4 and xStocks are live on X Layer mainnet.</h2>
+        <p>The public programs prove a bounded V4 swap and a registered TSLAx acquisition. The recording shows the complete intent flow; inspect both confirmed results yourself.</p>
+        <div className={styles.proofLinks}>
+          <Link className="text-link" href={`/programs/${XSTOCKS_PROGRAM_ID}`}>Inspect the TSLAx result</Link>
+          <Link className="text-link" href={`/programs/${V4_PROGRAM_ID}`}>Inspect the V4 result</Link>
+        </div>
       </div>
       <figure>
         <video controls playsInline poster="/media/cobia-intent-proof-poster.jpg" preload="metadata">
           <source src="/media/cobia-live-intent-flow-x-layer.mp4" type="video/mp4" />
         </video>
-        <figcaption>Existing product-flow demo · Recorded before V4 opened. The linked public program and transaction are the V4 proof.</figcaption>
+        <figcaption>Existing product-flow demo · Recorded before V4 and xStocks opened. The linked public programs and transactions are the current mainnet proof.</figcaption>
       </figure>
     </section>
 
@@ -183,7 +196,7 @@ export function JudgeEvidence() {
     <section className={styles.protocols} aria-labelledby="protocols-title">
       <div>
         <h2 id="protocols-title">Move, earn, and diversify through plans Cobia can verify.</h2>
-        <p>V4 standard-token exchange, Aave supply, and Curve and Uniswap swaps are live on X Layer. xStocks remains staged and will use the same identity checks and wallet-controlled approval.</p>
+        <p>V4 standard-token exchange, registered TSLAx acquisition, Aave supply, and Curve and Uniswap swaps are live on X Layer. Every route keeps exact asset identity, signed limits, independent replay, and wallet-controlled approval.</p>
       </div>
       <ul>{supportedIntegrations.map((integration) => <li key={integration.label}>
         {integration.kind === "protocol"
@@ -211,7 +224,7 @@ export function JudgeEvidence() {
         <div className={styles.visionCopy}>
           <h3>Every asset, everywhere—without giving AI the keys.</h3>
           <p>X Layer is making every asset accessible. Cobia makes that future usable with AI while keeping people in control: solvers search broadly, but your limits and wallet decide exactly what moves.</p>
-          <strong>Live today for X Layer swaps and Aave, with broader asset support adopting the same owner-controlled model.</strong>
+          <strong>Live today for X Layer swaps, Aave, and registered TSLAx acquisition, with broader asset support adopting the same owner-controlled model.</strong>
         </div>
         <div className={styles.visionPost}>
           <iframe

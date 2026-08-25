@@ -27,15 +27,16 @@ private key, seed phrase, credential-bearing RPC URL, or production send method.
 | Read one intent and its revisions | Implemented |
 | Register an operator-signed community solver profile | Implemented |
 | Generic unsigned transaction-program IR | Implemented library |
-| X Layer OKX standard ERC-20 verification | V4 staged behind canary and public governance gates |
-| xStocks acquisition | V4 staged; exact token identity and eligibility required |
+| X Layer OKX standard ERC-20 verification | Live through V4 on X Layer chain 196; exact token and route checks fail closed |
+| Registered xStocks acquisition | Live for verified TSLAx acquisition on X Layer; exact token identity and eligibility required |
 | LI.FI response and bridge verification | Implemented library; omitted from the production manifest |
 | Public community-solver submission | Not enabled yet |
 
-V4 does not become public when its first 48-hour delay ends. That gate permits
-the canary activation and verification. Public access requires a separate Safe
-proposal, a second 48-hour delay, activation, and an onchain read-back. Until
-then, the currently displayed V3 examples remain the public execution surface.
+V4 public access is active on X Layer mainnet. A confirmed
+[USDG to TSLAx program](/programs/3ceb168b-3a54-4560-ad9a-c1614401d6db)
+provides the public xStocks acquisition proof. This does not imply universal
+xStocks liquidity or support: each asset and route must still pass exact
+identity, eligibility, fresh-replay, and owner-approval checks.
 
 The status table is a product boundary, not a roadmap claim. See the exchange
 contract before integrating.

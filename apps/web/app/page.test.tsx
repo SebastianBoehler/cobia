@@ -25,8 +25,9 @@ describe("home conversion path", () => {
     expect(html).toContain("@Aave");
     expect(html).toContain("State the outcome. Keep the keys.");
     expect(html).toContain("AI solvers compete to produce the best transaction plan");
-    expect(html).toContain("V4 live on X Layer mainnet");
-    expect(html).toContain("30 confirmed outcomes");
+    expect(html).toContain("V4 and TSLAx acquisition live on X Layer mainnet");
+    expect(html).toContain("TSLAx acquisition live on X Layer mainnet");
+    expect(html).toContain("34+ confirmed outcomes");
     expect(html).toContain("4 winning solvers");
     expect(html).not.toContain("home-eyebrow");
     expect(html).not.toContain("home-mode-tabs");
@@ -64,9 +65,9 @@ describe("home conversion path", () => {
 
     expect(seasonIndex).toBeGreaterThan(heroIndex);
     expect(seasonIndex).toBeLessThan(productIndex);
-    expect(html).toContain("Built for AI Season. Working on X Layer mainnet.");
-    expect(html).toContain("inspect the transactions, receipts, and source behind every claim");
-    expect(html).toContain("Watch demo and proof");
+    expect(html).toContain("xStocks acquisition is live on X Layer mainnet.");
+    expect(html).toContain("confirmed TSLAx program and transaction");
+    expect(html).toContain("Inspect xStocks proof");
     expect(html).not.toMatch(/judg(?:e|ing)/i);
     expect(html).toContain('href="/buildx"');
   });
@@ -75,11 +76,11 @@ describe("home conversion path", () => {
     const html = renderToStaticMarkup(await Home());
 
     expect(html).toContain("AI finds options. You keep control.");
-    expect(html).toContain("Live transactions on X Layer");
+    expect(html).toContain("xStocks and swaps live on X Layer");
     expect(html).toContain("Solvers compete for you");
     expect(html).toContain("Every plan is tested first");
     expect(html).toContain("Results anyone can verify");
-    expect(html).not.toContain("Verified xStocks acquisition");
+    expect(html).toContain("Acquire registered TSLAx");
     expect(html).not.toContain("Recurring actions");
     expect(html).toContain('href="/solvers"');
   });

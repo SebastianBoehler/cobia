@@ -17,7 +17,7 @@ export async function generateMetadata() {
     index: false,
   } : {
     title: "Verified onchain intents",
-    description: "Describe an onchain outcome, let solvers compete, and review only independently verified programs.",
+    description: "Acquire registered TSLAx or describe another onchain outcome, let solvers compete, and review only independently verified programs.",
     path: "/",
   });
 }
@@ -37,11 +37,11 @@ export default async function Home() {
         <GeneralIntentHero />
         <section className="buildx-callout" aria-labelledby="buildx-callout-title">
           <div>
-            <h2 id="buildx-callout-title">Built for AI Season. Working on X Layer mainnet.</h2>
-            <p>Watch a complete intent become a verified result, then inspect the transactions, receipts, and source behind every claim.</p>
+            <h2 id="buildx-callout-title">xStocks acquisition is live on X Layer mainnet.</h2>
+            <p>Inspect the confirmed TSLAx program and transaction alongside the complete intent demo, receipts, and public source.</p>
           </div>
           <Link className="button button--paper" href="/buildx">
-            Watch demo and proof <ArrowRight aria-hidden="true" size={17} />
+            Inspect xStocks proof <ArrowRight aria-hidden="true" size={17} />
           </Link>
         </section>
         <nav className="product-strip" aria-label="Cobia product">

@@ -38,9 +38,9 @@ describe("Build X project page", () => {
 
     expect(html).toContain("Build X · General Hackathon");
     expect(html).toContain("without handing it control of your wallet");
-    expect(html).toContain("30 confirmed outcomes");
+    expect(html).toContain("34+ confirmed outcomes");
     expect(html).toContain("4 winning solvers");
-    expect(html).toContain("Multiple owner wallets");
+    expect(html).toContain("TSLAx mainnet proof");
     expect(html).toContain('/media/cobia-live-intent-flow-x-layer.mp4');
     expect(html).toContain("Why Cobia matters to X Layer.");
   });
@@ -49,13 +49,16 @@ describe("Build X project page", () => {
     const html = renderToStaticMarkup(<BuildXEvidencePage />);
     const text = html.replace(/<[^>]+>/g, "");
 
-    expect(text).toContain("V4 is open on X Layer mainnet.");
+    expect(text).toContain("V4 and xStocks are live on X Layer mainnet.");
     expect(text).toContain("0.01 OKB into 1.169308 USDG");
-    expect(text).toContain("Existing product-flow demo · Recorded before V4 opened");
-    expect(text).toContain("public program and transaction are the V4 proof");
+    expect(text).toContain("Existing product-flow demo · Recorded before V4 and xStocks opened");
+    expect(text).toContain("public programs and transactions are the current mainnet proof");
     expect(html).toContain('/programs/4d1ccd00-1b2d-485a-9f57-6e4416959126');
+    expect(html).toContain('/programs/3ceb168b-3a54-4560-ad9a-c1614401d6db');
     expect(html).toContain("0x573cf9e9e0c21e4cf1585cc4a4ec36a56d4063c779bb3de4e8bf514c56e2543f");
+    expect(html).toContain("0xd8381e286f7dadde6a5ab363223b264b51f5aac4cc04cc3a41bfa979f67fcc4f");
     expect(text).toContain("Standard-token exchange");
+    expect(text).toContain("Registered xStocks acquisition");
     expect(text).toContain("Lending");
     expect(text).toContain("Liquidity provision");
     expect(text).toContain("x402 payments");
@@ -69,7 +72,7 @@ describe("Build X project page", () => {
     const html = renderToStaticMarkup(<BuildXEvidencePage />);
 
     expect(html).toContain("Every asset, everywhere—without giving AI the keys.");
-    expect(html).toContain("Live today for X Layer swaps and Aave");
+    expect(html).toContain("Live today for X Layer swaps, Aave, and registered TSLAx acquisition");
     expect(html).toContain("broader asset support adopting the same owner-controlled model");
     expect(html).toContain('title="X Layer post: every asset, everywhere, accessible on X Layer"');
     expect(html).toContain("platform.twitter.com/embed/Tweet.html?id=2091166000142012900");
@@ -90,7 +93,7 @@ describe("Build X project page", () => {
     expect(html).toContain("0x68cff1d6bbba6b436d0be39cd91e772a811027519487a7fefe91d5bef81521a6");
   });
 
-  it("distinguishes live protocol adapters from the staged xStocks asset rail", () => {
+  it("presents the proven xStocks acquisition without broad unsupported claims", () => {
     const html = renderToStaticMarkup(<BuildXEvidencePage />);
     const text = html.replace(/<[^>]+>/g, "");
 
@@ -105,7 +108,10 @@ describe("Build X project page", () => {
     expect(html).toContain('aria-label="Uniswap V3"');
     expect(html).toContain('aria-label="xStocks"');
     expect(text).toContain("Move, earn, and diversify through plans Cobia can verify.");
-    expect(text).toContain("xStocksTokenized equities · Staged");
+    expect(text).toContain("xStocksTSLAx acquisition · Live");
+    expect(text).toContain("registered TSLAx acquisition");
+    expect(text).not.toContain("xStocks remains staged");
+    expect(text).not.toContain("all xStocks");
   });
 
   it("keeps internal evaluation strategy out of the public experience", () => {

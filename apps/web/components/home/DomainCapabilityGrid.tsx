@@ -4,8 +4,8 @@ import Link from "next/link";
 const domains = [
   {
     icon: BadgeDollarSign,
-    title: "Live transactions on X Layer",
-    description: "Swap through Curve or Uniswap, or supply to Aave with minimum outcomes you set.",
+    title: "xStocks and swaps live on X Layer",
+    description: "Acquire registered TSLAx, swap through verified routes, or supply to Aave with minimum outcomes you set.",
     status: "Live",
     live: true,
   },

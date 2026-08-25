@@ -34,6 +34,7 @@
 .productProof { align-items: center; background: var(--wash); display: grid; gap: clamp(48px, 7vw, 96px); grid-template-columns: minmax(260px, .65fr) minmax(420px, 1fr); padding: clamp(86px, 9vw, 132px) max(24px, calc((100vw - 1192px) / 2)); }
 .productProof h2, .boundary h2, .sectionHeader h2, .protocols h2, .capabilities h2, .close h2 { font-size: clamp(44px, 5vw, 72px); font-weight: 610; letter-spacing: -.07em; line-height: .96; margin: 0; text-wrap: balance; }
 .productProof p { color: var(--muted); font-size: 16px; line-height: 1.65; margin: 26px 0 24px; max-width: 60ch; text-wrap: pretty; }
+.proofLinks { align-items: center; display: flex; flex-wrap: wrap; gap: 12px 24px; }
 .productProof figure { margin: 0; min-width: 0; }
 .productProof video { aspect-ratio: 16 / 9; background: var(--surface); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow-soft); display: block; height: auto; width: 100%; }
 .productProof figcaption { color: var(--muted); font-size: 11px; line-height: 1.5; margin-top: 12px; }

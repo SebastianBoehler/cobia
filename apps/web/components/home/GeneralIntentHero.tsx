@@ -1,5 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { CONFIRMED_OUTCOME_LABEL, PUBLIC_PROOF } from "../../lib/public-proof";
 import { LandingPromptBar } from "./LandingPromptBar";
 import { RotatingIntentPrompt } from "./RotatingIntentPrompt";
 
@@ -20,7 +21,7 @@ export function GeneralIntentHero() {
           <Link className="text-link" href="/buildx#evidence">See mainnet proof</Link>
         </div>
         <p className="general-hero__note">
-          V4 live on X Layer mainnet · 30 confirmed outcomes · 4 winning solvers · public source
+          V4 and {PUBLIC_PROOF.xStocks.symbol} acquisition live on X Layer mainnet · {CONFIRMED_OUTCOME_LABEL} · {PUBLIC_PROOF.winningSolvers} winning solvers
         </p>
       </div>
 
