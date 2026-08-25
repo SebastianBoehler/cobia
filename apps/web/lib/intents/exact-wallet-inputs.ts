@@ -44,10 +44,11 @@ export function preserveExactTaggedWalletInputs<T extends { symbol: string }>(
   const repaired: T[] = [];
   for (const input of inputs) {
     const requested = input.symbol.toLowerCase();
-    const candidates = [...remaining].filter((symbol) =>
-      symbol === requested || symbol.endsWith(requested));
-    if (candidates.length !== 1) return undefined;
-    const matched = candidates[0]!;
+    const suffixCandidates = [...remaining].filter((symbol) => symbol.endsWith(requested));
+    const matched = remaining.has(requested)
+      ? requested
+      : suffixCandidates.length === 1 ? suffixCandidates[0] : undefined;
+    if (!matched) return undefined;
     remaining.delete(matched);
     repaired.push({ ...input, symbol: expected.find((symbol) =>
       symbol.toLowerCase() === matched)! });
