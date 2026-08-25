@@ -62,16 +62,23 @@
 .intent-goal__send { align-items: center; background: var(--ink); border: 0; border-radius: 50%; color: var(--surface); display: inline-flex; flex: 0 0 42px; height: 42px; justify-content: center; }
 .intent-goal__send:disabled { cursor: not-allowed; opacity: .34; }
 .intent-goal__send:not(:disabled):hover { transform: translateY(-1px); }
-.intent-availability { align-items: center; display: flex; min-width: 0; }
+.intent-availability { align-items: center; display: flex; flex: 0 1 370px; justify-content: end; min-width: 0; }
 .intent-availability__status { color: var(--muted); font-size: 11px; line-height: 1.45; margin: 0; }
-.intent-availability ul { display: flex; flex: 1 1 auto; flex-wrap: nowrap; gap: 5px; list-style: none; margin: 0; padding: 0; }
+.intent-availability > ul { display: flex; flex: 1 1 auto; flex-wrap: wrap; gap: 5px; justify-content: end; list-style: none; margin: 0; padding: 0; }
 .intent-availability li { min-width: 0; }
-.intent-availability button { align-items: center; background: var(--wash); border: 1px solid transparent; border-radius: 999px; color: var(--ink); display: grid; gap: 4px; grid-template-columns: 16px auto auto; min-height: 36px; padding: 5px 9px 5px 7px; transition: background-color 120ms ease-out, border-color 120ms ease-out, transform 120ms ease-out; }
-.intent-availability button:hover { background: var(--cobalt-wash); border-color: color-mix(in oklch, var(--cobalt) 24%, var(--line)); }
-.intent-availability button:active { transform: scale(.96); }
+.intent-availability > ul > li:not(.intent-availability__overflow) { max-width: 184px; }
+.intent-availability button, .intent-availability__overflow summary { align-items: center; background: var(--wash); border: 1px solid transparent; border-radius: 999px; color: var(--ink); display: grid; gap: 4px; grid-template-columns: 16px minmax(0, 1fr) auto; max-width: 100%; min-height: 36px; padding: 5px 9px 5px 7px; transition: background-color 120ms ease-out, border-color 120ms ease-out, transform 120ms ease-out; }
+.intent-availability button:hover, .intent-availability__overflow summary:hover { background: var(--cobalt-wash); border-color: color-mix(in oklch, var(--cobalt) 24%, var(--line)); }
+.intent-availability button:active, .intent-availability__overflow summary:active { transform: scale(.96); }
+.intent-availability__overflow { position: relative; }
+.intent-availability__overflow summary { cursor: pointer; display: flex; list-style: none; padding-inline: 12px; white-space: nowrap; }
+.intent-availability__overflow summary::-webkit-details-marker { display: none; }
+.intent-availability__overflow details[open] > summary { background: var(--cobalt-wash); border-color: color-mix(in oklch, var(--cobalt) 24%, var(--line)); }
+.intent-availability__overflow ul { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; bottom: calc(100% + 8px); box-shadow: 0 18px 50px color-mix(in oklch, var(--ink) 14%, transparent); display: grid; gap: 5px; list-style: none; margin: 0; max-height: 260px; max-width: min(360px, calc(100vw - 40px)); overflow-y: auto; padding: 6px; position: absolute; right: 0; width: max-content; z-index: 4; }
+.intent-availability__overflow ul li { max-width: 100%; }
 .intent-availability__asset-mark { align-items: center; display: inline-flex; height: 18px; justify-content: center; width: 18px; }
 .intent-availability__asset-mark .brand-mark { height: 18px; width: 18px; }
-.intent-availability__asset-name { font-family: var(--font-geist-sans), sans-serif; font-size: 12px; font-weight: 700; letter-spacing: -.01em; line-height: 1; white-space: nowrap; }
+.intent-availability__asset-name { font-family: var(--font-geist-sans), sans-serif; font-size: 12px; font-weight: 700; letter-spacing: -.01em; line-height: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .intent-availability__asset-value { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; font-weight: 600; line-height: 1; white-space: nowrap; }
 .policy-editor > header { align-items: start; display: flex; justify-content: space-between; }
 .policy-editor h2 { font-size: 25px; letter-spacing: -.04em; margin: 0; }
@@ -121,7 +128,8 @@
   .intent-examples button { flex: 0 0 220px; }
   .intent-goal__tools { align-items: flex-start; flex-wrap: wrap; }
   .intent-goal__tools-end { margin-left: 0; width: 100%; }
-  .intent-availability { overflow-x: auto; scrollbar-width: none; }
+  .intent-availability { flex: 1 1 auto; justify-content: start; overflow: visible; }
+  .intent-availability > ul { justify-content: start; }
   .policy-fields, .policy-summary { grid-template-columns: 1fr; }
   .intent-asset-authority { align-items: start; grid-template-columns: 1fr; }
   .intent-asset-authority__arrow { transform: rotate(90deg); }
