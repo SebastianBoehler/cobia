@@ -78,6 +78,26 @@ describe("NetworkOverview", () => {
     expect(html).not.toContain("Private raw goal");
   });
 
+  it("renders native OKB routes with the official token mark", () => {
+    const okbReport = {
+      ...report,
+      outcomes: [{
+        ...report.outcomes[0]!,
+        principal: {
+          ...report.outcomes[0]!.principal,
+          token: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          symbol: "OKB",
+          decimals: 18,
+        },
+      }],
+    };
+    const html = renderToStaticMarkup(<NetworkOverview report={okbReport} solvers={solvers} />);
+
+    expect(html).toContain(
+      'aria-label="OKB token" class="brand-mark brand-mark--asset brand-mark--okb"',
+    );
+  });
+
   it("shows an honest empty state without sample activity", () => {
     const empty = { ...report, metrics: { ...report.metrics, totals: {
       confirmedOutcomes: 0, valuedOutcomes: 0, unvaluedOutcomes: 0, verifiedVolumeUsdE8: "0",

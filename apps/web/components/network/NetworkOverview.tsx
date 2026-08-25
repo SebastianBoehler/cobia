@@ -28,7 +28,9 @@ function usd(value: string): string {
 }
 
 function TokenMark({ symbol }: { symbol: string }) {
-  if (symbol === "USDG" || symbol === "USDt0") return <AssetMark asset={symbol as AssetIdentity} size={22} />;
+  if (symbol === "OKB" || symbol === "USDG" || symbol === "USDt0") {
+    return <AssetMark asset={symbol as AssetIdentity} size={22} />;
+  }
   return <span aria-label={`${symbol} token`} className={styles.assetMark} role="img">{symbol.slice(0, 1)}</span>;
 }
 

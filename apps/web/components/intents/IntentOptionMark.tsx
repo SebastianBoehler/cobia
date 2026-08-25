@@ -16,7 +16,9 @@ export function IntentOptionMark({ group, mention }: { group: IntentOptionGroup;
   const symbol = mention.toLowerCase();
 
   if (group === "Assets") {
-    if (mention === "USDG" || mention === "USDt0") return <AssetMark asset={mention} size={20} />;
+    if (mention === "OKB" || mention === "USDG" || mention === "USDt0") {
+      return <AssetMark asset={mention} size={20} />;
+    }
     if (mention === "PAXG") return <span className="brand-mark" style={{ "--brand-mark-size": "20px" } as CSSProperties}>
       <TokenPAXG aria-hidden="true" size="100%" variant="background" />
     </span>;

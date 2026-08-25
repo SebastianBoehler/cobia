@@ -1,9 +1,9 @@
-import { TokenUSDT } from "@web3icons/react";
+import { TokenOKB, TokenUSDT } from "@web3icons/react";
 import Image from "next/image";
 import type { CSSProperties } from "react";
 import { USDG_TOKEN_LOGO_DATA_URL } from "./official-token-art";
 
-export type AssetIdentity = "USDG" | "USDt0";
+export type AssetIdentity = "OKB" | "USDG" | "USDt0";
 
 export function AssetMark({ asset, size = 40 }: { asset: AssetIdentity; size?: number }) {
   return (
@@ -13,10 +13,12 @@ export function AssetMark({ asset, size = 40 }: { asset: AssetIdentity; size?: n
       role="img"
       style={{ "--brand-mark-size": `${size}px` } as CSSProperties}
     >
-      {asset === "USDt0"
-        ? <TokenUSDT aria-hidden="true" size="100%" variant="background" />
-        : <Image alt="" aria-hidden="true" height={size} src={USDG_TOKEN_LOGO_DATA_URL}
-          unoptimized width={size} />}
+      {asset === "OKB"
+        ? <TokenOKB aria-hidden="true" size="100%" variant="mono" />
+        : asset === "USDt0"
+          ? <TokenUSDT aria-hidden="true" size="100%" variant="background" />
+          : <Image alt="" aria-hidden="true" height={size} src={USDG_TOKEN_LOGO_DATA_URL}
+            unoptimized width={size} />}
     </span>
   );
 }

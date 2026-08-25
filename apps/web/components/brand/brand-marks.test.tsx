@@ -7,7 +7,7 @@ import { AssetMark } from "./AssetMark";
 import { ProtocolMark } from "./ProtocolMark";
 
 describe("brand marks", () => {
-  it.each(["USDG", "USDt0"] as const)("renders the %s asset identity", (asset) => {
+  it.each(["OKB", "USDG", "USDt0"] as const)("renders the %s asset identity", (asset) => {
     render(<AssetMark asset={asset} />);
     expect(screen.getByRole("img", { name: `${asset} token` })).toBeInTheDocument();
   });
