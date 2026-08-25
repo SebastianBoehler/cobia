@@ -16,10 +16,15 @@ import type { CobiaDatabase } from "./client";
 import { cobiaIntents, cobiaProgramArtifactsV2, cobiaSolverSubmissions } from "./schema";
 
 const HashSchema = z.string().regex(/^0x[0-9a-f]{64}$/);
-const ReceiptSchema = z.object({
-  transactionHash: HashSchema,
-  blockNumber: z.string().regex(/^[1-9][0-9]*$/),
-}).passthrough();
+const BlockNumberSchema = z.string().regex(/^[1-9][0-9]*$/);
+const ReceiptSchema = z.union([
+  z.object({ transactionHash: HashSchema, blockNumber: BlockNumberSchema }).passthrough(),
+  z.object({ transactionHash: HashSchema, receipts: z.array(z.object({
+    blockNumber: BlockNumberSchema,
+  }).passthrough()).min(1) }).passthrough(),
+]).transform((receipt) => ({ transactionHash: receipt.transactionHash,
+  blockNumber: "blockNumber" in receipt
+    ? receipt.blockNumber : receipt.receipts.at(-1)!.blockNumber }));
 const ReadSchema = z.object({
   window: z.enum(["30d", "all"]),
   limit: z.number().int().min(1).max(50),
@@ -42,7 +47,13 @@ const protocolPrefixes = [
   ["aave-v3.", "Aave V3"],
   ["curve-stableswap-ng.", "Curve"],
   ["uniswap-v3.", "Uniswap V3"],
+  ["okx-dex-api", "OKX DEX"],
 ] as const;
+
+export function parseNetworkReceiptV1(payload: unknown) {
+  const receipt = ReceiptSchema.safeParse(payload);
+  return receipt.success ? receipt.data : null;
+}
 
 function protocols(ids: readonly string[]): string[] {
   const matched = ids.flatMap((id) => {
@@ -159,7 +170,7 @@ function project(row: {
   const principal = programArtifact
     ? capabilityPrincipal(programArtifact.payload) ?? transactionPrincipal(programArtifact.payload) : null;
   if (!principal || !snapshotArtifact) return { excluded: "INVALID_CANDIDATE" };
-  const receipt = receiptArtifact ? ReceiptSchema.safeParse(receiptArtifact.payload) : null;
+  const receipt = receiptArtifact ? parseNetworkReceiptV1(receiptArtifact.payload) : null;
   const candidate: NetworkOutcomeCandidateV1 = {
     intentId: row.intentId,
     submissionId: row.submissionId,
@@ -169,7 +180,7 @@ function project(row: {
     state: row.state,
     selected: true,
     confirmedAtSec: Math.floor(row.completedAt.getTime() / 1_000),
-    transactionHash: receipt?.success ? receipt.data.transactionHash : null,
+    transactionHash: receipt?.transactionHash ?? null,
     intentClass: principal.intentClass,
     principal: { token: principal.token, symbol: symbol(principal.token), atomic: principal.atomic },
     route: principal.route,

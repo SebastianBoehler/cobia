@@ -12,6 +12,8 @@ const readableCode = (value: string) => value.toLowerCase().replaceAll("_", " ")
 
 function status(program: ProgramView) {
   const { submission, artifacts } = program;
+  const verifiedReplay = artifacts.replay?.payload?.reproduced ||
+    (artifacts.verdict?.payload?.accepted && Boolean(artifacts.evidence?.payload));
   if (artifacts.receipt?.payload?.transactionHash) return {
     label: "Swap complete", tone: "live", icon: Check,
     detail: "Confirmed on X Layer and attributed to the intent owner.",
@@ -24,7 +26,7 @@ function status(program: ProgramView) {
     label: "Verification failed", tone: "failed", icon: CircleAlert,
     detail: `Verification stopped: ${readableCode(submission.failureCodes[0]!)}.`,
   } as const;
-  if (artifacts.replay?.payload?.reproduced) return {
+  if (verifiedReplay) return {
     label: "Verified history", tone: "history", icon: CircleCheck,
     detail: "The replay passed, but the execution window has closed.",
   } as const;
@@ -46,7 +48,13 @@ export function AgentProgramSummary({ program, action }: {
   const tokenDecimals = (address: string) => token(address)?.decimals ?? 6;
   const receipt = artifacts.receipt?.payload;
   const constraints = artifacts.program?.payload?.balanceConstraints ?? [];
-  const balanceChanges = receipt?.balanceChanges ?? artifacts.evidence?.payload?.balanceDeltas ?? [];
+  const evidence = artifacts.evidence?.payload;
+  const simulatedChanges = evidence?.balanceDeltas ?? evidence?.simulations
+    ?.flatMap(({ assetDeltas }) => assetDeltas)
+    .filter(({ account, beforeAtomic, afterAtomic }) =>
+      (!submission.owner || account.toLowerCase() === submission.owner.toLowerCase()) &&
+      BigInt(afterAtomic) > BigInt(beforeAtomic)) ?? [];
+  const balanceChanges = receipt?.balanceChanges ?? simulatedChanges;
   const completed = Boolean(receipt?.transactionHash);
   const generalAsset = artifacts.execution?.payload?.version === 4 &&
     artifacts.execution.payload.kind === "general-asset-execution";

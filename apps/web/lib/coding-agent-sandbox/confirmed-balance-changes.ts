@@ -1,13 +1,18 @@
 import { getAddress, isAddressEqual, type Address } from "viem";
 import { z } from "zod";
 
-const EvidenceSchema = z.object({
-  balanceDeltas: z.array(z.object({
-    token: z.string(),
-    account: z.string(),
-    beforeAtomic: z.string().regex(/^(0|[1-9][0-9]*)$/),
-  }).passthrough()).max(32),
+const DeltaSchema = z.object({
+  token: z.string(),
+  account: z.string(),
+  beforeAtomic: z.string().regex(/^(0|[1-9][0-9]*)$/),
+  afterAtomic: z.string().regex(/^(0|[1-9][0-9]*)$/),
 }).passthrough();
+const BalanceEvidenceSchema = z.object({
+  balanceDeltas: z.array(DeltaSchema).max(32),
+}).passthrough();
+const SimulationEvidenceSchema = z.object({ simulations: z.array(z.object({
+  assetDeltas: z.array(DeltaSchema).max(32),
+}).passthrough()).max(32) }).passthrough();
 
 export async function readConfirmedBalanceChanges(input: {
   evidence: unknown;
@@ -15,15 +20,25 @@ export async function readConfirmedBalanceChanges(input: {
   blockNumber: bigint;
   readBalance(token: Address, owner: Address, blockNumber: bigint): Promise<bigint>;
 }) {
-  const parsed = EvidenceSchema.safeParse(input.evidence);
-  if (!parsed.success) return [];
-  const ownerDeltas = parsed.data.balanceDeltas.filter(({ account }) =>
-    isAddressEqual(getAddress(account), input.owner));
-  return Promise.all(ownerDeltas.map(async ({ token, beforeAtomic }) => ({
-    token: getAddress(token),
+  const balances = BalanceEvidenceSchema.safeParse(input.evidence);
+  const simulations = SimulationEvidenceSchema.safeParse(input.evidence);
+  const deltas = balances.success ? balances.data.balanceDeltas
+    : simulations.success
+      ? simulations.data.simulations.flatMap(({ assetDeltas }) => assetDeltas)
+      : [];
+  if (deltas.length === 0) return [];
+  const ownerDeltas = new Map<Address, (typeof deltas)[number]>();
+  for (const delta of deltas) {
+    if (!isAddressEqual(getAddress(delta.account), input.owner) ||
+        BigInt(delta.afterAtomic) <= BigInt(delta.beforeAtomic)) continue;
+    const token = getAddress(delta.token);
+    if (!ownerDeltas.has(token)) ownerDeltas.set(token, delta);
+  }
+  return Promise.all([...ownerDeltas.entries()].map(async ([token, { beforeAtomic }]) => ({
+    token,
     beforeAtomic,
     afterAtomic: (await input.readBalance(
-      getAddress(token), input.owner, input.blockNumber,
+      token, input.owner, input.blockNumber,
     )).toString(),
   })));
 }

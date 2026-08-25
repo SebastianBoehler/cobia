@@ -52,12 +52,14 @@ export interface ProgramView {
     program?: PublicArtifact<{
       input?: TokenAmount;
       actions?: ProgramAction[];
-      stages?: { id: string; provider?: string; kind: string }[];
+      stages?: { id: string; provider?: string; kind: string; chainId?: 1 | 196 | 8453 }[];
       balanceConstraints?: { kind: string; token: Address; atomic: string }[];
     }>;
     snapshot?: PublicArtifact<{ tokenEvidence?: TokenEvidence[] }>;
     evidence?: PublicArtifact<{
       balanceDeltas?: { token: Address; beforeAtomic: string; afterAtomic: string }[];
+      simulations?: { assetDeltas: { token: Address; account: Address;
+        beforeAtomic: string; afterAtomic: string }[] }[];
     }>;
     execution?: PublicArtifact<{
       program?: { actions?: { approvals?: Approval[] }[] };
@@ -68,12 +70,13 @@ export interface ProgramView {
       deadline?: number;
       finalOutput?: { chainId: 1 | 196; token: Address; minimumAtomic: string };
       stages?: Array<{
-        stageId: Hash; ordinal: number; chainId: 1 | 196;
-        predecessorStageId: Hash | null; inputToken: Address; requiredConfirmations: number;
-        transaction: { chainId: 1 | 196; from: Address; to: Address; nonce: string; value: Hex; data: Hex };
-        delivery: { kind: "none" } | { kind: "bridge"; destinationChainId: 1 | 196;
+        stageId: string; ordinal?: number; chainId: 1 | 196 | 8453;
+        calls?: { to: Address; data: Hex; value: Hex }[];
+        predecessorStageId?: Hash | null; inputToken?: Address; requiredConfirmations?: number;
+        transaction?: { chainId: 1 | 196; from: Address; to: Address; nonce: string; value: Hex; data: Hex };
+        delivery?: { kind: "none" } | { kind: "bridge"; destinationChainId: 1 | 196;
           recipient: Address; token: Address; minimumAtomic: string };
-        evidenceHash: Hash;
+        evidenceHash?: Hash;
       }>;
     }>;
     verdict?: PublicArtifact<{ accepted: boolean; errorCodes: string[] }>;

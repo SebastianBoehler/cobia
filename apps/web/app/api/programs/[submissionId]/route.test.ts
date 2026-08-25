@@ -108,4 +108,37 @@ describe("public solver program reads", () => {
     }]);
     expect(mocks.readContract).toHaveBeenCalledWith(expect.objectContaining({ blockNumber: 456n }));
   });
+
+  it("enriches a wallet-call batch receipt from canonical replay evidence", async () => {
+    mocks.readContract.mockResolvedValue(1_171_680n);
+    mocks.read.mockResolvedValue({
+      id: submissionId, solverId: "cobia-agentic", revision: 1,
+      state: "executed", presentationState: "executed", programHash: `0x${"11".repeat(32)}`,
+      owner: "0x1111111111111111111111111111111111111111", displayGoal: "Swap OKB",
+      validUntil: new Date("2033-05-18T03:35:00Z"), blockNumber: "123",
+      blockHash: `0x${"22".repeat(32)}`, failureCodes: [], objective: null,
+      artifacts: [{
+        kind: "evidence", artifactHash: `0x${"33".repeat(32)}`, payload: { simulations: [{
+          assetDeltas: [{ token: "0x2222222222222222222222222222222222222222",
+            account: "0x1111111111111111111111111111111111111111",
+            beforeAtomic: "0", afterAtomic: "1171695" }],
+        }] },
+      }, {
+        kind: "receipt", artifactHash: `0x${"44".repeat(32)}`, payload: {
+          version: 1, kind: "wallet-call-batch-receipt",
+          owner: "0x1111111111111111111111111111111111111111",
+          transactionHash: `0x${"55".repeat(32)}`,
+          receipts: [{ blockNumber: "68851188" }],
+        },
+      }],
+    });
+
+    const response = await GET(
+      new Request(`https://cobia.example/api/programs/${submissionId}`), context(submissionId),
+    );
+    const body = await response.json();
+    expect(body.artifacts.receipt.payload).toMatchObject({ blockNumber: "68851188",
+      balanceChanges: [{ token: "0x2222222222222222222222222222222222222222",
+        beforeAtomic: "0", afterAtomic: "1171680" }] });
+  });
 });

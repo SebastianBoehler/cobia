@@ -77,13 +77,15 @@ export async function POST(
       if (!execution || commitment(execution.payload) !== execution.artifactHash) {
         throw new Error("Open execution artifact is unavailable");
       }
-      attributed = await verifyOpenWalletBatchReceiptsV1({
+      const batchReceipt = await verifyOpenWalletBatchReceiptsV1({
         batch: execution.payload, owner: proof.owner, transactionHashes: body.transactionHashes,
         latestBlockNumber: latestBlock.number,
         readTransaction: (hash) => client.getTransaction({ hash }),
         readReceipt: (hash) => client.getTransactionReceipt({ hash }),
         readCanonicalBlock: (number) => client.getBlock({ blockNumber: number }),
       });
+      attributed = batchReceipt;
+      attributedBlockNumber = BigInt(batchReceipt.receipts.at(-1)!.blockNumber);
       const policy = OpenIntentPolicyV3Schema.parse(stored.policy);
       const evidenceArtifact = stored.artifacts.find(({ kind }) => kind === "evidence");
       const evidence = TransactionProgramEvidenceV1Schema.parse(evidenceArtifact?.payload);

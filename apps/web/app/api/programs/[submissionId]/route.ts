@@ -22,12 +22,16 @@ async function enrichReceipt(
 ) {
   const receipt = artifacts.find(({ kind }) => kind === "receipt");
   const parsed = z.object({
-    version: z.literal(3),
     owner: z.string(),
-    blockNumber: z.string().regex(/^[1-9][0-9]*$/),
+    blockNumber: z.string().regex(/^[1-9][0-9]*$/).optional(),
+    receipts: z.array(z.object({
+      blockNumber: z.string().regex(/^[1-9][0-9]*$/),
+    }).passthrough()).min(1).optional(),
     balanceChanges: z.array(z.unknown()).optional(),
   }).passthrough().safeParse(receipt?.payload);
   if (!parsed.success || parsed.data.balanceChanges) return receipt?.payload;
+  const blockNumber = parsed.data.blockNumber ?? parsed.data.receipts?.at(-1)?.blockNumber;
+  if (!blockNumber) return receipt?.payload;
   try {
     const client = createPublicClient({ chain: xLayer, transport: http(
       readCodingAgentV3ExecutionConfig().XLAYER_RPC_URL, { timeout: 15_000 },
@@ -36,12 +40,12 @@ async function enrichReceipt(
     const balanceChanges = await readConfirmedBalanceChanges({
       evidence,
       owner: parsed.data.owner as Address,
-      blockNumber: BigInt(parsed.data.blockNumber),
+      blockNumber: BigInt(blockNumber),
       readBalance: (token, owner, blockNumber) => client.readContract({
         address: token, abi: erc20Abi, functionName: "balanceOf", args: [owner], blockNumber,
       }),
     });
-    return balanceChanges.length > 0 ? { ...parsed.data, balanceChanges } : receipt?.payload;
+    return balanceChanges.length > 0 ? { ...parsed.data, blockNumber, balanceChanges } : receipt?.payload;
   } catch {
     return receipt?.payload;
   }

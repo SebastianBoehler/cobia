@@ -32,4 +32,19 @@ describe("confirmed balance changes", () => {
     })).resolves.toEqual([]);
     expect(readBalance).not.toHaveBeenCalled();
   });
+
+  it("measures canonical transaction-program simulation deltas", async () => {
+    const readBalance = vi.fn(async () => 1_171_680n);
+    await expect(readConfirmedBalanceChanges({
+      evidence: { simulations: [{ assetDeltas: [{
+        token, account: owner, beforeAtomic: "0", afterAtomic: "1171695",
+      }, {
+        token: "0x3333333333333333333333333333333333333333", account: owner,
+        beforeAtomic: "1000000", afterAtomic: "0",
+      }] }] },
+      owner,
+      blockNumber: 68851188n,
+      readBalance,
+    })).resolves.toEqual([{ token, beforeAtomic: "0", afterAtomic: "1171680" }]);
+  });
 });
