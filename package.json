@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "pnpm --filter @cobia/web dev",
+    "docs:check": "node scripts/check-markdown-links.mjs",
     "contracts:test": "scripts/forge.sh test",
     "executor:plan": "tsx apps/web/scripts/prepare-agent-executor-deployment.ts",
     "executor:v3:plan": "tsx apps/web/scripts/prepare-agent-executor-v3-deployment.ts",

@@ -27,6 +27,7 @@ jobs:
           cache: true
           install: false
       - run: pnpm install --frozen-lockfile
+      - run: pnpm docs:check
       - run: pnpm env:dev
       - run: pnpm lint
       - run: pnpm typecheck
