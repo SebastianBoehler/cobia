@@ -121,7 +121,8 @@ describe("IntentCompetitionView", () => {
     expect(pending).toContain("View evidence");
     expect(ready).toContain('data-competition-state="ready"');
     expect(ready).toContain("Verified proposals are ready");
-    expect(ready).toContain("Review and execute");
+    expect(ready).not.toContain("Review and execute");
+    expect(ready).toContain("View verifier evidence");
   });
 
   it("does not describe an elapsed competition as pending", () => {
@@ -242,6 +243,31 @@ describe("IntentCompetitionView", () => {
     expect(html).toContain("Minimum: +0.950000 USDt0");
     expect(html).toContain("Up to 2 wallet steps");
     expect(html).not.toContain("Verified objective");
+    expect(html).toContain("Review and execute");
+  });
+
+  it("shows detected protocol marks for a canonical transaction route", () => {
+    const html = renderToStaticMarkup(<IntentCompetitionView
+      goal="Swap the input token"
+      closesAt={closesAt}
+      observedAtSec={2_000_000_000}
+      history={[]}
+      current={[{
+        id: "11111111-1111-4111-8111-111111111111", solverId: "alpha", revision: 1,
+        state: "current", validUntil: closesAt, objective: null,
+        preview: {
+          outcomes: [{ symbol: "USDG", decimals: 6, beforeAtomic: "1171680", afterAtomic: "2349210" }],
+          stepCount: 1, actions: ["PotatoSwap", "OkieStableSwap", "CurveNG", "Uniswap V4"],
+        },
+      }]}
+    />);
+
+    expect(html).toContain("PotatoSwap → OkieStableSwap → CurveNG → Uniswap V4");
+    expect(html).toContain('aria-label="PotatoSwap"');
+    expect(html).toContain('aria-label="OkieStableSwap"');
+    expect(html).toContain('aria-label="Curve"');
+    expect(html).toContain('aria-label="Uniswap V4"');
+    expect(html).toContain("1 wallet step");
     expect(html).toContain("Review and execute");
   });
 

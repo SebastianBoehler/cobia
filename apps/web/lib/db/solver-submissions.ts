@@ -184,7 +184,8 @@ export function createSolverSubmissionRepository(db: CobiaDatabase) {
       });
       const artifacts = rows.length === 0 ? [] : await db.query.cobiaProgramArtifactsV2.findMany({
         where: and(inArray(cobiaProgramArtifactsV2.submissionId, rows.map(({ id }) => id)),
-          inArray(cobiaProgramArtifactsV2.kind, ["objective", "snapshot", "program", "evidence", "execution"])),
+          inArray(cobiaProgramArtifactsV2.kind,
+            ["objective", "snapshot", "program", "provider", "evidence", "execution"])),
       });
       const artifactsBySubmission = new Map<string, (typeof artifacts)[number][]>();
       for (const artifact of artifacts) {

@@ -30,6 +30,8 @@ function protocolLabel(action: string) {
   const value = action.toLowerCase();
   if (value.includes("aave")) return "Aave V3";
   if (value.includes("curve")) return "Curve";
+  if (value.includes("okx")) return "OKX DEX";
+  if (value.includes("uniswap v4") || value.includes("uniswap-v4")) return "Uniswap V4";
   if (value.includes("uniswap")) return "Uniswap V3";
   return action;
 }
@@ -59,6 +61,8 @@ function OutcomePreview({ preview }: { preview: CompetitionProgramPreview | null
 }
 
 function SubmissionRow({ item, current }: { item: CompetitionSubmission; current: boolean }) {
+  const canExecute = current && Boolean(item.preview?.outcomes.length) && (item.preview?.stepCount ?? 0) > 0;
+  const actionLabel = canExecute ? "Review and execute" : current ? "View verifier evidence" : "View evidence";
   return <article className="competition-row">
     <div className="competition-row__identity">
       <span className={`status ${current ? "status--live" : ""}`}>{stateLabel(item.state)}</span>
@@ -75,19 +79,21 @@ function SubmissionRow({ item, current }: { item: CompetitionSubmission; current
         ? item.preview.actions.map((action) => action.split("@")[0]).join(" → ")
         : item.preview ? `Up to ${item.preview.stepCount} wallet ${item.preview.stepCount === 1 ? "step" : "steps"}`
           : "Not recorded"}</strong>
+      {item.preview?.actions?.length
+        ? <span>{item.preview.stepCount} wallet {item.preview.stepCount === 1 ? "step" : "steps"}</span> : null}
       {item.objective?.kind === "composition-net-yield-usd-e8"
         ? <span>${(Number(item.objective.atomic) / 1e8).toLocaleString("en-US", {
           maximumFractionDigits: 6,
         })} net terminal · {item.objective.horizonDays}d</span> : null}
     </div>
     <Link
-      aria-label={`${current ? "Review and execute" : "View evidence"} for ${item.solverId} revision ${item.revision}`}
-      className={current
+      aria-label={`${actionLabel} for ${item.solverId} revision ${item.revision}`}
+      className={canExecute
         ? "button button--primary competition-row__action"
         : "competition-row__action competition-row__action--history"}
       href={`/programs/${item.id}`}
     >
-      {current ? "Review and execute" : "View evidence"}
+      {actionLabel}
       <ArrowRight aria-hidden="true" size={15} />
     </Link>
   </article>;
