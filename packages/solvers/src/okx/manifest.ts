@@ -4,8 +4,8 @@ export const XLAYER_OKX_MANIFEST_V1 = OkxVerifierManifestV1Schema.parse({
   version: 1,
   chainId: 196,
   router: {
-    address: "0x722db4f285f8bd91ef7af6da397e83f7fa4e80a7",
-    runtimeCodeHash: "0x38e02cc6683c3fff0758aefa8b75189fd541ce1623cc9e6139de3119185f2a7f",
+    address: "0x7c5bee2a8091c3ef39072f64f18fac913060aeaf",
+    runtimeCodeHash: "0x7766cf8785ca58e8da2204bf28f5b5cb2da420e1dbad4f5b88828a7c768da885",
     selectors: ["0x0c307f76"],
   },
   approval: {

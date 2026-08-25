@@ -6,7 +6,7 @@ import { verifyOkxSwapStageV1, XLAYER_OKX_MANIFEST_V1 } from "../src";
 const owner = "0x1111111111111111111111111111111111111111" as const;
 const fromToken = "0x2222222222222222222222222222222222222222" as const;
 const toToken = "0x3333333333333333333333333333333333333333" as const;
-const router = "0x722db4f285f8bd91ef7af6da397e83f7fa4e80a7" as const;
+const router = "0x7c5bee2a8091c3ef39072f64f18fac913060aeaf" as const;
 const approval = "0x8b773d83bc66be128c60e07e17c8901f7a64f000" as const;
 const builderSuffix = "0x737136646c6a326f6e72386d6c357861100080218021802180218021802180218021" as const;
 const data = "0x0c307f760000000000000000000000000000000000000000000000000000000000000001" as const;
@@ -89,8 +89,8 @@ const nativeStage = {
 describe("OKX strict swap stage", () => {
   it("pins the reviewed X Layer router currently returned by OKX", () => {
     expect(XLAYER_OKX_MANIFEST_V1.router).toEqual({
-      address: "0x722db4f285f8bd91ef7af6da397e83f7fa4e80a7",
-      runtimeCodeHash: "0x38e02cc6683c3fff0758aefa8b75189fd541ce1623cc9e6139de3119185f2a7f",
+      address: "0x7c5bee2a8091c3ef39072f64f18fac913060aeaf",
+      runtimeCodeHash: "0x7766cf8785ca58e8da2204bf28f5b5cb2da420e1dbad4f5b88828a7c768da885",
       selectors: ["0x0c307f76"],
     });
   });
