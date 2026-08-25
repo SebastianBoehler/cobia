@@ -18,5 +18,5 @@ export async function generateMetadata() {
 
 export default async function PortfolioPage() {
   const testnet = (await getSiteNetwork()).mode === "testnet";
-  return <><AppHeader /><main className={styles.page} id="main-content"><header className={styles.heading}><h1>{testnet ? "Testnet wallet" : "Portfolio"}</h1><p>{testnet ? "Native OKB read directly from X Layer testnet at one explicit block. No protocol assets are assumed on this rehearsal deployment." : "One view of on-chain balances and protocol positions, with separately labeled OKX-indexed value, PnL, and DEX activity."}</p></header><PortfolioView /></main></>;
+  return <><AppHeader /><main className={styles.page} id="main-content"><header className={styles.heading}><h1>{testnet ? "Testnet wallet" : "Portfolio"}</h1><p>{testnet ? "Native OKB read directly from X Layer testnet at one explicit block. No protocol assets are assumed on this rehearsal deployment." : "Your X Layer portfolio, all in one place."}</p></header><PortfolioView /></main></>;
 }

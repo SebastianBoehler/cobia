@@ -101,7 +101,7 @@ export async function readPortfolio(
     observedAt: new Date().toISOString(),
     native: { symbol: "OKB", amountAtomic: native.toString(), formatted: formatUnits(native, 18) },
     balances,
-    positions: [
+    positions: ([
       {
         adapterId: "aave-v3@1",
         symbol: "aUSDG",
@@ -114,7 +114,7 @@ export async function readPortfolio(
         amountAtomic: aUsdT0.toString(),
         formatted: formatUnits(aUsdT0, 6),
       },
-    ],
+    ] satisfies PortfolioSnapshot["positions"]).filter(({ amountAtomic }) => amountAtomic !== "0"),
     analytics,
   };
 }

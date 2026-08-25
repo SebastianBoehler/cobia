@@ -42,7 +42,7 @@ export function PortfolioView() {
   if (!snapshot) return null;
   return <section className={styles.workspace} aria-label="Portfolio workspace">
     <header className={styles.workspaceHeader}><div><strong>On-chain statement</strong>
-      <p>Balances are pinned to block {snapshot.blockNumber}; analytics are indexed separately.</p></div>
+    </div>
       <span className={styles.network}>{snapshot.networkName}</span></header>
     {snapshot.chainId === 196 ? <PortfolioSummary snapshot={snapshot} /> : null}
     <PortfolioHoldings snapshot={snapshot} />

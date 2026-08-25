@@ -92,6 +92,12 @@ afterEach(() => {
 });
 
 describe("mainnet portfolio", () => {
+  it("omits Aave positions with a zero on-chain balance", async () => {
+    const snapshot = await readPortfolio(owner, 196, "https://rpc.invalid");
+
+    expect(snapshot.positions).toEqual([]);
+  });
+
   it("adds independently sourced OKX value, PnL, and DEX activity", async () => {
     getXLayerTotalValue.mockResolvedValue({
       totalValueUsd: "1450.25", fetchedAt: "2026-08-25T10:00:00.000Z",
