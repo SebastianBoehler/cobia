@@ -7,6 +7,32 @@ function response(value: unknown) {
 }
 
 describe("intent compiler token identity", () => {
+  it("preserves the direction of a wallet RWA sale into native OKB", async () => {
+    const compiler = createOpenAiIntentCompiler({
+      apiKey: "test", model: "test-model",
+      fetcher: vi.fn().mockResolvedValue(response({
+        status: "review", question: null, kind: "conversion", templateId: "exact-input-swap",
+        inputSymbol: "TSLAx", outputSymbol: "OKB", amount: "", walletShareBps: null,
+        minimum: "", jurisdiction: null, composed: null,
+        conversion: { inputs: [{ symbol: "TSLAx", amount: "", walletShareBps: 10_000 }],
+          outputSymbol: "OKB", minimumOutput: "", minimumStages: 1 },
+      })),
+      walletBalances: { TSLAx: "0.002841620235604251", OKB: "0.04" },
+      assetPricesUsd: { TSLAx: "350", OKB: "110" },
+      walletAssets: [{
+        address: "0x8ad3c73f833d3f9a523ab01476625f269aeb7cf0",
+        symbol: "TSLAx", decimals: 18,
+      }],
+    });
+
+    await expect(compiler.compile("sell all my @TSLAx into @OKB", "any"))
+      .resolves.toMatchObject({ status: "review", values: {
+        kind: "staged-conversion",
+        inputs: [{ symbol: "TSLAx", amount: "0.002841620235604251" }],
+        outputSymbol: "OKB",
+      } });
+  });
+
   it("repairs a supported-token suffix substituted for an explicitly tagged wallet token", async () => {
     const compiler = createOpenAiIntentCompiler({
       apiKey: "test", model: "test-model",

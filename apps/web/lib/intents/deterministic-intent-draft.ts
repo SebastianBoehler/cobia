@@ -11,9 +11,26 @@ interface ModelAmountHints {
 }
 
 export function requestedRwaTarget(goal: string) {
-  const matches = RWA_INTENT_ASSETS.filter(({ symbol }) =>
-    new RegExp(`(^|[^A-Za-z0-9])@?${symbol}(?=$|[^A-Za-z0-9])`, "i").test(goal));
-  return matches.length === 1 ? matches[0] : undefined;
+  const matches = RWA_INTENT_ASSETS.flatMap((asset) => {
+    const match = new RegExp(
+      `(^|[^A-Za-z0-9])@?${asset.symbol}(?=$|[^A-Za-z0-9])`, "i",
+    ).exec(goal);
+    return match ? [{ asset, index: match.index + match[1]!.length }] : [];
+  });
+  if (matches.length !== 1) return undefined;
+
+  const requested = matches[0]!;
+  if (/\b(?:buy|acquire|purchase)\b/i.test(goal)) return requested.asset;
+  const otherAssets = [NATIVE_INTENT_ASSET, ...INTENT_ASSETS].flatMap((asset) =>
+    [...goal.matchAll(new RegExp(
+      `(^|[^A-Za-z0-9])@?${asset.symbol}(?=$|[^A-Za-z0-9])`, "gi",
+    ))].map((match) => ({ index: match.index! + match[1]!.length })));
+  const connector = [...goal.matchAll(/\b(?:into|to|for)\b/gi)].find((match) =>
+    [requested, ...otherAssets].some(({ index }) => index < match.index!) &&
+    [requested, ...otherAssets].some(({ index }) => index > match.index!));
+  if (connector) return requested.index > connector.index! ? requested.asset : undefined;
+  if (/\b(?:sell|convert|swap|exchange|turn)\b/i.test(goal)) return undefined;
+  return requested.asset;
 }
 
 export function requestedRwaInput(goal: string) {
