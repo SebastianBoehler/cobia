@@ -108,7 +108,7 @@ export function IntentCompetitionActivity({ closed = false,
         <h2 id="solver-activity-title">{copy.title}</h2>
         <p><strong>{copy.detail}.</strong> {copy.description}</p>
       </div>
-      <small><Clock3 aria-hidden="true" size={14} />Checks for updates every 10 seconds</small>
+      <small><Clock3 aria-hidden="true" size={14} />Checks for updates every 2 seconds</small>
     </header>
 
     <ol aria-label="Competition progress" className="solver-activity__progress">

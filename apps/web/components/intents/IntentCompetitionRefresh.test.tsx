@@ -18,15 +18,15 @@ afterEach(() => {
 });
 
 describe("IntentCompetitionRefresh", () => {
-  it("refreshes a visible live competition every ten seconds and stops at close", () => {
+  it("refreshes a visible live competition every two seconds and stops at close", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-21T15:00:00.000Z"));
-    render(<IntentCompetitionRefresh closesAt="2026-08-21T15:00:15.000Z" />);
+    render(<IntentCompetitionRefresh closesAt="2026-08-21T15:00:03.000Z" />);
 
-    act(() => { vi.advanceTimersByTime(10_000); });
+    act(() => { vi.advanceTimersByTime(2_000); });
     expect(navigation.refresh).toHaveBeenCalledOnce();
 
-    act(() => { vi.advanceTimersByTime(10_000); });
+    act(() => { vi.advanceTimersByTime(2_000); });
     expect(navigation.refresh).toHaveBeenCalledOnce();
   });
 

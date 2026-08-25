@@ -39,7 +39,7 @@ describe("IntentCompetitionView", () => {
     expect(html).toContain('data-competition-state="open"');
     expect(html).toContain("Solver competition is active");
     expect(html).toContain("Listening for signed proposals");
-    expect(html).toContain("Checks for updates every 10 seconds");
+    expect(html).toContain("Checks for updates every 2 seconds");
     expect(html).not.toContain("Waiting for solver submissions");
   });
 
