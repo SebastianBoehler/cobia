@@ -18,6 +18,9 @@ describe("DiscoverView", () => {
     expect(html).toContain("Aave V3");
     expect(html).toContain("Curve");
     expect(html).toContain("Uniswap V3");
+    expect(html).toContain("OKX DEX");
+    expect(html).toContain("Committed aggregator routes with exact-call replay");
+    expect(html).toContain("brand-mark--okx");
     expect(html).toContain("Pendle");
     expect(html).toContain("Read-only USDG PT market discovery");
     expect(html).toContain("brand-mark--pendle");

@@ -6,6 +6,7 @@ import { ProtocolMark } from "../brand/ProtocolMark";
 import { OkxAgentPaymentLookup } from "../commerce/OkxAgentPaymentLookup";
 
 const supportedProtocols = [
+  { name: "OKX DEX" as const, capability: "Committed aggregator routes with exact-call replay" },
   { name: "Aave V3" as const, capability: "Bounded supply with receipt-token floor" },
   { name: "Curve" as const, capability: "StableSwap NG exact-input exchange" },
   { name: "Uniswap V3" as const, capability: "Exact-input exchange and verified pool identity" },
@@ -55,7 +56,7 @@ export function DiscoverView({
           <Link href={`/intents/new?challenge=${item.id}`}>Use challenge <ArrowRight aria-hidden="true" size={15} /></Link>
         </article>)}</div> : <p className="empty-state">No standing challenges are published yet.</p>}
         <div className="supported-protocols" aria-labelledby="protocols-title">
-          <div><h3 id="protocols-title">X Layer protocol coverage</h3><p>Aave, Curve, and Uniswap use pinned semantic adapters. Pendle market discovery is read-only until a fresh wallet transaction verifies independently; other contracts can compete through the exact-call replay lane.</p></div>
+          <div><h3 id="protocols-title">X Layer protocol coverage</h3><p>OKX builds committed multi-protocol DEX routes. Aave, Curve, and Uniswap add pinned semantic evidence. Pendle market discovery is read-only; other contracts can compete through the exact-call replay lane.</p></div>
           <ul>{supportedProtocols.map((protocol) => <li key={protocol.name}>
             <ProtocolMark protocol={protocol.name} size={28} />
             <span><strong>{protocol.name}</strong><small>{protocol.capability}</small></span>
