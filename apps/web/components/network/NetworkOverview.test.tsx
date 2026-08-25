@@ -39,7 +39,8 @@ const report: NetworkOverviewReport = {
   exclusions: {},
 };
 const solvers = [{ id: "alpha-solver", displayName: "Alpha Solver",
-  declaredCapabilities: ["curve-stableswap-ng.exact-input@1"],
+  declaredCapabilities: ["curve-stableswap-ng.exact-input@1", "general-asset@1",
+    "pendle.xlayer.market-discovery"],
   stats: { accepted: 3, rejected: 1, wins: 1, current: 0 } }];
 
 describe("NetworkOverview", () => {
@@ -61,6 +62,14 @@ describe("NetworkOverview", () => {
     expect(html).toContain("1 / 1 valued outcomes");
     expect(html).toContain("3 / 4 resolved revisions");
     expect(html).toContain("Declared protocol support");
+    expect(html).toContain('aria-label="Supported Cobia protocol integrations"');
+    expect(html).toContain("Live compiled routes");
+    expect(html).toContain("Bounded supply");
+    expect(html).toContain("Stable swaps");
+    expect(html).toContain("Swap + LP");
+    expect(html).toContain("Discovery only");
+    expect(html).toContain('title="OKX DEX: declared"');
+    expect(html).toContain('title="Pendle: declared"');
     expect(html).toContain('<th scope="col">Route</th>');
     expect(html).toContain('aria-label="USDt0 through Curve to USDG"');
     expect(html).not.toContain("Minimum output");

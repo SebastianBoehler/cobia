@@ -156,7 +156,29 @@
 .moreOutcomes summary small { color: var(--muted); font-size: 10px; font-weight: 500; margin-left: auto; }
 .moreOutcomes .ledgerWrap { margin-top: 0; }
 
-.solverRows { margin-top: 28px; }
+.protocolDirectory {
+  align-items: stretch;
+  border-block: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: minmax(120px, .7fr) minmax(0, 4fr);
+  margin-top: 28px;
+}
+.protocolDirectory > span {
+  align-self: center;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 620;
+  padding-right: 18px;
+}
+.protocolDirectory ul { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); list-style: none; margin: 0; padding: 0; }
+.protocolDirectory li { align-items: center; display: flex; gap: 9px; min-width: 0; padding: 14px 10px; }
+.protocolDirectory li + li { border-left: 1px solid var(--line); }
+.protocolDirectory li div { min-width: 0; }
+.protocolDirectory strong, .protocolDirectory small { display: block; }
+.protocolDirectory strong { font-size: 12px; margin: 0; white-space: nowrap; }
+.protocolDirectory small { color: var(--muted); font-size: 9px; line-height: 1.35; margin-top: 3px; }
+
+.solverRows { margin-top: 0; }
 .solverRows article {
   align-items: center;
   border-top: 1px solid var(--line);
@@ -209,6 +231,8 @@
   .solverRows article { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .solverRows article > div:first-child, .solverRows article > a { grid-column: 1 / -1; }
   .solverRows article > a { justify-self: start; }
+  .protocolDirectory { grid-template-columns: 1fr; }
+  .protocolDirectory > span { padding: 13px 0 0; }
 }
 
 @media (max-width: 700px) {
@@ -224,6 +248,9 @@
   .tokenRoute { flex-wrap: wrap; }
   .moreOutcomes summary { align-items: flex-start; flex-wrap: wrap; padding: 12px 0; }
   .moreOutcomes summary small { margin-left: 0; width: 100%; }
+  .protocolDirectory ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .protocolDirectory li:nth-child(odd) { border-left: 0; }
+  .protocolDirectory li:nth-child(n + 3) { border-top: 1px solid var(--line); }
 }
 
 @media (max-width: 560px) {

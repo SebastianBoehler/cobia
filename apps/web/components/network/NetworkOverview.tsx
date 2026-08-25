@@ -113,21 +113,33 @@ function OutcomeLedgerSection({ report }: { report: NetworkOverviewReport }) {
 }
 
 const comparedProtocols = [
-  { label: "Aave V3", capability: "aave-v3." },
-  { label: "Curve", capability: "curve-stableswap-ng." },
-  { label: "Uniswap V3", capability: "uniswap-v3." },
+  { label: "OKX DEX", capabilities: ["general-asset@", "okx.dex@"], detail: "Live compiled routes" },
+  { label: "Aave V3", capabilities: ["aave-v3."], detail: "Bounded supply" },
+  { label: "Curve", capabilities: ["curve-stableswap-ng."], detail: "Stable swaps" },
+  { label: "Uniswap V3", capabilities: ["uniswap-v3."], detail: "Swap + LP" },
+  { label: "Pendle", capabilities: ["pendle."], detail: "Discovery only" },
 ] as const;
 
 function ProtocolCoverage({ capabilities }: { capabilities: string[] }) {
   return <div aria-label="Declared protocol support" className={styles.protocolCoverage}>
-    {comparedProtocols.map(({ label, capability }) => {
-      const enabled = capabilities.some((value) => value.startsWith(capability));
+    {comparedProtocols.map(({ label, capabilities: prefixes }) => {
+      const enabled = capabilities.some((value) => prefixes.some((prefix) => value.startsWith(prefix)));
       return <span key={label} data-enabled={enabled} title={`${label}: ${enabled ? "declared" : "not declared"}`}>
         <ProtocolMark protocol={label} size={21} />
         {enabled ? <Check aria-hidden="true" size={12} /> : <Minus aria-hidden="true" size={12} />}
         <i className="sr-only">{label} {enabled ? "declared" : "not declared"}</i>
       </span>;
     })}
+  </div>;
+}
+
+function ProtocolDirectory() {
+  return <div aria-label="Supported Cobia protocol integrations" className={styles.protocolDirectory}>
+    <span>Integration lanes</span>
+    <ul>{comparedProtocols.map(({ label, detail }) => <li key={label}>
+      <ProtocolMark protocol={label} size={30} />
+      <div><strong>{label}</strong><small>{detail}</small></div>
+    </li>)}</ul>
   </div>;
 }
 
@@ -140,6 +152,7 @@ function SolverTable({ report, solvers }: {
     <header><div><h2 id="network-solvers">Compare solvers by verified results.</h2>
       <p>Review confirmed volume, winning outcomes, and verifier acceptance before choosing who competes for you.</p></div>
       <Link href="/solvers">Open solver directory <ArrowRight aria-hidden="true" size={15} /></Link></header>
+    <ProtocolDirectory />
     <div className={styles.solverRows}>{report.metrics.solvers.map((metric) => {
       const profile = solvers.find(({ id }) => id === metric.solverId);
       const accepted = profile?.stats.accepted ?? 0;
