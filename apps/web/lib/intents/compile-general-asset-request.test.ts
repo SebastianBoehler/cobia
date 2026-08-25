@@ -7,10 +7,11 @@ const outputToken = "0x3333333333333333333333333333333333333333" as const;
 const owner = "0x1111111111111111111111111111111111111111" as const;
 const hash = (byte: string) => `0x${byte.repeat(64)}` as `0x${string}`;
 
-function deps(status: "eligible" | "unsupported" = "eligible") {
+function deps(status: "eligible" | "unsupported" = "eligible", outputPriceUsd?: string) {
   const searchToken = vi.fn(async (chainId: 1 | 196, search: string) => ({ chainId,
     token: search as `0x${string}`, name: "Token", symbol: search === inputToken ? "IN" : "OUT",
-    decimals: 18, priceUsd: undefined, liquidityUsd: undefined, holderCount: undefined }));
+    decimals: 18, priceUsd: search === outputToken ? outputPriceUsd : undefined,
+    liquidityUsd: undefined, holderCount: undefined }));
   const identity = (token: typeof inputToken | typeof outputToken) => AssetIdentityEvidenceV1Schema.parse({
     version: 1, chainId: 196, token, runtimeCodeHash: token === inputToken ? hash("1") : hash("2"),
     proxy: { kind: "none" }, decimals: 18, behaviorModule: { id: "plain-erc20", version: 1 },
@@ -67,5 +68,17 @@ describe("general asset compile request", () => {
     await expect(compileGeneralAssetRequestV1(input, deps("unsupported"))).resolves.toEqual({
       status: "clarification", question: "Token behavior is unsupported.",
     });
+  });
+
+  it("derives a conservative output floor when the user leaves it open", async () => {
+    const dependencies = deps("eligible", "5");
+    const result = await compileGeneralAssetRequestV1({ ...input,
+      output: { chainId: 196, address: outputToken },
+      settings: { maxSlippageBps: 150, marketMarginBps: 200 } }, dependencies);
+
+    expect(result).toMatchObject({ status: "review", values: {
+      output: { token: outputToken, minimumAtomic: "490000000000000000", minimumSource: "market-default" },
+      limits: { maxSlippageBps: 150 },
+    } });
   });
 });

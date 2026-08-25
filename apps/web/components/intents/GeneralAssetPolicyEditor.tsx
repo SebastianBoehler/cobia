@@ -31,10 +31,13 @@ export function GeneralAssetPolicyEditor({ values, owner, onChange }: {
         <small>Cannot exceed $1,000.00 for one route.</small>
       </label>
       <label>Minimum output atomic
-        <input inputMode="numeric" value={values.output.minimumAtomic}
+        <input aria-label="Minimum output atomic" inputMode="numeric" value={values.output.minimumAtomic}
           onChange={(event) => onChange({ ...values, output: {
-            ...values.output, minimumAtomic: event.target.value,
+            ...values.output, minimumAtomic: event.target.value, minimumSource: undefined,
           } })} />
+        {values.output.minimumSource === "market-default" ? <small>
+          Auto-set from fresh server market data using your protection margin. Review or edit before signing.
+        </small> : null}
       </label>
       <label>Maximum conversion loss (bps)
         <input inputMode="numeric" max="10000" min="0" value={values.limits.maxConversionLossBps}

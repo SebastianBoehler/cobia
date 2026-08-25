@@ -35,6 +35,7 @@ import { publicIntentExamples } from "../../lib/intents/public-examples";
 import { useGeneralAssetLaunchState } from "../network/useGeneralAssetLaunchState";
 import { IntentAssetAuthority } from "./IntentAssetAuthority";
 import { generalAssetRequestFromGoal } from "../../lib/intents/general-asset-goal";
+import type { IntentPolicySettingsValue } from "./IntentPolicySettings";
 
 type ComposerValues = ReceiptValues | ComposedIntentDraft | StagedConversionDraft | GeneralAssetDraftV1;
 type NativeBalanceReadiness =
@@ -81,6 +82,9 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
   const [step, setStep] = useState<"goal" | "review">(initialDraft ? "review" : "goal");
   const [action, setAction] = useState<ActionPreference>(initialDraft?.values.templateId ?? "any");
   const [excludedProtocols, setExcludedProtocols] = useState<ProtocolExclusionId[]>([]);
+  const [policySettings, setPolicySettings] = useState<IntentPolicySettingsValue>({
+    maxSlippageBps: 300, marketMarginBps: 100,
+  });
   const [portfolio, setPortfolio] = useState<{ key: string; snapshot: PortfolioSnapshot }>();
   const [portfolioState, setPortfolioState] = useState<{
     key: string; status: "loading" | "ready" | "error";
@@ -268,6 +272,11 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
   }, [activePortfolio, assetPrices]);
   const allMentions = useMemo(() => normalizeMentions([...mentions, ...resolvedAssetMentions]),
     [mentions, resolvedAssetMentions]);
+  const walletBalancesByAddress = useMemo(() => Object.fromEntries(
+    (activePortfolio?.balances ?? []).flatMap(({ address, amountAtomic }) =>
+      typeof address === "string" && typeof amountAtomic === "string"
+        ? [[address.toLowerCase(), amountAtomic]] : []),
+  ), [activePortfolio]);
   const assetSymbols = useMemo(() => [...new Set([
     NATIVE_INTENT_ASSET.symbol,
     ...allMentions.filter(({ group }) => group === "Assets").map(({ mention }) => mention),
@@ -277,8 +286,8 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
   const generalAssetRequest = useMemo(() => generalAssetRequestFromGoal(goal,
     allMentions.flatMap(({ group, mention, chainId, address, decimals }) => group === "Assets" && chainId &&
       address && decimals !== undefined ? [{ symbol: mention, chainId, address: address as `0x${string}`, decimals }] : []),
-    [NATIVE_INTENT_ASSET.symbol, ...INTENT_ASSETS.map(({ symbol }) => symbol),
-      ...RWA_INTENT_ASSETS.map(({ symbol }) => symbol)]), [allMentions, goal]);
+    walletBalancesByAddress),
+  [allMentions, goal, walletBalancesByAddress]);
   const selectedMentions = useMemo(() => {
     const selected = allMentions.filter(({ mention }) => {
     const escaped = mention.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -327,6 +336,7 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
       const request = () => fetch("/api/intents/compile", { method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ owner: wallet.account, goal: goal.trim(), actionPreference: action,
+          settings: policySettings,
           ...(generalAssetRequest.status === "request" ? { generalAsset: {
             input: generalAssetRequest.input, output: generalAssetRequest.output,
           } } : {}) }) });
@@ -401,10 +411,12 @@ export function IntentComposer({ initialDraft, initialGoal = "" }: {
           assetResolutionStatus={assetResolutionStatus} assetSymbols={assetSymbols}
           unresolvedMentions={unresolvedAssetMentions}
           availableAssets={availableAssets} portfolioState={activePortfolioState}
+          policySettings={policySettings}
           value={goal} onActionChange={setAction} onChange={setGoal} onMention={mention}
           onMentionSuggestion={mentionSuggestion}
           onMentionMenuOpen={loadMentions}
           onExcludedProtocolsChange={setExcludedProtocols}
+          onPolicySettingsChange={setPolicySettings}
           onSubmit={compileGoal} />
         {error ? <p className="form-alert" role="alert">{error}</p> : null}
         {!wallet.account ? <p className="intent-connect-note">Connect a signing wallet to verify control before Cobia interprets the goal.</p> : null}

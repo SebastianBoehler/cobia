@@ -8,6 +8,7 @@ import { IntentOptionMark } from "./IntentOptionMark";
 import { V3_INTENT_EXAMPLES } from "../../lib/intents/public-examples";
 import { tagKnownAssetSymbols } from "../../lib/intents/intent-asset-references";
 import type { AssetResolutionStatus } from "./useResolvedAssetMentions";
+import { IntentPolicySettings, type IntentPolicySettingsValue } from "./IntentPolicySettings";
 
 function extractMentionQuery(value: string): string | undefined {
   return value.match(/(?:^|\s)@([A-Za-z0-9.$_-]*)$/)?.[1];
@@ -51,9 +52,10 @@ export interface IntentMention {
 
 export function IntentGoalInput({ value, compiling, submitEnabled, action, excludedProtocols, mentions,
   unresolvedMentions, assetResolutionStatus, assetSymbols, availableAssets, portfolioState,
+  policySettings,
   examples = V3_INTENT_EXAMPLES,
   onChange, onActionChange, onMention, onMentionMenuOpen,
-  onMentionSuggestion, onExcludedProtocolsChange, onSubmit }: {
+  onMentionSuggestion, onExcludedProtocolsChange, onPolicySettingsChange, onSubmit }: {
   value: string;
   compiling: boolean;
   submitEnabled: boolean;
@@ -65,6 +67,7 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
   assetSymbols: readonly string[];
   availableAssets: readonly AvailableIntentAsset[];
   portfolioState: "idle" | "loading" | "ready" | "error";
+  policySettings: IntentPolicySettingsValue;
   examples?: readonly string[];
   onChange(value: string): void;
   onActionChange(value: ActionPreference): void;
@@ -72,6 +75,7 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
   onMentionSuggestion(value: IntentMention): void;
   onMentionMenuOpen(): void;
   onExcludedProtocolsChange(value: ProtocolExclusionId[]): void;
+  onPolicySettingsChange(value: IntentPolicySettingsValue): void;
   onSubmit(): void;
 }) {
   const controlsRef = useRef<HTMLDivElement>(null);
@@ -137,8 +141,20 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
         if (!details.contains(event.target as Node)) details.removeAttribute("open");
       }
     }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      for (const details of controlsRef.current?.querySelectorAll("details[open]") ?? []) {
+        const restoreFocus = details.contains(document.activeElement);
+        details.removeAttribute("open");
+        if (restoreFocus) details.querySelector("summary")?.focus();
+      }
+    }
     document.addEventListener("pointerdown", closeOnOutsideClick);
-    return () => document.removeEventListener("pointerdown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
   }, []);
 
   function acceptMentionSuggestion(mention: IntentMention) {
@@ -331,6 +347,7 @@ export function IntentGoalInput({ value, compiling, submitEnabled, action, exclu
               </label>)}
             </div>
           </details>
+          <IntentPolicySettings value={policySettings} onChange={onPolicySettingsChange} />
         </div>
         <div className="intent-goal__tools-end">
           <IntentAvailableAssets assets={availableAssets} onSelect={addAvailableAsset} state={portfolioState} />

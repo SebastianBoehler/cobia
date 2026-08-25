@@ -38,6 +38,7 @@ export interface GeneralAssetDraftV1 {
     symbol: string;
     decimals: number;
     minimumAtomic: string;
+    minimumSource?: "market-default";
     identityHash: Hash;
   };
   allowedAdapters: Array<{ id: string; version: number }>;
@@ -106,6 +107,8 @@ export function compileGeneralAssetDraftV1(input: {
   maximumInputAtomic: string;
   maximumInputUsdE8: string;
   minimumOutputAtomic: string;
+  minimumOutputSource?: "market-default";
+  maxSlippageBps?: number;
   manifestHash: Hash;
   evidenceExpiresAtSec: number;
   candidates: readonly GeneralAssetCandidateV1[];
@@ -116,6 +119,10 @@ export function compileGeneralAssetDraftV1(input: {
   }
   if (BigInt(input.maximumInputUsdE8) > ROUTE_CAP_USD_E8) {
     return { status: "clarification", question: "Maximum input cannot exceed $1,000 per route." };
+  }
+  const maxSlippageBps = input.maxSlippageBps ?? 300;
+  if (!Number.isInteger(maxSlippageBps) || maxSlippageBps < 0 || maxSlippageBps > 10_000) {
+    return { status: "clarification", question: "Maximum slippage must be between 0 and 10000 bps." };
   }
   const inputAsset = requireEligible(
     findCandidate(input.candidates, input.selection.input), input.selection.input, true,
@@ -147,6 +154,7 @@ export function compileGeneralAssetDraftV1(input: {
       symbol: outputAsset.symbol,
       decimals: outputAsset.decimals,
       minimumAtomic: input.minimumOutputAtomic,
+      ...(input.minimumOutputSource ? { minimumSource: input.minimumOutputSource } : {}),
       identityHash: outputAsset.identityHash!,
     },
     allowedAdapters: [{ id: "general.evm-call", version: 1 },
@@ -161,7 +169,7 @@ export function compileGeneralAssetDraftV1(input: {
       maxBridgeFeeUsdE8: "5000000000",
       maxSolverFeeUsdE8: "0",
       maxConversionLossBps: 500,
-      maxSlippageBps: 300,
+      maxSlippageBps,
     },
   } };
 }

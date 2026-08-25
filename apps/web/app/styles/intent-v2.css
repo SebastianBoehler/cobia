@@ -52,6 +52,18 @@
 .intent-route-control__menu p { color: var(--muted); font-size: 11px; line-height: 1.45; margin: 0 0 2px; }
 .intent-route-control__menu label { align-items: center; color: var(--ink); display: grid; font-size: 13px; gap: 9px; grid-template-columns: 14px 20px minmax(0, 1fr); }
 .intent-route-control__menu input { accent-color: var(--cobalt); }
+.intent-settings__trigger { align-items: center; background: var(--wash); border: 1px solid transparent; border-radius: 999px; color: var(--ink); display: inline-flex; font-size: 12px; gap: 7px; min-height: 36px; padding: 0 10px; }
+.intent-settings__trigger:focus-visible { border-color: var(--cobalt); outline: 2px solid color-mix(in oklch, var(--cobalt) 28%, transparent); outline-offset: 2px; }
+.intent-settings__trigger:active { transform: scale(.96); }
+.intent-settings__trigger .intent-settings__tag { align-items: center; background: color-mix(in oklch, var(--cobalt) 9%, transparent); border-radius: 999px; color: var(--cobalt); display: inline-flex; font-size: 10px; font-variant-numeric: tabular-nums; height: 18px; padding-inline: 6px; }
+.intent-settings__menu { left: auto; min-width: 290px; right: 0; }
+.intent-settings__menu label { align-items: center; border-top: 1px solid var(--line); display: grid; gap: 4px 12px; grid-template-columns: minmax(0, 1fr) 92px; padding-top: 10px; }
+.intent-settings__menu label > span:first-child { font-weight: 560; }
+.intent-settings__menu label small { color: var(--muted); font-size: 10px; grid-column: 1 / -1; line-height: 1.4; }
+.intent-settings__number { align-items: center; background: var(--wash); border: 1px solid var(--line); border-radius: 9px; display: flex; padding-right: 9px; }
+.intent-settings__number input { appearance: textfield; background: transparent; border: 0; color: var(--ink); font-size: 13px; min-width: 0; padding: 7px 4px 7px 9px; width: 100%; }
+.intent-settings__number input:focus { outline: 0; }
+.intent-settings__number b { color: var(--muted); font-size: 11px; }
 .intent-option-mark { align-items: center; display: inline-flex; flex: 0 0 auto; height: 20px; justify-content: center; width: 20px; }
 .intent-option-mark .brand-mark { height: 20px; width: 20px; }
 .intent-mention-menu { max-height: 340px; min-width: 310px; overflow-y: auto; }
@@ -132,6 +144,7 @@
   .intent-goal__tools-end { margin-left: 0; width: 100%; }
   .intent-availability { flex: 1 1 auto; justify-content: start; overflow: visible; }
   .intent-availability > ul { justify-content: start; }
+  .intent-settings__number input { font-size: 16px; }
   .policy-fields, .policy-summary { grid-template-columns: 1fr; }
   .intent-asset-authority { align-items: start; grid-template-columns: 1fr; }
   .intent-asset-authority__arrow { transform: rotate(90deg); }

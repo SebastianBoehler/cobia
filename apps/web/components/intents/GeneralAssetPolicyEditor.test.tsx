@@ -47,4 +47,17 @@ describe("GeneralAssetPolicyEditor", () => {
       input: expect.objectContaining({ maximumUsdE8: "75000000000" }),
     }));
   });
+
+  it("labels a server-derived floor and clears the label when the user edits it", () => {
+    const onChange = vi.fn();
+    const derived = values();
+    derived.output.minimumSource = "market-default";
+    render(<GeneralAssetPolicyEditor owner={null} values={derived} onChange={onChange} />);
+
+    expect(screen.getByText(/Auto-set from fresh server market data/)).toBeVisible();
+    fireEvent.change(screen.getByLabelText("Minimum output atomic"), { target: { value: "91" } });
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
+      output: expect.objectContaining({ minimumAtomic: "91", minimumSource: undefined }),
+    }));
+  });
 });

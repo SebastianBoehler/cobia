@@ -44,16 +44,17 @@ function request(cookie?: string, origin = "https://getcobia.com", goal = "Suppl
   });
 }
 
-function generalAssetRequest(cookie = "token") {
+function generalAssetRequest(cookie = "token", minimumAtomic: string | null = "1",
+  settings?: { maxSlippageBps: number; marketMarginBps: number }) {
   return new Request("https://getcobia.com/api/intents/compile", { method: "POST",
     headers: { "content-type": "application/json", origin: "https://getcobia.com",
       cookie: `cobia_wallet_session=${cookie}` },
     body: JSON.stringify({ owner: "0x1111111111111111111111111111111111111111",
-      goal: "Swap my exact token", actionPreference: "any", generalAsset: {
+      goal: "Swap my exact token", actionPreference: "any", settings, generalAsset: {
         input: { chainId: 1, address: "0x2222222222222222222222222222222222222222",
           maximumAtomic: "1000" },
         output: { chainId: 196, address: "0x3333333333333333333333333333333333333333",
-          minimumAtomic: "1" },
+          ...(minimumAtomic ? { minimumAtomic } : {}) },
       } }),
   });
 }
@@ -205,6 +206,20 @@ describe("authenticated intent compiler API", () => {
     }));
     expect(mocks.compile).not.toHaveBeenCalled();
     expect(mocks.readPortfolio).not.toHaveBeenCalled();
+  });
+
+  it("accepts an open output amount for server-side market binding", async () => {
+    const response = await POST(generalAssetRequest("token", null,
+      { maxSlippageBps: 150, marketMarginBps: 200 }));
+
+    expect(response.status).toBe(200);
+    expect(mocks.compileGeneralAsset).toHaveBeenCalledWith(expect.objectContaining({
+      output: { chainId: 196, address: "0x3333333333333333333333333333333333333333" },
+      settings: { maxSlippageBps: 150, marketMarginBps: 200 },
+    }));
+    expect(mocks.beginCompilation).toHaveBeenCalledWith(expect.objectContaining({
+      goal: expect.stringMatching(/intent-settings:150:200[\s\S]*market-default/),
+    }));
   });
 
   it("compiles a registered xStock through the standard solver intent path", async () => {

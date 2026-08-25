@@ -23,13 +23,17 @@ export function deriveMarketMinimum(input: {
   inputPriceUsd: string;
   outputDecimals: number;
   outputPriceUsd: string;
+  protectionMarginBps?: number;
 }): string | undefined {
   const amount = decimalToAtomic(input.amount, input.inputDecimals);
   const inputPrice = decimalRatio(input.inputPriceUsd);
   const outputPrice = decimalRatio(input.outputPriceUsd);
-  if (!amount || !inputPrice || !outputPrice) return undefined;
+  const marginBps = input.protectionMarginBps ?? 100;
+  if (!amount || !inputPrice || !outputPrice || !Number.isInteger(marginBps) ||
+      marginBps < 0 || marginBps >= 10_000) return undefined;
+  const marketFloorBps = 10_000n - BigInt(marginBps);
   const numerator = BigInt(amount) * inputPrice.coefficient * outputPrice.scale *
-    10n ** BigInt(input.outputDecimals) * MARKET_FLOOR_BPS;
+    10n ** BigInt(input.outputDecimals) * marketFloorBps;
   const denominator = 10n ** BigInt(input.inputDecimals) * inputPrice.scale *
     outputPrice.coefficient * 10_000n;
   const minimum = numerator / denominator;

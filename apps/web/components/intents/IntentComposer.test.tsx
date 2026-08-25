@@ -403,6 +403,19 @@ describe("IntentComposer", () => {
     expect(document.querySelectorAll(".intent-route-control__menu label .intent-option-mark")).toHaveLength(3);
   });
 
+  it("closes execution settings with Escape and restores trigger focus", () => {
+    render(<IntentComposer />);
+    const trigger = screen.getByRole("button", { name: /Settings: 3% maximum slippage/ });
+
+    fireEvent.click(trigger);
+    const slippage = screen.getByLabelText("Maximum slippage (%)");
+    slippage.focus();
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.queryByRole("group", { name: "Execution protection" })).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
   it("compiles the goal before showing editable signed bounds", async () => {
     vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string) => {
       if (url.includes("/portfolio")) return Promise.resolve(Response.json({ balances: [], positions: [] }));
@@ -470,6 +483,47 @@ describe("IntentComposer", () => {
       input: { chainId: 196, address: INTENT_ASSETS[0].address, maximumAtomic: "20000" },
       output: { chainId: 196, address: adbe, minimumAtomic: "100000000000000" },
     } });
+  });
+
+  it("binds a natural-language full-balance input to the exact portfolio token", async () => {
+    const adbe = "0x1111111111111111111111111111111111111111";
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url.includes("/portfolio")) return Promise.resolve(Response.json({ balances: [{
+        symbol: "USDG", address: INTENT_ASSETS[0].address, decimals: 6,
+        amountAtomic: "2289644", formatted: "2.289644",
+      }], positions: [] }));
+      if (url === "/api/assets/resolve") return Promise.resolve(Response.json({ assets: [{
+        symbol: "ADBEx", name: "Adobe xStock", chainId: 196, address: adbe, decimals: 18,
+        status: "catalog-backed",
+      }], unresolved: [] }));
+      if (url === "/api/intents/compile") return Promise.resolve(Response.json({
+        status: "clarification", question: "Captured",
+      }));
+      return Promise.resolve(Response.json({}));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<IntentComposer />);
+
+    const rail = await screen.findByRole("region", { name: "Available wallet assets" });
+    expect(within(rail).getByRole("button", { name: /add @usdg to goal.*2\.289644 usdg/i })).toBeVisible();
+    fireEvent.click(screen.getByLabelText(/Settings: 3% maximum slippage/));
+    fireEvent.change(screen.getByLabelText("Maximum slippage (%)"), { target: { value: "1.5" } });
+    fireEvent.change(screen.getByLabelText("Output protection margin (%)"), { target: { value: "2" } });
+    fireEvent.change(screen.getByLabelText("What should happen?"), { target: {
+      value: "with all @USDG buy me at least 0.01 @ADBEx",
+    } });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Review policy" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Review policy" }));
+
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => url === "/api/intents/compile")).toBe(true));
+    const compile = fetchMock.mock.calls.find(([url]) => url === "/api/intents/compile")!;
+    expect(JSON.parse(String(compile[1].body))).toMatchObject({
+      settings: { maxSlippageBps: 150, marketMarginBps: 200 },
+      generalAsset: {
+        input: { chainId: 196, address: INTENT_ASSETS[0].address, maximumAtomic: "2289644" },
+        output: { chainId: 196, address: adbe, minimumAtomic: "10000000000000000" },
+      },
+    });
   });
 
   it("does not expose a JSON parser error when compilation returns plain text", async () => {

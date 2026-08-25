@@ -24,6 +24,10 @@ const RequestSchema = z.object({
     .transform((value) => getAddress(value).toLowerCase() as Address),
   goal: z.string().trim().min(3).max(500),
   actionPreference: z.enum(ACTION_PREFERENCES.map(({ id }) => id)),
+  settings: z.object({
+    maxSlippageBps: z.number().int().min(0).max(1_000),
+    marketMarginBps: z.number().int().min(0).max(1_000),
+  }).strict().optional(),
   generalAsset: z.object({
     input: z.object({ chainId: z.union([z.literal(1), z.literal(196)]),
       address: z.string().regex(/^0x[0-9a-fA-F]{40}$/)
@@ -32,7 +36,7 @@ const RequestSchema = z.object({
     output: z.object({ chainId: z.union([z.literal(1), z.literal(196)]),
       address: z.string().regex(/^0x[0-9a-fA-F]{40}$/)
         .transform((value) => getAddress(value).toLowerCase() as Address),
-      minimumAtomic: z.string().regex(/^[1-9][0-9]*$/).max(78) }).strict(),
+      minimumAtomic: z.string().regex(/^[1-9][0-9]*$/).max(78).optional() }).strict(),
   }).strict().optional(),
 }).strict();
 
@@ -54,7 +58,7 @@ export async function POST(request: Request): Promise<Response> {
   }
   let leaseId: string | undefined;
   try {
-    const { owner, goal, actionPreference, generalAsset } = parsedRequest;
+    const { owner, goal, actionPreference, generalAsset, settings } = parsedRequest;
     let session;
     try {
       session = await auth.readSession(token);
@@ -72,6 +76,8 @@ export async function POST(request: Request): Promise<Response> {
     let walletPortfolio: Awaited<ReturnType<typeof readPortfolio>> | undefined;
     let admissionGoal = goal;
     const effectiveGeneralAsset = generalAsset;
+    if (settings) admissionGoal = `${admissionGoal}\n[intent-settings:` +
+      `${settings.maxSlippageBps}:${settings.marketMarginBps}]`;
     if (actionPreference === "any" && !effectiveGeneralAsset) {
       walletPortfolio = await readPortfolio(session.owner, 196).catch(() => undefined);
       if (!walletPortfolio) {
@@ -92,7 +98,7 @@ export async function POST(request: Request): Promise<Response> {
       admissionGoal = `${admissionGoal}\n[general-asset:${effectiveGeneralAsset.input.chainId}:` +
         `${effectiveGeneralAsset.input.address}:${effectiveGeneralAsset.input.maximumAtomic}:` +
         `${effectiveGeneralAsset.output.chainId}:${effectiveGeneralAsset.output.address}:` +
-        `${effectiveGeneralAsset.output.minimumAtomic}]`;
+        `${effectiveGeneralAsset.output.minimumAtomic ?? "market-default"}]`;
     }
     let assetPricesUsd: Readonly<Record<string, string>> | undefined;
     if (actionPreference === "any" && !effectiveGeneralAsset) {
@@ -134,7 +140,7 @@ export async function POST(request: Request): Promise<Response> {
     }
     leaseId = admission.id;
     if (effectiveGeneralAsset) {
-      const compiled = await compileGeneralAssetRequestV1({ owner, goal, ...effectiveGeneralAsset });
+      const compiled = await compileGeneralAssetRequestV1({ owner, goal, ...effectiveGeneralAsset, settings });
       const result = compiled.status === "review" ? { ...compiled, compilationLeaseId: leaseId } : compiled;
       await auth.completeCompilation(leaseId, result);
       return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });

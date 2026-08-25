@@ -6,12 +6,15 @@ import { compileGeneralAssetDraftV1, type GeneralAssetCandidateV1 } from "./gene
 import type { Hash } from "viem";
 import { commitment } from "@cobia/domain";
 import { GeneralAssetEvidenceArtifactV1Schema, type RegisteredAdapterManifestV1 } from "@cobia/solvers";
+import { decimalToAtomic } from "./capability-templates";
+import { deriveMarketMinimum, formatAtomicAmount } from "./market-minimum";
 
 interface Input {
   owner: Address;
   goal: string;
   input: { chainId: 1 | 196; address: Address; maximumAtomic: string };
-  output: { chainId: 1 | 196; address: Address; minimumAtomic: string };
+  output: { chainId: 1 | 196; address: Address; minimumAtomic?: string };
+  settings?: { maxSlippageBps: number; marketMarginBps: number };
 }
 
 interface Dependencies {
@@ -47,6 +50,18 @@ export async function compileGeneralAssetRequestV1(input: Input, dependencies?: 
   if (outputEvidence.status !== "eligible") {
     return { status: "clarification" as const, question: outputEvidence.reason };
   }
+  const derivedMinimum = input.output.minimumAtomic ? undefined : deriveMarketMinimum({
+    amount: formatAtomicAmount(BigInt(inputEvidence.valuationEvidence.conservativeValueUsdE8), 8),
+    inputDecimals: 8,
+    inputPriceUsd: "1",
+    outputDecimals: outputToken.decimals,
+    outputPriceUsd: outputToken.priceUsd ?? "",
+    protectionMarginBps: input.settings?.marketMarginBps,
+  });
+  const minimumOutputAtomic = input.output.minimumAtomic ?? (derivedMinimum
+    ? decimalToAtomic(derivedMinimum, outputToken.decimals) : undefined);
+  if (!minimumOutputAtomic) return { status: "clarification" as const,
+    question: "A fresh output price is unavailable. State an \"at least\" output amount." };
   const candidate = (token: typeof inputToken, evidence: typeof inputEvidence): GeneralAssetCandidateV1 => ({
     chainId: token!.chainId, token: token!.token, symbol: token!.symbol,
     name: token!.name, decimals: token!.decimals, status: "eligible",
@@ -59,7 +74,9 @@ export async function compileGeneralAssetRequestV1(input: Input, dependencies?: 
       output: { chainId: input.output.chainId, token: input.output.address } },
     maximumInputAtomic: input.input.maximumAtomic,
     maximumInputUsdE8: inputEvidence.valuationEvidence.conservativeValueUsdE8,
-    minimumOutputAtomic: input.output.minimumAtomic,
+    minimumOutputAtomic,
+    ...(input.output.minimumAtomic ? {} : { minimumOutputSource: "market-default" as const }),
+    maxSlippageBps: input.settings?.maxSlippageBps,
     manifestHash: commitment(deps.manifest) as Hash,
     evidenceExpiresAtSec,
     candidates: [candidate(inputToken, inputEvidence),
