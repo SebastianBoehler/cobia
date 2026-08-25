@@ -87,7 +87,7 @@ function increment(reasons: Record<string, number>, reason: string) {
   reasons[reason] = (reasons[reason] ?? 0) + 1;
 }
 
-function project(row: {
+export function projectNetworkOutcomeV1(row: {
   intentId: string;
   owner: string;
   chainId: number;
@@ -95,7 +95,7 @@ function project(row: {
   solverId: string;
   state: string;
   completedAt: Date;
-}, artifacts: Artifact[]): ReturnType<typeof projectPublicOutcomeV1> {
+}, artifacts: Pick<Artifact, "kind" | "payload">[]): ReturnType<typeof projectPublicOutcomeV1> {
   const programArtifact = artifacts.find(({ kind }) => kind === "program");
   const snapshotArtifact = artifacts.find(({ kind }) => kind === "snapshot");
   const receiptArtifact = artifacts.find(({ kind }) => kind === "receipt");
@@ -123,7 +123,9 @@ function project(row: {
     transactionHash: receipt?.transactionHash ?? null,
     intentClass: principal.intentClass,
     principal: { token: principals[0]!.token, symbol: principals[0]!.symbol, atomic: principals[0]!.atomic },
-    additionalPrincipals: principals.slice(1),
+    additionalPrincipals: principals.slice(1).map(({ token, symbol, atomic, valuation: value }) => ({
+      token, symbol, atomic, valuation: value,
+    })),
     route,
     valuation: principals[0]!.valuation,
     resultLabel: principal.resultLabel,
@@ -167,7 +169,10 @@ export function createNetworkOutcomeRepository(db: CobiaDatabase) {
       const exclusions: Record<string, number> = {};
       for (const row of rows) {
         if (!row.completedAt) { increment(exclusions, "INVALID_CANDIDATE"); continue; }
-        const result = project({ ...row, completedAt: row.completedAt }, bySubmission.get(row.submissionId) ?? []);
+        const result = projectNetworkOutcomeV1(
+          { ...row, completedAt: row.completedAt },
+          bySubmission.get(row.submissionId) ?? [],
+        );
         if ("outcome" in result) outcomes.push(result.outcome);
         else increment(exclusions, result.excluded satisfies NetworkExclusionReason);
       }

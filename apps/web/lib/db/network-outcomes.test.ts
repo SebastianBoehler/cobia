@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   networkAssetIdentityV1,
   parseNetworkReceiptV1,
+  projectNetworkOutcomeV1,
   transactionNetworkPrincipalV1,
 } from "./network-outcomes";
 
@@ -40,7 +41,7 @@ describe("network receipt projection", () => {
       tools,
     });
 
-    expect(transactionNetworkPrincipalV1({
+    const program = {
       version: 1,
       programId: "11111111-1111-4111-8111-111111111111",
       requestId: "22222222-2222-4222-8222-222222222222",
@@ -58,7 +59,9 @@ describe("network receipt projection", () => {
           outputToken: secondOutput, minimumAtomic: "48000000", dependsOn: ["route-01"],
           tools: ["uniswap-v3.exact-input"] }),
       ],
-    })).toEqual({
+    };
+
+    expect(transactionNetworkPrincipalV1(program)).toEqual({
       chainId: 196,
       principals: [
         { token: "0x3333333333333333333333333333333333333333", atomic: "5618001" },
@@ -72,6 +75,61 @@ describe("network receipt projection", () => {
           { token: okb, atomic: "86745567600372" },
           { token: secondOutput, atomic: "48000000" },
         ],
+      },
+    });
+
+    const contractEvidence = (token: string, symbol: string, priceUsd: string) => ({
+      chainId: 196,
+      token,
+      symbol,
+      name: symbol,
+      decimals: 6,
+      priceUsd,
+      provider: "okx-market-v6",
+      liquidityUsd: "1000000",
+      holderCount: "1000",
+      top10HolderPercent: "50",
+      marketDataAt: "2026-08-25T01:00:00.000Z",
+      communityRecognized: true,
+    });
+    const tokenEvidence = [
+      contractEvidence("0x3333333333333333333333333333333333333333", "USDG", "1"),
+      contractEvidence("0x4444444444444444444444444444444444444444", "USDt0", "1"),
+      contractEvidence(secondOutput, "OUTPUT", "2"),
+      { chainId: 196, token: okb, symbol: "OKB", name: "X Layer", decimals: 18,
+        priceUsd: "100", provider: "okx-market-v6", assetType: "native",
+        liquidityUsd: "1000000", marketDataAt: "2026-08-25T01:00:00.000Z" },
+    ];
+    const projected = projectNetworkOutcomeV1({
+      intentId: "33333333-3333-4333-8333-333333333333",
+      submissionId: "44444444-4444-4444-8444-444444444444",
+      solverId: "alpha-solver",
+      owner,
+      chainId: 196,
+      state: "executed",
+      completedAt: new Date("2026-08-25T01:05:00.000Z"),
+    }, [
+      { kind: "program", payload: program },
+      { kind: "snapshot", payload: {
+        version: 1,
+        kind: "open-onchain",
+        requestId: "22222222-2222-4222-8222-222222222222",
+        capturedAt: "2026-08-25T01:00:00.000Z",
+        anchors: [{ chainId: 196, blockNumber: "70000000", blockHash: `0x${"55".repeat(32)}` }],
+        tokenEvidence,
+      } },
+      { kind: "receipt", payload: {
+        transactionHash,
+        receipts: [{ blockNumber: "70000001" }],
+      } },
+    ]);
+
+    expect(projected).toMatchObject({
+      outcome: {
+        transactionHash,
+        principal: { symbol: "USDG", atomic: "5618001" },
+        additionalPrincipals: [{ symbol: "USDt0", atomic: "9983" }],
+        route: { minimumOutputs: [{ symbol: "OKB" }, { symbol: "OUTPUT" }] },
       },
     });
   });
