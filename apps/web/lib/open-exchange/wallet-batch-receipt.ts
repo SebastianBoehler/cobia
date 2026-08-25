@@ -19,7 +19,9 @@ export async function verifyOpenWalletBatchReceiptsV1(input: {
     input: Hex; value: bigint }>;
   readReceipt(hash: Hash): Promise<{ transactionHash: Hash; status: "success" | "reverted";
     blockNumber: bigint; blockHash: Hash }>;
-  readCanonicalBlock(number: bigint): Promise<{ number: bigint | null; hash: Hash | null }>;
+  readCanonicalBlock(number: bigint): Promise<{
+    number: bigint | null; hash: Hash | null; timestamp: bigint;
+  }>;
 }) {
   const batch = BatchSchema.parse(input.batch);
   if (!isAddressEqual(batch.owner as Address, input.owner)) throw new Error("Wallet batch owner mismatch");
@@ -44,6 +46,9 @@ export async function verifyOpenWalletBatchReceiptsV1(input: {
       block.hash?.toLowerCase() !== receipt.blockHash.toLowerCase() ||
       input.latestBlockNumber < receipt.blockNumber + 1n) {
       throw new Error(`Wallet batch receipt ${index + 1} does not match the verified call`);
+    }
+    if (block.timestamp > BigInt(batch.deadline)) {
+      throw new Error(`Wallet batch receipt ${index + 1} was mined after the signed deadline`);
     }
     receipts.push({ stageId: expected.stageId, transactionHash: hash,
       blockNumber: receipt.blockNumber.toString(), blockHash: receipt.blockHash });

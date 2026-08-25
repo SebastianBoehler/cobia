@@ -17,7 +17,7 @@ describe("open wallet batch receipt", () => {
         input: "0x12345678" as const, value: 0n })),
       readReceipt: vi.fn(async () => ({ transactionHash: hash, status: "success" as const,
         blockNumber: 100n, blockHash })),
-      readCanonicalBlock: vi.fn(async () => ({ number: 100n, hash: blockHash })),
+      readCanonicalBlock: vi.fn(async () => ({ number: 100n, hash: blockHash, timestamp: 1_999_999_999n })),
     })).resolves.toMatchObject({ transactionHash: hash, receipts: [{ stageId: "01-route" }] });
   });
 
@@ -28,7 +28,18 @@ describe("open wallet batch receipt", () => {
         to: "0x9999999999999999999999999999999999999999", input: "0x12345678" as const, value: 0n }),
       readReceipt: async () => ({ transactionHash: hash, status: "success" as const,
         blockNumber: 100n, blockHash }),
-      readCanonicalBlock: async () => ({ number: 100n, hash: blockHash }),
+      readCanonicalBlock: async () => ({ number: 100n, hash: blockHash, timestamp: 1_999_999_999n }),
     })).rejects.toThrow(/verified call/i);
+  });
+
+  it("rejects a verified wallet call mined after its signed deadline", async () => {
+    await expect(verifyOpenWalletBatchReceiptsV1({ batch, owner, transactionHashes: [hash],
+      latestBlockNumber: 102n,
+      readTransaction: async () => ({ hash, from: owner, to: target,
+        input: "0x12345678" as const, value: 0n }),
+      readReceipt: async () => ({ transactionHash: hash, status: "success" as const,
+        blockNumber: 100n, blockHash }),
+      readCanonicalBlock: async () => ({ number: 100n, hash: blockHash, timestamp: 2_000_000_001n }),
+    })).rejects.toThrow(/deadline/i);
   });
 });

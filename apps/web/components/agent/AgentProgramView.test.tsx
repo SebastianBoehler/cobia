@@ -236,6 +236,7 @@ describe("AgentProgramView", () => {
       },
     };
     let receiptRecorded = false;
+    let executionReads = 0;
     vi.mocked(fetch).mockImplementation(async (input) => {
       const url = String(input);
       if (!url.includes("/execution")) {
@@ -253,17 +254,26 @@ describe("AgentProgramView", () => {
           version: 3, transactionHash, blockNumber: "124",
         } }));
       }
+      executionReads += 1;
       return new Response(JSON.stringify({
-        chainId: 196, approvals: [{
+        chainId: 196, approvals: executionReads === 1 ? [{
           to: "0x3333333333333333333333333333333333333333", data: "0x1234", value: "0x0",
-        }],
+        }] : [],
         execution: { to: "0x2222222222222222222222222222222222222222", data: "0x1234", value: "0x0" },
       }));
     });
-    wallet.request.mockImplementation(async ({ method }: { method: string }) => {
+    let lastTransaction: Record<string, string> | undefined;
+    wallet.request.mockImplementation(async ({ method, params }: { method: string; params?: unknown[] }) => {
       if (method === "personal_sign") return `0x${"33".repeat(65)}`;
-      if (method === "eth_sendTransaction") return transactionHash;
+      if (method === "eth_sendTransaction") {
+        lastTransaction = (params?.[0] ?? {}) as Record<string, string>;
+        return transactionHash;
+      }
       if (method === "eth_getTransactionReceipt") return { status: "0x1", blockNumber: "0x7b" };
+      if (method === "eth_getTransactionByHash") return {
+        from: lastTransaction?.from, to: lastTransaction?.to,
+        input: lastTransaction?.data, value: lastTransaction?.value,
+      };
       if (method === "eth_blockNumber") return "0x7c";
       throw new Error(`Unexpected wallet method ${method}`);
     });

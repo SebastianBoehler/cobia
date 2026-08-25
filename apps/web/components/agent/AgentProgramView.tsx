@@ -15,6 +15,8 @@ import { useWallet } from "../wallet/WalletProvider";
 import { GeneralAssetExecutionView } from "../intents/GeneralAssetExecutionView";
 import { AgentProgramSummary } from "./AgentProgramSummary";
 import type { ProgramView } from "./agent-program-types";
+import { assertWalletCallIntegrity } from "./wallet-call-integrity";
+import { exactApprovalLabel } from "./wallet-call-label";
 import { runWalletSequence } from "./run-wallet-sequence";
 import styles from "./AgentProgramView.module.css";
 
@@ -22,7 +24,6 @@ interface TransactionCall { to: Address; data: Hex; value: "0x0" }
 interface Prepared { approvals: TransactionCall[]; execution?: TransactionCall;
   transactions?: (TransactionCall & { stageId: string })[]; chainId?: 1 | 196 | 8453 }
 interface ExecutionAccess { value: AgentExecutionAccessProof; signature: Hex }
-
 function message(value: unknown, fallback: string) {
   return typeof value === "object" && value && "message" in value && typeof value.message === "string"
     ? value.message
@@ -43,18 +44,19 @@ function approvalLabel(program: ProgramView, index: number, count: number) {
 }
 
 function executionLabel(program: ProgramView, prepared: Prepared, transactionIndex: number) {
-  if (prepared.transactions) return `Submit wallet call ${transactionIndex + 1}/${prepared.transactions.length}`;
+  if (prepared.transactions) {
+    const call = prepared.transactions[transactionIndex];
+    const approval = call && exactApprovalLabel(call,
+      program.artifacts.snapshot?.payload?.tokenEvidence ?? []);
+    return approval?.label ?? `Submit verified call ${transactionIndex + 1}/${prepared.transactions.length}`;
+  }
   const action = program.artifacts.program?.payload?.actions?.[0];
   if (action?.parameters?.tokenIn && action.parameters.tokenOut) return "Swap now";
   if (action?.capabilityId.includes("supply")) return "Supply now";
   return "Execute now";
 }
 
-export function hasRequiredConfirmations(
-  receiptBlock: string,
-  latestBlock: string,
-  confirmations: number,
-) {
+export function hasRequiredConfirmations(receiptBlock: string, latestBlock: string, confirmations: number) {
   if (!/^0x[0-9a-fA-F]+$/.test(receiptBlock) || !/^0x[0-9a-fA-F]+$/.test(latestBlock) ||
     !Number.isInteger(confirmations) || confirmations < 0) {
     throw new Error("Wallet returned invalid block confirmation data");
@@ -141,6 +143,7 @@ export function AgentProgramView({ programId }: { programId: string }) {
         await wallet.switchChain(body.chainId);
       }
       setPrepared(body);
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
       const completed = await runWalletSequence({
         initial: body,
         refresh: () => requestExecution(access),
@@ -178,6 +181,9 @@ export function AgentProgramView({ programId }: { programId: string }) {
         { status?: string; blockNumber?: string } | null;
       if (receipt) {
         if (receipt.status !== "0x1") throw new Error("Wallet transaction reverted.");
+        const transaction = await wallet.request({ method: "eth_getTransactionByHash", params: [hash] }) as
+          { from?: string; to?: string | null; input?: string; value?: string } | null;
+        assertWalletCallIntegrity(call, wallet.account, transaction);
         if (confirmations === 0) return hash as Hash;
         if (!receipt.blockNumber) throw new Error("Wallet receipt omitted its block number.");
         const latestBlock = await wallet.request({ method: "eth_blockNumber" });
@@ -271,6 +277,9 @@ export function AgentProgramView({ programId }: { programId: string }) {
   }
   const { submission } = program;
   const approvalsDone = approvalIndex >= (prepared?.approvals.length ?? 0);
+  const directApproval = prepared?.transactions?.[transactionIndex] && exactApprovalLabel(
+    prepared.transactions[transactionIndex]!, program.artifacts.snapshot?.payload?.tokenEvidence ?? [],
+  );
   const action = <>
     {error ? <p role="alert" className="form-alert">{error}</p> : null}
     {submission.executable && !prepared ? <button className="button button--primary" disabled={pending} onClick={prepare}>
@@ -280,8 +289,12 @@ export function AgentProgramView({ programId }: { programId: string }) {
       {pending ? "Waiting for approval…" : approvalLabel(program, approvalIndex, prepared.approvals.length)}
     </button> : null}
     {prepared && approvalsDone && !confirmed ? <button className="button button--primary" disabled={pending} onClick={execute}>
-      {pending ? "Waiting for the mainnet receipt…" : executionLabel(program, prepared, transactionIndex)}
+      {pending ? `Confirming: ${executionLabel(program, prepared, transactionIndex)}`
+        : executionLabel(program, prepared, transactionIndex)}
     </button> : null}
+    {directApproval ? <p>
+      Cobia requests this exact amount. Cancel if your wallet shows Unlimited.
+    </p> : null}
   </>;
   return <AgentProgramSummary program={program} action={submission.executable || error ? action : undefined} />;
 }

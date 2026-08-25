@@ -8,6 +8,11 @@ export interface PreparedSequence {
   chainId?: 1 | 196 | 8453;
 }
 
+function sameCall(left: SequenceCall | undefined, right: SequenceCall | undefined) {
+  return Boolean(left && right && left.to.toLowerCase() === right.to.toLowerCase() &&
+    left.data.toLowerCase() === right.data.toLowerCase() && left.value === right.value);
+}
+
 export async function runWalletSequence(input: {
   initial: PreparedSequence;
   refresh(): Promise<PreparedSequence>;
@@ -17,18 +22,34 @@ export async function runWalletSequence(input: {
   onTransaction(index: number, hashes: Hash[]): void;
 }) {
   if (input.initial.chainId) await input.switchChain(input.initial.chainId);
+  const hashes: Hash[] = [];
   for (const [index, approval] of input.initial.approvals.entries()) {
-    await input.send(approval, 0);
+    input.onApproval(index);
+    hashes.push(await input.send(approval, 0));
     input.onApproval(index + 1);
   }
-  const ready = await input.refresh();
+  let ready = await input.refresh();
+  if (ready.approvals.length > 0) {
+    throw new Error("Wallet did not establish the exact verified amount. Cobia stopped before execution.");
+  }
   if (ready.chainId) await input.switchChain(ready.chainId);
-  const calls = ready.transactions ?? (ready.execution ? [ready.execution] : []);
+  let calls = ready.transactions ?? (ready.execution ? [ready.execution] : []);
   if (calls.length === 0) throw new Error("No verified execution call is available.");
-  const hashes: Hash[] = [];
-  for (const [index, call] of calls.entries()) {
-    hashes.push(await input.send(call, 1));
+  for (let index = 0; index < calls.length; ++index) {
+    input.onTransaction(index, [...hashes]);
+    hashes.push(await input.send(calls[index]!, 1));
     input.onTransaction(index + 1, [...hashes]);
+    if (index + 1 >= calls.length) continue;
+    ready = await input.refresh();
+    if (ready.approvals.length > 0) {
+      throw new Error("Wallet approval no longer matches the exact verified amount.");
+    }
+    if (ready.chainId) await input.switchChain(ready.chainId);
+    const refreshed = ready.transactions ?? (ready.execution ? [ready.execution] : []);
+    if (!sameCall(refreshed[index + 1], calls[index + 1])) {
+      throw new Error("Verified wallet sequence changed before the next call.");
+    }
+    calls = refreshed;
   }
   return { ready, hashes, transactionHash: hashes.at(-1)! };
 }
