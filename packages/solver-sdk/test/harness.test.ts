@@ -58,7 +58,7 @@ describe("open solver harness", () => {
     expect(listIntents).toHaveBeenCalledTimes(2);
   });
 
-  it("defaults to a ten-second poll and exits after a sustained exchange outage", async () => {
+  it("defaults to a two-second poll and exits after a sustained exchange outage", async () => {
     vi.useFakeTimers();
     const controller = new AbortController();
     const listIntents = vi.fn().mockRejectedValue(new Error("offline"));
@@ -71,10 +71,13 @@ describe("open solver harness", () => {
     });
     const rejected = expect(watching).rejects.toThrow(/consecutive failures/i);
 
-    await vi.advanceTimersByTimeAsync(9_999);
-    expect(listIntents).toHaveBeenCalledTimes(1);
-    await vi.advanceTimersByTimeAsync(10_001);
-    await rejected;
-    vi.useRealTimers();
+    try {
+      await vi.advanceTimersByTimeAsync(1_999);
+      expect(listIntents).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      await rejected;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

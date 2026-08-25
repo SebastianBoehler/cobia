@@ -1,6 +1,7 @@
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   readReferenceSolverConfig, solverOperatingConfigPath,
@@ -43,5 +44,19 @@ max_total_tokens_per_intent = 400000
       risk_level: "balanced", max_codex_turns_per_intent: 3,
       max_total_tokens_per_intent: 400000,
     });
+  });
+
+  it("polls every two seconds in the demo deployment configs", async () => {
+    const paths = [
+      new URL("../codex/config.toml", import.meta.url),
+      new URL("../../../deploy/hetzner/config.local.toml", import.meta.url),
+      new URL("../../../deploy/hetzner/config.production.toml", import.meta.url),
+      new URL("../../../deploy/hetzner/config.production.reference.toml", import.meta.url),
+    ].map((url) => fileURLToPath(url));
+    const configs = await Promise.all(paths.map(readReferenceSolverConfig));
+
+    expect(configs.map((config) => config.poll_interval_ms)).toEqual([
+      2_000, 2_000, 2_000, 2_000,
+    ]);
   });
 });

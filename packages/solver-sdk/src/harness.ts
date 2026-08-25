@@ -32,7 +32,7 @@ export async function watchSolverIntents(input: {
   onPoll?(): void | Promise<void>;
   signal: AbortSignal;
 }) {
-  const pollIntervalMs = input.pollIntervalMs ?? 10_000;
+  const pollIntervalMs = input.pollIntervalMs ?? 2_000;
   const maxFailures = input.maxConsecutivePollFailures ?? 12;
   if (!Number.isSafeInteger(pollIntervalMs) || pollIntervalMs < 1) {
     throw new Error("Solver intent poll interval must be a positive integer");
