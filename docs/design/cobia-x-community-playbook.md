@@ -2,7 +2,7 @@
 
 Status: canonical living guide
 
-Updated: 2026-08-23
+Updated: 2026-08-25
 
 This playbook turns the Cobia brand into repeatable publishing behavior. It
 borrows the useful part of Jumper's strategy: polished, recognizable product
@@ -70,7 +70,10 @@ Lead with what happened, then explain the boundary.
 >
 > Inspect the transaction: [link]
 
-Use exact values and evidence. Never manufacture a larger or cleaner result.
+Derive every amount from exact evidence, but format social-facing numbers for
+humans: normally three to six significant digits. When reducing precision,
+truncate rather than rounding up and keep the full amount in the linked receipt
+or program. Never manufacture a larger or cleaner result.
 
 ### 2. Product moments
 
