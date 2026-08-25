@@ -19,16 +19,26 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 const GENERAL_ASSET_COMPILATION_TIMEOUT_MS = 12_000;
+type GeneralAssetCompilationStage = "session" | "admission" | "verification" | "persistence";
+const GENERAL_ASSET_TIMEOUT_MESSAGES: Record<GeneralAssetCompilationStage, string> = {
+  session: "Wallet verification did not finish within 12 seconds. Try again.",
+  admission: "Compilation admission did not finish within 12 seconds. Try again.",
+  verification: "Independent token verification did not finish within 12 seconds. Try again.",
+  persistence: "Policy draft persistence did not finish within 12 seconds. Try again.",
+};
 
-class GeneralAssetCompilationTimeoutError extends Error {}
+class GeneralAssetCompilationTimeoutError extends Error {
+  constructor(readonly stage: GeneralAssetCompilationStage) { super(); }
+}
 
-async function withGeneralAssetDeadline<T>(work: Promise<T>, deadlineMs: number): Promise<T> {
+async function withGeneralAssetDeadline<T>(work: Promise<T>, deadlineMs: number,
+  stage: GeneralAssetCompilationStage): Promise<T> {
   let timeout: ReturnType<typeof setTimeout> | undefined;
   const remainingMs = deadlineMs - Date.now();
-  if (remainingMs <= 0) throw new GeneralAssetCompilationTimeoutError();
+  if (remainingMs <= 0) throw new GeneralAssetCompilationTimeoutError(stage);
   try {
     return await Promise.race([work, new Promise<never>((_, reject) => {
-      timeout = setTimeout(() => reject(new GeneralAssetCompilationTimeoutError()), remainingMs);
+      timeout = setTimeout(() => reject(new GeneralAssetCompilationTimeoutError(stage)), remainingMs);
     })]);
   } finally {
     if (timeout) clearTimeout(timeout);
@@ -78,11 +88,12 @@ export async function POST(request: Request): Promise<Response> {
     const { owner, goal, actionPreference, generalAsset, settings } = parsedRequest;
     generalAssetDeadlineMs = generalAsset
       ? Date.now() + GENERAL_ASSET_COMPILATION_TIMEOUT_MS : undefined;
-    const boundedGeneralAsset = <T,>(work: Promise<T>) => generalAssetDeadlineMs === undefined
-      ? work : withGeneralAssetDeadline(work, generalAssetDeadlineMs);
+    const boundedGeneralAsset = <T,>(work: Promise<T>, stage: GeneralAssetCompilationStage) =>
+      generalAssetDeadlineMs === undefined
+        ? work : withGeneralAssetDeadline(work, generalAssetDeadlineMs, stage);
     let session;
     try {
-      session = await boundedGeneralAsset(auth.readSession(token));
+      session = await boundedGeneralAsset(auth.readSession(token), "session");
       if (!isAddressEqual(session.owner, owner)) {
         throw new WalletSessionRejectedError("Wallet session owner changed");
       }
@@ -139,7 +150,7 @@ export async function POST(request: Request): Promise<Response> {
       assetPricesUsd = { ...walletPrices, ...assetPricesUsd };
     }
     const admission = await boundedGeneralAsset(auth.beginCompilation({ owner: session.owner,
-      clientKey: walletAuthClientKey(request), goal: admissionGoal, actionPreference }));
+      clientKey: walletAuthClientKey(request), goal: admissionGoal, actionPreference }), "admission");
     if (admission.kind === "cached") {
       if (!reusableCompilationResult(admission.result, currentUnixSeconds())) {
         return NextResponse.json({ code: "COMPILATION_REFRESH_REQUIRED",
@@ -163,9 +174,10 @@ export async function POST(request: Request): Promise<Response> {
     if (effectiveGeneralAsset) {
       const compiled = await boundedGeneralAsset(
         compileGeneralAssetRequestV1({ owner, goal, ...effectiveGeneralAsset, settings }),
+        "verification",
       );
       const result = compiled.status === "review" ? { ...compiled, compilationLeaseId: leaseId } : compiled;
-      await boundedGeneralAsset(auth.completeCompilation(leaseId, result));
+      await boundedGeneralAsset(auth.completeCompilation(leaseId, result), "persistence");
       return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
     }
     const apiKey = process.env.OPENROUTER_API_KEY;
@@ -184,12 +196,13 @@ export async function POST(request: Request): Promise<Response> {
     if (leaseId) {
       const failure = auth.failCompilation(leaseId);
       await (generalAssetDeadlineMs === undefined ? failure
-        : withGeneralAssetDeadline(failure, generalAssetDeadlineMs)).catch(() => undefined);
+        : withGeneralAssetDeadline(failure, generalAssetDeadlineMs, "persistence")).catch(() => undefined);
     }
     if (error instanceof GeneralAssetCompilationTimeoutError) {
+      console.warn("General asset compilation timed out", { stage: error.stage });
       return NextResponse.json({
         code: "GENERAL_ASSET_COMPILATION_TIMEOUT",
-        message: "Token verification did not finish within 12 seconds. Try again.",
+        message: GENERAL_ASSET_TIMEOUT_MESSAGES[error.stage],
       }, { status: 503, headers: { "Cache-Control": "no-store", "Retry-After": "1" } });
     }
     console.error("Intent compilation failed", error);

@@ -222,11 +222,18 @@ describe("authenticated intent compiler API", () => {
     }));
   });
 
-  it.each(["admission", "verification", "persistence"] as const)(
+  it.each([
+    ["session", "Wallet verification did not finish within 12 seconds. Try again."],
+    ["admission", "Compilation admission did not finish within 12 seconds. Try again."],
+    ["verification", "Independent token verification did not finish within 12 seconds. Try again."],
+    ["persistence", "Policy draft persistence did not finish within 12 seconds. Try again."],
+  ] as const)(
     "fails stalled exact-asset %s before the serverless runtime timeout",
-    async (stage) => {
+    async (stage, message) => {
       vi.useFakeTimers();
-      if (stage === "admission") {
+      if (stage === "session") {
+        mocks.readSession.mockImplementationOnce(() => new Promise(() => undefined));
+      } else if (stage === "admission") {
         mocks.beginCompilation.mockImplementationOnce(() => new Promise(() => undefined));
       } else if (stage === "verification") {
         mocks.compileGeneralAsset.mockImplementationOnce(() => new Promise(() => undefined));
@@ -244,7 +251,7 @@ describe("authenticated intent compiler API", () => {
         status: 503,
         body: {
           code: "GENERAL_ASSET_COMPILATION_TIMEOUT",
-          message: "Token verification did not finish within 12 seconds. Try again.",
+          message,
         },
       });
       vi.useRealTimers();
