@@ -11,7 +11,7 @@ export const V3_INTENT_EXAMPLES = [
 
 export const V4_INTENT_EXAMPLES = [
   STABLE_SWAP,
-  "Acquire at least 0.01 @TSLAx with at most 10 @USDG on @XLayer for an eligible DE holder",
+  "Acquire at least 0.01 @TSLAx with at most 10 @USDG on @XLayer",
   MULTI_STEP,
 ] as const;
 

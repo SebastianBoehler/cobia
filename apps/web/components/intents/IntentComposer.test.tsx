@@ -97,12 +97,12 @@ describe("IntentComposer", () => {
     render(<IntentComposer />);
 
     const example = await screen.findByRole("button", {
-      name: "Use example: Acquire at least 0.01 @TSLAx with at most 10 @USDG on @XLayer for an eligible DE holder",
+      name: "Use example: Acquire at least 0.01 @TSLAx with at most 10 @USDG on @XLayer",
     });
     fireEvent.click(example);
 
     expect(screen.getByLabelText("What should happen?")).toHaveValue(
-      "Acquire at least 0.01 @TSLAx with at most 10 @USDG on @XLayer for an eligible DE holder",
+      "Acquire at least 0.01 @TSLAx with at most 10 @USDG on @XLayer",
     );
     expect(within(screen.getByTestId("intent-goal-highlight")).getByText("@TSLAx")).toBeVisible();
   });
