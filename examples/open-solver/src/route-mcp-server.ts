@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import { REFERENCE_CAPABILITY_DECLARATION } from "./route-tool";
 import { solve } from "./strategy";
+import { preflightXLayerTransaction } from "./transaction-decision";
 
 function requiredOption(args: readonly string[], name: string) {
   const index = args.indexOf(name);
@@ -39,6 +40,14 @@ serveStdio(() => {
     description: "Construct a canonical decision for this MCP server's immutable signed intent.",
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   }, async () => result(SolverDecisionV1Schema.parse(await solve(intent))));
+  server.registerTool("replay", {
+    title: "Preflight a Cobia transaction candidate",
+    description: "Optionally fork-replay a complete transaction candidate before submission.",
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+    inputSchema: z.object({ decisionJson: z.string().min(2) }).strict(),
+  }, async ({ decisionJson }) => result(await preflightXLayerTransaction(
+    intent, SolverDecisionV1Schema.parse(JSON.parse(decisionJson)),
+  )));
   server.registerTool("exact_call", {
     title: "Validate an open-lane exact-call candidate",
     description: "Validate a transaction-program candidate researched by the solver before returning it.",

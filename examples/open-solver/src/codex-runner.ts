@@ -49,7 +49,8 @@ function runtimeEnvironment() {
 
 function routeEnvironment() {
   return Object.fromEntries([
-    "XLAYER_RPC_URL", "ETHEREUM_RPC_URL", "COBIA_EXECUTOR_V3_ADDRESS", "ANVIL_PORT",
+    "XLAYER_RPC_URL", "ETHEREUM_RPC_URL", "BASE_RPC_URL", "COBIA_EXECUTOR_V3_ADDRESS",
+    "GENERAL_ASSET_V4_CONFIG_JSON", "OKX_API_KEY", "OKX_SECRET_KEY", "OKX_PASSPHRASE", "ANVIL_PORT",
   ].flatMap((name) => process.env[name] ? [[name, process.env[name]!]] : []));
 }
 
@@ -65,7 +66,7 @@ export function solverCodexConfig(job: CodexJob) {
           "--intent", job.intentPath],
         cwd: repositoryRoot,
         env: routeEnvironment(),
-        enabled_tools: ["intent", "capabilities", "solve", "exact_call"],
+        enabled_tools: ["intent", "capabilities", "solve", "replay", "exact_call"],
         default_tools_approval_mode: "approve",
         required: true,
         startup_timeout_sec: 20,
@@ -105,6 +106,19 @@ function parseDecision(text: string | undefined): SolverDecisionV1 {
   const parsed = SolverDecisionV1Schema.safeParse(value);
   if (!parsed.success) throw new Error(`Codex solver decision is invalid: ${parsed.error.message}`);
   return parsed.data;
+}
+
+function completedRouteDecision(event: ThreadEvent): SolverDecisionV1 | undefined {
+  if (event.type !== "item.completed" || event.item.type !== "mcp_tool_call" ||
+      event.item.server !== "cobia_route" ||
+      !["solve", "replay", "exact_call"].includes(event.item.tool) ||
+      event.item.status !== "completed") return;
+  const block = event.item.result?.content.find((item) => item.type === "text");
+  if (!block || block.type !== "text") return;
+  try {
+    const decision = SolverDecisionV1Schema.parse(JSON.parse(block.text));
+    return decision.decision === "submit" ? decision : undefined;
+  } catch { return undefined; }
 }
 
 function tokenCount(usage: Usage) {
@@ -174,12 +188,19 @@ export async function runCodexSolver(input: {
     const timer = setTimeout(() => controller.abort(), remainingMs);
     let finalMessage: string | undefined;
     let turnUsage: Usage | undefined;
+    let routeDecision: SolverDecisionV1 | undefined;
     try {
       const turn = await thread.runStreamed(prompt, { outputSchema, signal: controller.signal });
       for await (const event of turn.events) {
         const visible = publicCodexEvent(event);
         if (visible) input.emit(visible);
         if (event.type === "thread.started") threadId = event.thread_id;
+        routeDecision = completedRouteDecision(event) ?? routeDecision;
+        if (routeDecision) {
+          decision = routeDecision;
+          controller.abort();
+          break;
+        }
         if (event.type === "item.completed" && event.item.type === "agent_message") {
           finalMessage = event.item.text;
         }
@@ -198,6 +219,10 @@ export async function runCodexSolver(input: {
     } finally {
       clearTimeout(timer);
       input.signal?.removeEventListener("abort", abortForShutdown);
+    }
+    if (routeDecision) {
+      usage.turns += 1;
+      break;
     }
     if (!turnUsage) throw new Error("Codex solver turn did not report usage");
     decision = parseDecision(finalMessage);

@@ -115,9 +115,15 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       COBIA_MODEL: ${COBIA_MODEL}
       REFERENCE_SOLVER_PRIVATE_KEY: ${REFERENCE_SOLVER_PRIVATE_KEY}
+      OKX_API_KEY: ${OKX_API_KEY}
+      OKX_SECRET_KEY: ${OKX_SECRET_KEY}
+      OKX_PASSPHRASE: ${OKX_PASSPHRASE}
       COBIA_EXECUTOR_V3_ADDRESS: ${COBIA_EXECUTOR_V3_ADDRESS}
+      GENERAL_ASSET_V4_CONFIG_JSON: ${GENERAL_ASSET_V4_CONFIG_JSON}
       XLAYER_RPC_URL: ${XLAYER_RPC_URL}
       ETHEREUM_RPC_URL: ${ETHEREUM_RPC_URL}
+      BASE_RPC_URL: ${BASE_RPC_URL}
+      COBIA_SOLVER_PREFLIGHT_REPLAY: "false"
     volumes:
       - codex-auth:/auth/codex
       - ./config.production.toml:/auth/codex/config.toml:ro
@@ -148,6 +154,8 @@ services:
       GENERAL_ASSET_V4_CONFIG_JSON: ${GENERAL_ASSET_V4_CONFIG_JSON}
       XLAYER_RPC_URL: ${XLAYER_RPC_URL}
       ETHEREUM_RPC_URL: ${ETHEREUM_RPC_URL}
+      BASE_RPC_URL: ${BASE_RPC_URL}
+      COBIA_SOLVER_PREFLIGHT_REPLAY: "false"
     volumes:
       - ./config.production.reference.toml:/auth/codex/config.toml:ro
       - solver-state:/var/lib/cobia-solver

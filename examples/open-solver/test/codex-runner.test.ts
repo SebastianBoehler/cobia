@@ -1,4 +1,5 @@
 import { mkdtemp, readFile } from "node:fs/promises";
+import type { ThreadEvent } from "@openai/codex-sdk";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -43,7 +44,7 @@ describe("Codex solver runner", () => {
     expect(config.mcp_servers.cobia_route).toMatchObject({
       required: true,
       default_tools_approval_mode: "approve",
-      enabled_tools: ["intent", "capabilities", "solve", "exact_call"],
+      enabled_tools: ["intent", "capabilities", "solve", "replay", "exact_call"],
       args: expect.arrayContaining(["--intent", "/jobs/intent/intent.json"]),
     });
     expect(config.mcp_servers.cobia_route.env).not.toHaveProperty("REFERENCE_SOLVER_PRIVATE_KEY");
@@ -87,6 +88,43 @@ describe("Codex solver runner", () => {
         inputTokens: 10, cachedInputTokens: 2, outputTokens: 4, reasoningOutputTokens: 1,
       } },
     ]);
+  });
+
+  it("returns a submitted route plugin decision without waiting for another model turn", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "cobia-codex-plugin-submit-test-"));
+    const hash = (byte: string) => `0x${byte.repeat(64)}`;
+    const pluginDecision = {
+      version: 1, decision: "submit", proposalKind: "transaction-program",
+      program: { version: 1, programId: "550e8400-e29b-41d4-a716-446655440091",
+        requestId: "550e8400-e29b-41d4-a716-446655440000", policyHash: hash("1"),
+        owner: "0x1111111111111111111111111111111111111111", createdAt: 100,
+        deadline: 200, maxEvidenceAgeSec: 300, stages: [{ id: "01-research",
+          kind: "research", chainId: 196, dependsOn: [], plugin: "okx.dex@1",
+          sourceHash: hash("2"), reasonCode: "ROUTE_BUILT" }] },
+      providerArtifacts: { version: 1, artifacts: [] },
+      provenance: { version: 1, runner: "agentic-plugin@1", dependencies: [],
+        sources: [], commandHashes: [], generatedFiles: [] },
+    };
+    async function* pluginEvents() {
+      yield { type: "thread.started", thread_id: "thread-plugin-submit" } as const;
+      yield { type: "item.completed", item: { id: "solve-submit", type: "mcp_tool_call",
+        server: "cobia_route", tool: "solve", arguments: {}, status: "completed",
+        result: { content: [{ type: "text", text: JSON.stringify(pluginDecision) }],
+          structured_content: null },
+      } } as ThreadEvent;
+    }
+
+    const result = await runCodexSolver({
+      job: { cwd, intentPath: join(cwd, "intent.json"),
+        decisionPath: join(cwd, "decision.json"), prompt: "solve" },
+      timeoutMs: 10_000,
+      exploration: { riskLevel: "balanced", maxTurns: 2, maxTotalTokens: 1_000 },
+      codex: { startThread: () => ({ runStreamed: async () => ({ events: pluginEvents() }) }) },
+      emit: vi.fn(),
+    });
+
+    expect(result).toMatchObject({ decision: pluginDecision,
+      usage: { turns: 1, totalTokens: 0, stopReason: "submitted" } });
   });
 
   it("fails rather than falling back when Codex emits no canonical decision", async () => {

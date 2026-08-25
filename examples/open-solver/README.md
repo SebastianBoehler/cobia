@@ -48,8 +48,10 @@ MCP. Every run logs its Codex thread id and the active `COBIA_MODEL`.
 
 Use `COBIA_MODEL=deepseek/deepseek-v4-flash-0731` and provide
 `OPENROUTER_API_KEY` plus `OKX_API_KEY`, `OKX_SECRET_KEY`, and
-`OKX_PASSPHRASE` in `.env`. The OKX credentials are held by the host-side
-deterministic builder and are excluded from Codex and route-tool environments.
+`OKX_PASSPHRASE` in `.env`. The isolated route plugin receives the OKX
+credentials, but Codex has no shell access or environment-reading tool. Set
+`COBIA_SOLVER_PREFLIGHT_REPLAY=true` only when deterministic preflight diagnostics
+are wanted; production leaves it disabled because the verifier performs the authoritative replay.
 
 The host process alone holds `REFERENCE_SOLVER_PRIVATE_KEY`. Codex receives no
 wallet provider or transaction-send method, and the shell environment policy
