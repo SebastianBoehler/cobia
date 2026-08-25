@@ -45,6 +45,14 @@ function receiptToken(inputToken: Address): Address {
   return entry.aToken.address.toLowerCase() as Address;
 }
 
+function receiptExitStageCount(inputs: Array<{ token: Address }>, outputToken: Address): number {
+  return inputs.filter(({ token }) => {
+    const receipt = Object.values(PROTOCOL_REGISTRY.aaveV3.assets).find(({ aToken }) =>
+      isAddressEqual(aToken.address, token));
+    return receipt && !isAddressEqual(receipt.underlying.address, outputToken);
+  }).length;
+}
+
 function outcome(input: LegacyBuildInput) {
   const amount = positive(input.inputAtomic, "Input");
   if (input.templateId === "aave-supply") {
@@ -89,7 +97,8 @@ export function buildOpenIntentPolicyV3(input: BuildInput): OpenIntentPolicyV3 {
     if (!Number.isInteger(minimumStages) || minimumStages < 1 || minimumStages > 8) {
       throw new Error("Minimum stages must be between 1 and 8");
     }
-    const stageLimit = Math.max(inputs.length, minimumStages);
+    const stageLimit = Math.max(inputs.length + receiptExitStageCount(inputs, input.outputToken),
+      minimumStages);
     return OpenIntentPolicyV3Schema.parse({
       version: 3, kind: "open-onchain", requestId: input.requestId,
       displayGoal: input.displayGoal.trim(), owner: input.owner.toLowerCase(),

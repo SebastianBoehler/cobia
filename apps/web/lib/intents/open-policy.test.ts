@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { INTENT_ASSETS, NATIVE_INTENT_ASSET } from "./capability-templates";
 import { buildOpenIntentPolicyV3 } from "./open-policy";
+import { USDT_A_TOKEN } from "../chain/xlayer";
 
 const common = {
   requestId: "550e8400-e29b-41d4-a716-446655440000",
@@ -55,6 +56,20 @@ describe("open intent policy builder", () => {
 
     expect(policy.limits).toMatchObject({ minimumStages: 2, maxStages: 2,
       maxTransactions: 2, maxApprovals: 2 });
+  });
+
+  it("allows a receipt-token conversion to withdraw before swapping", () => {
+    const policy = buildOpenIntentPolicyV3({
+      ...common,
+      templateId: "staged-conversion",
+      inputs: [{ token: USDT_A_TOKEN, maximumAtomic: "9983" }],
+      outputToken: NATIVE_INTENT_ASSET.address,
+      minimumOutputAtomic: "83179035493198",
+    });
+
+    expect(policy.limits).toMatchObject({ maxStages: 2,
+      maxTransactions: 2, maxApprovals: 1 });
+    expect(policy.limits).not.toHaveProperty("minimumStages");
   });
 
   it("binds an RWA request to a registered instrument without choosing a route", () => {
