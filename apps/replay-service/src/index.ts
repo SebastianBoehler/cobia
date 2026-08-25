@@ -1,11 +1,13 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { authorized } from "./auth";
+import { ReplayCapacity, ReplayQueueFullError } from "./capacity";
 import { readReplayServiceConfig } from "./config";
 import { replayAtPath } from "./replay";
 
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
+const MAX_QUEUED_REPLAYS = 16;
 const config = readReplayServiceConfig();
-let active = 0;
+const capacity = new ReplayCapacity(config.REPLAY_MAX_CONCURRENCY, MAX_QUEUED_REPLAYS);
 
 function json(response: ServerResponse, status: number, body: unknown) {
   response.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" });
@@ -26,7 +28,7 @@ async function body(request: IncomingMessage) {
 
 const server = createServer(async (request, response) => {
   if (request.method === "GET" && request.url === "/healthz") {
-    return json(response, 200, { ok: true, active, capacity: config.REPLAY_MAX_CONCURRENCY });
+    return json(response, 200, { ok: true, ...capacity.snapshot() });
   }
   if (request.method !== "POST" ||
       !["/v1/replays/transaction", "/v1/replays/capability", "/v1/replays/asset-evidence",
@@ -37,19 +39,20 @@ const server = createServer(async (request, response) => {
   if (!authorized(request.headers.authorization, config.REPLAY_SERVICE_SECRET)) {
     return json(response, 401, { error: "unauthorized" });
   }
-  if (active >= config.REPLAY_MAX_CONCURRENCY) {
-    return json(response, 503, { error: "replay_capacity_exhausted" });
-  }
-  active += 1;
+  let release: (() => void) | undefined;
   try {
+    release = await capacity.acquire();
     const input = await body(request);
     const result = await replayAtPath(request.url!, input, config);
     return json(response, 200, result);
   } catch (error) {
+    if (error instanceof ReplayQueueFullError) {
+      return json(response, 503, { error: "replay_capacity_exhausted" });
+    }
     const message = error instanceof Error ? error.message : "Replay failed";
     return json(response, 422, { error: "replay_failed", message });
   } finally {
-    active -= 1;
+    release?.();
   }
 });
 
