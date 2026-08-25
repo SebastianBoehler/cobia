@@ -84,7 +84,6 @@ export function createOkxGeneralAssetEligibilityV2(deps: Dependencies,
     try {
       const nowSec = deps.nowSec();
       const behaviorVerification = options.behaviorVerification ?? "required";
-      const requiresFreshMarket = input.inputAtomic !== undefined || behaviorVerification === "required";
       if (input.inputAtomic !== undefined && !/^[1-9][0-9]*$/.test(input.inputAtomic)) {
         return { status: "unsupported" as const, reason: "Input amount must be a positive atomic value." };
       }
@@ -103,8 +102,11 @@ export function createOkxGeneralAssetEligibilityV2(deps: Dependencies,
         return { status: "unsupported" as const, reason: "Token chain, address, or decimals do not match." };
       }
       const marketSec = Math.floor(new Date(market.marketDataAt).getTime() / 1_000);
-      if (requiresFreshMarket && (!Number.isSafeInteger(marketSec) || marketSec > nowSec ||
-          nowSec - marketSec > MARKET_MAX_AGE_SEC)) {
+      const marketIsFresh = Number.isSafeInteger(marketSec) && marketSec <= nowSec &&
+        nowSec - marketSec <= MARKET_MAX_AGE_SEC;
+      const requiresFreshMarket = behaviorVerification === "required" ||
+        (input.inputAtomic !== undefined && !executable);
+      if (requiresFreshMarket && !marketIsFresh) {
         return { status: "verification_pending" as const, reason: "Authenticated OKX evidence is stale." };
       }
       if (behaviorVerification === "required" && !market.topHolderAddresses[0]) {
@@ -120,7 +122,7 @@ export function createOkxGeneralAssetEligibilityV2(deps: Dependencies,
         return { status: "verification_pending" as const, reason: "Authenticated OKX quote is stale or mismatched." };
       }
       const expiresAtSec = Math.min(captured.anchor.expiresAtSec,
-        requiresFreshMarket ? marketSec + MARKET_MAX_AGE_SEC : Number.MAX_SAFE_INTEGER,
+        input.inputAtomic && marketIsFresh ? marketSec + MARKET_MAX_AGE_SEC : Number.MAX_SAFE_INTEGER,
         executable ? executableSec + 30 : Number.MAX_SAFE_INTEGER);
       if (expiresAtSec <= nowSec) {
         return { status: "verification_pending" as const, reason: "Authenticated OKX evidence is stale." };
@@ -167,13 +169,13 @@ export function createOkxGeneralAssetEligibilityV2(deps: Dependencies,
         referenceAsset: usdValuationAsset, trustedReferenceAssets: [usdValuationAsset],
         minimumLiquidityUsdE8: deps.minimumLiquidityUsdE8 ?? DEFAULT_MINIMUM_LIQUIDITY_USD_E8,
         maximumDisagreementBps: 500,
-        quotes: [{ adapter: { id: "okx.market", version: 1 },
+        quotes: [...(marketIsFresh ? [{ adapter: { id: "okx.market", version: 1 },
           outputAtomic: ((BigInt(inputAtomic) * priceUsdE8 +
             10n ** BigInt(market.decimals) - 1n) / 10n ** BigInt(market.decimals)).toString(),
           assetDecimals: market.decimals, unitPriceUsdE8: priceUsdE8.toString(),
           liquidityUsdE8: liquidityUsdE8.toString(), priceImpactBps: 0,
           fetchedAtSec: marketSec, expiresAtSec,
-          quoteHash: commitment({ provider: "okx.market@1", market, inputAtomic }) as Hash },
+          quoteHash: commitment({ provider: "okx.market@1", market, inputAtomic }) as Hash }] : []),
         ...(executableQuote ? [executableQuote] : [])],
       }, captured.anchor.capturedAtSec, expiresAtSec, nowSec);
       if (valuation.errorCodes.length || !valuation.evidence) {

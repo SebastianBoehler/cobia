@@ -72,6 +72,21 @@ describe("OKX general asset eligibility", () => {
     expect(deps.replayProbe).not.toHaveBeenCalled();
   });
 
+  it("uses a fresh executable quote when draft market metadata is stale", async () => {
+    const deps = dependencies();
+    deps.market.getTokenEvidence.mockResolvedValue({
+      ...(await deps.market.getTokenEvidence()),
+      marketDataAt: new Date((deps.nowSec() - 121) * 1_000).toISOString(),
+    });
+
+    const result = await createOkxGeneralAssetEligibilityV2(deps, {
+      behaviorVerification: "deferred",
+    }).eligibility({ chainId: 1, token, inputAtomic: "1000000000000000000" });
+
+    expect(result).toMatchObject({ status: "eligible",
+      valuationEvidence: { conservativeValueUsdE8: "249000000" } });
+  });
+
   it("values the X Layer USD unit without requesting a self-swap", async () => {
     const deps = dependencies();
     const reference = "0x779ded0c9e1022225f8e0630b35a9b54be713736" as const;
