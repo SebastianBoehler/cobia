@@ -1,7 +1,7 @@
-import type { Address } from "viem";
+import { isAddressEqual, type Address } from "viem";
 import {
-  CAPABILITY_TEMPLATES, INTENT_ASSETS, RWA_INTENT_ASSETS, atomicLabel,
-  NATIVE_INTENT_ASSET, type CapabilityTemplateId, type IntentReceiptValues,
+  CAPABILITY_TEMPLATES, CONVERSION_INTENT_ASSETS, INTENT_ASSETS, RWA_INTENT_ASSETS, atomicLabel,
+  type CapabilityTemplateId, type IntentReceiptValues,
 } from "../../lib/intents/capability-templates";
 
 export type ReceiptValues = IntentReceiptValues;
@@ -12,11 +12,11 @@ export function PolicyReceiptEditor({ values, owner, onChange }: {
   onChange(values: ReceiptValues): void;
 }) {
   const rwa = values.templateId === "rwa-acquisition";
-  const inputOptions = rwa ? [NATIVE_INTENT_ASSET, ...INTENT_ASSETS] : INTENT_ASSETS;
-  const input = inputOptions.find(({ address }) => address === values.inputToken) ?? inputOptions[0]!;
+  const inputOptions = values.templateId === "aave-supply" ? INTENT_ASSETS : CONVERSION_INTENT_ASSETS;
+  const input = inputOptions.find(({ address }) => isAddressEqual(address, values.inputToken)) ?? inputOptions[0]!;
   const output = rwa
-    ? RWA_INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? RWA_INTENT_ASSETS[0]
-    : INTENT_ASSETS.find(({ address }) => address === values.outputToken) ?? INTENT_ASSETS[1];
+    ? RWA_INTENT_ASSETS.find(({ address }) => isAddressEqual(address, values.outputToken)) ?? RWA_INTENT_ASSETS[0]
+    : CONVERSION_INTENT_ASSETS.find(({ address }) => isAddressEqual(address, values.outputToken)) ?? INTENT_ASSETS[1];
   const instrument = rwa && "instrument" in output ? output.instrument : undefined;
   const set = <K extends keyof ReceiptValues>(key: K, value: ReceiptValues[K]) => onChange({
     ...values, [key]: value,
@@ -39,9 +39,9 @@ export function PolicyReceiptEditor({ values, owner, onChange }: {
               outputToken: INTENT_ASSETS[1]!.address, eligibilityAccepted: false, minimumSource: undefined });
         }}>{CAPABILITY_TEMPLATES.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}</select></label>
         <label>Maximum input<input inputMode="decimal" value={values.amount} onChange={(event) => set("amount", event.target.value)} /></label>
-        <label>Input asset<select value={values.inputToken} onChange={(event) => set("inputToken", event.target.value as Address)}>{inputOptions.map(({ address, symbol }) => <option key={address} value={address}>{symbol}</option>)}</select></label>
-        {values.templateId === "exact-input-swap" ? <label>Output asset<select value={values.outputToken} onChange={(event) => set("outputToken", event.target.value as Address)}>{INTENT_ASSETS.filter(({ address }) => address !== values.inputToken).map(({ address, symbol }) => <option key={address} value={address}>{symbol}</option>)}</select></label> : null}
-        {rwa ? <label>Output asset<select value={values.outputToken} onChange={(event) => {
+        <label>Input asset<select value={input.address} onChange={(event) => set("inputToken", event.target.value as Address)}>{inputOptions.map(({ address, symbol }) => <option key={address} value={address}>{symbol}</option>)}</select></label>
+        {values.templateId === "exact-input-swap" ? <label>Output asset<select value={output.address} onChange={(event) => set("outputToken", event.target.value as Address)}>{CONVERSION_INTENT_ASSETS.filter(({ address }) => !isAddressEqual(address, values.inputToken)).map(({ address, symbol }) => <option key={address} value={address}>{symbol}</option>)}</select></label> : null}
+        {rwa ? <label>Output asset<select value={output.address} onChange={(event) => {
           const outputToken = event.target.value as Address;
           onChange({ ...values, outputToken, jurisdiction: "", eligibilityAccepted: true,
             minimumSource: undefined });
